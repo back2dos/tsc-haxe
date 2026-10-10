@@ -1,0 +1,7 @@
+# tsgo command line (cmd/tsgo), native release build: tools/haxe build-cpp.hxml → bin/tsgo-cpp/Tsgo.
+# No HXCPP_CHECK_POINTER (release build).
+-cp src
+-main ts.cmd.Tsgo
+-D analyzer-optimize
+-cpp bin/tsgo-cpp
+-D HXCPP_QUIET

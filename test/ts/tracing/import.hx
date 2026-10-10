@@ -1,0 +1,16 @@
+import go.Fs.FileMode;
+import go.Fs.FileMode.*;
+import go.Fstest.MapFile;
+import go.Xxh3;
+import haxe.ds.IntMap;
+import haxe.ds.StringMap;
+import ts.ast.Ast;
+import ts.ast.AstGenerated;
+import ts.ast.Parseoptions;
+import ts.ast.Symbol;
+import ts.core.Scriptkind;
+import ts.core.Scriptkind.ScriptKind.*;
+import ts.parser.Parser;
+import ts.vfs.Vfs;
+import ts.vfs.vfstest.Vfstest;
+import ts.tracing.Tracing;

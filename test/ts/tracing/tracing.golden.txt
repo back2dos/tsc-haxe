@@ -1,0 +1,47 @@
+=== /trace/trace.json true false
+[
+{"pid":1,"tid":1,"ph":"M","cat":"__metadata","ts":1,"name":"process_name","args":{"name":"tsgo"}},
+{"pid":1,"tid":1,"ph":"M","cat":"__metadata","ts":1,"name":"thread_name","args":{"name":"Main"}},
+{"pid":1,"tid":1,"ph":"M","cat":"disabled-by-default-devtools.timeline","ts":1,"name":"TracingStartedInBrowser"},
+{"pid":1,"tid":185222318,"ph":"M","cat":"__metadata","ts":1,"name":"thread_name","args":{"name":"file:/a.ts"}},
+{"pid":1,"tid":185222318,"ph":"B","cat":"parse","ts":2,"name":"createSourceFile","args":{"path":"/a.ts"}},
+{"pid":1,"tid":1,"ph":"I","cat":"check","ts":3,"name":"inst","s":"g","args":{"a":1,"arr":[1,"x",false],"b":true,"big":1e+21,"e":1e-7,"f":1.5,"m":{"Z":3,"y":2,"z":1},"n":null,"neg":-2.25,"s":"q\"\\\n\t\u0001\u001f<>&é 😀"}},
+{"pid":1,"tid":185222318,"ph":"E","cat":"parse","ts":4,"name":"createSourceFile","args":{"path":"/a.ts"}},
+{"pid":1,"tid":486909095,"ph":"M","cat":"__metadata","ts":1,"name":"thread_name","args":{"name":"file:/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/file.ts"}},
+{"pid":1,"tid":486909095,"ph":"B","cat":"parse","ts":5,"name":"createSourceFile","args":{"fileName":"/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/file.ts"}},
+{"pid":1,"tid":486909095,"ph":"E","cat":"parse","ts":6,"name":"createSourceFile","args":{"fileName":"/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/dir/file.ts"}},
+{"pid":1,"tid":5,"ph":"M","cat":"__metadata","ts":1,"name":"thread_name","args":{"name":"checker:3"}},
+{"pid":1,"tid":5,"ph":"B","cat":"check","ts":7,"name":"checkSourceFile","args":{"checkerId":3,"path":"/a.ts"}},
+{"pid":1,"tid":5,"ph":"E","cat":"check","ts":8,"name":"checkSourceFile","args":{"checkerId":3,"path":"/a.ts"}},
+{"pid":1,"tid":559724942,"ph":"M","cat":"__metadata","ts":1,"name":"thread_name","args":{"name":"file:/x/y.d.ts"}},
+{"pid":1,"tid":559724942,"ph":"B","cat":"emit","ts":9,"name":"emit","args":{"declarationFilePath":"/x/y.d.ts","fileName":""}},
+{"pid":1,"tid":559724942,"ph":"E","cat":"emit","ts":10,"name":"emit","args":{"declarationFilePath":"/x/y.d.ts","fileName":""}},
+{"pid":1,"tid":1,"ph":"I","cat":"program","ts":11,"name":"noargs","s":"g"},
+{"pid":1,"tid":1,"ph":"I","cat":"session","ts":12,"name":"emptyargs","s":"g","args":{}},
+{"pid":1,"tid":730091941,"ph":"M","cat":"__metadata","ts":1,"name":"thread_name","args":{"name":"file:/"}},
+{"pid":1,"tid":730091941,"ph":"I","cat":"program","ts":13,"name":"p1","s":"g","args":{"path":"/"}},
+{"pid":1,"tid":660448521,"ph":"M","cat":"__metadata","ts":1,"name":"thread_name","args":{"name":"file:/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghij.ts"}},
+{"pid":1,"tid":660448521,"ph":"I","cat":"program","ts":14,"name":"p2","s":"g","args":{"path":"/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghij.ts"}}
+]
+<<<
+=== /trace/legend.json true false
+[
+  {
+    "configFilePath": "/p/tsconfig.json",
+    "tracePath": "/trace/trace.json",
+    "typesPath": "/trace/types_0.json",
+    "checkerId": 0
+  },
+  {
+    "configFilePath": "/p/tsconfig.json",
+    "tracePath": "/trace/trace.json",
+    "typesPath": "/trace/types_1.json",
+    "checkerId": 1
+  }
+]<<<
+=== /trace/types_1.json true false
+[{"id":1,"intrinsicName":"any","flags":["Any"]},
+{"id":2,"symbolName":"Foo","recursionId":0,"unionTypes":[1,0],"referenceLocation":{"path":"/src/a.ts","start":{"line":1,"character":1},"end":{"line":1,"character":11}},"destructuringPattern":{"path":"/src/a.ts","start":{"line":2,"character":3},"end":{"line":2,"character":25}},"firstDeclaration":{"path":"/src/a.ts","start":{"line":2,"character":3},"end":{"line":2,"character":25}},"flags":[],"display":"Foo<\"x\">"},
+{"id":3,"symbolName":"Bar","recursionId":0,"isTuple":true,"aliasTypeArguments":[2],"conditionalCheckType":1,"conditionalExtendsType":2,"conditionalTrueType":-1,"conditionalFalseType":-1,"flags":["Conditional","Object"]},
+{"id":4,"recursionId":1,"intersectionTypes":[3],"keyofType":1,"indexedAccessObjectType":2,"indexedAccessIndexType":3,"conditionalTrueType":2,"conditionalFalseType":3,"substitutionBaseType":1,"constraintType":2,"instantiatedType":3,"typeArguments":[1,2],"reverseMappedSourceType":1,"reverseMappedMappedType":2,"reverseMappedConstraintType":3,"evolvingArrayElementType":1,"evolvingArrayFinalType":2,"flags":[]}]
+<<<

@@ -1,0 +1,116 @@
+// Generator for test/ts/tracing/tracing.golden.txt (Go output of internal/tracing in deterministic
+// mode). It must live inside the upstream module (it imports internal packages). From the project root:
+//   mkdir upstream/tsc/internal/zzgolden && cp test/ts/tracing/tracing_golden.go.txt upstream/tsc/internal/zzgolden/main.go
+//   (cd upstream/tsc && GOTOOLCHAIN=go1.26.9 go run ./internal/zzgolden > ../../test/ts/tracing/tracing.golden.txt)
+//   rm -r upstream/tsc/internal/zzgolden
+package main
+
+import (
+	"fmt"
+	"io/fs"
+	"strings"
+	"testing/fstest"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/core"
+	"github.com/microsoft/typescript-go/internal/parser"
+	. "github.com/microsoft/typescript-go/internal/tracing"
+	"github.com/microsoft/typescript-go/internal/vfs/vfstest"
+)
+
+type fakeType struct {
+	id                                 uint32
+	flags                              []string
+	cond                               bool
+	sym, alias                         *ast.Symbol
+	aliasArgs, union, inter, refArgs   []TracedType
+	intrinsic, display                 string
+	index, objT, idxT, check, ext, tru TracedType
+	fls, subBase, subCons, refTarget   TracedType
+	revS, revM, revC, evE, evF         TracedType
+	refNode, pattern                   *ast.Node
+	tuple                              bool
+	rid                                any
+}
+
+func (f *fakeType) Id() uint32                             { return f.id }
+func (f *fakeType) FormatFlags() []string                  { return f.flags }
+func (f *fakeType) IsConditional() bool                    { return f.cond }
+func (f *fakeType) Symbol() *ast.Symbol                    { return f.sym }
+func (f *fakeType) AliasSymbol() *ast.Symbol               { return f.alias }
+func (f *fakeType) AliasTypeArguments() []TracedType       { return f.aliasArgs }
+func (f *fakeType) IntrinsicName() string                  { return f.intrinsic }
+func (f *fakeType) UnionTypes() []TracedType               { return f.union }
+func (f *fakeType) IntersectionTypes() []TracedType        { return f.inter }
+func (f *fakeType) IndexType() TracedType                  { return f.index }
+func (f *fakeType) IndexedAccessObjectType() TracedType    { return f.objT }
+func (f *fakeType) IndexedAccessIndexType() TracedType     { return f.idxT }
+func (f *fakeType) ConditionalCheckType() TracedType       { return f.check }
+func (f *fakeType) ConditionalExtendsType() TracedType     { return f.ext }
+func (f *fakeType) ConditionalTrueType() TracedType        { return f.tru }
+func (f *fakeType) ConditionalFalseType() TracedType       { return f.fls }
+func (f *fakeType) SubstitutionBaseType() TracedType       { return f.subBase }
+func (f *fakeType) SubstitutionConstraintType() TracedType { return f.subCons }
+func (f *fakeType) ReferenceTarget() TracedType            { return f.refTarget }
+func (f *fakeType) ReferenceTypeArguments() []TracedType   { return f.refArgs }
+func (f *fakeType) ReferenceNode() *ast.Node               { return f.refNode }
+func (f *fakeType) ReverseMappedSourceType() TracedType    { return f.revS }
+func (f *fakeType) ReverseMappedMappedType() TracedType    { return f.revM }
+func (f *fakeType) ReverseMappedConstraintType() TracedType { return f.revC }
+func (f *fakeType) EvolvingArrayElementType() TracedType   { return f.evE }
+func (f *fakeType) EvolvingArrayFinalType() TracedType     { return f.evF }
+func (f *fakeType) IsTuple() bool                          { return f.tuple }
+func (f *fakeType) Pattern() *ast.Node                     { return f.pattern }
+func (f *fakeType) RecursionIdentity() any                 { return f.rid }
+func (f *fakeType) Display() string                        { return f.display }
+
+func main() {
+	fsys := vfstest.FromMap(fstest.MapFS{"/trace": &fstest.MapFile{Mode: fs.ModeDir}}, true)
+	tr, err := StartTracing(fsys, "/trace", "/p/tsconfig.json", true)
+	if err != nil {
+		panic(err)
+	}
+	endA := tr.Push(PhaseParse, "createSourceFile", map[string]any{"path": "/a.ts"}, true)
+	tr.Instant(PhaseCheck, "inst", map[string]any{"b": true, "a": 1, "f": 1.5, "s": "q\"\\\n\t\x01\x1f\x7f<>&é 😀", "n": nil, "e": 1e-7, "big": 1e21, "neg": -2.25, "arr": []any{1, "x", false}, "m": map[string]any{"z": 1, "y": 2, "Z": 3}})
+	endA()
+	tr.Push(PhaseBind, "sampled", nil, false)()
+	long := "/" + strings.Repeat("dir/", 70) + "file.ts"
+	endL := tr.Push(PhaseParse, "createSourceFile", map[string]any{"fileName": long}, true)
+	endL()
+	endC := tr.Push(PhaseCheck, "checkSourceFile", map[string]any{"checkerId": 3, "path": "/a.ts"}, true)
+	endC()
+	endE := tr.Push(PhaseEmit, "emit", map[string]any{"fileName": "", "declarationFilePath": "/x/y.d.ts"}, true)
+	endE()
+	tr.Instant(PhaseProgram, "noargs", nil)
+	tr.Instant(PhaseSession, "emptyargs", map[string]any{})
+	tr.Instant(PhaseProgram, "p1", map[string]any{"path": "/"})
+	tr.Instant(PhaseProgram, "p2", map[string]any{"path": "/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghijklmnopqrstuvwxyz/0123456789/abcdefghij.ts"})
+
+	file := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/src/a.ts", Path: "/src/a.ts"}, "let x = 1;\n  let y: string = 'é😀';\n", core.ScriptKindTS)
+	s0 := file.Statements.Nodes[0]
+	s1 := file.Statements.Nodes[1]
+	sym := &ast.Symbol{Name: "Foo", Declarations: []*ast.Node{s1}}
+	alias := &ast.Symbol{Name: "Bar"}
+
+	t1 := &fakeType{id: 1, flags: []string{"Any"}, intrinsic: "any"}
+	t2 := &fakeType{id: 2, flags: nil, sym: sym, rid: sym, display: "Foo<\"x\">", union: []TracedType{t1, nil}, refNode: s0, pattern: s1}
+	t3 := &fakeType{id: 3, flags: []string{"Conditional", "Object"}, cond: true, check: t1, ext: t2, alias: alias, aliasArgs: []TracedType{t2}, rid: sym, tuple: true}
+	t4 := &fakeType{id: 4, flags: []string{}, cond: true, tru: t2, fls: t3, index: t1, objT: t2, idxT: t3, subBase: t1, subCons: t2, refTarget: t3, refArgs: []TracedType{t1, t2}, revS: t1, revM: t2, revC: t3, evE: t1, evF: t2, inter: []TracedType{t3}, rid: alias}
+
+	tt1 := tr.NewTypeTracer(1)
+	tt0 := tr.NewTypeTracer(0)
+	tt1.RecordType(t1)
+	tt1.RecordType(t2)
+	tt1.RecordType(t3)
+	tt1.RecordType(t4)
+	_ = tt0
+
+	if err := tr.StopTracing(); err != nil {
+		panic(err)
+	}
+	for _, p := range []string{"/trace/trace.json", "/trace/legend.json", "/trace/types_1.json"} {
+		text, ok := fsys.ReadFile(p)
+		_, ok0 := fsys.ReadFile("/trace/types_0.json")
+		fmt.Printf("=== %s %v %v\n%s<<<\n", p, ok, ok0, text)
+	}
+}

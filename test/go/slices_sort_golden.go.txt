@@ -1,0 +1,149 @@
+// Generator for test/go/slices_sort.golden.txt (Go's slices.SortFunc / SortStableFunc / Sort
+// element order with ties). Std only. Regenerate from the project root:
+//
+//   mkdir -p /tmp/gosort && cp test/go/slices_sort_golden.go.txt /tmp/gosort/main.go && \
+//     (cd /tmp/gosort && GOTOOLCHAIN=go1.26.9 go run main.go) > test/go/slices_sort.golden.txt
+//
+// test/go/SlicesSortTest.hx builds the same inputs with the same xorshift32 generator.
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"math"
+	"os"
+	"slices"
+	"sort"
+	"strings"
+)
+
+type rec struct{ key, id int }
+
+var rng uint32 = 2463534242
+
+func next() uint32 {
+	rng ^= rng << 13
+	rng ^= rng >> 17
+	rng ^= rng << 5
+	return rng
+}
+
+func rnd(k int) int { return int((next() >> 8) % uint32(k)) }
+
+const numPatterns = 9
+
+func gen(n, pat int) []rec {
+	x := make([]rec, n)
+	for i := range x {
+		var k int
+		switch pat {
+		case 0: // random, few distinct keys
+			k = rnd(3)
+		case 1: // random, about n/2 distinct keys
+			k = rnd(n/2 + 1)
+		case 2: // sorted with runs of ties
+			k = i / 3
+		case 3: // reversed with runs of ties
+			k = (n - i) / 3
+		case 4: // all equal
+			k = 7
+		case 5: // sawtooth
+			k = i % 7
+		case 6: // organ pipe
+			k = min(i, n-i) / 2
+		case 7: // nearly sorted
+			k = i / 2
+		case 8: // random, n distinct values (ties by chance)
+			k = rnd(n)
+		}
+		x[i] = rec{k, i}
+	}
+	if pat == 7 && n > 1 {
+		for s := 0; s < 3; s++ {
+			a, b := rnd(n), rnd(n)
+			x[a], x[b] = x[b], x[a]
+		}
+	}
+	return x
+}
+
+func cmpRec(a, b rec) int { return a.key - b.key }
+
+func emit(w *bufio.Writer, kind string, n, pat int, x []rec) {
+	var h uint32 = 5381
+	for _, r := range x {
+		h = h*33 + uint32(r.id)
+	}
+	fmt.Fprintf(w, "%s %d %d %08X", kind, n, pat, h)
+	if n <= 100 {
+		for _, r := range x {
+			fmt.Fprintf(w, " %d", r.id)
+		}
+	}
+	fmt.Fprintln(w)
+}
+
+func main() {
+	w := bufio.NewWriter(os.Stdout)
+	defer w.Flush()
+	lengths := []int{}
+	for n := 0; n <= 300; n++ {
+		lengths = append(lengths, n)
+	}
+	lengths = append(lengths, 1000, 5000, 20000)
+	for _, n := range lengths {
+		for pat := 0; pat < numPatterns; pat++ {
+			x := gen(n, pat)
+			y := slices.Clone(x)
+			slices.SortFunc(x, cmpRec)
+			emit(w, "U", n, pat, x)
+			slices.SortStableFunc(y, cmpRec)
+			emit(w, "S", n, pat, y)
+		}
+	}
+	// slices.Sort on floats: NaN first, -0 and 0 compare equal (their order is observable).
+	for n := 0; n <= 200; n += 7 {
+		f := make([]float64, n)
+		for i := range f {
+			switch rnd(5) {
+			case 0:
+				f[i] = math.NaN()
+			case 1:
+				f[i] = math.Copysign(0, -1)
+			case 2:
+				f[i] = 0
+			default:
+				f[i] = float64(rnd(5) - 2)
+			}
+		}
+		slices.Sort(f)
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "F %d", n)
+		for _, v := range f {
+			switch {
+			case v != v:
+				sb.WriteString(" N")
+			case v == 0 && math.Signbit(v):
+				sb.WriteString(" -0")
+			default:
+				fmt.Fprintf(&sb, " %d", int(v))
+			}
+		}
+		fmt.Fprintln(w, sb.String())
+	}
+	// sort.Strings (= slices.Sort): code-point order, including astral vs high-BMP characters.
+	pool := []string{"a", "b", "", "ab", "￿", "\U0001F600", "é", "Z", "a\U0001F600", "a￿"}
+	for n := 0; n <= 100; n += 5 {
+		s := make([]string, n)
+		for i := range s {
+			s[i] = pool[rnd(len(pool))]
+		}
+		sort.Strings(s)
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "T %d", n)
+		for _, v := range s {
+			fmt.Fprintf(&sb, " %d", slices.Index(pool, v))
+		}
+		fmt.Fprintln(w, sb.String())
+	}
+}

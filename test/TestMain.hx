@@ -1,0 +1,53 @@
+class TestMain {
+	static function main() {
+		go.SlicesSortTest.run();
+		ts.diagnostics.DiagnosticsTest.run();
+		ts.debug.DebugTest.run();
+		ts.stringutil.StringutilTest.run();
+		ts.semver.SemverTest.run();
+		ts.glob.GlobTest.run();
+		ts.tspath.TspathTest.run();
+		ts.collections.CollectionsTest.run();
+		ts.jsnum.JsnumTest.run();
+		ts.core.CoreTest.run();
+		ts.vfs.internal.InternalTest.run();
+		ts.vfs.vfstest.VfstestTest.run();
+		ts.vfs.iovfs.IovfsTest.run();
+		ts.vfs.cachedvfs.CachedvfsTest.run();
+		ts.vfs.vfsmock.VfsmockTest.run();
+		ts.vfs.osvfs.OsvfsTest.run();
+		ts.vfs.vfsmatch.VfsmatchTest.run();
+		ts.bundled.BundledTest.run();
+		ts.ast.AstTest.run();
+		ts.ast.UtilitiesTest.run();
+		ts.ast.UtilitiesGolden.run();
+		ts.scanner.ScannerTest.run();
+		ts.parser.ParserTest.run();
+		ts.astnav.AstnavTest.run();
+		ts.tracing.TracingTest.run();
+		ts.tsoptions.TsoptionsTest.run();
+		ts.modulespecifiers.ModulespecifiersTest.run();
+		ts.printer.PrinterTest.run();
+		ts.printer.NamegeneratorTest.run();
+		ts.printer.UtilitiesTest.run();
+		ts.transformers.tstransforms.TypeeraserTest.run();
+		ts.transformers.tstransforms.ImportelisionTest.run();
+		ts.compiler.CompilerTest.run();
+		ts.testrunner.TestrunnerTest.run();
+		ts.testutil.baseline.BaselineTest.run();
+		ts.execute.ExecuteTest.run();
+		ts.execute.incremental.IncrementalTest.run();
+		ts.packagejson.PackagejsonTest.run();
+		ts.module.ModuleTest.run();
+		ts.symlinks.SymlinksTest.run();
+		ts.outputpaths.OutputpathsTest.run();
+		ts.evaluator.EvaluatorTest.run();
+		ts.sourcemap.GeneratorTest.run();
+		ts.sourcemap.SourcemapGoldenTest.run();
+		ts.diagnosticwriter.DiagnosticwriterTest.run();
+		ts.nodebuilder.NodebuilderTest.run();
+		ts.pseudochecker.PseudocheckerTest.run();
+		Sys.println('${T.checks} checks, ${T.failures} failures');
+		Sys.exit(T.failures == 0 ? 0 : 1);
+	}
+}

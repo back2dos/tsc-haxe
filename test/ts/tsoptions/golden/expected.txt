@@ -1,0 +1,187 @@
+### empty config
+{
+    "compilerOptions": {},
+    "files": [
+        "./a.ts"
+    ]
+}
+wildcard: /home/src/project true
+### module nodenext implies resolution
+{
+    "compilerOptions": {
+        "lib": [
+            "es2022",
+            "dom"
+        ],
+        "module": "nodenext",
+        "outDir": "./dist",
+        "paths": {
+            "@a/*": [
+                "./src/a/*"
+            ]
+        },
+        "rootDir": "./src",
+        "strict": true,
+        "target": "es2022",
+        "types": [
+            "node"
+        ],
+        "maxNodeModuleJsDepth": 3,
+        "moduleResolution": "nodenext",
+        "moduleDetection": "force"
+    },
+    "files": [
+        "./src/index.ts",
+        "./src/a/b.ts"
+    ],
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "src/ignored"
+    ]
+}
+wildcard: /home/src/project/src true
+### composite with references
+{
+    "compilerOptions": {
+        "composite": true,
+        "declarationMap": true,
+        "jsx": "react-jsx",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "verbatimModuleSyntax": true,
+        "isolatedModules": true,
+        "preserveConstEnums": true,
+        "declaration": true,
+        "incremental": true
+    },
+    "references": [
+        {
+            "path": "../lib"
+        },
+        {
+            "path": "../other",
+            "circular": true
+        }
+    ],
+    "files": [
+        "./main.tsx"
+    ]
+}
+### checkJs and rewrite extensions
+{
+    "compilerOptions": {
+        "checkJs": true,
+        "customConditions": [
+            "dev"
+        ],
+        "declarationDir": "./types",
+        "moduleDetection": "force",
+        "newLine": "crlf",
+        "noEmit": false,
+        "rewriteRelativeImportExtensions": true,
+        "rootDirs": [
+            "./a",
+            "./b"
+        ],
+        "target": "es5",
+        "tsBuildInfoFile": "./build/.tsbuildinfo",
+        "typeRoots": [
+            "./typings"
+        ],
+        "module": "commonjs",
+        "useDefineForClassFields": false,
+        "allowJs": true,
+        "allowImportingTsExtensions": true
+    },
+    "files": [
+        "./cé \"q\"\t<&>.ts",
+        "./a/x.js",
+        "./b/y.ts"
+    ],
+    "exclude": [
+        "/home/src/project/types"
+    ]
+}
+wildcard: /home/src/project true
+### extends and target only
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "resolveJsonModule": true,
+        "target": "esnext",
+        "useDefineForClassFields": false,
+        "esModuleInterop": true
+    },
+    "files": [
+        "./index.ts"
+    ]
+}
+wildcard: /home/src/project true
+### json values
+{"s":"a\"b\\c\u0000\u0001\b\t\n\f\r\u001f<>&  é😀/","f":[1,1e+21,100000000000000000000,1e-7,0.000001,123.456,0.1,1.5e+300,5e-324,-2.5,12345678,0.000123],"i":[0,-7,2147483647],"b":[true,false,null],"e":[[],{},[]]}
+{
+  "s": "a\"b\\c\u0000\u0001\b\t\n\f\r\u001f<>&  é😀/",
+  "f": [
+    1,
+    1e+21,
+    100000000000000000000,
+    1e-7,
+    0.000001,
+    123.456,
+    0.1,
+    1.5e+300,
+    5e-324,
+    -2.5,
+    12345678,
+    0.000123
+  ],
+  "i": [
+    0,
+    -7,
+    2147483647
+  ],
+  "b": [
+    true,
+    false,
+    null
+  ],
+  "e": [
+    [],
+    {},
+    []
+  ]
+}
+{
+ 	"s": "a\"b\\c\u0000\u0001\b\t\n\f\r\u001f<>&  é😀/",
+ 	"f": [
+ 		1,
+ 		1e+21,
+ 		100000000000000000000,
+ 		1e-7,
+ 		0.000001,
+ 		123.456,
+ 		0.1,
+ 		1.5e+300,
+ 		5e-324,
+ 		-2.5,
+ 		12345678,
+ 		0.000123
+ 	],
+ 	"i": [
+ 		0,
+ 		-7,
+ 		2147483647
+ 	],
+ 	"b": [
+ 		true,
+ 		false,
+ 		null
+ 	],
+ 	"e": [
+ 		[],
+ 		{},
+ 		[]
+ 	]
+ }

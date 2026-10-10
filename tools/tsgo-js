@@ -1,0 +1,5 @@
+#!/bin/sh
+# Launcher for the JS build of tsgo (bin/tsgo.js, built with `tools/haxe build-js.hxml`).
+# Deeply nested inputs need a larger stack than node's default (docs/PORTING.md §7a).
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+exec node --stack-size=7000 "$ROOT/bin/tsgo.js" "$@"

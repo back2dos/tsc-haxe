@@ -1,0 +1,400 @@
+[
+  {
+    "name": "bundler-relative",
+    "options": {"moduleResolution": "bundler", "module": "esnext"},
+    "files": {
+      "/repo/src/a.ts": "",
+      "/repo/src/b.tsx": "",
+      "/repo/src/c.d.ts": "",
+      "/repo/src/d.js": "",
+      "/repo/src/dir/index.ts": "",
+      "/repo/src/data.json": "{}",
+      "/repo/src/e.mts": "",
+      "/repo/src/f.d.cts": "",
+      "/repo/src/g.d.css.ts": "",
+      "/repo/src/sub/package.json": {"name": "sub", "types": "./lib/main.d.ts"},
+      "/repo/src/sub/lib/main.d.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "./a", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./a.js", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./a.ts", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./b.js", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./b.jsx", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./c", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./d", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./dir", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": ".", "from": "/repo/src/dir/x.ts", "mode": "esm"},
+      {"op": "module", "name": "./data.json", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./e.mjs", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./f.cjs", "from": "/repo/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "./g.css", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./sub", "from": "/repo/src/main.ts", "mode": "none"},
+      {"op": "module", "name": "./missing", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "../nodir/x", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "node:fs", "from": "/repo/src/main.ts", "mode": "esm"}
+    ]
+  },
+  {
+    "name": "node16-exports",
+    "options": {"moduleResolution": "node16", "module": "node16"},
+    "files": {
+      "/repo/package.json": {"name": "app", "type": "module"},
+      "/repo/src/main.ts": "",
+      "/repo/node_modules/cond/package.json": {
+        "name": "cond",
+        "version": "1.2.3",
+        "exports": {
+          ".": {
+            "types@>=99": "./ts99/index.d.ts",
+            "import": {"types": "./esm/index.d.mts", "default": "./esm/index.mjs"},
+            "require": {"types": "./cjs/index.d.cts", "default": "./cjs/index.cjs"},
+            "node": "./node.js",
+            "default": "./index.js"
+          },
+          "./feature": [{"worker": "./worker.js"}, "./feature.js"],
+          "./features/*.js": "./dist/features/*.js",
+          "./utils/*": {"types": "./dist/utils/*.d.ts", "default": "./dist/utils/*.js"},
+          "./private/*": null,
+          "./dir/": "./dist/dir/",
+          "./bad": "../outside.js",
+          "./badnm": "./node_modules/x.js",
+          "./empty": [],
+          "./num": 5
+        }
+      },
+      "/repo/node_modules/cond/esm/index.d.mts": "",
+      "/repo/node_modules/cond/esm/index.mjs": "",
+      "/repo/node_modules/cond/cjs/index.d.cts": "",
+      "/repo/node_modules/cond/cjs/index.cjs": "",
+      "/repo/node_modules/cond/feature.d.ts": "",
+      "/repo/node_modules/cond/dist/features/a.d.ts": "",
+      "/repo/node_modules/cond/dist/utils/x.d.ts": "",
+      "/repo/node_modules/cond/dist/dir/y.d.ts": "",
+      "/repo/node_modules/cond/private/z.d.ts": "",
+      "/repo/node_modules/order/package.json": {
+        "name": "order",
+        "version": "0.0.1",
+        "exports": {"require": "./r.cjs", "10": "./ten.js", "import": "./i.mjs", "types": "./t.d.ts", "default": "./d.js"}
+      },
+      "/repo/node_modules/order/t.d.ts": "",
+      "/repo/node_modules/order/i.mjs": "",
+      "/repo/node_modules/order/r.cjs": ""
+    },
+    "ops": [
+      {"op": "module", "name": "cond", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond", "from": "/repo/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "cond/feature", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/features/a.js", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/utils/x", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/private/z", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/dir/y.js", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/bad", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/badnm", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/empty", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/num", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "cond/nothere", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "order", "from": "/repo/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "order", "from": "/repo/src/main.ts", "mode": "cjs"},
+      {"op": "entrypoints", "dir": "/repo/node_modules/cond", "packageName": "cond"},
+      {"op": "entrypoints", "dir": "/repo/node_modules/order", "packageName": "order"}
+    ]
+  },
+  {
+    "name": "nodenext-imports-self",
+    "options": {"moduleResolution": "nodenext", "module": "nodenext", "customConditions": ["custom"]},
+    "files": {
+      "/proj/package.json": {
+        "name": "@me/proj",
+        "version": "3.0.0",
+        "type": "module",
+        "exports": {".": {"custom": "./src/custom.ts", "default": "./src/index.ts"}, "./util": "./src/util.ts"},
+        "imports": {
+          "#internal": "./src/internal.ts",
+          "#lib/*": "./src/lib/*.ts",
+          "#ext": "ext-pkg",
+          "#ext/*": "ext-pkg/sub/*",
+          "#cond": {"node": {"import": "./src/node-import.ts"}, "default": "./src/default.ts"}
+        }
+      },
+      "/proj/src/index.ts": "",
+      "/proj/src/custom.ts": "",
+      "/proj/src/util.ts": "",
+      "/proj/src/internal.ts": "",
+      "/proj/src/lib/a.ts": "",
+      "/proj/src/node-import.ts": "",
+      "/proj/src/default.ts": "",
+      "/proj/src/main.ts": "",
+      "/proj/node_modules/ext-pkg/package.json": {"name": "ext-pkg", "version": "1.0.0", "types": "index.d.ts"},
+      "/proj/node_modules/ext-pkg/index.d.ts": "",
+      "/proj/node_modules/ext-pkg/sub/q.d.ts": "",
+      "/other/package.json": {"name": "other"},
+      "/other/x.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "#internal", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#lib/a", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#ext", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#ext/q", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#cond", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#cond", "from": "/proj/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "#missing", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#/x", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#internal", "from": "/other/x.ts", "mode": "esm"},
+      {"op": "module", "name": "@me/proj", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "@me/proj/util", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "@me/proj/nope", "from": "/proj/src/main.ts", "mode": "esm"},
+      {"op": "packageScope", "dir": "/proj/src/lib"}
+    ]
+  },
+  {
+    "name": "typesversions-atypes-peer",
+    "options": {"moduleResolution": "node16", "module": "commonjs"},
+    "files": {
+      "/w/src/main.ts": "",
+      "/w/node_modules/tv/package.json": {
+        "name": "tv",
+        "version": "2.0.0",
+        "types": "index.d.ts",
+        "typesVersions": {"<3.0": {"*": ["old/*"]}, "not a range": {}, ">=4.0": {"*": ["ts4/*"], "special": ["ts4/sp.d.ts"]}}
+      },
+      "/w/node_modules/tv/index.d.ts": "",
+      "/w/node_modules/tv/ts4/index.d.ts": "",
+      "/w/node_modules/tv/ts4/sub.d.ts": "",
+      "/w/node_modules/tv/ts4/sp.d.ts": "",
+      "/w/node_modules/tvbad/package.json": {"name": "tvbad", "typesVersions": [1], "main": "main"},
+      "/w/node_modules/tvbad/main.js": "",
+      "/w/node_modules/tvnomatch/package.json": {"name": "tvnomatch", "typesVersions": {"<1": {}}, "typings": "", "types": 5, "main": "m.js"},
+      "/w/node_modules/tvnomatch/m.d.ts": "",
+      "/w/node_modules/@types/untyped/package.json": {"name": "@types/untyped", "version": "1.0.0"},
+      "/w/node_modules/@types/untyped/index.d.ts": "",
+      "/w/node_modules/untyped/package.json": {"name": "untyped", "version": "1.0.0", "main": "lib/index.js"},
+      "/w/node_modules/untyped/lib/index.js": "",
+      "/w/node_modules/@types/scope__pkg/index.d.ts": "",
+      "/w/node_modules/peerhost/package.json": {"name": "peerhost", "version": "1.0.0", "types": "index.d.ts", "peerDependencies": {"zpeer": "*", "apeer": "^1", "nopeer": "*"}},
+      "/w/node_modules/peerhost/index.d.ts": "",
+      "/w/node_modules/apeer/package.json": {"name": "apeer", "version": "1.5.0"},
+      "/w/node_modules/zpeer/package.json": {"name": "zpeer", "version": "9.9.9"},
+      "/w/node_modules/badpeer/package.json": {"name": "badpeer", "version": "1.0.0", "types": "i.d.ts", "peerDependencies": ["x"]},
+      "/w/node_modules/badpeer/i.d.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "tv", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "tv/sub", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "tv/special", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "tvbad", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "tvnomatch", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "untyped", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "@scope/pkg", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "peerhost", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "badpeer", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "nothing", "from": "/w/src/main.ts", "mode": "cjs"},
+      {"op": "typeRef", "name": "untyped", "from": "/w/src/main.ts", "mode": "none"},
+      {"op": "typeRef", "name": "@scope/pkg", "from": "/w/src/main.ts", "mode": "none"},
+      {"op": "typeRef", "name": "missing", "from": "/w/src/main.ts", "mode": "none"},
+      {"op": "typeRef", "name": "untyped", "from": "/w/__inferred type names__.ts", "mode": "none"},
+      {"op": "automaticTypes"}
+    ]
+  },
+  {
+    "name": "paths-rootdirs-typeroots",
+    "options": {
+      "moduleResolution": "bundler",
+      "module": "esnext",
+      "paths": {"@app/*": ["./src/app/*", "./gen/*"], "exact": ["./src/exact.ts"], "*": ["./fallback/*"], "jsonish": ["./data/x.json"]},
+      "pathsBasePath": "/p",
+      "rootDirs": ["/p/src", "/p/generated/", "/p/src/deep"],
+      "typeRoots": ["/p/types", "/p/missingtypes"],
+      "types": ["*", "explicit"],
+      "resolveJsonModule": true,
+      "moduleSuffixes": [".ios", ""]
+    },
+    "files": {
+      "/p/src/app/thing.ts": "",
+      "/p/gen/other.ts": "",
+      "/p/src/exact.ts": "",
+      "/p/fallback/fb.ts": "",
+      "/p/data/x.json": "{}",
+      "/p/generated/templates/t.ts": "",
+      "/p/src/views/v.ts": "",
+      "/p/src/deep/d.ts": "",
+      "/p/src/plat.ios.ts": "",
+      "/p/types/mytypes/index.d.ts": "",
+      "/p/types/withpkg/package.json": {"typings": "lib/t.d.ts"},
+      "/p/types/withpkg/lib/t.d.ts": "",
+      "/p/types/notneeded/package.json": {"typings": null},
+      "/p/types/.hidden/index.d.ts": "",
+      "/p/types/single.d.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "@app/thing", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "@app/other", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "exact", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "fb", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "jsonish", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./templates/t", "from": "/p/src/views/v.ts", "mode": "esm"},
+      {"op": "module", "name": "./d", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./plat", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "mytypes", "from": "/p/src/main.ts", "mode": "esm"},
+      {"op": "typeRef", "name": "mytypes", "from": "/p/src/main.ts", "mode": "none"},
+      {"op": "typeRef", "name": "withpkg", "from": "/p/src/main.ts", "mode": "none"},
+      {"op": "typeRef", "name": "single", "from": "/p/src/main.ts", "mode": "none"},
+      {"op": "typeRef", "name": "nothere", "from": "/p/__inferred type names__.ts", "mode": "none"},
+      {"op": "typeRef", "name": "./src/exact", "from": "/p/main.ts", "mode": "none"},
+      {"op": "automaticTypes"}
+    ]
+  },
+  {
+    "name": "symlinks-and-typings-location",
+    "options": {"moduleResolution": "bundler", "module": "esnext"},
+    "typingsLocation": "/cache",
+    "projectName": "/w/tsconfig.json",
+    "files": {
+      "/w/src/main.ts": "",
+      "/real/linked/package.json": {"name": "linked", "version": "4.5.6", "types": "index.d.ts"},
+      "/real/linked/index.d.ts": "",
+      "/cache/node_modules/@types/jquery/index.d.ts": "",
+      "/w/node_modules/jsonly/package.json": {"name": "jsonly", "main": "index.js"},
+      "/w/node_modules/jsonly/index.js": ""
+    },
+    "symlinks": {"/w/node_modules/linked": "/real/linked"},
+    "ops": [
+      {"op": "module", "name": "linked", "from": "/w/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "jquery", "from": "/w/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "jsonly", "from": "/w/src/main.ts", "mode": "esm"},
+      {"op": "typeRef", "name": "linked", "from": "/w/src/main.ts", "mode": "none"},
+      {"op": "packageDir", "name": "linked", "from": "/w/src/main.ts", "mode": "esm"},
+      {"op": "packageDir", "name": "nope", "from": "/w/src/main.ts", "mode": "esm"}
+    ]
+  },
+  {
+    "name": "preserve-symlinks",
+    "options": {"moduleResolution": "bundler", "module": "esnext", "preserveSymlinks": true},
+    "files": {
+      "/w/src/main.ts": "",
+      "/real/linked/package.json": {"name": "linked", "version": "4.5.6", "types": "index.d.ts"},
+      "/real/linked/index.d.ts": ""
+    },
+    "symlinks": {"/w/node_modules/linked": "/real/linked"},
+    "ops": [
+      {"op": "module", "name": "linked", "from": "/w/src/main.ts", "mode": "esm"}
+    ]
+  },
+  {
+    "name": "outdir-self-name",
+    "options": {"moduleResolution": "nodenext", "module": "nodenext", "outDir": "/lib/dist", "declarationDir": "/lib/types", "rootDir": "/lib/src", "allowJs": true},
+    "files": {
+      "/lib/package.json": {"name": "selfy", "version": "1.0.0", "type": "module", "exports": {".": {"types": "./types/index.d.ts", "default": "./dist/index.js"}, "./sub": "./dist/sub.js", "./js": "./dist/js.js"}},
+      "/lib/src/index.ts": "",
+      "/lib/src/sub.mts": "",
+      "/lib/src/sub.ts": "",
+      "/lib/src/js.js": "",
+      "/lib/src/main.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "selfy", "from": "/lib/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "selfy/sub", "from": "/lib/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "selfy/js", "from": "/lib/src/main.ts", "mode": "esm"}
+    ]
+  },
+  {
+    "name": "outdir-ambiguous-root",
+    "options": {"moduleResolution": "nodenext", "module": "nodenext", "outDir": "/lib/dist"},
+    "files": {
+      "/lib/package.json": {"name": "selfy", "version": "1.0.0", "type": "module", "exports": {".": "./dist/index.js", "./x": "./dist/x.js"}},
+      "/lib/src/index.ts": "",
+      "/lib/dist/index.d.ts": "",
+      "/lib/src/main.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "selfy", "from": "/lib/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "selfy/x", "from": "/lib/src/main.ts", "mode": "esm"}
+    ]
+  },
+  {
+    "name": "esm-fallback-alternate",
+    "options": {"moduleResolution": "node16", "module": "node16"},
+    "files": {
+      "/a/src/main.mts": "",
+      "/a/node_modules/oldpkg/package.json": {"name": "oldpkg", "version": "1.0.0", "types": "index.d.ts", "exports": {"import": "./index.mjs", "require": "./index.cjs"}},
+      "/a/node_modules/oldpkg/index.mjs": "",
+      "/a/node_modules/oldpkg/index.cjs": "",
+      "/a/node_modules/oldpkg/index.d.ts": "",
+      "/a/node_modules/noexp/package.json": {"name": "noexp", "type": "module"},
+      "/a/node_modules/noexp/index.js": "",
+      "/a/node_modules/noexp/index.d.ts": "",
+      "/a/node_modules/nullexp/package.json": {"name": "nullexp", "exports": null, "main": "./m"},
+      "/a/node_modules/nullexp/m.d.ts": "",
+      "/a/node_modules/falsyexp/package.json": {"name": "falsyexp", "exports": "", "types": "t.d.ts"},
+      "/a/node_modules/falsyexp/t.d.ts": "",
+      "/a/node_modules/nested/package.json": {"name": "nested", "version": "1.0.0"},
+      "/a/node_modules/nested/inner/package.json": {"name": "nested-inner", "types": "x.d.ts"},
+      "/a/node_modules/nested/inner/x.d.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "oldpkg", "from": "/a/src/main.mts", "mode": "esm"},
+      {"op": "module", "name": "noexp", "from": "/a/src/main.mts", "mode": "esm"},
+      {"op": "module", "name": "nullexp", "from": "/a/src/main.mts", "mode": "cjs"},
+      {"op": "module", "name": "falsyexp", "from": "/a/src/main.mts", "mode": "cjs"},
+      {"op": "module", "name": "nested/inner", "from": "/a/src/main.mts", "mode": "cjs"},
+      {"op": "module", "name": "nested/inner/", "from": "/a/src/main.mts", "mode": "cjs"},
+      {"op": "entrypoints", "dir": "/a/node_modules/noexp", "packageName": "noexp", "dirSearch": true},
+      {"op": "entrypoints", "dir": "/a/node_modules/nested", "packageName": "nested", "dirSearch": true}
+    ]
+  },
+  {
+    "name": "case-insensitive-no-trace",
+    "caseSensitive": false,
+    "trace": false,
+    "options": {"moduleResolution": "bundler", "module": "esnext", "noDtsResolution": true, "resolvePackageJsonExports": false, "resolvePackageJsonImports": false},
+    "files": {
+      "/C/Src/Main.ts": "",
+      "/C/Src/Util.ts": "",
+      "/C/node_modules/Pkg/package.json": {"name": "Pkg", "exports": "./e.js", "main": "m.js", "imports": {"#x": "./x.js"}},
+      "/C/node_modules/Pkg/m.js": "",
+      "/C/node_modules/Pkg/e.js": ""
+    },
+    "ops": [
+      {"op": "module", "name": "./util", "from": "/c/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "./util", "from": "/c/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "pkg", "from": "/c/src/main.ts", "mode": "esm"},
+      {"op": "module", "name": "#x", "from": "/C/node_modules/Pkg/m.js", "mode": "esm"}
+    ]
+  },
+  {
+    "name": "config-lookup",
+    "options": {"moduleResolution": "nodenext"},
+    "files": {
+      "/c/tsconfig.json": "{}",
+      "/c/node_modules/@tsconfig/node16/tsconfig.json": "{}",
+      "/c/node_modules/cfgpkg/package.json": {"name": "cfgpkg", "tsconfig": "./configs/base.json"},
+      "/c/node_modules/cfgpkg/configs/base.json": "{}",
+      "/c/node_modules/plain/tsconfig.json": "{}",
+      "/c/node_modules/expcfg/package.json": {"name": "expcfg", "exports": {"./tsconfig": "./tsconfig.base.json"}},
+      "/c/node_modules/expcfg/tsconfig.base.json": "{}"
+    },
+    "ops": [
+      {"op": "config", "name": "@tsconfig/node16/tsconfig.json", "from": "/c/tsconfig.json"},
+      {"op": "config", "name": "cfgpkg", "from": "/c/tsconfig.json"},
+      {"op": "config", "name": "plain", "from": "/c/tsconfig.json"},
+      {"op": "config", "name": "expcfg/tsconfig", "from": "/c/tsconfig.json"},
+      {"op": "config", "name": "./tsconfig", "from": "/c/sub/tsconfig.json"}
+    ]
+  },
+  {
+    "name": "invalid-package-json",
+    "options": {"moduleResolution": "node16", "module": "commonjs"},
+    "files": {
+      "/i/main.ts": "",
+      "/i/node_modules/broken/package.json": "{\"name\": \"broken\", \"types\": \"b.d.ts\",}",
+      "/i/node_modules/broken/index.d.ts": "",
+      "/i/node_modules/dupe/package.json": "{\"types\": \"a.d.ts\", \"types\": \"b.d.ts\", \"name\": \"dupe\", \"version\": \"1.0.0\"}",
+      "/i/node_modules/dupe/b.d.ts": ""
+    },
+    "ops": [
+      {"op": "module", "name": "broken", "from": "/i/main.ts", "mode": "cjs"},
+      {"op": "module", "name": "dupe", "from": "/i/main.ts", "mode": "cjs"}
+    ]
+  }
+]

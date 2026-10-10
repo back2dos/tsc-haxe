@@ -1,0 +1,234 @@
+package module_test
+
+// Golden dump for the Haxe port: runs the scenarios in test/ts/module/golden/scenarios.json
+// through the Go resolver and writes traces + results. Overlaid into upstream, never committed.
+
+import (
+	"fmt"
+	"os"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/go-json-experiment/json/jsontext"
+	"github.com/microsoft/typescript-go/internal/collections"
+	"github.com/microsoft/typescript-go/internal/core"
+	"github.com/microsoft/typescript-go/internal/json"
+	"github.com/microsoft/typescript-go/internal/locale"
+	"github.com/microsoft/typescript-go/internal/module"
+	"github.com/microsoft/typescript-go/internal/vfs"
+	"github.com/microsoft/typescript-go/internal/vfs/vfstest"
+)
+
+type gHost struct {
+	fs  vfs.FS
+	cwd string
+}
+
+func (h *gHost) FS() vfs.FS                  { return h.fs }
+func (h *gHost) GetCurrentDirectory() string { return h.cwd }
+
+type gOptions struct {
+	ModuleResolution          string                                     `json:"moduleResolution"`
+	Module                    string                                     `json:"module"`
+	Paths                     *collections.OrderedMap[string, []string] `json:"paths"`
+	PathsBasePath             string                                     `json:"pathsBasePath"`
+	RootDirs                  []string                                   `json:"rootDirs"`
+	TypeRoots                 []string                                   `json:"typeRoots"`
+	Types                     []string                                   `json:"types"`
+	CustomConditions          []string                                   `json:"customConditions"`
+	ModuleSuffixes            []string                                   `json:"moduleSuffixes"`
+	ResolveJsonModule         *bool                                      `json:"resolveJsonModule"`
+	AllowJs                   *bool                                      `json:"allowJs"`
+	NoDtsResolution           *bool                                      `json:"noDtsResolution"`
+	ResolvePackageJsonExports *bool                                      `json:"resolvePackageJsonExports"`
+	ResolvePackageJsonImports *bool                                      `json:"resolvePackageJsonImports"`
+	PreserveSymlinks          *bool                                      `json:"preserveSymlinks"`
+	OutDir                    string                                     `json:"outDir"`
+	DeclarationDir            string                                     `json:"declarationDir"`
+	RootDir                   string                                     `json:"rootDir"`
+	ConfigFilePath            string                                     `json:"configFilePath"`
+}
+
+type gOp struct {
+	Op          string `json:"op"`
+	Name        string `json:"name"`
+	From        string `json:"from"`
+	Mode        string `json:"mode"`
+	Dir         string `json:"dir"`
+	PackageName string `json:"packageName"`
+	DirSearch   bool   `json:"dirSearch"`
+}
+
+type gScenario struct {
+	Name            string                    `json:"name"`
+	CaseSensitive   *bool                     `json:"caseSensitive"`
+	Trace           *bool                     `json:"trace"`
+	TypingsLocation string                    `json:"typingsLocation"`
+	ProjectName     string                    `json:"projectName"`
+	Options         gOptions                  `json:"options"`
+	Files           map[string]jsontext.Value `json:"files"`
+	Symlinks        map[string]string         `json:"symlinks"`
+	Ops             []gOp                     `json:"ops"`
+}
+
+func tri(b *bool) core.Tristate {
+	if b == nil {
+		return core.TSUnknown
+	}
+	if *b {
+		return core.TSTrue
+	}
+	return core.TSFalse
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+func TestGoldenDump(t *testing.T) {
+	in := os.Getenv("GOLDEN_IN")
+	out := os.Getenv("GOLDEN_OUT")
+	if in == "" {
+		t.Skip()
+	}
+	data, err := os.ReadFile(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var scenarios []gScenario
+	if err := json.Unmarshal(data, &scenarios); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for _, s := range scenarios {
+		files := map[string]any{}
+		for p, v := range s.Files {
+			if v.Kind() == '"' {
+				var str string
+				if err := json.Unmarshal(v, &str); err != nil {
+					t.Fatal(err)
+				}
+				files[p] = str
+			} else {
+				files[p] = string(v)
+			}
+		}
+		for p, target := range s.Symlinks {
+			files[p] = vfstest.Symlink(target)
+		}
+		caseSensitive := s.CaseSensitive == nil || *s.CaseSensitive
+		fs := vfstest.FromMap(files, caseSensitive)
+		host := &gHost{fs: fs, cwd: "/"}
+		o := &core.CompilerOptions{}
+		switch s.Options.ModuleResolution {
+		case "bundler":
+			o.ModuleResolution = core.ModuleResolutionKindBundler
+		case "node16":
+			o.ModuleResolution = core.ModuleResolutionKindNode16
+		case "nodenext":
+			o.ModuleResolution = core.ModuleResolutionKindNodeNext
+		}
+		switch s.Options.Module {
+		case "esnext":
+			o.Module = core.ModuleKindESNext
+		case "commonjs":
+			o.Module = core.ModuleKindCommonJS
+		case "node16":
+			o.Module = core.ModuleKindNode16
+		case "nodenext":
+			o.Module = core.ModuleKindNodeNext
+		}
+		if s.Trace == nil || *s.Trace {
+			o.TraceResolution = core.TSTrue
+		}
+		o.Paths = s.Options.Paths
+		o.PathsBasePath = s.Options.PathsBasePath
+		o.RootDirs = s.Options.RootDirs
+		o.TypeRoots = s.Options.TypeRoots
+		o.Types = s.Options.Types
+		o.CustomConditions = s.Options.CustomConditions
+		o.ModuleSuffixes = s.Options.ModuleSuffixes
+		o.ResolveJsonModule = tri(s.Options.ResolveJsonModule)
+		o.AllowJs = tri(s.Options.AllowJs)
+		o.NoDtsResolution = tri(s.Options.NoDtsResolution)
+		o.ResolvePackageJsonExports = tri(s.Options.ResolvePackageJsonExports)
+		o.ResolvePackageJsonImports = tri(s.Options.ResolvePackageJsonImports)
+		o.PreserveSymlinks = tri(s.Options.PreserveSymlinks)
+		o.OutDir = s.Options.OutDir
+		o.DeclarationDir = s.Options.DeclarationDir
+		o.RootDir = s.Options.RootDir
+		o.ConfigFilePath = s.Options.ConfigFilePath
+
+		resolver := module.NewResolver(host, o, s.TypingsLocation, s.ProjectName)
+		for _, op := range s.Ops {
+			mode := core.ModuleKindNone
+			switch op.Mode {
+			case "esm":
+				mode = core.ModuleKindESNext
+			case "cjs":
+				mode = core.ModuleKindCommonJS
+			}
+			fmt.Fprintf(&b, "### %s: %s %s %s %s %s\n", s.Name, op.Op, op.Name, op.From, op.Mode, op.Dir)
+			writeTraces := func(traces []module.DiagAndArgs) {
+				for _, tr := range traces {
+					fmt.Fprintf(&b, "trace: %s\n", tr.Message.Localize(locale.Default, tr.Args...))
+				}
+			}
+			writeModule := func(r *module.ResolvedModule) {
+				if r == nil {
+					b.WriteString("result: <nil>\n")
+					return
+				}
+				fmt.Fprintf(&b, "resolved: %q original: %q ext: %q external: %s tsext: %s alt: %q pkg: %q\n",
+					r.ResolvedFileName, r.OriginalPath, r.Extension, boolStr(r.IsExternalLibraryImport), boolStr(r.ResolvedUsingTsExtension), r.AlternateResult, r.PackageId.String())
+				for _, d := range r.ResolutionDiagnostics {
+					fmt.Fprintf(&b, "diagnostic: %d %s\n", d.Code(), d.Localize(locale.Default))
+				}
+			}
+			switch op.Op {
+			case "module":
+				r, traces := resolver.ResolveModuleName(op.Name, op.From, mode, nil)
+				writeTraces(traces)
+				writeModule(r)
+			case "typeRef":
+				r, traces := resolver.ResolveTypeReferenceDirective(op.Name, op.From, mode, nil)
+				writeTraces(traces)
+				fmt.Fprintf(&b, "resolved: %q original: %q primary: %s external: %s pkg: %q\n",
+					r.ResolvedFileName, r.OriginalPath, boolStr(r.Primary), boolStr(r.IsExternalLibraryImport), r.PackageId.String())
+			case "packageDir":
+				writeModule(resolver.ResolvePackageDirectory(op.Name, op.From, mode, nil))
+			case "config":
+				writeModule(module.ResolveConfig(op.Name, op.From, host))
+			case "packageScope":
+				scope := resolver.GetPackageScopeForPath(op.Dir)
+				fmt.Fprintf(&b, "scope: %q exists: %s\n", scope.GetDirectory(), boolStr(scope.Exists()))
+			case "automaticTypes":
+				fmt.Fprintf(&b, "types: %s\n", strings.Join(module.GetAutomaticTypeDirectiveNames(o, host), ","))
+			case "entrypoints":
+				scope := resolver.GetPackageScopeForPath(op.Dir)
+				for _, e := range resolver.GetEntrypointsFromPackageJsonInfo(scope, op.PackageName, op.DirSearch) {
+					fmt.Fprintf(&b, "entrypoint: %q %q %q ending: %d include: %s exclude: %s\n", e.OriginalFileName, e.ResolvedFileName, e.ModuleSpecifier, e.Ending, setStr(e.IncludeConditions), setStr(e.ExcludeConditions))
+				}
+			}
+		}
+	}
+	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func setStr(s *collections.Set[string]) string {
+	if s == nil {
+		return "<nil>"
+	}
+	var keys []string
+	for k := range s.Keys() {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return "[" + strings.Join(keys, ",") + "]"
+}

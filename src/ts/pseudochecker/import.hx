@@ -1,0 +1,22 @@
+import go.Slices;
+import ts.core.Core;
+import ts.debug.Debug;
+import ts.ast.Ast;
+import ts.ast.AstGenerated;
+import ts.ast.KindGenerated;
+import ts.ast.KindGenerated.Kind.*;
+import ts.ast.Functionflags;
+import ts.ast.Functionflags.FunctionFlags.*;
+import ts.ast.Modifierflags;
+import ts.ast.Modifierflags.ModifierFlags.*;
+import ts.ast.Nodeflags;
+import ts.ast.Nodeflags.NodeFlags.*;
+import ts.ast.Utilities;
+import ts.ast.Utilities.JSDeclarationKind.*;
+import ts.pseudochecker.Pseudochecker;
+import ts.pseudochecker.Checker;
+import ts.pseudochecker.Type_;
+import ts.pseudochecker.Type_.PseudoTypeKind.*;
+import ts.pseudochecker.Type_.PseudoObjectElementKind.*;
+
+using ts.pseudochecker.Lookup;

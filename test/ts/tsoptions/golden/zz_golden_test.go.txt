@@ -1,0 +1,81 @@
+package tsoptions_test
+
+// PORT: extra (not upstream). Golden dump for test/ts/tsoptions (ShowconfigGoldenTest.hx):
+// ConvertToTSConfig output (json.MarshalIndent) and json.Marshal of edge values.
+
+import (
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/microsoft/typescript-go/internal/collections"
+	"github.com/microsoft/typescript-go/internal/json"
+	"github.com/microsoft/typescript-go/internal/tsoptions"
+	"github.com/microsoft/typescript-go/internal/tsoptions/tsoptionstest"
+)
+
+type goldenScenario struct {
+	Name   string            `json:"name"`
+	Cwd    string            `json:"cwd"`
+	Config string            `json:"config"`
+	Files  map[string]string `json:"files"`
+}
+
+func TestGoldenDump(t *testing.T) {
+	in, err := os.ReadFile(os.Getenv("GOLDEN_IN"))
+	if err != nil {
+		t.Skip("no GOLDEN_IN")
+	}
+	var scenarios []goldenScenario
+	if err := json.Unmarshal(in, &scenarios); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	for _, s := range scenarios {
+		host := tsoptionstest.NewVFSParseConfigHost(s.Files, s.Cwd, true)
+		parsed, errs := tsoptions.GetParsedCommandLineOfConfigFile(s.Config, nil, nil, host, nil)
+		fmt.Fprintf(&out, "### %s\n", s.Name)
+		for _, e := range errs {
+			fmt.Fprintf(&out, "error: %d\n", e.Code())
+		}
+		for _, e := range parsed.Errors {
+			fmt.Fprintf(&out, "error: %d\n", e.Code())
+		}
+		cfg := tsoptions.ConvertToTSConfig(parsed, s.Config)
+		b, err := json.MarshalIndent(cfg, "", "    ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out.Write(b)
+		out.WriteString("\n")
+		var keys []string
+		for k := range parsed.WildcardDirectories() {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(&out, "wildcard: %s %v\n", k, parsed.WildcardDirectories()[k])
+		}
+	}
+	out.WriteString("### json values\n")
+	m := &collections.OrderedMap[string, any]{}
+	m.Set("s", "a\"b\\c\x00\x01\x08\x09\x0a\x0c\x0d\x1f\x7f<>&  é😀/")
+	m.Set("f", []any{1.0, 1e21, 1e20, 1e-7, 1e-6, 123.456, 0.1, 1.5e300, 5e-324, -2.5, 12345678.0, 0.000123})
+	m.Set("i", []any{0, -7, 2147483647})
+	m.Set("b", []any{true, false, nil})
+	m.Set("e", []any{[]any{}, &collections.OrderedMap[string, any]{}, []string(nil)})
+	b, _ := json.Marshal(m)
+	out.Write(b)
+	out.WriteString("\n")
+	b, _ = json.MarshalIndent(m, "", "  ")
+	out.Write(b)
+	out.WriteString("\n")
+	b, _ = json.MarshalIndent(m, " ", "\t")
+	out.Write(b)
+	out.WriteString("\n")
+	if err := os.WriteFile(os.Getenv("GOLDEN_OUT"), []byte(out.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

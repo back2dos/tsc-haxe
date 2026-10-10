@@ -1,0 +1,12 @@
+import go.Tuple;
+import ts.collections.Syncmap;
+import ts.collections.Syncset;
+import ts.core.Compileroptions;
+import ts.ast.Ast;
+import ts.module.Types;
+import ts.tspath.Tspath;
+import ts.tspath.Path;
+import ts.symlinks.Symlinks;
+import ts.symlinks.Knownsymlinks;
+import go.Utf16;
+import ts.core.Core;

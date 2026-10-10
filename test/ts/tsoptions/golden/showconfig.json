@@ -1,0 +1,53 @@
+[
+  {
+    "name": "empty config",
+    "cwd": "/home/src/project",
+    "config": "tsconfig.json",
+    "files": {
+      "/home/src/project/tsconfig.json": "{}",
+      "/home/src/project/a.ts": "export {}"
+    }
+  },
+  {
+    "name": "module nodenext implies resolution",
+    "cwd": "/home/src/project",
+    "config": "tsconfig.json",
+    "files": {
+      "/home/src/project/tsconfig.json": "{\n  \"compilerOptions\": {\n    \"module\": \"nodenext\",\n    \"target\": \"es2022\",\n    \"strict\": true,\n    \"outDir\": \"./dist\",\n    \"rootDir\": \"src\",\n    \"lib\": [\"es2022\", \"DOM\"],\n    \"types\": [\"node\"],\n    \"paths\": {\"@a/*\": [\"./src/a/*\"]},\n    \"maxNodeModuleJsDepth\": 3\n  },\n  \"include\": [\"src\"],\n  \"exclude\": [\"src/ignored\"],\n  \"compileOnSave\": true\n}",
+      "/home/src/project/src/index.ts": "export {}",
+      "/home/src/project/src/ignored/x.ts": "export {}",
+      "/home/src/project/src/a/b.ts": "export {}"
+    }
+  },
+  {
+    "name": "composite with references",
+    "cwd": "/home/src/project",
+    "config": "tsconfig.json",
+    "files": {
+      "/home/src/project/tsconfig.json": "{\n  \"compilerOptions\": {\n    \"composite\": true,\n    \"declarationMap\": true,\n    \"verbatimModuleSyntax\": true,\n    \"jsx\": \"react-jsx\",\n    \"moduleResolution\": \"bundler\",\n    \"module\": \"esnext\"\n  },\n  \"files\": [\"main.tsx\"],\n  \"references\": [{\"path\": \"../lib\"}, {\"path\": \"../other\", \"circular\": true}]\n}",
+      "/home/src/project/main.tsx": "export {}",
+      "/home/src/lib/tsconfig.json": "{}"
+    }
+  },
+  {
+    "name": "checkJs and rewrite extensions",
+    "cwd": "/home/src/project",
+    "config": "tsconfig.json",
+    "files": {
+      "/home/src/project/tsconfig.json": "{\n  \"compilerOptions\": {\n    \"checkJs\": true,\n    \"rewriteRelativeImportExtensions\": true,\n    \"target\": \"es5\",\n    \"newLine\": \"crlf\",\n    \"moduleDetection\": \"force\",\n    \"declarationDir\": \"types\",\n    \"rootDirs\": [\"a\", \"b\"],\n    \"typeRoots\": [\"./typings\"],\n    \"customConditions\": [\"dev\"],\n    \"noEmit\": false,\n    \"tsBuildInfoFile\": \"./build/.tsbuildinfo\"\n  }\n}",
+      "/home/src/project/a/x.js": "",
+      "/home/src/project/b/y.ts": "",
+      "/home/src/project/cé \"q\"\t<&>.ts": ""
+    }
+  },
+  {
+    "name": "extends and target only",
+    "cwd": "/home/src/project",
+    "config": "tsconfig.json",
+    "files": {
+      "/home/src/project/tsconfig.json": "{\n  \"extends\": \"./base.json\",\n  \"compilerOptions\": {\"target\": \"esnext\", \"useDefineForClassFields\": false}\n}",
+      "/home/src/project/base.json": "{\n  \"compilerOptions\": {\"module\": \"commonjs\", \"esModuleInterop\": true, \"resolveJsonModule\": true},\n  \"include\": [\"**/*\"]\n}",
+      "/home/src/project/index.ts": ""
+    }
+  }
+]

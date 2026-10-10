@@ -1,0 +1,6 @@
+# tsgo command line (cmd/tsgo) for node: tools/haxe build-js.hxml → bin/tsgo.js (run with tools/tsgo-js).
+-cp src
+-main ts.cmd.Tsgo
+-D analyzer-optimize
+-lib hxnodejs
+-js bin/tsgo.js

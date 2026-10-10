@@ -1,0 +1,145 @@
+skeleton internal/checker → /home/mib/Development/research/haxe-ts/bin/skeleton/checker
+  modules 32, lines 15753, types 209, fields 860, enum values 504, funcs 370, methods 2490
+split modules:
+  CheckerPart1.hx  checker.go:1-3970  Go lines 3970, methods 113, kept instance (interface) 0 []
+  CheckerPart2.hx  checker.go:3971-7979  Go lines 4009, methods 147, kept instance (interface) 0 []
+  CheckerPart3.hx  checker.go:7980-11981  Go lines 4002, methods 163, kept instance (interface) 0 []
+  CheckerPart4.hx  checker.go:11982-15980  Go lines 3999, methods 170, kept instance (interface) 0 []
+  CheckerPart5.hx  checker.go:15981-19955  Go lines 3975, methods 183, kept instance (interface) 0 []
+  CheckerPart6.hx  checker.go:19956-23931  Go lines 3976, methods 177, kept instance (interface) 0 []
+  CheckerPart7.hx  checker.go:23932-27915  Go lines 3984, methods 207, kept instance (interface) 0 []
+  CheckerPart8.hx  checker.go:27916-31926  Go lines 4011, methods 178, kept instance (interface) 0 []
+external stubs → /home/mib/Development/research/haxe-ts/bin/skeleton/_ext
+  packages without Haxe port (stubbed): internal/printer
+  packages with missing types (ExtStubs.hx): 
+  stub lines 354, stubbed symbols 78
+    stub internal/printer.EmitContext
+    stub internal/printer.EmitContext.AddEmitFlags (method)
+    stub internal/printer.EmitContext.AddSyntheticLeadingComment (method)
+    stub internal/printer.EmitContext.AddSyntheticTrailingComment (method)
+    stub internal/printer.EmitContext.AssignCommentRange (method)
+    stub internal/printer.EmitContext.Factory (field)
+    stub internal/printer.EmitContext.MostOriginal (method)
+    stub internal/printer.EmitContext.Original (method)
+    stub internal/printer.EmitContext.ParseNode (method)
+    stub internal/printer.EmitContext.SetCommentRange (method)
+    stub internal/printer.EmitContext.SetEmitFlags (method)
+    stub internal/printer.EmitContext.SetOriginal (method)
+    stub internal/printer.EmitContext.SetOriginalEx (method)
+    stub internal/printer.EmitFlags
+    stub internal/printer.EmitResolver
+    stub internal/printer.EmitTextWriter
+    stub internal/printer.EmitTextWriter.Clear (method)
+    stub internal/printer.EmitTextWriter.DecreaseIndent (method)
+    stub internal/printer.EmitTextWriter.GetColumn (method)
+    stub internal/printer.EmitTextWriter.GetIndent (method)
+    stub internal/printer.EmitTextWriter.GetLine (method)
+    stub internal/printer.EmitTextWriter.GetTextPos (method)
+    stub internal/printer.EmitTextWriter.HasTrailingComment (method)
+    stub internal/printer.EmitTextWriter.HasTrailingWhitespace (method)
+    stub internal/printer.EmitTextWriter.IncreaseIndent (method)
+    stub internal/printer.EmitTextWriter.IsAtStartOfLine (method)
+    stub internal/printer.EmitTextWriter.RawWrite (method)
+    stub internal/printer.EmitTextWriter.String (method)
+    stub internal/printer.EmitTextWriter.Write (method)
+    stub internal/printer.EmitTextWriter.WriteComment (method)
+    stub internal/printer.EmitTextWriter.WriteKeyword (method)
+    stub internal/printer.EmitTextWriter.WriteLine (method)
+    stub internal/printer.EmitTextWriter.WriteLineForce (method)
+    stub internal/printer.EmitTextWriter.WriteLiteral (method)
+    stub internal/printer.EmitTextWriter.WriteOperator (method)
+    stub internal/printer.EmitTextWriter.WriteParameter (method)
+    stub internal/printer.EmitTextWriter.WriteProperty (method)
+    stub internal/printer.EmitTextWriter.WritePunctuation (method)
+    stub internal/printer.EmitTextWriter.WriteSpace (method)
+    stub internal/printer.EmitTextWriter.WriteStringLiteral (method)
+    stub internal/printer.EmitTextWriter.WriteSymbol (method)
+    stub internal/printer.EmitTextWriter.WriteTrailingSemicolon (method)
+    stub internal/printer.EscapeString (func)
+    stub internal/printer.GetSingleLineStringWriter (func)
+    stub internal/printer.NewEmitContext (func)
+    stub internal/printer.NewPrinter (func)
+    stub internal/printer.NewTextWriter (func)
+    stub internal/printer.NodeFactory
+    stub internal/printer.NodeFactory.NodeFactory (field)
+    stub internal/printer.PrintHandlers
+    stub internal/printer.Printer
+    stub internal/printer.Printer.Emit (method)
+    stub internal/printer.Printer.PrintHandlers (field)
+    stub internal/printer.Printer.Write (method)
+    stub internal/printer.PrinterOptions
+    stub internal/printer.PrinterOptions.NeverAsciiEscape (field)
+    stub internal/printer.PrinterOptions.RemoveComments (field)
+    stub internal/printer.QuoteChar
+    stub internal/printer.SymbolAccessibility
+    stub internal/printer.SymbolAccessibilityResult
+    stub internal/printer.SymbolAccessibilityResult.Accessibility (field)
+    stub internal/printer.SymbolAccessibilityResult.AliasesToMakeVisible (field)
+    stub internal/printer.SymbolAccessibilityResult.ErrorModuleName (field)
+    stub internal/printer.SymbolAccessibilityResult.ErrorNode (field)
+    stub internal/printer.SymbolAccessibilityResult.ErrorSymbolName (field)
+    stub internal/printer.TypeReferenceSerializationKind
+    stub internal/printer.TypeReferenceSerializationKindArrayLikeType (const)
+    stub internal/printer.TypeReferenceSerializationKindBigIntLikeType (const)
+    stub internal/printer.TypeReferenceSerializationKindBooleanType (const)
+    stub internal/printer.TypeReferenceSerializationKindESSymbolType (const)
+    stub internal/printer.TypeReferenceSerializationKindNumberLikeType (const)
+    stub internal/printer.TypeReferenceSerializationKindObjectType (const)
+    stub internal/printer.TypeReferenceSerializationKindPromise (const)
+    stub internal/printer.TypeReferenceSerializationKindStringLikeType (const)
+    stub internal/printer.TypeReferenceSerializationKindTypeWithCallSignature (const)
+    stub internal/printer.TypeReferenceSerializationKindTypeWithConstructSignatureAndValue (const)
+    stub internal/printer.TypeReferenceSerializationKindUnknown (const)
+    stub internal/printer.TypeReferenceSerializationKindVoidNullableOrNeverType (const)
+  used but missing in an existing Haxe package (not stubbed): 3
+    missing internal/ast.ModifiersBase.Modifiers (method)
+    missing internal/modulespecifiers.ModuleSpecifierGenerationHost.GetCurrentDirectory (method)
+    missing internal/modulespecifiers.ModuleSpecifierGenerationHost.UseCaseSensitiveFileNames (method)
+unresolved Go types (mapped to Any): 0
+renames (Haxe name clashes): 0
+notes:
+  64-bit int mapped to Int: uint64 ×3
+  64-bit map key: map[github.com/microsoft/typescript-go/internal/ast.NodeId][]*github.com/microsoft/typescript-go/internal/ast.Symbol ×1
+  64-bit map key: map[github.com/microsoft/typescript-go/internal/ast.NodeId]github.com/microsoft/typescript-go/internal/ast.SymbolTable ×1
+  64-bit map key: map[github.com/microsoft/typescript-go/internal/ast.SymbolId]*github.com/microsoft/typescript-go/internal/ast.Symbol ×1
+  64-bit map key: map[github.com/microsoft/typescript-go/internal/ast.SymbolId]*github.com/microsoft/typescript-go/internal/checker.Type ×1
+  64-bit map key: map[github.com/microsoft/typescript-go/internal/ast.SymbolId]map[github.com/microsoft/typescript-go/internal/checker.symbolTableID]struct{} ×1
+  64-bit map key: map[github.com/microsoft/typescript-go/internal/checker.symbolTableID][]*github.com/microsoft/typescript-go/internal/ast.Symbol ×1
+  64-bit map key: map[github.com/microsoft/typescript-go/internal/checker.symbolTableID]struct{} ×1
+  anonymous struct → generated class: JsxNamesStruct ×1
+  anonymous struct → generated class: ReactNamesStruct ×1
+  anonymous struct → generated class: TypeFlagNamesStruct ×1
+  pointer to basic: int ×1
+  pointer to basic: string ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.AssignmentReducedKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.CacheHashKey ×12
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.CachedSignatureKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.CachedTypeKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.CompositeSymbolIdentity ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.CompositeTypeCacheIdentity ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.DiscriminatedContextualTypeKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.EnumLiteralKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.EnumRelationKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.FlowLoopKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.InferenceKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.InstantiationExpressionKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.IterationTypesKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.NarrowedTypeKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.PropertiesTypesKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.ReverseMappedTypeKey ×2
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.StringMappingKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.SubstitutionTypeKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.UnionOfUnionKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/checker.accessibleChainCacheKey ×1
+  struct map key encoded as String (PORTING §4a): github.com/microsoft/typescript-go/internal/jsnum.PseudoBigInt ×1
+  sync type mapped to Any: sync.Mutex ×3
+  sync type mapped to Any: sync.Once ×2
+  sync type mapped to Any: sync/atomic.Uint32 ×1
+  type written fully qualified (clashes with a local name): ts.ast.Ast.NodeFactory ×1
+  type written fully qualified (clashes with a local name): ts.collections.OrderedSet ×1
+  type written fully qualified (clashes with a local name): ts.printer.Emitresolver.EmitResolver ×1
+  type written fully qualified (clashes with a local name): ts.tracing.Tracing.Tracer ×1
+  zero struct value without new(): atomic.Uint32 ×1
+  zero struct value without new(): evaluator.Result ×1
+  zero struct value without new(): sync.Mutex ×1
+  zero struct value without new(): sync.Once ×2

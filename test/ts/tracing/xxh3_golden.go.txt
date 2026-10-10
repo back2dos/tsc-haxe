@@ -1,0 +1,30 @@
+// Generator for test/ts/tracing/xxh3.golden.txt (github.com/zeebo/xxh3 v1.1.0, the version in
+// upstream/tsc/go.mod). Lines: length, HashString(gen(n)), Hasher("file", ":", gen(n)).Sum64().
+// Run in a scratch module that requires github.com/zeebo/xxh3 v1.1.0 (GOTOOLCHAIN=go1.26.9 go run .).
+package main
+
+import (
+	"fmt"
+	"github.com/zeebo/xxh3"
+)
+
+func gen(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = byte('a' + (i*7+i/13)%26)
+	}
+	return string(b)
+}
+
+func main() {
+	lens := []int{0, 1, 2, 3, 4, 5, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 96, 97, 100, 127, 128, 129, 130, 143, 144, 200, 239, 240, 241, 256, 300, 1023, 1024, 1025, 1088, 2047, 2048, 2049, 3000, 5000}
+	for _, n := range lens {
+		h := xxh3.New()
+		h.WriteString("file")
+		h.WriteString(":")
+		s := gen(n)
+		h.WriteString(s)
+		fmt.Printf("%d %016x %016x\n", n, xxh3.HashString(s), h.Sum64())
+	}
+	fmt.Printf("u %016x\n", xxh3.HashString("file:/ä/日本/😀.ts"))
+}

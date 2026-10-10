@@ -1,0 +1,1804 @@
+### bundler-relative: module ./a /repo/src/main.ts esm 
+trace: ======== Resolving module './a' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/a', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/repo/src/a.ts' exists - use it as a name resolution result.
+trace: ======== Module name './a' was successfully resolved to '/repo/src/a.ts'. ========
+resolved: "/repo/src/a.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./a.js /repo/src/main.ts esm 
+trace: ======== Resolving module './a.js' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/a.js', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/a.js' has a '.js' extension - stripping it.
+trace: File '/repo/src/a.ts' exists - use it as a name resolution result.
+trace: ======== Module name './a.js' was successfully resolved to '/repo/src/a.ts'. ========
+resolved: "/repo/src/a.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./a.ts /repo/src/main.ts esm 
+trace: ======== Resolving module './a.ts' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/a.ts', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/a.ts' has a '.ts' extension - stripping it.
+trace: File '/repo/src/a.ts' exists - use it as a name resolution result.
+trace: ======== Module name './a.ts' was successfully resolved to '/repo/src/a.ts'. ========
+resolved: "/repo/src/a.ts" original: "" ext: ".ts" external: false tsext: true alt: "" pkg: "@"
+### bundler-relative: module ./b.js /repo/src/main.ts esm 
+trace: ======== Resolving module './b.js' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/b.js', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/b.js' has a '.js' extension - stripping it.
+trace: File '/repo/src/b.ts' does not exist.
+trace: File '/repo/src/b.tsx' exists - use it as a name resolution result.
+trace: ======== Module name './b.js' was successfully resolved to '/repo/src/b.tsx'. ========
+resolved: "/repo/src/b.tsx" original: "" ext: ".tsx" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./b.jsx /repo/src/main.ts esm 
+trace: ======== Resolving module './b.jsx' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/b.jsx', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/b.jsx' has a '.jsx' extension - stripping it.
+trace: File '/repo/src/b.tsx' exists - use it as a name resolution result.
+trace: ======== Module name './b.jsx' was successfully resolved to '/repo/src/b.tsx'. ========
+resolved: "/repo/src/b.tsx" original: "" ext: ".tsx" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./c /repo/src/main.ts esm 
+trace: ======== Resolving module './c' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/c', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/repo/src/c.ts' does not exist.
+trace: File '/repo/src/c.tsx' does not exist.
+trace: File '/repo/src/c.d.ts' exists - use it as a name resolution result.
+trace: ======== Module name './c' was successfully resolved to '/repo/src/c.d.ts'. ========
+resolved: "/repo/src/c.d.ts" original: "" ext: ".d.ts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./d /repo/src/main.ts esm 
+trace: ======== Resolving module './d' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/d', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/repo/src/d.ts' does not exist.
+trace: File '/repo/src/d.tsx' does not exist.
+trace: File '/repo/src/d.d.ts' does not exist.
+trace: File '/repo/src/d.js' exists - use it as a name resolution result.
+trace: ======== Module name './d' was successfully resolved to '/repo/src/d.js'. ========
+resolved: "/repo/src/d.js" original: "" ext: ".js" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./dir /repo/src/main.ts esm 
+trace: ======== Resolving module './dir' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/dir', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/repo/src/dir.ts' does not exist.
+trace: File '/repo/src/dir.tsx' does not exist.
+trace: File '/repo/src/dir.d.ts' does not exist.
+trace: File '/repo/src/dir.js' does not exist.
+trace: File '/repo/src/dir.jsx' does not exist.
+trace: File '/repo/src/dir/package.json' does not exist.
+trace: File '/repo/src/dir/index.ts' exists - use it as a name resolution result.
+trace: ======== Module name './dir' was successfully resolved to '/repo/src/dir/index.ts'. ========
+resolved: "/repo/src/dir/index.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module . /repo/src/dir/x.ts esm 
+trace: ======== Resolving module '.' from '/repo/src/dir/x.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/dir/', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/repo/src/dir/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/src/dir/index.ts' exists - use it as a name resolution result.
+trace: ======== Module name '.' was successfully resolved to '/repo/src/dir/index.ts'. ========
+resolved: "/repo/src/dir/index.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./data.json /repo/src/main.ts esm 
+trace: ======== Resolving module './data.json' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/data.json', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/data.json' has a '.json' extension - stripping it.
+trace: File '/repo/src/data.d.json.ts' does not exist.
+trace: File '/repo/src/data.json' exists - use it as a name resolution result.
+trace: ======== Module name './data.json' was successfully resolved to '/repo/src/data.json'. ========
+resolved: "/repo/src/data.json" original: "" ext: ".json" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./e.mjs /repo/src/main.ts esm 
+trace: ======== Resolving module './e.mjs' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/e.mjs', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/e.mjs' has a '.mjs' extension - stripping it.
+trace: File '/repo/src/e.mts' exists - use it as a name resolution result.
+trace: ======== Module name './e.mjs' was successfully resolved to '/repo/src/e.mts'. ========
+resolved: "/repo/src/e.mts" original: "" ext: ".mts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./f.cjs /repo/src/main.ts cjs 
+trace: ======== Resolving module './f.cjs' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'require', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/f.cjs', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/f.cjs' has a '.cjs' extension - stripping it.
+trace: File '/repo/src/f.cts' does not exist.
+trace: File '/repo/src/f.d.cts' exists - use it as a name resolution result.
+trace: ======== Module name './f.cjs' was successfully resolved to '/repo/src/f.d.cts'. ========
+resolved: "/repo/src/f.d.cts" original: "" ext: ".d.cts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./g.css /repo/src/main.ts esm 
+trace: ======== Resolving module './g.css' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/g.css', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File name '/repo/src/g.css' has a '.css' extension - stripping it.
+trace: File '/repo/src/g.d.css.ts' exists - use it as a name resolution result.
+trace: ======== Module name './g.css' was successfully resolved to '/repo/src/g.d.css.ts'. ========
+resolved: "/repo/src/g.d.css.ts" original: "" ext: ".d.css.ts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./sub /repo/src/main.ts none 
+trace: ======== Resolving module './sub' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/sub', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/repo/src/sub.ts' does not exist.
+trace: File '/repo/src/sub.tsx' does not exist.
+trace: File '/repo/src/sub.d.ts' does not exist.
+trace: File '/repo/src/sub.js' does not exist.
+trace: File '/repo/src/sub.jsx' does not exist.
+trace: Found 'package.json' at '/repo/src/sub/package.json'.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field './lib/main.d.ts' that references '/repo/src/sub/lib/main.d.ts'.
+trace: File '/repo/src/sub/lib/main.d.ts' exists - use it as a name resolution result.
+trace: ======== Module name './sub' was successfully resolved to '/repo/src/sub/lib/main.d.ts'. ========
+resolved: "/repo/src/sub/lib/main.d.ts" original: "" ext: ".d.ts" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ./missing /repo/src/main.ts esm 
+trace: ======== Resolving module './missing' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/src/missing', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/repo/src/missing.ts' does not exist.
+trace: File '/repo/src/missing.tsx' does not exist.
+trace: File '/repo/src/missing.d.ts' does not exist.
+trace: File '/repo/src/missing.js' does not exist.
+trace: File '/repo/src/missing.jsx' does not exist.
+trace: Directory '/repo/src/missing' does not exist, skipping all lookups in it.
+trace: ======== Module name './missing' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module ../nodir/x /repo/src/main.ts esm 
+trace: ======== Resolving module '../nodir/x' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: Loading module as file / folder, candidate module location '/repo/nodir/x', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Directory '/repo/nodir' does not exist, skipping all lookups in it.
+trace: ======== Module name '../nodir/x' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### bundler-relative: module node:fs /repo/src/main.ts esm 
+trace: ======== Resolving module 'node:fs' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: File '/repo/src/package.json' does not exist.
+trace: File '/repo/package.json' does not exist.
+trace: File '/package.json' does not exist.
+trace: Skipping module 'node:fs' that looks like an absolute URI, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: ======== Module name 'node:fs' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### node16-exports: module cond /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist.
+trace: Found 'package.json' at '/repo/package.json'.
+trace: Loading module 'cond' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/repo/node_modules/cond/package.json'.
+trace: Entering conditional exports.
+trace: Saw non-matching condition 'types@>=99'.
+trace: Matched 'exports' condition 'import'.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'types'.
+trace: Using 'exports' subpath '.' with target './esm/index.d.mts'.
+trace: File '/repo/node_modules/cond/esm/index.d.mts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'types'.
+trace: Exiting conditional exports.
+trace: Resolved under condition 'import'.
+trace: Exiting conditional exports.
+trace: Resolving real path for '/repo/node_modules/cond/esm/index.d.mts', result '/repo/node_modules/cond/esm/index.d.mts'.
+trace: ======== Module name 'cond' was successfully resolved to '/repo/node_modules/cond/esm/index.d.mts' with Package ID 'cond/esm/index.d.mts@1.2.3'. ========
+resolved: "/repo/node_modules/cond/esm/index.d.mts" original: "" ext: ".d.mts" external: true tsext: false alt: "" pkg: "cond/esm/index.d.mts@1.2.3"
+### node16-exports: module cond /repo/src/main.ts cjs 
+trace: ======== Resolving module 'cond' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Saw non-matching condition 'types@>=99'.
+trace: Saw non-matching condition 'import'.
+trace: Matched 'exports' condition 'require'.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'types'.
+trace: Using 'exports' subpath '.' with target './cjs/index.d.cts'.
+trace: File '/repo/node_modules/cond/cjs/index.d.cts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'types'.
+trace: Exiting conditional exports.
+trace: Resolved under condition 'require'.
+trace: Exiting conditional exports.
+trace: Resolving real path for '/repo/node_modules/cond/cjs/index.d.cts', result '/repo/node_modules/cond/cjs/index.d.cts'.
+trace: ======== Module name 'cond' was successfully resolved to '/repo/node_modules/cond/cjs/index.d.cts' with Package ID 'cond/cjs/index.d.cts@1.2.3'. ========
+resolved: "/repo/node_modules/cond/cjs/index.d.cts" original: "" ext: ".d.cts" external: true tsext: false alt: "" pkg: "cond/cjs/index.d.cts@1.2.3"
+### node16-exports: module cond/feature /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/feature' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/feature' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Saw non-matching condition 'worker'.
+trace: Exiting conditional exports.
+trace: Using 'exports' subpath './feature' with target './feature.js'.
+trace: File name '/repo/node_modules/cond/feature.js' has a '.js' extension - stripping it.
+trace: File '/repo/node_modules/cond/feature.ts' does not exist.
+trace: File '/repo/node_modules/cond/feature.tsx' does not exist.
+trace: File '/repo/node_modules/cond/feature.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/repo/node_modules/cond/feature.d.ts', result '/repo/node_modules/cond/feature.d.ts'.
+trace: ======== Module name 'cond/feature' was successfully resolved to '/repo/node_modules/cond/feature.d.ts' with Package ID 'cond/feature.d.ts@1.2.3'. ========
+resolved: "/repo/node_modules/cond/feature.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "cond/feature.d.ts@1.2.3"
+### node16-exports: module cond/features/a.js /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/features/a.js' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/features/a.js' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: Using 'exports' subpath './features/*.js' with target './dist/features/a.js'.
+trace: File name '/repo/node_modules/cond/dist/features/a.js' has a '.js' extension - stripping it.
+trace: File '/repo/node_modules/cond/dist/features/a.ts' does not exist.
+trace: File '/repo/node_modules/cond/dist/features/a.tsx' does not exist.
+trace: File '/repo/node_modules/cond/dist/features/a.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/repo/node_modules/cond/dist/features/a.d.ts', result '/repo/node_modules/cond/dist/features/a.d.ts'.
+trace: ======== Module name 'cond/features/a.js' was successfully resolved to '/repo/node_modules/cond/dist/features/a.d.ts' with Package ID 'cond/dist/features/a.d.ts@1.2.3'. ========
+resolved: "/repo/node_modules/cond/dist/features/a.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "cond/dist/features/a.d.ts@1.2.3"
+### node16-exports: module cond/utils/x /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/utils/x' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/utils/x' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'types'.
+trace: Using 'exports' subpath './utils/*' with target './dist/utils/x.d.ts'.
+trace: File '/repo/node_modules/cond/dist/utils/x.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'types'.
+trace: Exiting conditional exports.
+trace: Resolving real path for '/repo/node_modules/cond/dist/utils/x.d.ts', result '/repo/node_modules/cond/dist/utils/x.d.ts'.
+trace: ======== Module name 'cond/utils/x' was successfully resolved to '/repo/node_modules/cond/dist/utils/x.d.ts' with Package ID 'cond/dist/utils/x.d.ts@1.2.3'. ========
+resolved: "/repo/node_modules/cond/dist/utils/x.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "cond/dist/utils/x.d.ts@1.2.3"
+### node16-exports: module cond/private/z /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/private/z' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/private/z' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' explicitly maps specifier './private/z' to null.
+trace: ======== Module name 'cond/private/z' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### node16-exports: module cond/dir/y.js /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/dir/y.js' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/dir/y.js' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: Using 'exports' subpath './dir/' with target './dist/dir/y.js'.
+trace: File name '/repo/node_modules/cond/dist/dir/y.js' has a '.js' extension - stripping it.
+trace: File '/repo/node_modules/cond/dist/dir/y.ts' does not exist.
+trace: File '/repo/node_modules/cond/dist/dir/y.tsx' does not exist.
+trace: File '/repo/node_modules/cond/dist/dir/y.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/repo/node_modules/cond/dist/dir/y.d.ts', result '/repo/node_modules/cond/dist/dir/y.d.ts'.
+trace: ======== Module name 'cond/dir/y.js' was successfully resolved to '/repo/node_modules/cond/dist/dir/y.d.ts' with Package ID 'cond/dist/dir/y.d.ts@1.2.3'. ========
+resolved: "/repo/node_modules/cond/dist/dir/y.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "cond/dist/dir/y.d.ts@1.2.3"
+### node16-exports: module cond/bad /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/bad' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/bad' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './bad'
+trace: Export specifier './bad' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/repo/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './bad'
+trace: Export specifier './bad' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'cond/bad' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### node16-exports: module cond/badnm /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/badnm' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/badnm' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './badnm'
+trace: Export specifier './badnm' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/repo/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './badnm'
+trace: Export specifier './badnm' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'cond/badnm' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### node16-exports: module cond/empty /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/empty' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/empty' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './empty'
+trace: Export specifier './empty' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/repo/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './empty'
+trace: Export specifier './empty' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'cond/empty' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### node16-exports: module cond/num /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/num' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/num' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './num'
+trace: Export specifier './num' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/repo/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: package.json scope '/repo/node_modules/cond' has invalid type for target of specifier './num'
+trace: Export specifier './num' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'cond/num' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### node16-exports: module cond/nothere /repo/src/main.ts esm 
+trace: ======== Resolving module 'cond/nothere' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'cond/nothere' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: Export specifier './nothere' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/repo/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/cond/package.json' exists according to earlier cached lookups.
+trace: Export specifier './nothere' does not exist in package.json scope at path '/repo/node_modules/cond'.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'cond/nothere' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### node16-exports: module order /repo/src/main.ts esm 
+trace: ======== Resolving module 'order' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'order' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/repo/node_modules/order/package.json'.
+trace: Entering conditional exports.
+trace: Saw non-matching condition 'require'.
+trace: Saw non-matching condition '10'.
+trace: Matched 'exports' condition 'import'.
+trace: Using 'exports' subpath '.' with target './i.mjs'.
+trace: File name '/repo/node_modules/order/i.mjs' has a '.mjs' extension - stripping it.
+trace: File '/repo/node_modules/order/i.mts' does not exist.
+trace: File '/repo/node_modules/order/i.d.mts' does not exist.
+trace: Failed to resolve under condition 'import'.
+trace: Matched 'exports' condition 'types'.
+trace: Using 'exports' subpath '.' with target './t.d.ts'.
+trace: File '/repo/node_modules/order/t.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'types'.
+trace: Exiting conditional exports.
+trace: Resolving real path for '/repo/node_modules/order/t.d.ts', result '/repo/node_modules/order/t.d.ts'.
+trace: ======== Module name 'order' was successfully resolved to '/repo/node_modules/order/t.d.ts' with Package ID 'order/t.d.ts@0.0.1'. ========
+resolved: "/repo/node_modules/order/t.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "order/t.d.ts@0.0.1"
+### node16-exports: module order /repo/src/main.ts cjs 
+trace: ======== Resolving module 'order' from '/repo/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/repo/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/repo/package.json' exists according to earlier cached lookups.
+trace: Loading module 'order' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/repo/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/repo/node_modules/order/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'require'.
+trace: Using 'exports' subpath '.' with target './r.cjs'.
+trace: File name '/repo/node_modules/order/r.cjs' has a '.cjs' extension - stripping it.
+trace: File '/repo/node_modules/order/r.cts' does not exist.
+trace: File '/repo/node_modules/order/r.d.cts' does not exist.
+trace: Failed to resolve under condition 'require'.
+trace: Saw non-matching condition '10'.
+trace: Saw non-matching condition 'import'.
+trace: Matched 'exports' condition 'types'.
+trace: Using 'exports' subpath '.' with target './t.d.ts'.
+trace: File '/repo/node_modules/order/t.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'types'.
+trace: Exiting conditional exports.
+trace: Resolving real path for '/repo/node_modules/order/t.d.ts', result '/repo/node_modules/order/t.d.ts'.
+trace: ======== Module name 'order' was successfully resolved to '/repo/node_modules/order/t.d.ts' with Package ID 'order/t.d.ts@0.0.1'. ========
+resolved: "/repo/node_modules/order/t.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "order/t.d.ts@0.0.1"
+### node16-exports: entrypoints    /repo/node_modules/cond
+entrypoint: "" "/repo/node_modules/cond/esm/index.d.mts" "cond" ending: 0 include: [import] exclude: [types@>=99]
+entrypoint: "" "/repo/node_modules/cond/cjs/index.d.cts" "cond" ending: 0 include: [require] exclude: [import,types@>=99]
+entrypoint: "" "/repo/node_modules/cond/feature.d.ts" "cond/feature" ending: 0 include: <nil> exclude: <nil>
+entrypoint: "" "/repo/node_modules/cond/dist/features/a.d.ts" "cond/features/a.js" ending: 0 include: <nil> exclude: <nil>
+entrypoint: "" "/repo/node_modules/cond/dist/utils/x.d.ts" "cond/utils/x" ending: 0 include: <nil> exclude: <nil>
+### node16-exports: entrypoints    /repo/node_modules/order
+entrypoint: "" "/repo/node_modules/order/t.d.ts" "order" ending: 0 include: <nil> exclude: [10,require]
+### nodenext-imports-self: module #internal /proj/src/main.ts esm 
+trace: ======== Resolving module '#internal' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist.
+trace: Found 'package.json' at '/proj/package.json'.
+trace: Using 'imports' subpath '#internal' with target './src/internal.ts'.
+trace: File '/proj/src/internal.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name '#internal' was successfully resolved to '/proj/src/internal.ts' with Package ID '@me/proj/src/internal.ts@3.0.0'. ========
+resolved: "/proj/src/internal.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@me/proj/src/internal.ts@3.0.0"
+### nodenext-imports-self: module #lib/a /proj/src/main.ts esm 
+trace: ======== Resolving module '#lib/a' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Using 'imports' subpath '#lib/*' with target './src/lib/a.ts'.
+trace: File '/proj/src/lib/a.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name '#lib/a' was successfully resolved to '/proj/src/lib/a.ts' with Package ID '@me/proj/src/lib/a.ts@3.0.0'. ========
+resolved: "/proj/src/lib/a.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@me/proj/src/lib/a.ts@3.0.0"
+### nodenext-imports-self: module #ext /proj/src/main.ts esm 
+trace: ======== Resolving module '#ext' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Using 'imports' subpath '#ext' with target 'ext-pkg'.
+trace: ======== Resolving module 'ext-pkg' from '/proj/'. ========
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Loading module 'ext-pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Found 'package.json' at '/proj/node_modules/ext-pkg/package.json'.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'index.d.ts' that references '/proj/node_modules/ext-pkg/index.d.ts'.
+trace: File '/proj/node_modules/ext-pkg/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/proj/node_modules/ext-pkg/index.d.ts', result '/proj/node_modules/ext-pkg/index.d.ts'.
+trace: Resolving real path for '/proj/node_modules/ext-pkg/index.d.ts', result '/proj/node_modules/ext-pkg/index.d.ts'.
+trace: ======== Module name '#ext' was successfully resolved to '/proj/node_modules/ext-pkg/index.d.ts' with Package ID 'ext-pkg/index.d.ts@1.0.0'. ========
+resolved: "/proj/node_modules/ext-pkg/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "ext-pkg/index.d.ts@1.0.0"
+### nodenext-imports-self: module #ext/q /proj/src/main.ts esm 
+trace: ======== Resolving module '#ext/q' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Using 'imports' subpath '#ext/*' with target 'ext-pkg/sub/q'.
+trace: ======== Resolving module 'ext-pkg/sub/q' from '/proj/'. ========
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Loading module 'ext-pkg/sub/q' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: File '/proj/node_modules/ext-pkg/package.json' exists according to earlier cached lookups.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: Directory '/proj/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: File '/proj/node_modules/ext-pkg/package.json' exists according to earlier cached lookups.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Import specifier '#ext/q' does not exist in package.json scope at path '/proj'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Loading module '#ext/q' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/proj/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name '#ext/q' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### nodenext-imports-self: module #cond /proj/src/main.ts esm 
+trace: ======== Resolving module '#cond' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Matched 'imports' condition 'node'.
+trace: Entering conditional exports.
+trace: Matched 'imports' condition 'import'.
+trace: Using 'imports' subpath '#cond' with target './src/node-import.ts'.
+trace: File '/proj/src/node-import.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'import'.
+trace: Exiting conditional exports.
+trace: Resolved under condition 'node'.
+trace: Exiting conditional exports.
+trace: ======== Module name '#cond' was successfully resolved to '/proj/src/node-import.ts' with Package ID '@me/proj/src/node-import.ts@3.0.0'. ========
+resolved: "/proj/src/node-import.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@me/proj/src/node-import.ts@3.0.0"
+### nodenext-imports-self: module #cond /proj/src/main.ts cjs 
+trace: ======== Resolving module '#cond' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Matched 'imports' condition 'node'.
+trace: Entering conditional exports.
+trace: Saw non-matching condition 'import'.
+trace: Exiting conditional exports.
+trace: Failed to resolve under condition 'node'.
+trace: Matched 'imports' condition 'default'.
+trace: Using 'imports' subpath '#cond' with target './src/default.ts'.
+trace: File '/proj/src/default.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'default'.
+trace: Exiting conditional exports.
+trace: ======== Module name '#cond' was successfully resolved to '/proj/src/default.ts' with Package ID '@me/proj/src/default.ts@3.0.0'. ========
+resolved: "/proj/src/default.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@me/proj/src/default.ts@3.0.0"
+### nodenext-imports-self: module #missing /proj/src/main.ts esm 
+trace: ======== Resolving module '#missing' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Import specifier '#missing' does not exist in package.json scope at path '/proj'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Loading module '#missing' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/proj/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name '#missing' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### nodenext-imports-self: module # /proj/src/main.ts esm 
+trace: ======== Resolving module '#' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: Invalid import specifier '#' has no possible resolutions.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Loading module '#' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/proj/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name '#' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### nodenext-imports-self: module #/x /proj/src/main.ts esm 
+trace: ======== Resolving module '#/x' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Import specifier '#/x' does not exist in package.json scope at path '/proj'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Loading module '#/x' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/proj/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name '#/x' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### nodenext-imports-self: module #internal /other/x.ts esm 
+trace: ======== Resolving module '#internal' from '/other/x.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: Found 'package.json' at '/other/package.json'.
+trace: package.json scope '/other' has no imports defined.
+trace: File '/other/package.json' exists according to earlier cached lookups.
+trace: Loading module '#internal' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/other/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/other/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name '#internal' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### nodenext-imports-self: module @me/proj /proj/src/main.ts esm 
+trace: ======== Resolving module '@me/proj' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'custom'.
+trace: Using 'exports' subpath '.' with target './src/custom.ts'.
+trace: File '/proj/src/custom.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'custom'.
+trace: Exiting conditional exports.
+trace: ======== Module name '@me/proj' was successfully resolved to '/proj/src/custom.ts' with Package ID '@me/proj/src/custom.ts@3.0.0'. ========
+resolved: "/proj/src/custom.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@me/proj/src/custom.ts@3.0.0"
+### nodenext-imports-self: module @me/proj/util /proj/src/main.ts esm 
+trace: ======== Resolving module '@me/proj/util' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Using 'exports' subpath './util' with target './src/util.ts'.
+trace: File '/proj/src/util.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name '@me/proj/util' was successfully resolved to '/proj/src/util.ts' with Package ID '@me/proj/src/util.ts@3.0.0'. ========
+resolved: "/proj/src/util.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@me/proj/src/util.ts@3.0.0"
+### nodenext-imports-self: module @me/proj/nope /proj/src/main.ts esm 
+trace: ======== Resolving module '@me/proj/nope' from '/proj/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node', 'custom'.
+trace: File '/proj/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/proj/package.json' exists according to earlier cached lookups.
+trace: Export specifier './nope' does not exist in package.json scope at path '/proj'.
+trace: Export specifier './nope' does not exist in package.json scope at path '/proj'.
+trace: Loading module '@me/proj/nope' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/proj/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/proj/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name '@me/proj/nope' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### nodenext-imports-self: packageScope    /proj/src/lib
+scope: "/proj" exists: true
+### typesversions-atypes-peer: module tv /w/src/main.ts cjs 
+trace: ======== Resolving module 'tv' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist.
+trace: File '/w/package.json' does not exist.
+trace: File '/package.json' does not exist.
+trace: Loading module 'tv' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/tv/package.json'.
+trace: File '/w/node_modules/tv.ts' does not exist.
+trace: File '/w/node_modules/tv.tsx' does not exist.
+trace: File '/w/node_modules/tv.d.ts' does not exist.
+trace: 'package.json' has a 'typesVersions' field with version-specific path mappings.
+trace: 'package.json' has a 'typesVersions' entry 'not a range' that is not a valid semver range.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'index.d.ts' that references '/w/node_modules/tv/index.d.ts'.
+trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.0.2', looking for a pattern to match module name 'index.d.ts'.
+trace: Module name 'index.d.ts', matched pattern '*'.
+trace: Trying substitution 'ts4/*', candidate module location: 'ts4/index.d.ts'.
+trace: File '/w/node_modules/tv/ts4/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/tv/ts4/index.d.ts', result '/w/node_modules/tv/ts4/index.d.ts'.
+trace: ======== Module name 'tv' was successfully resolved to '/w/node_modules/tv/ts4/index.d.ts' with Package ID 'tv/ts4/index.d.ts@2.0.0'. ========
+resolved: "/w/node_modules/tv/ts4/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "tv/ts4/index.d.ts@2.0.0"
+### typesversions-atypes-peer: module tv/sub /w/src/main.ts cjs 
+trace: ======== Resolving module 'tv/sub' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'tv/sub' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/tv/package.json' exists according to earlier cached lookups.
+trace: 'package.json' has a 'typesVersions' field with version-specific path mappings.
+trace: 'package.json' has a 'typesVersions' entry 'not a range' that is not a valid semver range.
+trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.0.2', looking for a pattern to match module name 'sub'.
+trace: Module name 'sub', matched pattern '*'.
+trace: Trying substitution 'ts4/*', candidate module location: 'ts4/sub'.
+trace: File '/w/node_modules/tv/ts4/sub.ts' does not exist.
+trace: File '/w/node_modules/tv/ts4/sub.tsx' does not exist.
+trace: File '/w/node_modules/tv/ts4/sub.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/tv/ts4/sub.d.ts', result '/w/node_modules/tv/ts4/sub.d.ts'.
+trace: ======== Module name 'tv/sub' was successfully resolved to '/w/node_modules/tv/ts4/sub.d.ts' with Package ID 'tv/ts4/sub.d.ts@2.0.0'. ========
+resolved: "/w/node_modules/tv/ts4/sub.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "tv/ts4/sub.d.ts@2.0.0"
+### typesversions-atypes-peer: module tv/special /w/src/main.ts cjs 
+trace: ======== Resolving module 'tv/special' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'tv/special' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/tv/package.json' exists according to earlier cached lookups.
+trace: 'package.json' has a 'typesVersions' field with version-specific path mappings.
+trace: 'package.json' has a 'typesVersions' entry 'not a range' that is not a valid semver range.
+trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.0.2', looking for a pattern to match module name 'special'.
+trace: Module name 'special', matched pattern 'special'.
+trace: Trying substitution 'ts4/sp.d.ts', candidate module location: 'ts4/sp.d.ts'.
+trace: File '/w/node_modules/tv/ts4/sp.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/w/node_modules/tv/ts4/sp.d.ts', result '/w/node_modules/tv/ts4/sp.d.ts'.
+trace: ======== Module name 'tv/special' was successfully resolved to '/w/node_modules/tv/ts4/sp.d.ts'. ========
+resolved: "/w/node_modules/tv/ts4/sp.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### typesversions-atypes-peer: module tvbad /w/src/main.ts cjs 
+trace: ======== Resolving module 'tvbad' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'tvbad' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/tvbad/package.json'.
+trace: File '/w/node_modules/tvbad.ts' does not exist.
+trace: File '/w/node_modules/tvbad.tsx' does not exist.
+trace: File '/w/node_modules/tvbad.d.ts' does not exist.
+trace: Expected type of 'typesVersions' field in 'package.json' to be 'object', got 'array'.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field 'main' that references '/w/node_modules/tvbad/main'.
+trace: Loading module as file / folder, candidate module location '/w/node_modules/tvbad/main', target file types: TypeScript, Declaration.
+trace: File '/w/node_modules/tvbad/main.ts' does not exist.
+trace: File '/w/node_modules/tvbad/main.tsx' does not exist.
+trace: File '/w/node_modules/tvbad/main.d.ts' does not exist.
+trace: Directory '/w/node_modules/tvbad/main' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/tvbad/index.ts' does not exist.
+trace: File '/w/node_modules/tvbad/index.tsx' does not exist.
+trace: File '/w/node_modules/tvbad/index.d.ts' does not exist.
+trace: File '/w/node_modules/@types/tvbad.d.ts' does not exist.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/tvbad/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/tvbad.js' does not exist.
+trace: File '/w/node_modules/tvbad.jsx' does not exist.
+trace: Expected type of 'typesVersions' field in 'package.json' to be 'object', got 'array'.
+trace: 'package.json' has 'main' field 'main' that references '/w/node_modules/tvbad/main'.
+trace: Loading module as file / folder, candidate module location '/w/node_modules/tvbad/main', target file types: JavaScript.
+trace: File '/w/node_modules/tvbad/main.js' exists - use it as a name resolution result.
+trace: Resolving real path for '/w/node_modules/tvbad/main.js', result '/w/node_modules/tvbad/main.js'.
+trace: ======== Module name 'tvbad' was successfully resolved to '/w/node_modules/tvbad/main.js'. ========
+resolved: "/w/node_modules/tvbad/main.js" original: "" ext: ".js" external: true tsext: false alt: "" pkg: "@"
+### typesversions-atypes-peer: module tvnomatch /w/src/main.ts cjs 
+trace: ======== Resolving module 'tvnomatch' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'tvnomatch' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/tvnomatch/package.json'.
+trace: File '/w/node_modules/tvnomatch.ts' does not exist.
+trace: File '/w/node_modules/tvnomatch.tsx' does not exist.
+trace: File '/w/node_modules/tvnomatch.d.ts' does not exist.
+trace: 'package.json' has a 'typesVersions' field with version-specific path mappings.
+trace: 'package.json' does not have a 'typesVersions' entry that matches version '7.0'.
+trace: 'package.json' had a falsy 'typings' field.
+trace: Expected type of 'types' field in 'package.json' to be 'string', got 'number'.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field 'm.js' that references '/w/node_modules/tvnomatch/m.js'.
+trace: File name '/w/node_modules/tvnomatch/m.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/tvnomatch/m.ts' does not exist.
+trace: File '/w/node_modules/tvnomatch/m.tsx' does not exist.
+trace: File '/w/node_modules/tvnomatch/m.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/w/node_modules/tvnomatch/m.d.ts', result '/w/node_modules/tvnomatch/m.d.ts'.
+trace: ======== Module name 'tvnomatch' was successfully resolved to '/w/node_modules/tvnomatch/m.d.ts'. ========
+resolved: "/w/node_modules/tvnomatch/m.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### typesversions-atypes-peer: module untyped /w/src/main.ts cjs 
+trace: ======== Resolving module 'untyped' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'untyped' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/untyped/package.json'.
+trace: File '/w/node_modules/untyped.ts' does not exist.
+trace: File '/w/node_modules/untyped.tsx' does not exist.
+trace: File '/w/node_modules/untyped.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field 'lib/index.js' that references '/w/node_modules/untyped/lib/index.js'.
+trace: File name '/w/node_modules/untyped/lib/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/untyped/lib/index.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.tsx' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.d.ts' does not exist.
+trace: Loading module as file / folder, candidate module location '/w/node_modules/untyped/lib/index.js', target file types: TypeScript, Declaration.
+trace: File name '/w/node_modules/untyped/lib/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/untyped/lib/index.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.tsx' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.d.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.tsx' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.d.ts' does not exist.
+trace: Directory '/w/node_modules/untyped/lib/index.js' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/untyped/index.ts' does not exist.
+trace: File '/w/node_modules/untyped/index.tsx' does not exist.
+trace: File '/w/node_modules/untyped/index.d.ts' does not exist.
+trace: Found 'package.json' at '/w/node_modules/@types/untyped/package.json'.
+trace: File '/w/node_modules/@types/untyped.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' does not have a 'main' field.
+trace: File '/w/node_modules/@types/untyped/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/@types/untyped/index.d.ts', result '/w/node_modules/@types/untyped/index.d.ts'.
+trace: ======== Module name 'untyped' was successfully resolved to '/w/node_modules/@types/untyped/index.d.ts' with Package ID '@types/untyped/index.d.ts@1.0.0'. ========
+resolved: "/w/node_modules/@types/untyped/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@types/untyped/index.d.ts@1.0.0"
+### typesversions-atypes-peer: module @scope/pkg /w/src/main.ts cjs 
+trace: ======== Resolving module '@scope/pkg' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module '@scope/pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Scoped package detected, looking in 'scope__pkg'
+trace: File '/w/node_modules/@types/scope__pkg/package.json' does not exist.
+trace: File '/w/node_modules/@types/scope__pkg.d.ts' does not exist.
+trace: File '/w/node_modules/@types/scope__pkg/index.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/w/node_modules/@types/scope__pkg/index.d.ts', result '/w/node_modules/@types/scope__pkg/index.d.ts'.
+trace: ======== Module name '@scope/pkg' was successfully resolved to '/w/node_modules/@types/scope__pkg/index.d.ts'. ========
+resolved: "/w/node_modules/@types/scope__pkg/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### typesversions-atypes-peer: module peerhost /w/src/main.ts cjs 
+trace: ======== Resolving module 'peerhost' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'peerhost' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/peerhost/package.json'.
+trace: File '/w/node_modules/peerhost.ts' does not exist.
+trace: File '/w/node_modules/peerhost.tsx' does not exist.
+trace: File '/w/node_modules/peerhost.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'index.d.ts' that references '/w/node_modules/peerhost/index.d.ts'.
+trace: File '/w/node_modules/peerhost/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' has a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/peerhost', result '/w/node_modules/peerhost'.
+trace: Found 'package.json' at '/w/node_modules/apeer/package.json'.
+trace: Found peerDependency 'apeer' with '1.5.0' version.
+trace: Failed to find peerDependency 'nopeer'.
+trace: Found 'package.json' at '/w/node_modules/zpeer/package.json'.
+trace: Found peerDependency 'zpeer' with '9.9.9' version.
+trace: Resolving real path for '/w/node_modules/peerhost/index.d.ts', result '/w/node_modules/peerhost/index.d.ts'.
+trace: ======== Module name 'peerhost' was successfully resolved to '/w/node_modules/peerhost/index.d.ts' with Package ID 'peerhost/index.d.ts@1.0.0+apeer@1.5.0+zpeer@9.9.9'. ========
+resolved: "/w/node_modules/peerhost/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "peerhost/index.d.ts@1.0.0+apeer@1.5.0+zpeer@9.9.9"
+### typesversions-atypes-peer: module badpeer /w/src/main.ts cjs 
+trace: ======== Resolving module 'badpeer' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'badpeer' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/badpeer/package.json'.
+trace: File '/w/node_modules/badpeer.ts' does not exist.
+trace: File '/w/node_modules/badpeer.tsx' does not exist.
+trace: File '/w/node_modules/badpeer.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'i.d.ts' that references '/w/node_modules/badpeer/i.d.ts'.
+trace: File '/w/node_modules/badpeer/i.d.ts' exists - use it as a name resolution result.
+trace: Expected type of 'peerDependencies' field in 'package.json' to be 'object', got 'array'.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/badpeer/i.d.ts', result '/w/node_modules/badpeer/i.d.ts'.
+trace: ======== Module name 'badpeer' was successfully resolved to '/w/node_modules/badpeer/i.d.ts' with Package ID 'badpeer/i.d.ts@1.0.0'. ========
+resolved: "/w/node_modules/badpeer/i.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "badpeer/i.d.ts@1.0.0"
+### typesversions-atypes-peer: module nothing /w/src/main.ts cjs 
+trace: ======== Resolving module 'nothing' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'nothing' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/nothing.ts' does not exist.
+trace: File '/w/node_modules/nothing.tsx' does not exist.
+trace: File '/w/node_modules/nothing.d.ts' does not exist.
+trace: File '/w/node_modules/@types/nothing.d.ts' does not exist.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/nothing.js' does not exist.
+trace: File '/w/node_modules/nothing.jsx' does not exist.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'nothing' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### typesversions-atypes-peer: typeRef untyped /w/src/main.ts none 
+trace: ======== Resolving type reference directive 'untyped', containing file '/w/src/main.ts', root directory '/node_modules/@types'. ========
+trace: Resolving with primary search path '/node_modules/@types'.
+trace: Directory '/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Looking up in 'node_modules' folder, initial location '/w/src'.
+trace: Searching all ancestor node_modules directories for preferred extensions: Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/untyped/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/untyped.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field 'lib/index.js' that references '/w/node_modules/untyped/lib/index.js'.
+trace: File name '/w/node_modules/untyped/lib/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/untyped/lib/index.d.ts' does not exist.
+trace: Loading module as file / folder, candidate module location '/w/node_modules/untyped/lib/index.js', target file types: TypeScript, Declaration.
+trace: File name '/w/node_modules/untyped/lib/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/untyped/lib/index.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.tsx' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.d.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.tsx' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.d.ts' does not exist.
+trace: Directory '/w/node_modules/untyped/lib/index.js' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/untyped/index.d.ts' does not exist.
+trace: File '/w/node_modules/@types/untyped/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/@types/untyped.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' does not have a 'main' field.
+trace: File '/w/node_modules/@types/untyped/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/@types/untyped/index.d.ts', result '/w/node_modules/@types/untyped/index.d.ts'.
+trace: ======== Type reference directive 'untyped' was successfully resolved to '/w/node_modules/@types/untyped/index.d.ts' with Package ID '@types/untyped/index.d.ts@1.0.0', primary: false. ========
+resolved: "/w/node_modules/@types/untyped/index.d.ts" original: "" primary: false external: true pkg: "@types/untyped/index.d.ts@1.0.0"
+### typesversions-atypes-peer: typeRef @scope/pkg /w/src/main.ts none 
+trace: ======== Resolving type reference directive '@scope/pkg', containing file '/w/src/main.ts', root directory '/node_modules/@types'. ========
+trace: Resolving with primary search path '/node_modules/@types'.
+trace: Scoped package detected, looking in 'scope__pkg'
+trace: Directory '/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Looking up in 'node_modules' folder, initial location '/w/src'.
+trace: Searching all ancestor node_modules directories for preferred extensions: Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Scoped package detected, looking in 'scope__pkg'
+trace: File '/w/node_modules/@types/scope__pkg/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/node_modules/@types/scope__pkg.d.ts' does not exist.
+trace: File '/w/node_modules/@types/scope__pkg/index.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/w/node_modules/@types/scope__pkg/index.d.ts', result '/w/node_modules/@types/scope__pkg/index.d.ts'.
+trace: ======== Type reference directive '@scope/pkg' was successfully resolved to '/w/node_modules/@types/scope__pkg/index.d.ts', primary: false. ========
+resolved: "/w/node_modules/@types/scope__pkg/index.d.ts" original: "" primary: false external: true pkg: "@"
+### typesversions-atypes-peer: typeRef missing /w/src/main.ts none 
+trace: ======== Resolving type reference directive 'missing', containing file '/w/src/main.ts', root directory '/node_modules/@types'. ========
+trace: Resolving with primary search path '/node_modules/@types'.
+trace: Directory '/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Looking up in 'node_modules' folder, initial location '/w/src'.
+trace: Searching all ancestor node_modules directories for preferred extensions: Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/missing.d.ts' does not exist.
+trace: File '/w/node_modules/@types/missing.d.ts' does not exist.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Type reference directive 'missing' was not resolved. ========
+resolved: "" original: "" primary: false external: false pkg: "@"
+### typesversions-atypes-peer: typeRef untyped /w/__inferred type names__.ts none 
+trace: ======== Resolving type reference directive 'untyped', containing file '/w/__inferred type names__.ts', root directory '/node_modules/@types'. ========
+trace: Resolving with primary search path '/node_modules/@types'.
+trace: Directory '/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Looking up in 'node_modules' folder, initial location '/w'.
+trace: Searching all ancestor node_modules directories for preferred extensions: Declaration.
+trace: File '/w/node_modules/untyped/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/untyped.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field 'lib/index.js' that references '/w/node_modules/untyped/lib/index.js'.
+trace: File name '/w/node_modules/untyped/lib/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/untyped/lib/index.d.ts' does not exist.
+trace: Loading module as file / folder, candidate module location '/w/node_modules/untyped/lib/index.js', target file types: TypeScript, Declaration.
+trace: File name '/w/node_modules/untyped/lib/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/untyped/lib/index.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.tsx' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.d.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.ts' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.tsx' does not exist.
+trace: File '/w/node_modules/untyped/lib/index.js.d.ts' does not exist.
+trace: Directory '/w/node_modules/untyped/lib/index.js' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/untyped/index.d.ts' does not exist.
+trace: File '/w/node_modules/@types/untyped/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/@types/untyped.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' does not have a 'main' field.
+trace: File '/w/node_modules/@types/untyped/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/@types/untyped/index.d.ts', result '/w/node_modules/@types/untyped/index.d.ts'.
+trace: ======== Type reference directive 'untyped' was successfully resolved to '/w/node_modules/@types/untyped/index.d.ts' with Package ID '@types/untyped/index.d.ts@1.0.0', primary: false. ========
+resolved: "/w/node_modules/@types/untyped/index.d.ts" original: "" primary: false external: true pkg: "@types/untyped/index.d.ts@1.0.0"
+### typesversions-atypes-peer: automaticTypes    
+types: 
+### paths-rootdirs-typeroots: module @app/thing /p/src/main.ts esm 
+trace: ======== Resolving module '@app/thing' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'paths' option is specified, looking for a pattern to match module name '@app/thing'.
+trace: Module name '@app/thing', matched pattern '@app/*'.
+trace: Trying substitution './src/app/*', candidate module location: './src/app/thing'.
+trace: Loading module as file / folder, candidate module location '/p/src/app/thing', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/src/app/thing.ios.ts' does not exist.
+trace: File '/p/src/app/thing.ts' exists - use it as a name resolution result.
+trace: ======== Module name '@app/thing' was successfully resolved to '/p/src/app/thing.ts'. ========
+resolved: "/p/src/app/thing.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module @app/other /p/src/main.ts esm 
+trace: ======== Resolving module '@app/other' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'paths' option is specified, looking for a pattern to match module name '@app/other'.
+trace: Module name '@app/other', matched pattern '@app/*'.
+trace: Trying substitution './src/app/*', candidate module location: './src/app/other'.
+trace: Loading module as file / folder, candidate module location '/p/src/app/other', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/src/app/other.ios.ts' does not exist.
+trace: File '/p/src/app/other.ts' does not exist.
+trace: File '/p/src/app/other.ios.tsx' does not exist.
+trace: File '/p/src/app/other.tsx' does not exist.
+trace: File '/p/src/app/other.ios.d.ts' does not exist.
+trace: File '/p/src/app/other.d.ts' does not exist.
+trace: File '/p/src/app/other.ios.js' does not exist.
+trace: File '/p/src/app/other.js' does not exist.
+trace: File '/p/src/app/other.ios.jsx' does not exist.
+trace: File '/p/src/app/other.jsx' does not exist.
+trace: Directory '/p/src/app/other' does not exist, skipping all lookups in it.
+trace: Trying substitution './gen/*', candidate module location: './gen/other'.
+trace: Loading module as file / folder, candidate module location '/p/gen/other', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/gen/other.ios.ts' does not exist.
+trace: File '/p/gen/other.ts' exists - use it as a name resolution result.
+trace: ======== Module name '@app/other' was successfully resolved to '/p/gen/other.ts'. ========
+resolved: "/p/gen/other.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module exact /p/src/main.ts esm 
+trace: ======== Resolving module 'exact' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'paths' option is specified, looking for a pattern to match module name 'exact'.
+trace: Module name 'exact', matched pattern 'exact'.
+trace: Trying substitution './src/exact.ts', candidate module location: './src/exact.ts'.
+trace: File '/p/src/exact.ios.ts' does not exist.
+trace: File '/p/src/exact.ts' exists - use it as a name resolution result.
+trace: ======== Module name 'exact' was successfully resolved to '/p/src/exact.ts'. ========
+resolved: "/p/src/exact.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module fb /p/src/main.ts esm 
+trace: ======== Resolving module 'fb' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'paths' option is specified, looking for a pattern to match module name 'fb'.
+trace: Module name 'fb', matched pattern '*'.
+trace: Trying substitution './fallback/*', candidate module location: './fallback/fb'.
+trace: Loading module as file / folder, candidate module location '/p/fallback/fb', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/fallback/fb.ios.ts' does not exist.
+trace: File '/p/fallback/fb.ts' exists - use it as a name resolution result.
+trace: ======== Module name 'fb' was successfully resolved to '/p/fallback/fb.ts'. ========
+resolved: "/p/fallback/fb.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module jsonish /p/src/main.ts esm 
+trace: ======== Resolving module 'jsonish' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'paths' option is specified, looking for a pattern to match module name 'jsonish'.
+trace: Module name 'jsonish', matched pattern 'jsonish'.
+trace: Trying substitution './data/x.json', candidate module location: './data/x.json'.
+trace: File '/p/data/x.ios.json' does not exist.
+trace: File '/p/data/x.json' exists - use it as a name resolution result.
+trace: ======== Module name 'jsonish' was successfully resolved to '/p/data/x.json'. ========
+resolved: "/p/data/x.json" original: "" ext: ".json" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module ./templates/t /p/src/views/v.ts esm 
+trace: ======== Resolving module './templates/t' from '/p/src/views/v.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'rootDirs' option is set, using it to resolve relative module name './templates/t'.
+trace: Checking if '/p/src/' is the longest matching prefix for '/p/src/views/templates/t' - 'true'.
+trace: Checking if '/p/generated/' is the longest matching prefix for '/p/src/views/templates/t' - 'false'.
+trace: Checking if '/p/src/deep/' is the longest matching prefix for '/p/src/views/templates/t' - 'false'.
+trace: Longest matching prefix for '/p/src/views/templates/t' is '/p/src/'.
+trace: Loading 'views/templates/t' from the root dir '/p/src/', candidate location '/p/src/views/templates/t'.
+trace: Loading module as file / folder, candidate module location '/p/src/views/templates/t', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Directory '/p/src/views/templates' does not exist, skipping all lookups in it.
+trace: Trying other entries in 'rootDirs'.
+trace: Loading 'views/templates/t' from the root dir '/p/generated/', candidate location '/p/generated/views/templates/t'.
+trace: Loading module as file / folder, candidate module location '/p/generated/views/templates/t', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Directory '/p/generated/views/templates' does not exist, skipping all lookups in it.
+trace: Loading 'views/templates/t' from the root dir '/p/src/deep', candidate location '/p/src/deep/views/templates/t'.
+trace: Loading module as file / folder, candidate module location '/p/src/deep/views/templates/t', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Directory '/p/src/deep/views/templates' does not exist, skipping all lookups in it.
+trace: Module resolution using 'rootDirs' has failed.
+trace: Loading module as file / folder, candidate module location '/p/src/views/templates/t', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Directory '/p/src/views/templates' does not exist, skipping all lookups in it.
+trace: ======== Module name './templates/t' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module ./d /p/src/main.ts esm 
+trace: ======== Resolving module './d' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'rootDirs' option is set, using it to resolve relative module name './d'.
+trace: Checking if '/p/src/' is the longest matching prefix for '/p/src/d' - 'true'.
+trace: Checking if '/p/generated/' is the longest matching prefix for '/p/src/d' - 'false'.
+trace: Checking if '/p/src/deep/' is the longest matching prefix for '/p/src/d' - 'false'.
+trace: Longest matching prefix for '/p/src/d' is '/p/src/'.
+trace: Loading 'd' from the root dir '/p/src/', candidate location '/p/src/d'.
+trace: Loading module as file / folder, candidate module location '/p/src/d', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/src/d.ios.ts' does not exist.
+trace: File '/p/src/d.ts' does not exist.
+trace: File '/p/src/d.ios.tsx' does not exist.
+trace: File '/p/src/d.tsx' does not exist.
+trace: File '/p/src/d.ios.d.ts' does not exist.
+trace: File '/p/src/d.d.ts' does not exist.
+trace: File '/p/src/d.ios.js' does not exist.
+trace: File '/p/src/d.js' does not exist.
+trace: File '/p/src/d.ios.jsx' does not exist.
+trace: File '/p/src/d.jsx' does not exist.
+trace: Directory '/p/src/d' does not exist, skipping all lookups in it.
+trace: Trying other entries in 'rootDirs'.
+trace: Loading 'd' from the root dir '/p/generated/', candidate location '/p/generated/d'.
+trace: Loading module as file / folder, candidate module location '/p/generated/d', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/generated/d.ios.ts' does not exist.
+trace: File '/p/generated/d.ts' does not exist.
+trace: File '/p/generated/d.ios.tsx' does not exist.
+trace: File '/p/generated/d.tsx' does not exist.
+trace: File '/p/generated/d.ios.d.ts' does not exist.
+trace: File '/p/generated/d.d.ts' does not exist.
+trace: File '/p/generated/d.ios.js' does not exist.
+trace: File '/p/generated/d.js' does not exist.
+trace: File '/p/generated/d.ios.jsx' does not exist.
+trace: File '/p/generated/d.jsx' does not exist.
+trace: Directory '/p/generated/d' does not exist, skipping all lookups in it.
+trace: Loading 'd' from the root dir '/p/src/deep', candidate location '/p/src/deep/d'.
+trace: Loading module as file / folder, candidate module location '/p/src/deep/d', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/src/deep/d.ios.ts' does not exist.
+trace: File '/p/src/deep/d.ts' exists - use it as a name resolution result.
+trace: ======== Module name './d' was successfully resolved to '/p/src/deep/d.ts'. ========
+resolved: "/p/src/deep/d.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module ./plat /p/src/main.ts esm 
+trace: ======== Resolving module './plat' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'rootDirs' option is set, using it to resolve relative module name './plat'.
+trace: Checking if '/p/src/' is the longest matching prefix for '/p/src/plat' - 'true'.
+trace: Checking if '/p/generated/' is the longest matching prefix for '/p/src/plat' - 'false'.
+trace: Checking if '/p/src/deep/' is the longest matching prefix for '/p/src/plat' - 'false'.
+trace: Longest matching prefix for '/p/src/plat' is '/p/src/'.
+trace: Loading 'plat' from the root dir '/p/src/', candidate location '/p/src/plat'.
+trace: Loading module as file / folder, candidate module location '/p/src/plat', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/src/plat.ios.ts' exists - use it as a name resolution result.
+trace: ======== Module name './plat' was successfully resolved to '/p/src/plat.ios.ts'. ========
+resolved: "/p/src/plat.ios.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: module mytypes /p/src/main.ts esm 
+trace: ======== Resolving module 'mytypes' from '/p/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: 'paths' option is specified, looking for a pattern to match module name 'mytypes'.
+trace: Module name 'mytypes', matched pattern '*'.
+trace: Trying substitution './fallback/*', candidate module location: './fallback/mytypes'.
+trace: Loading module as file / folder, candidate module location '/p/fallback/mytypes', target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: File '/p/fallback/mytypes.ios.ts' does not exist.
+trace: File '/p/fallback/mytypes.ts' does not exist.
+trace: File '/p/fallback/mytypes.ios.tsx' does not exist.
+trace: File '/p/fallback/mytypes.tsx' does not exist.
+trace: File '/p/fallback/mytypes.ios.d.ts' does not exist.
+trace: File '/p/fallback/mytypes.d.ts' does not exist.
+trace: File '/p/fallback/mytypes.ios.js' does not exist.
+trace: File '/p/fallback/mytypes.js' does not exist.
+trace: File '/p/fallback/mytypes.ios.jsx' does not exist.
+trace: File '/p/fallback/mytypes.jsx' does not exist.
+trace: Directory '/p/fallback/mytypes' does not exist, skipping all lookups in it.
+trace: File '/p/src/package.json' does not exist.
+trace: File '/p/package.json' does not exist.
+trace: File '/package.json' does not exist.
+trace: Loading module 'mytypes' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/p/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/p/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/p/src/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/p/node_modules' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: File '/p/types/mytypes.ios.d.ts' does not exist.
+trace: File '/p/types/mytypes.d.ts' does not exist.
+trace: File '/p/types/mytypes/package.json' does not exist.
+trace: File '/p/types/mytypes/index.ios.d.ts' does not exist.
+trace: File '/p/types/mytypes/index.d.ts' exists - use it as a name resolution result.
+trace: ======== Module name 'mytypes' was successfully resolved to '/p/types/mytypes/index.d.ts'. ========
+resolved: "/p/types/mytypes/index.d.ts" original: "" ext: ".d.ts" external: false tsext: false alt: "" pkg: "@"
+### paths-rootdirs-typeroots: typeRef mytypes /p/src/main.ts none 
+trace: ======== Resolving type reference directive 'mytypes', containing file '/p/src/main.ts', root directory '/p/types,/p/missingtypes'. ========
+trace: Resolving with primary search path '/p/types, /p/missingtypes'.
+trace: File '/p/types/mytypes.ios.d.ts' does not exist.
+trace: File '/p/types/mytypes.d.ts' does not exist.
+trace: File '/p/types/mytypes/package.json' does not exist according to earlier cached lookups.
+trace: File '/p/types/mytypes/index.ios.d.ts' does not exist.
+trace: File '/p/types/mytypes/index.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/p/types/mytypes/index.d.ts', result '/p/types/mytypes/index.d.ts'.
+trace: ======== Type reference directive 'mytypes' was successfully resolved to '/p/types/mytypes/index.d.ts', primary: true. ========
+resolved: "/p/types/mytypes/index.d.ts" original: "" primary: true external: false pkg: "@"
+### paths-rootdirs-typeroots: typeRef withpkg /p/src/main.ts none 
+trace: ======== Resolving type reference directive 'withpkg', containing file '/p/src/main.ts', root directory '/p/types,/p/missingtypes'. ========
+trace: Resolving with primary search path '/p/types, /p/missingtypes'.
+trace: File '/p/types/withpkg.ios.d.ts' does not exist.
+trace: File '/p/types/withpkg.d.ts' does not exist.
+trace: Found 'package.json' at '/p/types/withpkg/package.json'.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' has 'typings' field 'lib/t.d.ts' that references '/p/types/withpkg/lib/t.d.ts'.
+trace: File '/p/types/withpkg/lib/t.ios.d.ts' does not exist.
+trace: File '/p/types/withpkg/lib/t.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/p/types/withpkg/lib/t.d.ts', result '/p/types/withpkg/lib/t.d.ts'.
+trace: ======== Type reference directive 'withpkg' was successfully resolved to '/p/types/withpkg/lib/t.d.ts', primary: true. ========
+resolved: "/p/types/withpkg/lib/t.d.ts" original: "" primary: true external: false pkg: "@"
+### paths-rootdirs-typeroots: typeRef single /p/src/main.ts none 
+trace: ======== Resolving type reference directive 'single', containing file '/p/src/main.ts', root directory '/p/types,/p/missingtypes'. ========
+trace: Resolving with primary search path '/p/types, /p/missingtypes'.
+trace: File '/p/types/single.ios.d.ts' does not exist.
+trace: File '/p/types/single.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/p/types/single.d.ts', result '/p/types/single.d.ts'.
+trace: ======== Type reference directive 'single' was successfully resolved to '/p/types/single.d.ts', primary: true. ========
+resolved: "/p/types/single.d.ts" original: "" primary: true external: false pkg: "@"
+### paths-rootdirs-typeroots: typeRef nothere /p/__inferred type names__.ts none 
+trace: ======== Resolving type reference directive 'nothere', containing file '/p/__inferred type names__.ts', root directory '/p/types,/p/missingtypes'. ========
+trace: Resolving with primary search path '/p/types, /p/missingtypes'.
+trace: File '/p/types/nothere.ios.d.ts' does not exist.
+trace: File '/p/types/nothere.d.ts' does not exist.
+trace: Directory '/p/missingtypes' does not exist, skipping all lookups in it.
+trace: Resolving type reference directive for program that specifies custom typeRoots, skipping lookup in 'node_modules' folder.
+trace: ======== Type reference directive 'nothere' was not resolved. ========
+resolved: "" original: "" primary: false external: false pkg: "@"
+### paths-rootdirs-typeroots: typeRef ./src/exact /p/main.ts none 
+trace: ======== Resolving type reference directive './src/exact', containing file '/p/main.ts', root directory '/p/types,/p/missingtypes'. ========
+trace: Resolving with primary search path '/p/types, /p/missingtypes'.
+trace: Directory '/p/missingtypes' does not exist, skipping all lookups in it.
+trace: Looking up in 'node_modules' folder, initial location '/p'.
+trace: Loading module as file / folder, candidate module location '/p/src/exact', target file types: Declaration.
+trace: File '/p/src/exact.ios.d.ts' does not exist.
+trace: File '/p/src/exact.d.ts' does not exist.
+trace: Directory '/p/src/exact' does not exist, skipping all lookups in it.
+trace: ======== Type reference directive './src/exact' was not resolved. ========
+resolved: "" original: "" primary: false external: false pkg: "@"
+### paths-rootdirs-typeroots: automaticTypes    
+types: mytypes,withpkg,explicit
+### symlinks-and-typings-location: module linked /w/src/main.ts esm 
+trace: ======== Resolving module 'linked' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: File '/w/src/package.json' does not exist.
+trace: File '/w/package.json' does not exist.
+trace: File '/package.json' does not exist.
+trace: Loading module 'linked' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/linked/package.json'.
+trace: File '/w/node_modules/linked.ts' does not exist.
+trace: File '/w/node_modules/linked.tsx' does not exist.
+trace: File '/w/node_modules/linked.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'index.d.ts' that references '/w/node_modules/linked/index.d.ts'.
+trace: File '/w/node_modules/linked/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/linked/index.d.ts', result '/real/linked/index.d.ts'.
+trace: ======== Module name 'linked' was successfully resolved to '/real/linked/index.d.ts' with Package ID 'linked/index.d.ts@4.5.6'. ========
+resolved: "/real/linked/index.d.ts" original: "/w/node_modules/linked/index.d.ts" ext: ".d.ts" external: true tsext: false alt: "" pkg: "linked/index.d.ts@4.5.6"
+### symlinks-and-typings-location: module jquery /w/src/main.ts esm 
+trace: ======== Resolving module 'jquery' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'jquery' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/jquery.ts' does not exist.
+trace: File '/w/node_modules/jquery.tsx' does not exist.
+trace: File '/w/node_modules/jquery.d.ts' does not exist.
+trace: Directory '/w/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/jquery.js' does not exist.
+trace: File '/w/node_modules/jquery.jsx' does not exist.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'jquery' was not resolved. ========
+trace: Auto discovery for typings is enabled in project '/w/tsconfig.json'. Running extra resolution pass for module 'jquery' using cache location '/cache'.
+trace: File '/cache/node_modules/jquery.d.ts' does not exist.
+trace: File '/cache/node_modules/@types/jquery/package.json' does not exist.
+trace: File '/cache/node_modules/@types/jquery.d.ts' does not exist.
+trace: File '/cache/node_modules/@types/jquery/index.d.ts' exists - use it as a name resolution result.
+resolved: "/cache/node_modules/@types/jquery/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### symlinks-and-typings-location: module jsonly /w/src/main.ts esm 
+trace: ======== Resolving module 'jsonly' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'jsonly' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/jsonly/package.json'.
+trace: File '/w/node_modules/jsonly.ts' does not exist.
+trace: File '/w/node_modules/jsonly.tsx' does not exist.
+trace: File '/w/node_modules/jsonly.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field 'index.js' that references '/w/node_modules/jsonly/index.js'.
+trace: File name '/w/node_modules/jsonly/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/jsonly/index.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.d.ts' does not exist.
+trace: Loading module as file / folder, candidate module location '/w/node_modules/jsonly/index.js', target file types: TypeScript, Declaration.
+trace: File name '/w/node_modules/jsonly/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/jsonly/index.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.d.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.js.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.js.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.js.d.ts' does not exist.
+trace: Directory '/w/node_modules/jsonly/index.js' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/jsonly/index.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.d.ts' does not exist.
+trace: Directory '/w/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript, JSON.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/jsonly/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/jsonly.js' does not exist.
+trace: File '/w/node_modules/jsonly.jsx' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' has 'main' field 'index.js' that references '/w/node_modules/jsonly/index.js'.
+trace: File name '/w/node_modules/jsonly/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/jsonly/index.js' exists - use it as a name resolution result.
+trace: Resolving real path for '/w/node_modules/jsonly/index.js', result '/w/node_modules/jsonly/index.js'.
+trace: Resolution of non-relative name failed; trying with modern Node resolution features disabled to see if npm library needs configuration update.
+trace: File '/w/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/w/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'jsonly' from 'node_modules' folder, target file types: TypeScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/jsonly/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/jsonly.ts' does not exist.
+trace: File '/w/node_modules/jsonly.tsx' does not exist.
+trace: File '/w/node_modules/jsonly.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field 'index.js' that references '/w/node_modules/jsonly/index.js'.
+trace: File name '/w/node_modules/jsonly/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/jsonly/index.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.d.ts' does not exist.
+trace: Loading module as file / folder, candidate module location '/w/node_modules/jsonly/index.js', target file types: TypeScript, Declaration.
+trace: File name '/w/node_modules/jsonly/index.js' has a '.js' extension - stripping it.
+trace: File '/w/node_modules/jsonly/index.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.d.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.js.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.js.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.js.d.ts' does not exist.
+trace: Directory '/w/node_modules/jsonly/index.js' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/jsonly/index.ts' does not exist.
+trace: File '/w/node_modules/jsonly/index.tsx' does not exist.
+trace: File '/w/node_modules/jsonly/index.d.ts' does not exist.
+trace: Directory '/w/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: ======== Module name 'jsonly' was successfully resolved to '/w/node_modules/jsonly/index.js'. ========
+trace: Auto discovery for typings is enabled in project '/w/tsconfig.json'. Running extra resolution pass for module 'jsonly' using cache location '/cache'.
+trace: File '/cache/node_modules/jsonly.d.ts' does not exist.
+trace: File '/cache/node_modules/@types/jsonly.d.ts' does not exist.
+resolved: "/w/node_modules/jsonly/index.js" original: "" ext: ".js" external: true tsext: false alt: "" pkg: "@"
+### symlinks-and-typings-location: typeRef linked /w/src/main.ts none 
+trace: ======== Resolving type reference directive 'linked', containing file '/w/src/main.ts', root directory '/node_modules/@types'. ========
+trace: Resolving with primary search path '/node_modules/@types'.
+trace: Directory '/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Looking up in 'node_modules' folder, initial location '/w/src'.
+trace: Searching all ancestor node_modules directories for preferred extensions: Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/w/node_modules/linked/package.json' exists according to earlier cached lookups.
+trace: File '/w/node_modules/linked.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'index.d.ts' that references '/w/node_modules/linked/index.d.ts'.
+trace: File '/w/node_modules/linked/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/w/node_modules/linked/index.d.ts', result '/real/linked/index.d.ts'.
+trace: ======== Type reference directive 'linked' was successfully resolved to '/real/linked/index.d.ts' with Package ID 'linked/index.d.ts@4.5.6', primary: false. ========
+resolved: "/real/linked/index.d.ts" original: "/w/node_modules/linked/index.d.ts" primary: false external: true pkg: "linked/index.d.ts@4.5.6"
+### symlinks-and-typings-location: packageDir linked /w/src/main.ts esm 
+resolved: "/real/linked" original: "/w/node_modules/linked" ext: "" external: true tsext: false alt: "" pkg: "@"
+### symlinks-and-typings-location: packageDir nope /w/src/main.ts esm 
+result: <nil>
+### preserve-symlinks: module linked /w/src/main.ts esm 
+trace: ======== Resolving module 'linked' from '/w/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Bundler'.
+trace: Resolving in CJS mode with conditions 'import', 'types'.
+trace: File '/w/src/package.json' does not exist.
+trace: File '/w/package.json' does not exist.
+trace: File '/package.json' does not exist.
+trace: Loading module 'linked' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/w/node_modules/linked/package.json'.
+trace: File '/w/node_modules/linked.ts' does not exist.
+trace: File '/w/node_modules/linked.tsx' does not exist.
+trace: File '/w/node_modules/linked.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'index.d.ts' that references '/w/node_modules/linked/index.d.ts'.
+trace: File '/w/node_modules/linked/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name 'linked' was successfully resolved to '/w/node_modules/linked/index.d.ts' with Package ID 'linked/index.d.ts@4.5.6'. ========
+resolved: "/w/node_modules/linked/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "linked/index.d.ts@4.5.6"
+### outdir-self-name: module selfy /lib/src/main.ts esm 
+trace: ======== Resolving module 'selfy' from '/lib/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/lib/src/package.json' does not exist.
+trace: Found 'package.json' at '/lib/package.json'.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'types'.
+trace: Using 'exports' subpath '.' with target './types/index.d.ts'.
+trace: File '/lib/src/index.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'types'.
+trace: Exiting conditional exports.
+trace: ======== Module name 'selfy' was successfully resolved to '/lib/src/index.ts' with Package ID 'selfy/src/index.ts@1.0.0'. ========
+resolved: "/lib/src/index.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "selfy/src/index.ts@1.0.0"
+### outdir-self-name: module selfy/sub /lib/src/main.ts esm 
+trace: ======== Resolving module 'selfy/sub' from '/lib/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/lib/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/lib/package.json' exists according to earlier cached lookups.
+trace: Using 'exports' subpath './sub' with target './dist/sub.js'.
+trace: File '/lib/src/sub.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name 'selfy/sub' was successfully resolved to '/lib/src/sub.ts' with Package ID 'selfy/src/sub.ts@1.0.0'. ========
+resolved: "/lib/src/sub.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "selfy/src/sub.ts@1.0.0"
+### outdir-self-name: module selfy/js /lib/src/main.ts esm 
+trace: ======== Resolving module 'selfy/js' from '/lib/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/lib/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/lib/package.json' exists according to earlier cached lookups.
+trace: Using 'exports' subpath './js' with target './dist/js.js'.
+trace: File name '/lib/src/js.js' has a '.js' extension - stripping it.
+trace: File '/lib/src/js.ts' does not exist.
+trace: File '/lib/src/js.tsx' does not exist.
+trace: File '/lib/src/js.d.ts' does not exist.
+trace: File '/lib/src/js.js' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name 'selfy/js' was successfully resolved to '/lib/src/js.js' with Package ID 'selfy/src/js.js@1.0.0'. ========
+resolved: "/lib/src/js.js" original: "" ext: ".js" external: false tsext: false alt: "" pkg: "selfy/src/js.js@1.0.0"
+### outdir-ambiguous-root: module selfy /lib/src/main.ts esm 
+trace: ======== Resolving module 'selfy' from '/lib/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/lib/src/package.json' does not exist.
+trace: Found 'package.json' at '/lib/package.json'.
+trace: Using 'exports' subpath '.' with target './dist/index.js'.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name 'selfy' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "selfy@1.0.0"
+diagnostic: 2209 The project root is ambiguous, but is required to resolve export map entry '.' in file '/lib/package.json'. Supply the `rootDir` compiler option to disambiguate.
+### outdir-ambiguous-root: module selfy/x /lib/src/main.ts esm 
+trace: ======== Resolving module 'selfy/x' from '/lib/src/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'NodeNext'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/lib/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/lib/package.json' exists according to earlier cached lookups.
+trace: Using 'exports' subpath './x' with target './dist/x.js'.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: ======== Module name 'selfy/x' was not resolved. ========
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "selfy@1.0.0"
+diagnostic: 2209 The project root is ambiguous, but is required to resolve export map entry '.' in file '/lib/package.json'. Supply the `rootDir` compiler option to disambiguate.
+### esm-fallback-alternate: module oldpkg /a/src/main.mts esm 
+trace: ======== Resolving module 'oldpkg' from '/a/src/main.mts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/a/src/package.json' does not exist.
+trace: File '/a/package.json' does not exist.
+trace: File '/package.json' does not exist.
+trace: Loading module 'oldpkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/a/node_modules/oldpkg/package.json'.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'import'.
+trace: Using 'exports' subpath '.' with target './index.mjs'.
+trace: File name '/a/node_modules/oldpkg/index.mjs' has a '.mjs' extension - stripping it.
+trace: File '/a/node_modules/oldpkg/index.mts' does not exist.
+trace: File '/a/node_modules/oldpkg/index.d.mts' does not exist.
+trace: Failed to resolve under condition 'import'.
+trace: Saw non-matching condition 'require'.
+trace: Exiting conditional exports.
+trace: Directory '/a/node_modules/@types' does not exist, skipping all lookups in it.
+trace: Directory '/node_modules' does not exist, skipping all lookups in it.
+trace: Searching all ancestor node_modules directories for fallback extensions: JavaScript.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/a/node_modules/oldpkg/package.json' exists according to earlier cached lookups.
+trace: Entering conditional exports.
+trace: Matched 'exports' condition 'import'.
+trace: Using 'exports' subpath '.' with target './index.mjs'.
+trace: File name '/a/node_modules/oldpkg/index.mjs' has a '.mjs' extension - stripping it.
+trace: File '/a/node_modules/oldpkg/index.mjs' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolved under condition 'import'.
+trace: Exiting conditional exports.
+trace: Resolving real path for '/a/node_modules/oldpkg/index.mjs', result '/a/node_modules/oldpkg/index.mjs'.
+trace: Resolution of non-relative name failed; trying with modern Node resolution features disabled to see if npm library needs configuration update.
+trace: File '/a/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/a/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'oldpkg' from 'node_modules' folder, target file types: TypeScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/a/node_modules/oldpkg/package.json' exists according to earlier cached lookups.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'index.d.ts' that references '/a/node_modules/oldpkg/index.d.ts'.
+trace: File '/a/node_modules/oldpkg/index.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/a/node_modules/oldpkg/index.d.ts', result '/a/node_modules/oldpkg/index.d.ts'.
+trace: ======== Module name 'oldpkg' was successfully resolved to '/a/node_modules/oldpkg/index.mjs' with Package ID 'oldpkg/index.mjs@1.0.0'. ========
+resolved: "/a/node_modules/oldpkg/index.mjs" original: "" ext: ".mjs" external: true tsext: false alt: "/a/node_modules/oldpkg/index.d.ts" pkg: "oldpkg/index.mjs@1.0.0"
+### esm-fallback-alternate: module noexp /a/src/main.mts esm 
+trace: ======== Resolving module 'noexp' from '/a/src/main.mts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in ESM mode with conditions 'import', 'types', 'node'.
+trace: File '/a/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/a/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'noexp' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/a/node_modules/noexp/package.json'.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' does not have a 'main' field.
+trace: File name '/a/node_modules/noexp/index.js' has a '.js' extension - stripping it.
+trace: File '/a/node_modules/noexp/index.ts' does not exist.
+trace: File '/a/node_modules/noexp/index.tsx' does not exist.
+trace: File '/a/node_modules/noexp/index.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/a/node_modules/noexp/index.d.ts', result '/a/node_modules/noexp/index.d.ts'.
+trace: ======== Module name 'noexp' was successfully resolved to '/a/node_modules/noexp/index.d.ts'. ========
+resolved: "/a/node_modules/noexp/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### esm-fallback-alternate: module nullexp /a/src/main.mts cjs 
+trace: ======== Resolving module 'nullexp' from '/a/src/main.mts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/a/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/a/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'nullexp' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/a/node_modules/nullexp/package.json'.
+trace: File '/a/node_modules/nullexp.ts' does not exist.
+trace: File '/a/node_modules/nullexp.tsx' does not exist.
+trace: File '/a/node_modules/nullexp.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' has 'main' field './m' that references '/a/node_modules/nullexp/m'.
+trace: Loading module as file / folder, candidate module location '/a/node_modules/nullexp/m', target file types: TypeScript, Declaration.
+trace: File '/a/node_modules/nullexp/m.ts' does not exist.
+trace: File '/a/node_modules/nullexp/m.tsx' does not exist.
+trace: File '/a/node_modules/nullexp/m.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/a/node_modules/nullexp/m.d.ts', result '/a/node_modules/nullexp/m.d.ts'.
+trace: ======== Module name 'nullexp' was successfully resolved to '/a/node_modules/nullexp/m.d.ts'. ========
+resolved: "/a/node_modules/nullexp/m.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### esm-fallback-alternate: module falsyexp /a/src/main.mts cjs 
+trace: ======== Resolving module 'falsyexp' from '/a/src/main.mts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/a/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/a/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'falsyexp' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/a/node_modules/falsyexp/package.json'.
+trace: File '/a/node_modules/falsyexp.ts' does not exist.
+trace: File '/a/node_modules/falsyexp.tsx' does not exist.
+trace: File '/a/node_modules/falsyexp.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 't.d.ts' that references '/a/node_modules/falsyexp/t.d.ts'.
+trace: File '/a/node_modules/falsyexp/t.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/a/node_modules/falsyexp/t.d.ts', result '/a/node_modules/falsyexp/t.d.ts'.
+trace: ======== Module name 'falsyexp' was successfully resolved to '/a/node_modules/falsyexp/t.d.ts'. ========
+resolved: "/a/node_modules/falsyexp/t.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### esm-fallback-alternate: module nested/inner /a/src/main.mts cjs 
+trace: ======== Resolving module 'nested/inner' from '/a/src/main.mts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/a/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/a/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'nested/inner' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: Found 'package.json' at '/a/node_modules/nested/inner/package.json'.
+trace: Found 'package.json' at '/a/node_modules/nested/package.json'.
+trace: File '/a/node_modules/nested/inner.ts' does not exist.
+trace: File '/a/node_modules/nested/inner.tsx' does not exist.
+trace: File '/a/node_modules/nested/inner.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'x.d.ts' that references '/a/node_modules/nested/inner/x.d.ts'.
+trace: File '/a/node_modules/nested/inner/x.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/a/node_modules/nested/inner/x.d.ts', result '/a/node_modules/nested/inner/x.d.ts'.
+trace: ======== Module name 'nested/inner' was successfully resolved to '/a/node_modules/nested/inner/x.d.ts'. ========
+resolved: "/a/node_modules/nested/inner/x.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### esm-fallback-alternate: module nested/inner/ /a/src/main.mts cjs 
+trace: ======== Resolving module 'nested/inner/' from '/a/src/main.mts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/a/src/package.json' does not exist according to earlier cached lookups.
+trace: File '/a/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'nested/inner/' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Directory '/a/src/node_modules' does not exist, skipping all lookups in it.
+trace: File '/a/node_modules/nested/inner/package.json' exists according to earlier cached lookups.
+trace: File '/a/node_modules/nested/package.json' exists according to earlier cached lookups.
+trace: File '/a/node_modules/nested/inner.ts' does not exist.
+trace: File '/a/node_modules/nested/inner.tsx' does not exist.
+trace: File '/a/node_modules/nested/inner.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'x.d.ts' that references '/a/node_modules/nested/inner/x.d.ts'.
+trace: File '/a/node_modules/nested/inner/x.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/a/node_modules/nested/inner/x.d.ts', result '/a/node_modules/nested/inner/x.d.ts'.
+trace: ======== Module name 'nested/inner/' was successfully resolved to '/a/node_modules/nested/inner/x.d.ts'. ========
+resolved: "/a/node_modules/nested/inner/x.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### esm-fallback-alternate: entrypoints    /a/node_modules/noexp
+entrypoint: "" "/a/node_modules/noexp/index.d.ts" "noexp" ending: 0 include: <nil> exclude: <nil>
+### esm-fallback-alternate: entrypoints    /a/node_modules/nested
+entrypoint: "" "/a/node_modules/nested/inner/x.d.ts" "nested/inner/x.d.ts" ending: 2 include: <nil> exclude: <nil>
+### case-insensitive-no-trace: module ./util /c/src/main.ts esm 
+resolved: "/c/src/util.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### case-insensitive-no-trace: module ./util /c/src/main.ts esm 
+resolved: "/c/src/util.ts" original: "" ext: ".ts" external: false tsext: false alt: "" pkg: "@"
+### case-insensitive-no-trace: module pkg /c/src/main.ts esm 
+resolved: "/c/node_modules/pkg/m.js" original: "" ext: ".js" external: true tsext: false alt: "" pkg: "@"
+### case-insensitive-no-trace: module #x /C/node_modules/Pkg/m.js esm 
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### config-lookup: config @tsconfig/node16/tsconfig.json /c/tsconfig.json  
+resolved: "/c/node_modules/@tsconfig/node16/tsconfig.json" original: "" ext: ".json" external: true tsext: false alt: "" pkg: "@"
+### config-lookup: config cfgpkg /c/tsconfig.json  
+resolved: "/c/node_modules/cfgpkg/configs/base.json" original: "" ext: ".json" external: true tsext: false alt: "" pkg: "@"
+### config-lookup: config plain /c/tsconfig.json  
+resolved: "/c/node_modules/plain/tsconfig.json" original: "" ext: ".json" external: true tsext: false alt: "" pkg: "@"
+### config-lookup: config expcfg/tsconfig /c/tsconfig.json  
+resolved: "/c/node_modules/expcfg/tsconfig.base.json" original: "" ext: ".json" external: true tsext: false alt: "" pkg: "@"
+### config-lookup: config ./tsconfig /c/sub/tsconfig.json  
+resolved: "" original: "" ext: "" external: false tsext: false alt: "" pkg: "@"
+### invalid-package-json: module broken /i/main.ts cjs 
+trace: ======== Resolving module 'broken' from '/i/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/i/package.json' does not exist.
+trace: File '/package.json' does not exist.
+trace: Loading module 'broken' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Found 'package.json' at '/i/node_modules/broken/package.json'.
+trace: File '/i/node_modules/broken.ts' does not exist.
+trace: File '/i/node_modules/broken.tsx' does not exist.
+trace: File '/i/node_modules/broken.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' does not have a 'types' field.
+trace: 'package.json' does not have a 'main' field.
+trace: File '/i/node_modules/broken/index.ts' does not exist.
+trace: File '/i/node_modules/broken/index.tsx' does not exist.
+trace: File '/i/node_modules/broken/index.d.ts' exists - use it as a name resolution result.
+trace: Resolving real path for '/i/node_modules/broken/index.d.ts', result '/i/node_modules/broken/index.d.ts'.
+trace: ======== Module name 'broken' was successfully resolved to '/i/node_modules/broken/index.d.ts'. ========
+resolved: "/i/node_modules/broken/index.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "@"
+### invalid-package-json: module dupe /i/main.ts cjs 
+trace: ======== Resolving module 'dupe' from '/i/main.ts'. ========
+trace: Explicitly specified module resolution kind: 'Node16'.
+trace: Resolving in CJS mode with conditions 'require', 'types', 'node'.
+trace: File '/i/package.json' does not exist according to earlier cached lookups.
+trace: File '/package.json' does not exist according to earlier cached lookups.
+trace: Loading module 'dupe' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.
+trace: Searching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.
+trace: Found 'package.json' at '/i/node_modules/dupe/package.json'.
+trace: File '/i/node_modules/dupe.ts' does not exist.
+trace: File '/i/node_modules/dupe.tsx' does not exist.
+trace: File '/i/node_modules/dupe.d.ts' does not exist.
+trace: 'package.json' does not have a 'typesVersions' field.
+trace: 'package.json' does not have a 'typings' field.
+trace: 'package.json' has 'types' field 'b.d.ts' that references '/i/node_modules/dupe/b.d.ts'.
+trace: File '/i/node_modules/dupe/b.d.ts' exists - use it as a name resolution result.
+trace: 'package.json' does not have a 'peerDependencies' field.
+trace: Resolving real path for '/i/node_modules/dupe/b.d.ts', result '/i/node_modules/dupe/b.d.ts'.
+trace: ======== Module name 'dupe' was successfully resolved to '/i/node_modules/dupe/b.d.ts' with Package ID 'dupe/b.d.ts@1.0.0'. ========
+resolved: "/i/node_modules/dupe/b.d.ts" original: "" ext: ".d.ts" external: true tsext: false alt: "" pkg: "dupe/b.d.ts@1.0.0"

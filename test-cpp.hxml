@@ -1,0 +1,4 @@
+common.hxml
+-cpp bin/cpp
+-D HXCPP_QUIET
+-D HXCPP_CHECK_POINTER
