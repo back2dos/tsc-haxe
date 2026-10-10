@@ -1813,7 +1813,7 @@ class CheckerPart7 {
 					includes |= TypeFlagsIncludesNonWideningType;
 				}
 			} else {
-				final r = Slices.BinarySearchFunc(typeSet, t, Checker.fn_CompareTypes);
+				final r = Slices.BinarySearchFuncInline(typeSet, t, (a, b) -> Checker.CompareTypes(a, b)) /* PORT: perf */;
 				if (!r.ok) {
 					// PORT: slices.Insert into the typeSet this union build owns (in place).
 					if (typeSet == null) {

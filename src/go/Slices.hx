@@ -19,13 +19,23 @@ class Slices {
 	}
 
 	// slices.Contains (== equality; for String this is value equality on every target).
-	public static function Contains<E>(s:Null<Array<E>>, v:E):Bool {
-		if (s == null)
-			return false;
-		for (x in s)
-			if (x == v)
-				return true;
-		return false;
+	// PORT: perf — Contains, ContainsFunc and IndexFunc are `inline` (single exit): typed with the
+	// caller's element type (a generic hxcpp function boxes Int elements and takes a VirtualArray), and
+	// a lambda literal argument is inlined.
+	public static inline function Contains<E>(s:Null<Array<E>>, v:E):Bool {
+		var found = false;
+		if (s != null) {
+			final n = s.length;
+			var i = 0;
+			while (i < n) {
+				if (s[i] == v) {
+					found = true;
+					break;
+				}
+				i++;
+			}
+		}
+		return found;
 	}
 
 	// slices.Collect: Go `iter.Seq` → Haxe Iterator. Like Go, an empty sequence gives a nil slice (null).
@@ -67,6 +77,22 @@ class Slices {
 			}
 		}
 		// i == j, cmp(x[i-1], target) < 0, and cmp(x[j], target) (= cmp(x[i], target)) >= 0  =>  answer is i.
+		return new go.Tuple.ValueOk<Int>(i, i < n && cmp(x[i], target) == 0);
+	}
+
+	// slices.BinarySearchFunc for hot call sites. PORT: perf — inline, so a lambda literal `cmp` is
+	// inlined too: no function value call, which on hxcpp boxes every Int result outside -1..255.
+	public static inline function BinarySearchFuncInline<E, T>(x:Null<Array<E>>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
+		final n = x == null ? 0 : x.length;
+		var i = 0, j = n;
+		while (i < j) {
+			final h = (i + j) >>> 1;
+			if (cmp(x[h], target) < 0) {
+				i = h + 1;
+			} else {
+				j = h;
+			}
+		}
 		return new go.Tuple.ValueOk<Int>(i, i < n && cmp(x[i], target) == 0);
 	}
 
@@ -605,13 +631,20 @@ class Slices {
 	}
 
 	// slices.Index (== equality): index of the first v in s, or -1.
-	public static function Index<E>(s:Null<Array<E>>, v:E):Int {
-		if (s == null)
-			return -1;
-		for (i in 0...s.length)
-			if (s[i] == v)
-				return i;
-		return -1;
+	public static inline function Index<E>(s:Null<Array<E>>, v:E):Int { // PORT: perf (see Contains)
+		var result = -1;
+		if (s != null) {
+			final n = s.length;
+			var i = 0;
+			while (i < n) {
+				if (s[i] == v) {
+					result = i;
+					break;
+				}
+				i++;
+			}
+		}
+		return result;
 	}
 
 	// slices.Concat: a new slice with the elements of all slices. Like Go, an empty result is
@@ -630,18 +663,25 @@ class Slices {
 	}
 
 	// slices.ContainsFunc: whether some element of s satisfies f.
-	public static function ContainsFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Bool {
+	public static inline function ContainsFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Bool {
 		return IndexFunc(s, f) >= 0;
 	}
 
 	// slices.IndexFunc: index of the first element of s that satisfies f, or -1.
-	public static function IndexFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Int {
-		if (s == null)
-			return -1;
-		for (i in 0...s.length)
-			if (f(s[i]))
-				return i;
-		return -1;
+	public static inline function IndexFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Int {
+		var result = -1;
+		if (s != null) {
+			final n = s.length;
+			var i = 0;
+			while (i < n) {
+				if (f(s[i])) {
+					result = i;
+					break;
+				}
+				i++;
+			}
+		}
+		return result;
 	}
 
 	// slices.Reverse: reverses s in place.

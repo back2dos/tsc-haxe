@@ -16,8 +16,11 @@ import haxe.Constraints.IMap;
 class IdentityMap<K, V> implements IMap<K, V> {
 	#if cpp
 	// Entries in insertion order; a deleted entry has a null key (a hole).
-	var ks:Array<K> = null;
-	var vs:Array<V> = null;
+	// PORT: perf — SlotArray, not Array<K>/Array<V>: hxcpp makes an array of a type parameter (and
+	// Array<Dynamic>) a cpp.VirtualArray, with a virtual call per element read (measured 1.5 % of a
+	// full emit).
+	var ks:SlotArray = null;
+	var vs:SlotArray = null;
 	// Open addressing, linear probing: 0 = empty slot, else index into ks + 1.
 	// (Measured: keys and values stored in the table itself were slower — more memory per map.)
 	var slots:Array<Int> = null;
@@ -64,7 +67,7 @@ class IdentityMap<K, V> implements IMap<K, V> {
 			final s:Int = untyped slots.__unsafe_get(i);
 			if (s == 0)
 				return -1;
-			if (same(untyped ks.__unsafe_get(s - 1), k))
+			if (same(ks[s - 1], k))
 				return s - 1;
 			i = (i + 1) & mask;
 		}
@@ -73,7 +76,7 @@ class IdentityMap<K, V> implements IMap<K, V> {
 	// Rebuilds the table with at least `cap` slots; removes the holes from ks/vs.
 	function rehash(cap:Int):Void {
 		if (used != count) {
-			final nk = new Array<K>(), nv = new Array<V>();
+			final nk = new SlotArray(), nv = new SlotArray();
 			for (i in 0...used) {
 				final k = ks[i];
 				if (k != null) {
@@ -106,7 +109,7 @@ class IdentityMap<K, V> implements IMap<K, V> {
 	public function get(k:K):Null<V> {
 		#if cpp
 		final e = find(k);
-		return e < 0 ? null : untyped vs.__unsafe_get(e);
+		return e < 0 ? null : vs[e];
 		#else
 		return m.get(k);
 		#end
@@ -130,8 +133,8 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		if (k == null)
 			throw "IdentityMap: null key";
 		if (slots == null) {
-			ks = [];
-			vs = [];
+			ks = new SlotArray();
+			vs = new SlotArray();
 			rehash(8);
 		}
 		final mask = slots.length - 1;
@@ -140,7 +143,7 @@ class IdentityMap<K, V> implements IMap<K, V> {
 			final s:Int = untyped slots.__unsafe_get(i);
 			if (s == 0)
 				break;
-			if (same(untyped ks.__unsafe_get(s - 1), k)) {
+			if (same(ks[s - 1], k)) {
 				vs[s - 1] = v;
 				return false;
 			}
@@ -200,7 +203,17 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		#end
 	}
 
-	public function keys():Iterator<K> {
+	// PORT: perf — concrete iterator types (through `Iterator<T>` hxcpp calls hasNext/next by name).
+	public function keys():haxe.iterators.ArrayIterator<K> {
+		return keysArray().iterator();
+	}
+
+	public function iterator():haxe.iterators.ArrayIterator<V> {
+		return valuesArray().iterator();
+	}
+
+	// PORT: perf — keys and values as arrays (insertion order; see go.ForIn).
+	public function keysArray():Array<K> {
 		#if cpp
 		final a = new Array<K>();
 		for (i in 0...used) {
@@ -208,21 +221,21 @@ class IdentityMap<K, V> implements IMap<K, V> {
 			if (k != null)
 				a.push(k);
 		}
-		return a.iterator();
+		return a;
 		#else
-		return [for (k in new js.lib.HaxeIterator(m.keys())) k].iterator();
+		return [for (k in new js.lib.HaxeIterator(m.keys())) k];
 		#end
 	}
 
-	public function iterator():Iterator<V> {
+	public function valuesArray():Array<V> {
 		#if cpp
 		final a = new Array<V>();
 		for (i in 0...used)
 			if (ks[i] != null)
 				a.push(vs[i]);
-		return a.iterator();
+		return a;
 		#else
-		return [for (v in new js.lib.HaxeIterator(m.values())) v].iterator();
+		return [for (v in new js.lib.HaxeIterator(m.values())) v];
 		#end
 	}
 
@@ -234,8 +247,8 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		final c = new IdentityMap<K, V>();
 		#if cpp
 		if (count > 0) {
-			c.ks = [];
-			c.vs = [];
+			c.ks = new SlotArray();
+			c.vs = new SlotArray();
 			for (i in 0...used) {
 				final k = ks[i];
 				if (k != null) {
@@ -280,3 +293,38 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		#end
 	}
 }
+
+#if cpp
+// Never instantiated: an Array of a class type is hxcpp's plain Array_obj<Dynamic>.
+@:noCompletion
+private class IdentityMapSlot {}
+
+// Object array for IdentityMap's keys and values: element reads and writes without type checks
+// and without cpp.VirtualArray dispatch.
+private abstract SlotArray(Array<IdentityMapSlot>) {
+	public inline function new() {
+		this = [];
+	}
+
+	public var length(get, never):Int;
+
+	inline function get_length():Int {
+		return this.length;
+	}
+
+	@:arrayAccess
+	public inline function get(i:Int):Dynamic {
+		return untyped this.__unsafe_get(i);
+	}
+
+	@:arrayAccess
+	public inline function set(i:Int, v:Dynamic):Dynamic {
+		untyped __cpp__("{0}->__unsafe_set({1}, {2})", this, i, v);
+		return v;
+	}
+
+	public inline function push(v:Dynamic):Void {
+		untyped __cpp__("{0}->push({1})", this, v);
+	}
+}
+#end

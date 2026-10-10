@@ -4,9 +4,13 @@
 # C++17 removes trigraphs. Only hxcpp reads this define.
 # -D HXCPP_SINGLE_THREADED_APP: the port never starts a thread; hxcpp then reads its allocation
 # context from a global instead of pthread_getspecific on every allocation (PORT: perf, measured).
+# -D HXCPP_GC_BIG_BLOCKS: 64 KB GC blocks with 32-bit block ids. hxcpp's default (32 KB blocks, 16-bit
+# ids) caps the heap of small objects at 65,534 blocks = 2 GB ("Memory exhausted"); a project about
+# three times the TypeScript 6 solution would reach it. Time neutral or better, peak memory -4..+8 %
+# (measured, Phase 9). Only hxcpp reads this define.
 # go.NilRange: Go `range`/`xs...` over a nil slice or map does nothing; the macro gives every
 # `for (x in e)` and `...e` in packages ts and go the same semantics (see src/go/NilRange.hx).
 # `-cp src` comes first, so a later `-cp` given by the caller still wins (Haxe takes the later one).
 H="${HAXE_HOME:-/home/mib/Development/tools/haxe-347}"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-HAXE_STD_PATH="$H/std" exec "$H/haxe" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit "$@"
+HAXE_STD_PATH="$H/std" exec "$H/haxe" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP -D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit "$@"

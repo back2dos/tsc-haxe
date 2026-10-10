@@ -3024,11 +3024,11 @@ class Scanner {
 		return res;
 	}
 
-	public static function GetLeadingCommentRanges(f:NodeFactory, text:String, pos:Int):Iterator<CommentRange> {
+	public static function GetLeadingCommentRanges(f:NodeFactory, text:String, pos:Int):haxe.iterators.ArrayIterator<CommentRange> {
 		return iterateCommentRanges(f, text, pos, false);
 	}
 
-	public static function GetTrailingCommentRanges(f:NodeFactory, text:String, pos:Int):Iterator<CommentRange> {
+	public static function GetTrailingCommentRanges(f:NodeFactory, text:String, pos:Int):haxe.iterators.ArrayIterator<CommentRange> {
 		return iterateCommentRanges(f, text, pos, true);
 	}
 
@@ -3040,7 +3040,9 @@ class Scanner {
 	 */
 	// PORT: Go returns iter.Seq (a push iterator); here the ranges are collected first and an
 	// Iterator over them is returned (a consumer that stops early observes the same ranges).
-	static function iterateCommentRanges(f:NodeFactory, text:String, pos:Int, trailing:Bool):Iterator<CommentRange> {
+	// PORT: perf — the concrete ArrayIterator type: through the `Iterator<T>` structure type hxcpp
+	// calls hasNext/next by name (a closure allocation per call).
+	static function iterateCommentRanges(f:NodeFactory, text:String, pos:Int, trailing:Bool):haxe.iterators.ArrayIterator<CommentRange> {
 		final result = new Array<CommentRange>();
 		var pendingPos = 0;
 		var pendingEnd = 0;

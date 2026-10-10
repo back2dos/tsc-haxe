@@ -11,7 +11,8 @@ import haxe.macro.Expr;
 // and `go` by tools/haxe, rewrites `for (x in e)` and `for (k => v in e)` into
 // `{ final tmp = e; if (tmp != null) for (x in tmp) ... }`. Integer ranges (`a...b`) are unchanged.
 // It also makes a rest spread `f(...xs)` of a null array pass zero arguments, like Go `f(xs...)`,
-// and a `.length` read of null give 0, like Go `len(nil)`.
+// and a `.length` read of null give 0, like Go `len(nil)`. On cpp the loops go through go.ForIn
+// (PORT: perf: map loops over arrays instead of hxcpp's by-name iterator calls).
 class NilRange {
 	public static function apply():Void {
 		for (pack in ["ts", "go"])
@@ -61,10 +62,16 @@ class NilRange {
 				final body2 = rewrite(body);
 				switch it.expr {
 					case EBinop(OpIn, v, coll) if (!isInterval(coll)):
-						makeLoop(e.pos, v, rewrite(coll), body2, (v, tmp) -> macro $v in $tmp);
+						if (Context.defined("cpp"))
+							makeLoopWith(e.pos, rewrite(coll), tmp -> macro @:pos(e.pos) go.ForIn.values($tmp, $v, $body2));
+						else
+							makeLoop(e.pos, v, rewrite(coll), body2, (v, tmp) -> macro $v in $tmp);
 					// `for (k => v in m)` parses as `k => (v in m)`
 					case EBinop(OpArrow, k, {expr: EBinop(OpIn, v, coll)}):
-						makeLoop(e.pos, v, rewrite(coll), body2, (v, tmp) -> macro $k => $v in $tmp);
+						if (Context.defined("cpp"))
+							makeLoopWith(e.pos, rewrite(coll), tmp -> macro @:pos(e.pos) go.ForIn.keyValues($tmp, $k, $v, $body2));
+						else
+							makeLoop(e.pos, v, rewrite(coll), body2, (v, tmp) -> macro $k => $v in $tmp);
 					case _:
 						{expr: EFor(rewrite(it), body2), pos: e.pos};
 				}
@@ -131,6 +138,17 @@ class NilRange {
 		final name = "__nilRange" + (counter++);
 		final tmp = macro @:pos(pos) $i{name};
 		final loop:Expr = {expr: EFor(mk(v, tmp), body), pos: pos};
+		return macro @:pos(pos) {
+			final $name = $coll;
+			if ($tmp != null) $loop;
+		};
+	}
+
+	// Like makeLoop, with the loop built by `mk` (go.ForIn on cpp).
+	static function makeLoopWith(pos:Position, coll:Expr, mk:Expr->Expr):Expr {
+		final name = "__nilRange" + (counter++);
+		final tmp = macro @:pos(pos) $i{name};
+		final loop = mk(tmp);
 		return macro @:pos(pos) {
 			final $name = $coll;
 			if ($tmp != null) $loop;

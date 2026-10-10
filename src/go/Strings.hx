@@ -235,21 +235,58 @@ class Strings {
 	// strings.IndexAny: UTF-16 index of the first code point of s that is in chars, or -1.
 	// A lone surrogate matches only the same lone surrogate.
 	public static function IndexAny(s:String, chars:String):Int {
+		return IndexAnyFrom(s, chars, 0);
+	}
+
+	// strings.IndexAny(s[from:], chars) without the copy (hxcpp `substring` copies: a loop that cuts
+	// the rest of a big text per match is quadratic). `from` must be on a code-point boundary.
+	// Returns the index relative to `from`, or -1.
+	public static function IndexAnyFrom(s:String, chars:String, from:Int):Int {
 		if (chars.length == 0)
 			return -1;
-		var i = 0;
+		final start = from < 0 ? 0 : from;
+		var i = start;
 		while (i < s.length) {
 			final r = Utf16.CodePointAt(s, i);
 			var j = 0;
 			while (j < chars.length) {
 				final c = Utf16.CodePointAt(chars, j);
 				if (c == r)
-					return i;
+					return i - start;
 				j += Utf16.RuneLen(c);
 			}
 			i += Utf16.RuneLen(r);
 		}
 		return -1;
+	}
+
+	// s itself as a value; on hxcpp a process-wide deduplicated copy with its hash stored
+	// (String.makePermanent: never collected), so map lookups with it skip hashing the characters.
+	// PORT: perf helper for long-lived strings that are looked up very often (parser identifiers).
+	public static function Intern(s:String):String {
+		#if cpp
+		return untyped __cpp__("{0}.makePermanent()", s);
+		#else
+		return s;
+		#end
+	}
+
+	// The string of the first n bytes of b, each byte (0..127, NUL included) one character.
+	// PORT: perf helper for checker.KeyHasher. haxe.io.Bytes.getString stops at a NUL byte on JS.
+	public static function FromASCIIBytes(b:haxe.io.Bytes, n:Int):String {
+		#if js
+		final u = new js.lib.Uint8Array(b.getData(), 0, n);
+		var s = "";
+		var i = 0;
+		while (i < n) { // apply() takes a bounded number of arguments
+			final end = i + 8192 < n ? i + 8192 : n;
+			s += js.Syntax.code("String.fromCharCode.apply(null, {0})", u.subarray(i, end));
+			i = end;
+		}
+		return s;
+		#else
+		return b.getString(0, n);
+		#end
 	}
 
 	// strings.ReplaceAll. Returns s itself (no allocation) when old does not occur.

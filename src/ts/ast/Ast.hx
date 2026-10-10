@@ -3189,7 +3189,14 @@ class Ast {
 	}
 
 	public static function NodeKindIs(node:Node, ...kinds:Kind):Bool {
-		return Slices.Contains(kinds.toArray(), node.Kind);
+		// PORT: perf — slices.Contains(kinds, node.Kind) without the copy of `toArray()`.
+		final k = node.Kind;
+		for (i in 0...kinds.length) {
+			if (kinds[i] == k) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static function IsModifier(node:Node):Bool {
@@ -4118,7 +4125,9 @@ class Ast {
 	}
 
 	// PORT: generic `T ~uint32` → Int (ModifierFlags and NodeFlags are Int abstracts).
-	static function getCombinedFlags(node:Node, getFlags:(Node) -> Int):Int {
+	// PORT: perf — inline: the getFlags function value (a static method reference or a lambda,
+	// allocated per call otherwise) becomes a direct call.
+	static inline function getCombinedFlags(node:Node, getFlags:(Node) -> Int):Int {
 		node = GetRootDeclaration(node);
 		var flags = getFlags(node);
 		if (node.Kind == KindVariableDeclaration) {
@@ -4139,7 +4148,7 @@ class Ast {
 	}
 
 	public static function GetCombinedNodeFlags(node:Node):NodeFlags {
-		return getCombinedFlags(node, getNodeFlags);
+		return getCombinedFlags(node, n -> getNodeFlags(n)); // PORT: perf — a lambda literal is inlined, a method reference is not
 	}
 
 	static function getNodeFlags(node:Node):NodeFlags {
@@ -5658,7 +5667,7 @@ class Ast {
 		var size = 0;
 		final n = text.length;
 		while (index < n) {
-			final next = Strings.IndexAny(text.substring(index), "ir");
+			final next = Strings.IndexAnyFrom(text, "ir", index); // PORT: perf (Go text[index:] is free; hxcpp substring copies: quadratic)
 			if (next < 0) {
 				break;
 			}
@@ -6566,7 +6575,7 @@ class Ast {
 	}
 
 	public static function IndexOfNode(nodes:Array<Node>, node:Node):Int {
-		final r = Slices.BinarySearchFunc(nodes, node, CompareNodePositions);
+		final r = Slices.BinarySearchFuncInline(nodes, node, (a, b) -> CompareNodePositions(a, b)) /* PORT: perf */;
 		if (r.ok) {
 			return r.value;
 		}
@@ -10242,8 +10251,9 @@ class ModifierList extends NodeList {
 @:forward
 abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 	// PORT: Go returns iter.Seq; here an Iterator over the children (collected first; a Go
-	// consumer that stops early observes the same children).
-	public function IterChildren():Iterator<Node> {
+	// consumer that stops early observes the same children). PORT: perf — concrete ArrayIterator
+	// type (see Scanner.iterateCommentRanges).
+	public function IterChildren():haxe.iterators.ArrayIterator<Node> {
 		final children = new Array<Node>();
 		this.ForEachChild(function(child:Node):Bool {
 			children.push(child);

@@ -549,7 +549,11 @@ class DeclarationTransformer {
 		return result;
 	}
 
-	function setupDiagnosticContext(input:Node):Pair<Bool, () -> Void> {
+	// PORT: perf — Go returns (bool, func()); the bool is left in setupDiagnosticContextResult (no
+	// result object per visited node).
+	var setupDiagnosticContextResult:Bool = false;
+
+	function setupDiagnosticContext(input:Node):() -> Void {
 		final canProdiceDiagnostic = Declarations.canProduceDiagnostics(input);
 		final oldWithinObjectLiteralType = suppressNewDiagnosticContexts;
 		final shouldEnterSuppressNewDiagnosticsContextContext = (input.Kind == KindTypeLiteral || input.Kind == KindMappedType)
@@ -565,11 +569,12 @@ class DeclarationTransformer {
 			suppressNewDiagnosticContexts = true;
 		}
 
-		return new Pair(canProdiceDiagnostic, function():Void {
+		setupDiagnosticContextResult = canProdiceDiagnostic;
+		return function():Void {
 			state.getSymbolAccessibilityDiagnostic = oldDiag;
 			state.errorNameNode = oldName;
 			suppressNewDiagnosticContexts = oldWithinObjectLiteralType;
-		});
+		};
 	}
 
 	function visitDeclarationSubtree(input:Node):Node {
@@ -623,9 +628,8 @@ class DeclarationTransformer {
 			enclosingDeclaration = input;
 		}
 
-		final ctx = setupDiagnosticContext(input);
-		final canProdiceDiagnostic = ctx.a;
-		final cleanupDiagnosticContext = ctx.b;
+		final cleanupDiagnosticContext = setupDiagnosticContext(input);
+		final canProdiceDiagnostic = setupDiagnosticContextResult;
 		// PORT: defer on the success path only (docs/PORTING.md §4).
 
 		var result:Node = null;
@@ -2381,7 +2385,7 @@ class DeclarationTransformer {
 
 	function visitCJSExportAssignments(expression:Node):Node {
 		if (expression != null) {
-			final cleanupDiagnosticContext = setupDiagnosticContext(expression).b;
+			final cleanupDiagnosticContext = setupDiagnosticContext(expression);
 			// PORT: defer on the success path only (docs/PORTING.md §4).
 			switch (Ast.GetAssignmentDeclarationKind(expression)) {
 				case JSDeclarationKindModuleExports:
@@ -2404,7 +2408,7 @@ class DeclarationTransformer {
 
 	function visitNestedExpression(expression:Node):Node {
 		if (expression != null) {
-			final cleanupDiagnosticContext = setupDiagnosticContext(expression).b;
+			final cleanupDiagnosticContext = setupDiagnosticContext(expression);
 			// PORT: defer on the success path only (docs/PORTING.md §4).
 			switch (Ast.GetAssignmentDeclarationKind(expression)) {
 				case JSDeclarationKindProperty:
@@ -2507,7 +2511,7 @@ class DeclarationTransformer {
 		}
 
 		final hostId = getExpandoHostId(declaration);
-		final cleanupDiagnosticContext = setupDiagnosticContext(node.AsNode()).b;
+		final cleanupDiagnosticContext = setupDiagnosticContext(node.AsNode());
 		// PORT: the Go defers (cleanupDiagnosticContext, later the enclosingDeclaration restore) run on the success path at each return (LIFO).
 
 		if (Ast.IsIdentifier(node.Right)) {
@@ -2604,7 +2608,7 @@ class DeclarationTransformer {
 			modifierFlags = modifierFlags ^ ModifierFlagsExport;
 		}
 
-		final cleanupDiagnosticContext = setupDiagnosticContext(declaration).b;
+		final cleanupDiagnosticContext = setupDiagnosticContext(declaration);
 		// PORT: defer on the success path only (docs/PORTING.md §4): cleanupDiagnosticContext() at each return.
 
 		final modifiers = Factory().NewModifierList(Ast.CreateModifiersFromModifierFlags(modifierFlags, Factory().NewModifier));

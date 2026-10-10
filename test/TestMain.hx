@@ -3,6 +3,7 @@ class TestMain {
 		go.SlicesSortTest.run();
 		go.IdentityMapTest.run();
 		go.StringsPrefixTest.run();
+		go.ForInTest.run();
 		ts.diagnostics.DiagnosticsTest.run();
 		ts.debug.DebugTest.run();
 		ts.locale.LocaleTest.run();

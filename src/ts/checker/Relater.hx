@@ -315,7 +315,7 @@ class Relater {
 			}
 		}
 		if (source.flags & TypeFlagsObject != 0 && target.flags & TypeFlagsObject != 0) {
-			final id = Checker.getRelationKey(source, target, IntersectionStateNone, relation == c.identityRelation, false).value;
+			final id = Checker.getRelationKey(source, target, IntersectionStateNone, relation == c.identityRelation, false);
 			final related = relation.get(id);
 			if (related != RelationComparisonResultNone) {
 				return related & RelationComparisonResultSucceeded != 0;
@@ -503,7 +503,7 @@ class Relater {
 		final result = r.isRelatedToEx(source, target, RecursionFlagsBoth, errorNode != null /*reportErrors*/, headMessage, IntersectionStateNone);
 		if (r.overflow) {
 			// Record this relation as having failed such that we don't attempt the overflowing operation again.
-			final id = Checker.getRelationKey(source, target, IntersectionStateNone, relation == c.identityRelation, false /*ignoreConstraints*/).value;
+			final id = Checker.getRelationKey(source, target, IntersectionStateNone, relation == c.identityRelation, false /*ignoreConstraints*/);
 			relation.set(id, RelationComparisonResultFailed | (r.relationCount <= 0 ? RelationComparisonResultComplexityOverflow : RelationComparisonResultStackDepthOverflow));
 			final tr = c.tracer;
 			if (tr != null) {
@@ -3142,9 +3142,9 @@ class Relater {
 			// important to have well-defined behavior even in cases that shouldn't normally occur.
 			return TernaryFalse;
 		}
-		final keyResult = Checker.getRelationKey(source, target, intersectionState, relation == c.identityRelation, false /*ignoreConstraints*/);
-		final id = Relation.keyString(keyResult.value); // PORT: struct map key, encoded once
-		final constrained = keyResult.ok;
+		final key = Checker.getRelationKey(source, target, intersectionState, relation == c.identityRelation, false /*ignoreConstraints*/);
+		final constrained = Checker.getRelationKeyConstrained;
+		final id = Relation.keyString(key); // PORT: struct map key, encoded once
 		final entry = relation.getByKey(id);
 		if (entry != RelationComparisonResultNone) {
 			if (reportErrors && entry & RelationComparisonResultFailed != 0 && entry & RelationComparisonResultOverflow == 0) {
@@ -3174,7 +3174,7 @@ class Relater {
 		// type parameters. For such keys we also check against the key we would have gotten if all type parameters
 		// were unconstrained.
 		if (constrained) {
-			final broadestEquivalentId = Checker.getRelationKey(source, target, intersectionState, relation == c.identityRelation, true /*ignoreConstraints*/).value;
+			final broadestEquivalentId = Checker.getRelationKey(source, target, intersectionState, relation == c.identityRelation, true /*ignoreConstraints*/);
 			if (maybeKeysSet.Has(Relation.keyString(broadestEquivalentId))) {
 				return TernaryMaybe;
 			}

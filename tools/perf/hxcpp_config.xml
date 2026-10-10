@@ -1,0 +1,7 @@
+<xml>
+  <!-- hxcpp config for profiling builds (tools/perf/build-fp.sh): no compile cache. hxcpp's cache
+       key ignores the compiler executable, so a shared cache would hand out objects built without
+       frame pointers. The obj dir of the output directory still makes rebuilds incremental. -->
+  <section id="vars"></section>
+  <section id="exes"></section>
+</xml>

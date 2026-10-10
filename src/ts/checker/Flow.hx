@@ -514,7 +514,7 @@ class Flow {
 				&& callAccess.Name().Text() == "hasOwnProperty" && callExpression.Arguments().length == 1) {
 				final argument = callExpression.Arguments()[0];
 				final accessed = c.getAccessedPropertyName(f.reference);
-				if (accessed.ok && Ast.IsStringLiteralLike(argument) && accessed.value == argument.Text()) {
+				if (accessed != null && Ast.IsStringLiteralLike(argument) && accessed == argument.Text()) {
 					return c.getTypeWithFacts(t, Core.IfElse(assumeTrue, TypeFactsNEUndefined, TypeFactsEQUndefined));
 				}
 			}
@@ -580,7 +580,7 @@ class Flow {
 					final leftType = c.getTypeOfExpression(expr.Left);
 					if (Checker.isTypeUsableAsPropertyName(leftType)) {
 						final accessed = c.getAccessedPropertyName(f.reference);
-						if (accessed.ok && accessed.value == Checker.getPropertyNameFromType(leftType)) {
+						if (accessed != null && accessed == Checker.getPropertyNameFromType(leftType)) {
 							return c.getTypeWithFacts(t, Core.IfElse(assumeTrue, TypeFactsNEUndefined, TypeFactsEQUndefined));
 						}
 					}
@@ -749,7 +749,7 @@ class Flow {
 			final keyPropertyName = c.getKeyPropertyName(t);
 			if (keyPropertyName != "") {
 				final accessed = c.getAccessedPropertyName(access);
-				if (accessed.ok && keyPropertyName == accessed.value) {
+				if (accessed != null && keyPropertyName == accessed) {
 					final candidate = c.getConstituentTypeForKeyType(t, c.getTypeOfExpression(value));
 					if (candidate != null) {
 						if (assumeTrue && operator_ == KindEqualsEqualsEqualsToken || !assumeTrue && operator_ == KindExclamationEqualsEqualsToken) {
@@ -771,10 +771,10 @@ class Flow {
 
 	static function narrowTypeByDiscriminant(c:Checker, t:Type, access:Node, narrowType:(t:Type) -> Type):Type {
 		final accessed = c.getAccessedPropertyName(access);
-		if (!accessed.ok) {
+		if (accessed == null) {
 			return t;
 		}
-		final propName = accessed.value;
+		final propName:std.String = accessed;
 		final optionalChain = Ast.IsOptionalChain(access);
 		final removeNullable = c.strictNullChecks && (optionalChain || Checker.isNonNullAccess(access)) && c.maybeTypeOfKind(t, TypeFlagsNullable);
 		var nonNullType = t;
@@ -799,7 +799,7 @@ class Flow {
 	static function isMatchingConstructorReference(c:Checker, f:FlowState, expr:Node):Bool {
 		if (Ast.IsAccessExpression(expr)) {
 			final accessed = c.getAccessedPropertyName(expr);
-			if (accessed.ok && accessed.value == "constructor" && c.isMatchingReference(f.reference, expr.Expression())) {
+			if (accessed != null && accessed == "constructor" && c.isMatchingReference(f.reference, expr.Expression())) {
 				return true;
 			}
 		}
@@ -1278,7 +1278,8 @@ class Flow {
 
 	static function narrowTypeBySwitchOnDiscriminantProperty(c:Checker, t:Type, access:Node, data:FlowSwitchClauseData):Type {
 		if (data.ClauseStart < data.ClauseEnd && (t.flags & TypeFlagsUnion) != 0) {
-			final accessedName = c.getAccessedPropertyName(access).value;
+			final accessedOrNull = c.getAccessedPropertyName(access);
+			final accessedName = accessedOrNull == null ? "" : accessedOrNull; // Go: "" when not ok
 			if (accessedName != "" && c.getKeyPropertyName(t) == accessedName) {
 				final clauseTypes = c.getSwitchClauseTypes(data.SwitchStatement).slice(data.ClauseStart, data.ClauseEnd);
 				final candidate = c.getUnionType(Core.Map(clauseTypes, function(s:Type):Type {
@@ -1515,12 +1516,12 @@ class Flow {
 			final access = c.getCandidateDiscriminantPropertyAccess(f, expr);
 			if (access != null) {
 				final accessed = c.getAccessedPropertyName(access);
-				if (accessed.ok) {
+				if (accessed != null) {
 					var t = computedType;
 					if ((f.declaredType.flags & TypeFlagsUnion) != 0 && c.isTypeSubsetOf(computedType, f.declaredType)) {
 						t = f.declaredType;
 					}
-					if (c.isDiscriminantProperty(t, accessed.value)) {
+					if (c.isDiscriminantProperty(t, accessed)) {
 						return access;
 					}
 				}
@@ -1677,11 +1678,11 @@ class Flow {
 				return c.isMatchingReference(source.Expression(), target);
 			case KindPropertyAccessExpression | KindElementAccessExpression:
 				final sourcePropertyName = c.getAccessedPropertyName(source);
-				if (sourcePropertyName.ok) {
+				if (sourcePropertyName != null) {
 					if (Ast.IsAccessExpression(target)) {
 						final targetPropertyName = c.getAccessedPropertyName(target);
-						if (targetPropertyName.ok) {
-							return targetPropertyName.value == sourcePropertyName.value && c.isMatchingReference(source.Expression(), target.Expression());
+						if (targetPropertyName != null) {
+							return targetPropertyName == sourcePropertyName && c.isMatchingReference(source.Expression(), target.Expression());
 						}
 					}
 				}
@@ -1699,8 +1700,8 @@ class Flow {
 			case KindQualifiedName:
 				if (Ast.IsAccessExpression(target)) {
 					final targetPropertyName = c.getAccessedPropertyName(target);
-					if (targetPropertyName.ok) {
-						return source.AsQualifiedName().Right.Text() == targetPropertyName.value
+					if (targetPropertyName != null) {
+						return source.AsQualifiedName().Right.Text() == targetPropertyName
 							&& c.isMatchingReference(source.AsQualifiedName().Left, target.Expression());
 					}
 				}
@@ -1762,12 +1763,12 @@ class Flow {
 				return true;
 			case KindPropertyAccessExpression | KindElementAccessExpression:
 				final accessed = c.getAccessedPropertyName(node);
-				if (accessed.ok) {
+				if (accessed != null) {
 					if (!c.writeFlowCacheKey(b, node.Expression(), declaredType, initialType, flowContainer)) {
 						return false;
 					}
 					b.writeByte(".".code);
-					b.writeString(accessed.value);
+					b.writeString(accessed);
 					return true;
 				}
 				if (Ast.IsElementAccessExpression(node) && Ast.IsIdentifier(node.AsElementAccessExpression().ArgumentExpression)) {
@@ -1791,20 +1792,24 @@ class Flow {
 		return false;
 	}
 
-	static function getAccessedPropertyName(c:Checker, access:Node):ValueOk<std.String> {
+	// PORT: perf — Go returns (string, bool); here the name, or null for ok == false (no result object
+	// per call: it runs for every reference matched during control flow analysis).
+	static function getAccessedPropertyName(c:Checker, access:Node):Null<std.String> {
 		if (Ast.IsPropertyAccessExpression(access)) {
-			return new ValueOk(access.Name().Text(), true);
+			return access.Name().Text();
 		}
 		if (Ast.IsElementAccessExpression(access)) {
-			return c.tryGetElementAccessExpressionName(access.AsElementAccessExpression());
+			final r = c.tryGetElementAccessExpressionName(access.AsElementAccessExpression());
+			return r.ok ? r.value : null;
 		}
 		if (Ast.IsBindingElement(access)) {
-			return c.getDestructuringPropertyName(access);
+			final r = c.getDestructuringPropertyName(access);
+			return r.ok ? r.value : null;
 		}
 		if (Ast.IsParameterDeclaration(access)) {
-			return new ValueOk(Std.string(Slices.Index(access.Parent.Parameters(), access)), true);
+			return Std.string(Slices.Index(access.Parent.Parameters(), access));
 		}
-		return new ValueOk("", false);
+		return null;
 	}
 
 	static function tryGetElementAccessExpressionName(c:Checker, node:ElementAccessExpression):ValueOk<std.String> {

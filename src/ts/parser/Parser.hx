@@ -6140,7 +6140,7 @@ class Parser {
 				return identifier;
 			}
 		}
-		var identifier = text;
+		var identifier = Strings.Intern(text); // PORT: perf — hash computed once (symbol table lookups)
 		if (identifiers == null) {
 			identifiers = new StringMap<String>();
 		}

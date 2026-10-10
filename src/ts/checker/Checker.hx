@@ -798,76 +798,177 @@ class ExportCollision {
 typedef ExportCollisionTable = StringMap<ExportCollision>;
 
 // PORT: Go `type CacheHashKey xxh3.Uint128` is a 128-bit xxh3 hash of the bytes a keyBuilder wrote.
-// The go.Xxh3 shim has no 128-bit hash; the key holds the written bytes themselves (one char per
-// byte, `s`), so equal input gives an equal key and different input a different key (in Go up to
-// hash collisions). The Go zero value CacheHashKey{} has s == null. `Key()` is the map-key
+// The go.Xxh3 shim has no 128-bit hash; the key holds the written bytes themselves (packed into a
+// string by KeyHasher.Sum), so equal bytes give an equal key and different bytes a different key (in
+// Go up to hash collisions). The Go zero value CacheHashKey{} has s == null. `Key()` is the map-key
 // encoding of a CacheHashKey (StringMap<…> /* key: checker.CacheHashKey */).
-// Immutable value type: no copy() needed.
-class CacheHashKey {
-	public final s:std.String;
-
-	public function new(?s:std.String) {
-		this.s = s;
+// PORT: perf — an abstract over the string (Go's value type, no object per key).
+abstract CacheHashKey(Null<std.String>) {
+	public inline function new(?s:std.String) {
+		this = s;
 	}
 
-	public function IsZero():Bool {
-		return s == null;
+	public var s(get, never):Null<std.String>;
+
+	inline function get_s():Null<std.String> {
+		return this;
+	}
+
+	public inline function IsZero():Bool {
+		return this == null;
 	}
 
 	public inline function Key():std.String {
-		return s == null ? "" : s;
+		return this == null ? "" : this;
+	}
+
+	// PORT: CacheHashKey(xxh3.HashString128(s)): the key of the UTF-8 bytes of s.
+	public static function OfString(s:std.String):CacheHashKey {
+		final b = new KeyBuilder();
+		b.writeString(s);
+		return b.hash();
+	}
+}
+
+// PORT: perf — stands for Go's xxh3.Hasher inside keyBuilder. It collects the written bytes; Sum()
+// returns them packed 7 bits per character into one ASCII string (one narrow string on hxcpp, short
+// to hash; the former one-char-per-byte StringBuf allocated a buffer per key and made most keys
+// UTF-16). The packing is injective: the character count ceil(8n/7) grows strictly with the byte
+// count n. Hashers are pooled: a KeyBuilder takes one when created and gives it back in hash(); a
+// builder that is dropped without hash() just leaves its hasher to the GC.
+@:allow(ts.checker)
+class KeyHasher {
+	var buf:haxe.io.Bytes = haxe.io.Bytes.alloc(64);
+	var n:Int = 0;
+
+	function new() {}
+
+	static var pool:Array<KeyHasher> = null;
+	static var packed:haxe.io.Bytes = null;
+
+	static function Get():KeyHasher {
+		if (pool == null)
+			pool = [];
+		return pool.length > 0 ? pool.pop() : new KeyHasher();
+	}
+
+	inline function WriteByte(c:Int):Void {
+		if (n == buf.length)
+			grow();
+		buf.set(n++, c);
+	}
+
+	function grow():Void {
+		final b = haxe.io.Bytes.alloc(buf.length * 2);
+		b.blit(0, buf, 0, n);
+		buf = b;
+	}
+
+	// The packed bytes; the hasher goes back to the pool.
+	function Sum():std.String {
+		final m = Std.int((n * 8 + 6) / 7);
+		if (packed == null || packed.length < m)
+			packed = haxe.io.Bytes.alloc(m < 256 ? 256 : m * 2);
+		final p = packed;
+		var acc = 0;
+		var bits = 0;
+		var j = 0;
+		for (i in 0...n) {
+			acc = ((acc << 8) | buf.get(i)) & 0x7FFF; // at most 6 pending bits + 8 new ones
+			bits += 8;
+			while (bits >= 7) {
+				bits -= 7;
+				p.set(j++, (acc >> bits) & 0x7F);
+			}
+		}
+		if (bits > 0)
+			p.set(j++, (acc << (7 - bits)) & 0x7F);
+		n = 0;
+		pool.push(this);
+		return Strings.FromASCIIBytes(p, j);
 	}
 }
 
 @:allow(ts.checker)
-// PORT: `h` buffers the written bytes (one char per byte) instead of an xxh3.Hasher; see CacheHashKey.
-// Go `var b keyBuilder` → `final b = new KeyBuilder()`.
-class KeyBuilder {
-	var h:StringBuf = new StringBuf();
+// PORT: `h` is a pooled KeyHasher (see there) instead of an xxh3.Hasher; see CacheHashKey.
+// Go `var b keyBuilder` → `final b = new KeyBuilder()`. PORT: perf — an abstract over its hasher
+// (Go's keyBuilder is a stack value; no object per key). hash() gives the hasher back to the pool:
+// the builder must not be used after it.
+abstract KeyBuilder(KeyHasher) {
+	public inline function new() {
+		this = KeyHasher.Get();
+	}
 
-	public function new() {}
+	var h(get, never):KeyHasher;
+
+	inline function get_h():KeyHasher {
+		return this;
+	}
 
 	function hash():CacheHashKey {
-		return new CacheHashKey(this.h.toString());
+		return new CacheHashKey(this.Sum());
 	}
 
 	function writeByte(c:Int):Void {
-		this.h.addChar(c & 0xFF);
+		this.WriteByte(c & 0xFF);
 	}
 
-	// PORT: Go writes the UTF-8 bytes of s; the UTF-16 code units identify the string as well.
+	// Go writes the UTF-8 bytes of s; U+FFFE stands for Go's byte 0xFE (PORTING §5); a lone surrogate
+	// is written as its 3-byte WTF-8 form.
 	function writeString(s:std.String):Void {
-		this.h.add(s);
+		var i = 0;
+		while (i < s.length) {
+			var r = go.Utf16.CodePointAt(s, i);
+			i += go.Utf16.RuneLen(r);
+			if (r < 0x80) {
+				this.WriteByte(r);
+			} else if (r == 0xFFFE) {
+				this.WriteByte(0xFE);
+			} else {
+				if (r < 0x800) {
+					this.WriteByte(0xC0 | (r >> 6));
+				} else {
+					if (r < 0x10000) {
+						this.WriteByte(0xE0 | (r >> 12));
+					} else {
+						this.WriteByte(0xF0 | (r >> 18));
+						this.WriteByte(0x80 | ((r >> 12) & 0x3F));
+					}
+					this.WriteByte(0x80 | ((r >> 6) & 0x3F));
+				}
+				this.WriteByte(0x80 | (r & 0x3F));
+			}
+		}
 	}
 
 	function writeInt(value:Int):Void {
-		Checker.hashWrite64(this.h, value);
+		Checker.hashWrite64(this, value);
 	}
 
 	function writeSymbol(s:Symbol):Void {
-		Checker.hashWrite64(this.h, Ast.GetSymbolId(s));
+		Checker.hashWrite64(this, Ast.GetSymbolId(s));
 	}
 
 	function writeType(t:Type):Void {
-		Checker.hashWrite32(this.h, t.id);
+		Checker.hashWrite32(this, t.id);
 	}
 
 	function writeTypes(types:Array<Type>):Void {
-		this.writeInt(Core.len(types));
+		writeInt(Core.len(types));
 		if (types != null) {
 			for (t in types) {
-				this.writeType(t);
+				writeType(t);
 			}
 		}
 	}
 
 	function writeAlias(alias:TypeAlias):Void {
 		if (alias != null) {
-			this.writeByte(1);
-			this.writeSymbol(alias.symbol);
-			this.writeTypes(alias.typeArguments);
+			writeByte(1);
+			writeSymbol(alias.symbol);
+			writeTypes(alias.typeArguments);
 		} else {
-			this.writeByte(0);
+			writeByte(0);
 		}
 	}
 
@@ -876,7 +977,7 @@ class KeyBuilder {
 		final typeParameters:Array<Type> = [];
 		var writeTypeReference:(ref:Type, depth:Int) -> Void = null;
 		writeTypeReference = (ref:Type, depth:Int) -> {
-			this.writeType(ref.Target());
+			writeType(ref.Target());
 			final args = ref.AsTypeReference().resolvedTypeArguments;
 			if (args != null) {
 				for (t in args) {
@@ -887,35 +988,35 @@ class KeyBuilder {
 								index = typeParameters.length;
 								typeParameters.push(t);
 							}
-							this.writeByte('='.code);
-							this.writeInt(index);
+							writeByte('='.code);
+							writeInt(index);
 							continue;
 						}
 						constrained = true;
 					} else if (depth < 4 && Checker.isTypeReferenceWithGenericArguments(t)) {
-						this.writeByte('<'.code);
+						writeByte('<'.code);
 						writeTypeReference(t, depth + 1);
-						this.writeByte('>'.code);
+						writeByte('>'.code);
 						continue;
 					}
-					this.writeByte('-'.code);
-					this.writeType(t);
+					writeByte('-'.code);
+					writeType(t);
 				}
 			}
 		};
 		writeTypeReference(source, 0);
-		this.writeByte(','.code);
+		writeByte(','.code);
 		writeTypeReference(target, 0);
 		return constrained;
 	}
 
 	function writeNodeId(id:NodeId):Void {
-		Checker.hashWrite64(this.h, id);
+		Checker.hashWrite64(this, id);
 	}
 
 	function writeNode(node:Node):Void {
 		if (node != null) {
-			this.writeNodeId(Ast.GetNodeId(node));
+			writeNodeId(Ast.GetNodeId(node));
 		}
 	}
 }
@@ -1466,7 +1567,6 @@ class Checker {
 	static final fn_isThislessTypeParameter:(Node) -> Bool = n -> isThislessTypeParameter(n);
 	static final fn_isTypeAlias:(Node) -> Bool = n -> isTypeAlias(n);
 	static final fn_isUnitType:(Type) -> Bool = t -> isUnitType(t);
-	static final fn_CompareTypes:(Type, Type) -> Int = (t1, t2) -> CompareTypes(t1, t2);
 	static final fn_GetTextOfNode:(Node) -> std.String = n -> Scanner.GetTextOfNode(n);
 	static final fn_IsImportDeclaration:(Node) -> Bool = n -> Ast.IsImportDeclaration(n);
 	static final fn_IsSetAccessorDeclaration:(Node) -> Bool = n -> Ast.IsSetAccessorDeclaration(n);
@@ -1506,16 +1606,16 @@ class Checker {
 		return d;
 	}
 
-	// PORT: CacheHashKey(xxh3.HashString128(s)) → the key of the bytes of s (see CacheHashKey).
-	public static final SignatureKeyErased:CacheHashKey = new CacheHashKey("-");
+	// PORT: CacheHashKey(xxh3.HashString128(s)) → CacheHashKey.OfString(s) (see CacheHashKey).
+	public static final SignatureKeyErased:CacheHashKey = CacheHashKey.OfString("-");
 
-	public static final SignatureKeyCanonical:CacheHashKey = new CacheHashKey("*");
+	public static final SignatureKeyCanonical:CacheHashKey = CacheHashKey.OfString("*");
 
-	public static final SignatureKeyBase:CacheHashKey = new CacheHashKey("#");
+	public static final SignatureKeyBase:CacheHashKey = CacheHashKey.OfString("#");
 
-	public static final SignatureKeyInner:CacheHashKey = new CacheHashKey("<");
+	public static final SignatureKeyInner:CacheHashKey = CacheHashKey.OfString("<");
 
-	public static final SignatureKeyOuter:CacheHashKey = new CacheHashKey(">");
+	public static final SignatureKeyOuter:CacheHashKey = CacheHashKey.OfString(">");
 
 	static var intrinsicTypeKinds:StringMap<IntrinsicTypeKind> = {
 		final m = new StringMap<IntrinsicTypeKind>();
@@ -1541,7 +1641,12 @@ class Checker {
 		c.compilerOptions = program.Options();
 		c.files = program.SourceFiles();
 		c.fileIndexMap = createFileIndexMap(c.files);
-		c.compareSymbols = (s1, s2) -> c.compareSymbolsWorker(s1, s2); // Closure optimization
+		// Closure optimization. PORT: perf — every caller uses only the sign; a result in -1..1 is
+		// returned unboxed by an hxcpp function value (larger Ints are allocated per call).
+		c.compareSymbols = (s1, s2) -> {
+			final r = c.compareSymbolsWorker(s1, s2);
+			r < 0 ? -1 : (r > 0 ? 1 : 0);
+		};
 		c.compareSymbolChains = (a, b) -> c.compareSymbolChainsWorker(a, b); // Closure optimization
 		c.languageVersion = c.compilerOptions.GetEmitScriptTarget();
 		c.moduleKind = c.compilerOptions.GetEmitModuleKind();
@@ -2170,28 +2275,28 @@ class Checker {
 		return sig.flags & SignatureFlagsHasRestParameter != 0;
 	}
 
-	// PORT: h is the keyBuilder byte buffer (see CacheHashKey); T is any 32-bit integer type.
-	static function hashWrite32(h:StringBuf, value:Int):Void {
+	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any 32-bit integer type.
+	static function hashWrite32(h:KeyHasher, value:Int):Void {
 		final v = value;
-		h.addChar(v & 0xFF);
-		h.addChar((v >>> 8) & 0xFF);
-		h.addChar((v >>> 16) & 0xFF);
-		h.addChar((v >>> 24) & 0xFF);
+		h.WriteByte(v & 0xFF);
+		h.WriteByte((v >>> 8) & 0xFF);
+		h.WriteByte((v >>> 16) & 0xFF);
+		h.WriteByte((v >>> 24) & 0xFF);
 	}
 
-	// PORT: h is the keyBuilder byte buffer (see CacheHashKey); T is any integer type (Int here).
-	static function hashWrite64(h:StringBuf, value:Int):Void {
+	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any integer type (Int here).
+	static function hashWrite64(h:KeyHasher, value:Int):Void {
 		// PORT: the Haxe Int is 32 bits; Go's uint64 conversion sign-extends it.
 		final v = value;
 		final hi = v < 0 ? 0xFF : 0;
-		h.addChar(v & 0xFF);
-		h.addChar((v >>> 8) & 0xFF);
-		h.addChar((v >>> 16) & 0xFF);
-		h.addChar((v >>> 24) & 0xFF);
-		h.addChar(hi);
-		h.addChar(hi);
-		h.addChar(hi);
-		h.addChar(hi);
+		h.WriteByte(v & 0xFF);
+		h.WriteByte((v >>> 8) & 0xFF);
+		h.WriteByte((v >>> 16) & 0xFF);
+		h.WriteByte((v >>> 24) & 0xFF);
+		h.WriteByte(hi);
+		h.WriteByte(hi);
+		h.WriteByte(hi);
+		h.WriteByte(hi);
 	}
 
 	static function getTypeListKey(types:Array<Type>):CacheHashKey {
@@ -2293,7 +2398,7 @@ class Checker {
 		b.writeByte('|'.code);
 		if (texts != null) {
 			for (s in texts) {
-				b.writeInt(s.length);
+				b.writeInt(Utf8.ByteLen(s)); // PORT: byte (Go len(s))
 			}
 		}
 		b.writeByte('|'.code);
@@ -2315,7 +2420,11 @@ class Checker {
 		return b.hash();
 	}
 
-	static function getRelationKey(source:Type, target:Type, intersectionState:IntersectionState, isIdentity:Bool, ignoreConstraints:Bool):ValueOk<CacheHashKey> {
+	// PORT: perf — Go returns (CacheHashKey, bool); the bool (constrained) is left in
+	// getRelationKeyConstrained, read by the caller right after the call (no result object per check).
+	static var getRelationKeyConstrained:Bool = false;
+
+	static function getRelationKey(source:Type, target:Type, intersectionState:IntersectionState, isIdentity:Bool, ignoreConstraints:Bool):CacheHashKey {
 		if (isIdentity && source.id > target.id) {
 			final tmp = source;
 			source = target;
@@ -2332,7 +2441,8 @@ class Checker {
 			b.writeType(target);
 		}
 		hashWrite32(b.h, intersectionState);
-		return new ValueOk<CacheHashKey>(b.hash(), constrained);
+		getRelationKeyConstrained = constrained;
+		return b.hash();
 	}
 
 	static function getNodeListKey(nodes:Array<Node>):CacheHashKey {
@@ -2730,11 +2840,11 @@ class Checker {
 	}
 
 	static function containsType(types:Array<Type>, t:Type):Bool {
-		return Slices.BinarySearchFunc(types, t, fn_CompareTypes).ok;
+		return Slices.BinarySearchFuncInline(types, t, (a, b) -> CompareTypes(a, b)) /* PORT: perf */.ok;
 	}
 
 	static function insertType(types:Array<Type>, t:Type):ValueOk<Array<Type>> {
-		final r = Slices.BinarySearchFunc(types, t, fn_CompareTypes);
+		final r = Slices.BinarySearchFuncInline(types, t, (a, b) -> CompareTypes(a, b)) /* PORT: perf */;
 		if (!r.ok) {
 			// PORT: slices.Insert may reuse the backing array; insert into a copy so the caller's slice is unchanged.
 			final result = types == null ? [] : types.copy();
@@ -3076,7 +3186,7 @@ class Checker {
 		return hasEvolvingArrayType;
 	}
 
-	static final nonDottedNameCacheKey:CacheHashKey = new CacheHashKey("?"); // PORT: CacheHashKey(xxh3.HashString128("?"))
+	static final nonDottedNameCacheKey:CacheHashKey = CacheHashKey.OfString("?"); // PORT: CacheHashKey(xxh3.HashString128("?"))
 
 	static function tryGetNameFromType(t:Type):ValueOk<std.String> {
 		if (t.flags & TypeFlagsUniqueESSymbol != 0) {

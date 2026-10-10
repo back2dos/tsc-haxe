@@ -1,0 +1,12 @@
+#!/bin/sh
+# C++ compiler wrapper for profiling builds (tools/perf/build-fp.sh): frame pointers for perf call
+# graphs. With HXPERF_ALLOC=<patched include dir>: compiles against the patched hx/GC.h (allocation
+# hook) and links tools/perf/alloc/hook.cpp with --wrap of hx::InternalNew / hx::InternalRealloc.
+here=$(cd "$(dirname "$0")" && pwd)
+fp="-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
+[ -z "$HXPERF_ALLOC" ] && exec g++ $fp "$@"
+for a in "$@"; do
+	[ "$a" = -c ] && exec g++ $fp -I"$HXPERF_ALLOC" "$@"
+done
+exec g++ $fp "$@" -O2 -I"$HXPERF_ALLOC" "$here/alloc/hook.cpp" -ldl -lpthread \
+	-Wl,--wrap=_ZN2hx11InternalNewEib -Wl,--wrap=_ZN2hx15InternalReallocEiPvib

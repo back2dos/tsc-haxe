@@ -4867,7 +4867,7 @@ class Tsoptions {
 			}
 		}
 		if (fileSpecs.sliceValue != null) {
-			final fileSpecs = Core.Filter(fileSpecs.sliceValue, function(spec:Dynamic):Bool {
+			final fileSpecs:Array<Dynamic> = Core.Filter(fileSpecs.sliceValue, function(spec:Dynamic):Bool { // PORT: Go []any (the elements are not all strings)
 				return isString(spec);
 			});
 			for (spec in fileSpecs) {

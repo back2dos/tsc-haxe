@@ -318,22 +318,31 @@ class Core {
 		// rtdebug.SetMaxStack(n)
 	}
 
-	public static function Filter<T>(slice:Null<Array<T>>, f:(T) -> Bool):Null<Array<T>> {
-		if (slice == null)
-			return null;
-		for (i in 0...slice.length) {
-			if (!f(slice[i])) {
-				final result = slice.slice(0, i);
-				for (k in i + 1...slice.length) {
+	// PORT: perf — Filter, Map, Some, Every, Find and FindIndex are `inline` (single exit): at a call
+	// site with a lambda literal the lambda is inlined too (no closure allocation, no by-value calls),
+	// and the body is typed with the caller's element type (on hxcpp a non-inline generic function
+	// takes the array as a cpp.VirtualArray and boxes the elements as Dynamic).
+	public static inline function Filter<T>(slice:Null<Array<T>>, f:(T) -> Bool):Null<Array<T>> {
+		var result = slice;
+		if (slice != null) {
+			final n = slice.length;
+			var i = 0;
+			while (i < n && f(slice[i]))
+				i++;
+			if (i < n) {
+				final r = slice.slice(0, i);
+				var k = i + 1;
+				while (k < n) {
 					final value = slice[k];
 					if (f(value)) {
-						result.push(value);
+						r.push(value);
 					}
+					k++;
 				}
-				return result;
+				result = r;
 			}
 		}
-		return slice;
+		return result;
 	}
 
 	public static function FilterSeq<T>(slice:Null<Array<T>>, f:(T) -> Bool):Iterator<T> {
@@ -358,14 +367,15 @@ class Core {
 		return slice;
 	}
 
-	public static function Map<T, U>(slice:Null<Array<T>>, f:(T) -> U):Null<Array<U>> {
-		if (slice == null) {
-			return null;
-		}
-		final result = new Array<U>();
-		result.resize(slice.length);
-		for (i in 0...slice.length) {
-			result[i] = f(slice[i]);
+	public static inline function Map<T, U>(slice:Null<Array<T>>, f:(T) -> U):Null<Array<U>> {
+		var result:Null<Array<U>> = null;
+		if (slice != null) {
+			final r = new Array<U>();
+			r.resize(slice.length);
+			for (i in 0...slice.length) {
+				r[i] = f(slice[i]);
+			}
+			result = r;
 		}
 		return result;
 	}
@@ -497,26 +507,36 @@ class Core {
 		return len(s1) == len(s2) ? (len(s1) == 0 || s1 == s2) : false;
 	}
 
-	public static function Some<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
+	public static inline function Some<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
+		var found = false;
 		if (slice != null) {
-			for (value in slice) {
-				if (f(value)) {
-					return true;
+			final n = slice.length;
+			var i = 0;
+			while (i < n) {
+				if (f(slice[i])) {
+					found = true;
+					break;
 				}
+				i++;
 			}
 		}
-		return false;
+		return found;
 	}
 
-	public static function Every<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
+	public static inline function Every<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
+		var all = true;
 		if (slice != null) {
-			for (value in slice) {
-				if (!f(value)) {
-					return false;
+			final n = slice.length;
+			var i = 0;
+			while (i < n) {
+				if (!f(slice[i])) {
+					all = false;
+					break;
 				}
+				i++;
 			}
 		}
-		return true;
+		return all;
 	}
 
 	public static function Or<T>(...funcs:(T) -> Bool):(T) -> Bool {
@@ -531,15 +551,21 @@ class Core {
 		};
 	}
 
-	public static function Find<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T {
+	public static inline function Find<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T {
+		var result = zero;
 		if (slice != null) {
-			for (value in slice) {
+			final n = slice.length;
+			var i = 0;
+			while (i < n) {
+				final value = slice[i];
 				if (f(value)) {
-					return value;
+					result = value;
+					break;
 				}
+				i++;
 			}
 		}
-		return zero;
+		return result;
 	}
 
 	public static function FindLast<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T {
@@ -554,15 +580,20 @@ class Core {
 		return zero;
 	}
 
-	public static function FindIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
+	public static inline function FindIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
+		var result = -1;
 		if (slice != null) {
-			for (i in 0...slice.length) {
+			final n = slice.length;
+			var i = 0;
+			while (i < n) {
 				if (f(slice[i])) {
-					return i;
+					result = i;
+					break;
 				}
+				i++;
 			}
 		}
-		return -1;
+		return result;
 	}
 
 	public static function FindLastIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
@@ -772,7 +803,9 @@ class Core {
 
 	// PORT: positions are UTF-16 offsets (PORTING.md §5): non-ASCII characters are decoded from
 	// UTF-16; a lone surrogate decodes to RuneError (not a line break) and advances 1 unit.
-	public static function ComputeECMALineStartsSeq(text:String):Iterator<TextPos> {
+	// PORT: perf — returns the concrete iterator class: through the `Iterator<T>` structure type hxcpp
+	// calls hasNext/next by name (a closure allocation per call).
+	public static function ComputeECMALineStartsSeq(text:String):ECMALineStartsSeqIterator {
 		return new ECMALineStartsSeqIterator(text);
 	}
 
