@@ -1,8 +1,9 @@
 #!/bin/sh
-# Gate for the tsc command line (lane C): runs the ported execute/tsctests scenarios (non-watch,
-# non-build: TestTsc* in tsc_test.go and TestShowConfig) on an in-memory FS with the Haxe port
-# (test/ts/execute/tsctests/TscGate.hx, JS and cpp builds) and compares every baseline byte for byte
-# with upstream/tsc/testdata/baselines/reference/tsc/** (read in place, never copied).
+# Gate for the tsc command line (lane C): runs the ported execute/tsctests scenarios (non-watch:
+# TestTsc* in tsc_test.go, TestShowConfig, and the tsc -b scenarios TestBuild* in tscbuild_test.go)
+# on an in-memory FS with the Haxe port (test/ts/execute/tsctests/TscGate.hx, JS and cpp builds) and
+# compares every baseline byte for byte with upstream/tsc/testdata/baselines/reference/{tsc,tsbuild}/**
+# (read in place, never copied).
 #
 # Usage: tools/gate/tsc.sh [--no-build] [--js-only|--cpp-only] [--case <substring>]
 #   --case <substring>  run only the scenarios whose baseline path or name contains <substring>
@@ -76,5 +77,7 @@ done
 if [ -z "$case_filter" ]; then
 	nref=$(find "$ref/tsc" -type f | wc -l)
 	echo "reference baselines under $ref/tsc: $nref"
+	nref=$(find "$ref/tsbuild" -type f | wc -l)
+	echo "reference baselines under $ref/tsbuild: $nref"
 fi
 exit $status

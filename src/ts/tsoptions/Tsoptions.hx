@@ -1934,8 +1934,10 @@ class Tsoptions {
 			return true;
 		}
 		return ForEachCompilerOptionValue(newOptions, declFilter, function(option:CommandLineOption, value:Dynamic, i:Int):Bool {
-			final newValue = value;
-			final oldValue = compilerOptionsFields[i].Get(oldOptions);
+			// PORT: explicit Dynamic — untyped, the `(x : Tristate)` checks below would type the locals
+			// as Tristate and hxcpp would convert every option value to int (measured).
+			final newValue:Dynamic = value;
+			final oldValue:Dynamic = compilerOptionsFields[i].Get(oldOptions);
 			if (option.strictFlag) {
 				return oldOptions.GetStrictOptionValue((oldValue : Tristate)) != newOptions.GetStrictOptionValue((newValue : Tristate));
 			}

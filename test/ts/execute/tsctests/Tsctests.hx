@@ -149,6 +149,24 @@ declare const console: { log(msg: any): void; };
 		return Diagnostics.Version_0.Localize(Locale.Default, [Harnessutil.FakeTSVersion]);
 	}
 
+	public static var czech(get, never):Locale;
+
+	static function get_czech():Locale {
+		return go.text.language.Language.MustParse("cs");
+	}
+
+	public static var czechVersion(get, never):String;
+
+	static function get_czechVersion():String {
+		return Diagnostics.Version_0.Localize(czech, [Core.Version()]);
+	}
+
+	public static var fakeCzechVersion(get, never):String;
+
+	static function get_fakeCzechVersion():String {
+		return Diagnostics.Version_0.Localize(czech, [Harnessutil.FakeTSVersion]);
+	}
+
 	// --- runner.go ---
 
 	public static function getDiffForIncremental(incrementalSys:TestSys, nonIncrementalSys:TestSys):String {

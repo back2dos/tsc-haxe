@@ -6821,7 +6821,9 @@ class Printer {
 	// Note that this doesn't actually wrap the input in double quotes.
 	// PORT: utf16 — Go decodes UTF-8 with DecodeJSStringRune (a lone surrogate sentinel decodes to the
 	// surrogate); here the string is UTF-16 (a lone surrogate is one code unit). Go's extra check for a
-	// stray invalid UTF-8 byte (`ch == utf8.RuneError && size == 1`) has no UTF-16 counterpart.
+	// stray invalid UTF-8 byte (`ch == utf8.RuneError && size == 1`): the only such byte the port can
+	// carry is Go's 0xFE (ast.InternalSymbolNamePrefix), stored as U+FFFE (PORTING §5); it decodes
+	// to utf8.RuneError like in Go.
 	static function escapeStringWorker(s:std.String, quoteChar:QuoteChar, flags:GetLiteralTextFlags, b:StringBuf):Void {
 		var pos = 0;
 		var i = 0;
@@ -6831,6 +6833,13 @@ class Printer {
 
 			var escape = false;
 			if (ch >= 0xD800 && ch <= 0xDFFF) {
+				escape = true;
+			} else if (ch == 0xFFFE) {
+				// A stray byte that is not valid UTF-8 (for example, a fragment of a
+				// surrogate sentinel left behind by code that sliced the string by
+				// byte). Escape it as the Unicode replacement character so the output
+				// is always well-formed rather than containing raw invalid bytes.
+				ch = 0xFFFD; // PORT: Go utf8.RuneError for the byte 0xFE (U+FFFE here)
 				escape = true;
 			}
 

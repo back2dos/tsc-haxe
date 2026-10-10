@@ -407,8 +407,8 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	public function Locale():Locale {
 		if (!this.localeOnce) {
 			this.localeOnce = true;
-			final l = ts.locale.Locale.Parse(this.CompilerOptions().Locale);
-			this.locale = l == null ? ts.locale.Locale.Default : l;
+			// Go: `p.locale, _ = locale.Parse(...)` keeps the (partly) parsed tag even when parsing fails.
+			this.locale = ts.locale.Locale.ParseOk(this.CompilerOptions().Locale).value;
 		}
 		return this.locale;
 	}

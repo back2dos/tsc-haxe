@@ -92,11 +92,31 @@ class Utf8 {
 
 	// Go `[]byte(s)`: UTF-8 bytes of s (a lone surrogate becomes U+FFFD, like Go's WTF-8 would
 	// not; such strings do not occur in file contents).
+	// U+FFFE stands for Go's byte 0xFE (ast.InternalSymbolNamePrefix, PORTING §5) and is written
+	// as that single byte, so output bytes equal Go's.
 	public static function StringToBytes(s:String):Bytes {
-		return Bytes.ofString(s, UTF8);
+		if (s.indexOf("\u{FFFE}") < 0) {
+			return Bytes.ofString(s, UTF8);
+		}
+		final parts = s.split("\u{FFFE}");
+		final encoded = [for (part in parts) Bytes.ofString(part, UTF8)];
+		var total = parts.length - 1;
+		for (e in encoded)
+			total += e.length;
+		final out = Bytes.alloc(total);
+		var pos = 0;
+		for (k in 0...encoded.length) {
+			if (k > 0) {
+				out.set(pos, 0xFE);
+				pos++;
+			}
+			out.blit(pos, encoded[k], 0, encoded[k].length);
+			pos += encoded[k].length;
+		}
+		return out;
 	}
 
-	// len(s) in Go: the UTF-8 byte length of s.
+	// len(s) in Go: the UTF-8 byte length of s (U+FFFE is Go's single byte 0xFE, see StringToBytes).
 	public static function ByteLen(s:String):Int {
 		var n = 0;
 		var i = 0;
@@ -107,6 +127,8 @@ class Utf8 {
 				n += 1;
 			else if (c < 0x800)
 				n += 2;
+			else if (c == 0xFFFE)
+				n += 1;
 			else if (c >= 0xD800 && c < 0xDC00 && i + 1 < l && StringTools.fastCodeAt(s, i + 1) >= 0xDC00
 				&& StringTools.fastCodeAt(s, i + 1) < 0xE000) {
 				n += 4;

@@ -40,6 +40,11 @@ class Baseline {
 		// PORT: the .diff comparison is not ported (see the header).
 	}
 
+	public static function DiffText(oldName:String, newName:String, expected:String, actual:String):String {
+		final lines = go.Patience.Diff(ts.stringutil.Stringutil.SplitLines(expected), ts.stringutil.Stringutil.SplitLines(actual));
+		return go.Patience.UnifiedDiffTextWithOptions(lines, new go.Patience.UnifiedDiffOptions(3, 3, oldName, newName));
+	}
+
 	static function readFileOrNoContent(fileName:String):String {
 		if (!sys.FileSystem.exists(fileName))
 			return NoContent;
@@ -64,14 +69,18 @@ class Baseline {
 			sys.FileSystem.deleteFile(local + ".delete");
 		}
 
-		var expected = NoContent;
+		// PORT: Go compares the bytes of the strings. The reference is compared as bytes, and the
+		// actual content is encoded like Go's string bytes (go.Utf8.StringToBytes: U+FFFE is Go's
+		// byte 0xFE, the internal symbol prefix), so invalid UTF-8 never goes through a decoder.
+		var expected = haxe.io.Bytes.ofString(NoContent);
 		var foundExpected = false;
 		if (sys.FileSystem.exists(reference) && !sys.FileSystem.isDirectory(reference)) {
-			expected = sys.io.File.getContent(reference);
+			expected = sys.io.File.getBytes(reference);
 			foundExpected = true;
 		}
+		final actualBytes = go.Utf8.StringToBytes(actualContent);
 
-		final mismatch = expected != actualContent || actualContent == NoContent && foundExpected;
+		final mismatch = expected.compare(actualBytes) != 0 || actualContent == NoContent && foundExpected;
 		if (OnCompare != null) {
 			OnCompare(reference, local, actualContent, !mismatch);
 		}
@@ -80,7 +89,7 @@ class Baseline {
 			if (actualContent == NoContent) {
 				sys.io.File.saveContent(local + ".delete", "");
 			} else {
-				sys.io.File.saveContent(local, actualContent);
+				sys.io.File.saveBytes(local, actualBytes);
 			}
 
 			if (!foundExpected) {

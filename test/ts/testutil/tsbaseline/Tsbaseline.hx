@@ -7,7 +7,8 @@ import ts.diagnosticwriter.Diagnosticwriter.FileLike;
 
 // Port of internal/testutil/tsbaseline: package-level funcs and vars of error_baseline.go,
 // type_symbol_baseline.go and util.go (the types of type_symbol_baseline.go are in TypeSymbolBaseline.hx).
-// PORT: js_emit_baseline.go, sourcemap*_baseline.go and module_resolution_baseline.go are not ported yet.
+// js_emit_baseline.go, module_resolution_baseline.go, sourcemap_baseline.go and sourcemap_record_baseline.go
+// (types of js_emit_baseline.go in JsEmitBaseline.hx).
 // PORT: the Go regexps are hand-written matchers (PORTING.md §7 prefers a hand loop for simple patterns);
 // each one names its Go pattern.
 @:allow(ts.testutil.tsbaseline)
@@ -686,6 +687,373 @@ class Tsbaseline {
 		}
 		final text = Scanner.GetSourceTextOfNodeFromSourceFile(sourceFile, node, false /*includeTrivia*/);
 		return Scanner.IsIntrinsicJsxName(text);
+	}
+
+	// --- js_emit_baseline.go ---
+
+	public static function DoJSEmitBaseline(t:T, baselinePath:String, header:String, options:CompilerOptions, result:CompilationResult,
+			tsConfigFiles:Array<TestFile>, toBeCompiled:Array<TestFile>, otherFiles:Array<TestFile>, harnessSettings:HarnessOptions, opts:Options):Void {
+		if (!options.NoEmit.IsTrue() && !options.EmitDeclarationOnly.IsTrue() && result.JS.Size() == 0 && Core.len(result.Diagnostics) == 0) {
+			t.Fatal("Expected at least one js file to be emitted or at least one error to be created.");
+		}
+
+		// check js output
+		final tsCode = new StringBuf();
+		final tsSources = Core.Concatenate(otherFiles, toBeCompiled);
+		tsCode.add("//// [");
+		tsCode.add(header);
+		tsCode.add("] ////\r\n\r\n");
+
+		final nSources = Core.len(tsSources);
+		for (i in 0...nSources) {
+			final file = tsSources[i];
+			tsCode.add("//// [");
+			tsCode.add(Tspath.GetBaseFileName(file.UnitName));
+			tsCode.add("]\r\n");
+			tsCode.add(file.Content);
+			if (i < nSources - 1) {
+				tsCode.add("\r\n");
+			}
+		}
+
+		// PORT: strings.Builder; HasSuffix(jsCode.String(), "\n") is tracked by the last written string.
+		final jsCode = new JsCodeBuilder();
+		for (file in result.JS.Values()) {
+			if (jsCode.Len() > 0 && !jsCode.HasSuffixNewline()) {
+				jsCode.WriteString("\r\n");
+			}
+			if (Core.len(result.Diagnostics) == 0 && StringTools.endsWith(file.UnitName, Tspath.ExtensionJson)) {
+				final parseOpts = new SourceFileParseOptions();
+				parseOpts.FileName = file.UnitName;
+				parseOpts.Path = file.UnitName;
+				final fileParseResult = Parser.ParseSourceFile(parseOpts, file.Content, ScriptKindJSON);
+				if (Core.len(fileParseResult.Diagnostics()) > 0) {
+					jsCode.WriteString(GetErrorBaseline(t, [file], Diagnosticwriter.WrapASTDiagnostics(fileParseResult.Diagnostics()),
+						Diagnosticwriter.CompareASTDiagnostics, false /*pretty*/));
+					continue;
+				}
+			}
+			jsCode.WriteString(fileOutput(file, harnessSettings));
+		}
+
+		if (result.DTS.Size() > 0) {
+			jsCode.WriteString("\r\n\r\n");
+			for (declFile in result.DTS.Values()) {
+				jsCode.WriteString(fileOutput(declFile, harnessSettings));
+			}
+		}
+
+		final declFileContext = prepareDeclarationCompilationContext(toBeCompiled, otherFiles, result, harnessSettings, options, "" /*currentDirectory*/);
+		final declFileCompilationResult = compileDeclarationFiles(t, declFileContext, result.Symlinks);
+
+		if (declFileCompilationResult != null && Core.len(declFileCompilationResult.declResult.Diagnostics) > 0) {
+			jsCode.WriteString("\r\n\r\n//// [DtsFileErrors]\r\n");
+			jsCode.WriteString("\r\n\r\n");
+			jsCode.WriteString(GetErrorBaseline(t,
+				Core.Concatenate(tsConfigFiles, Core.Concatenate(declFileCompilationResult.declInputFiles, declFileCompilationResult.declOtherFiles)),
+				Diagnosticwriter.WrapASTDiagnostics(declFileCompilationResult.declResult.Diagnostics), Diagnosticwriter.CompareASTDiagnostics,
+				false /*pretty*/));
+		}
+
+		if (!options.NoCheck.IsTrue() && !options.NoEmit.IsTrue()) {
+			final testConfig = new StringMap<String>();
+			testConfig.set("noCheck", "true");
+			final withoutChecking = result.Repeat(testConfig);
+			final compareResultFileSets = function(a:OrderedMap<String, TestFile>, b:OrderedMap<String, TestFile>) {
+				for (e in a.Entries()) {
+					final key = e.key;
+					final doc = e.value;
+					final original = b.GetOrZero(key);
+					if (original == null) {
+						jsCode.WriteString("\r\n\r\n!!!! File ");
+						jsCode.WriteString(removeTestPathPrefixes(doc.UnitName, false /*retainTrailingDirectorySeparator*/));
+						jsCode.WriteString(" missing from original emit, but present in noCheck emit\r\n");
+						jsCode.WriteString(fileOutput(doc, harnessSettings));
+					} else if (original.Content != doc.Content) {
+						jsCode.WriteString("\r\n\r\n!!!! File ");
+						jsCode.WriteString(removeTestPathPrefixes(doc.UnitName, false /*retainTrailingDirectorySeparator*/));
+						jsCode.WriteString(" differs from original emit in noCheck emit\r\n");
+						var fileName:String;
+						if (harnessSettings.FullEmitPaths) {
+							fileName = removeTestPathPrefixes(doc.UnitName, false /*retainTrailingDirectorySeparator*/);
+						} else {
+							fileName = Tspath.GetBaseFileName(doc.UnitName);
+						}
+						jsCode.WriteString("//// [");
+						jsCode.WriteString(fileName);
+						jsCode.WriteString("]\r\n");
+						final expected = original.Content;
+						final actual = doc.Content;
+						jsCode.WriteString(Baseline.DiffText("Expected\tThe full check baseline", "Actual\twith noCheck set", expected, actual));
+					}
+				}
+			};
+			compareResultFileSets(withoutChecking.DTS, result.DTS);
+			compareResultFileSets(withoutChecking.JS, result.JS);
+		}
+
+		if (Tspath.FileExtensionIsOneOf(baselinePath, [Tspath.ExtensionTs, Tspath.ExtensionTsx])) {
+			baselinePath = Tspath.ChangeExtension(baselinePath, Tspath.ExtensionJs);
+		}
+
+		var actual:String;
+		if (jsCode.Len() > 0) {
+			actual = tsCode.toString() + "\r\n\r\n" + jsCode.String();
+		} else {
+			actual = Baseline.NoContent;
+		}
+
+		Baseline.Run(t, baselinePath, actual, opts);
+	}
+
+	static function fileOutput(file:TestFile, settings:HarnessOptions):String {
+		var fileName:String;
+		if (settings.FullEmitPaths) {
+			fileName = removeTestPathPrefixes(file.UnitName, false /*retainTrailingDirectorySeparator*/);
+		} else {
+			fileName = Tspath.GetBaseFileName(file.UnitName);
+		}
+		return "//// [" + fileName + "]\r\n" + file.Content;
+	}
+
+	static function prepareDeclarationCompilationContext(inputFiles:Array<TestFile>, otherFiles:Array<TestFile>, result:CompilationResult,
+			harnessSettings:HarnessOptions, options:CompilerOptions,
+			// Current directory is needed for rwcRunner to be able to use currentDirectory defined in json file
+			currentDirectory:String):DeclarationCompilationContext {
+		if (options.Declaration.IsTrue() && Core.len(result.Diagnostics) == 0) {
+			if (options.EmitDeclarationOnly.IsTrue()) {
+				if (result.JS.Size() > 0) {
+					throw "Only declaration files should be generated when emitDeclarationOnly:true";
+				}
+				if (result.DTS.Size() == 0 && !options.NoEmit.IsTrue()) {
+					throw "Expected at least one declaration file to be emitted when emitDeclarationOnly:true and no errors were generated";
+				}
+			} else if (result.DTS.Size() != result.GetNumberOfJSFiles(false /*includeJson*/)) {
+				throw "There were no errors and declFiles generated did not match number of js files generated";
+			}
+		}
+
+		var declInputFiles:Array<TestFile> = null;
+		var declOtherFiles:Array<TestFile> = null;
+
+		final findUnit = function(fileName:String, units:Array<TestFile>):TestFile {
+			if (units != null) {
+				for (unit in units) {
+					if (unit.UnitName == fileName) {
+						return unit;
+					}
+				}
+			}
+			return null;
+		};
+
+		final findResultCodeFile = function(fileName:String):TestFile {
+			final sourceFile = result.Program.GetSourceFile(fileName);
+			if (sourceFile == null) {
+				throw "Program has no source file with name '" + fileName + "'";
+			}
+			// Is this file going to be emitted separately
+			var sourceFileName:String;
+
+			if (options.OutDir.length != 0) {
+				var sourceFilePath = Tspath.GetNormalizedAbsolutePath(sourceFile.FileName(), result.Host.GetCurrentDirectory());
+				sourceFilePath = Strings.Replace(sourceFilePath, result.Program.CommonSourceDirectory(), "", 1);
+				sourceFileName = Tspath.CombinePaths(options.OutDir, sourceFilePath);
+			} else {
+				sourceFileName = sourceFile.FileName();
+			}
+
+			final dTsFileName = Tspath.RemoveFileExtension(sourceFileName) + Tspath.GetDeclarationEmitExtensionForPath(sourceFileName);
+			return result.DTS.GetOrZero(dTsFileName);
+		};
+
+		final addDtsFile = function(file:TestFile, dtsFiles:Array<TestFile>):Array<TestFile> {
+			if (Tspath.IsDeclarationFileName(file.UnitName) || Tspath.HasJSONFileExtension(file.UnitName)) {
+				dtsFiles = appendFile(dtsFiles, file);
+			} else if (Tspath.HasTSFileExtension(file.UnitName) || (Tspath.HasJSFileExtension(file.UnitName) && options.GetAllowJS())) {
+				final declFile = findResultCodeFile(file.UnitName);
+				if (declFile != null && findUnit(declFile.UnitName, declInputFiles) == null && findUnit(declFile.UnitName, declOtherFiles) == null) {
+					dtsFiles = appendFile(dtsFiles, new TestFile(declFile.UnitName, Strings.TrimPrefix(declFile.Content, "\u{FEFF}")));
+				}
+			}
+			return dtsFiles;
+		};
+
+		// if the .d.ts is non-empty, confirm it compiles correctly as well
+		if (options.Declaration.IsTrue() && Core.len(result.Diagnostics) == 0 && result.DTS.Size() > 0) {
+			if (inputFiles != null)
+				for (file in inputFiles) {
+					declInputFiles = addDtsFile(file, declInputFiles);
+				}
+			if (otherFiles != null)
+				for (file in otherFiles) {
+					declOtherFiles = addDtsFile(file, declOtherFiles);
+				}
+			final c = new DeclarationCompilationContext();
+			c.declInputFiles = declInputFiles;
+			c.declOtherFiles = declOtherFiles;
+			c.harnessSettings = harnessSettings;
+			c.options = options;
+			c.currentDirectory = currentDirectory.length > 0 ? currentDirectory : harnessSettings.CurrentDirectory;
+			c.configFile = result.Program.Program().CommandLine().ConfigFile;
+			return c;
+		}
+		return null;
+	}
+
+	// PORT: `append(s, x)` on a possibly-nil slice owned by the caller.
+	static function appendFile(s:Array<TestFile>, x:TestFile):Array<TestFile> {
+		if (s == null)
+			s = [];
+		s.push(x);
+		return s;
+	}
+
+	static function compileDeclarationFiles(t:T, context:DeclarationCompilationContext, symlinks:StringMap<String>):DeclarationCompilationResult {
+		if (context == null) {
+			return null;
+		}
+		var tsconfig:ParsedCommandLine = null;
+		if (context.configFile != null) {
+			tsconfig = new ParsedCommandLine();
+			tsconfig.ConfigFile = context.configFile;
+		}
+		final declFileCompilationResult = Harnessutil.CompileFilesEx(t, context.declInputFiles == null ? [] : context.declInputFiles,
+			context.declOtherFiles == null ? [] : context.declOtherFiles, context.harnessSettings, context.options, context.currentDirectory, symlinks,
+			tsconfig);
+		final r = new DeclarationCompilationResult();
+		r.declInputFiles = context.declInputFiles;
+		r.declOtherFiles = context.declOtherFiles;
+		r.declResult = declFileCompilationResult;
+		return r;
+	}
+
+	// --- module_resolution_baseline.go ---
+
+	public static function DoModuleResolutionBaseline(t:T, baselinePath:String, trace:String, opts:Options):Void {
+		baselinePath = replaceTsExtension(baselinePath, ".trace.json");
+		var errorBaseline:String;
+		if (trace != "") {
+			errorBaseline = trace;
+		} else {
+			errorBaseline = Baseline.NoContent;
+		}
+		Baseline.Run(t, baselinePath, errorBaseline, opts);
+	}
+
+	// --- sourcemap_baseline.go ---
+
+	public static function DoSourcemapBaseline(t:T, baselinePath:String, header:String, options:CompilerOptions, result:CompilationResult,
+			harnessSettings:HarnessOptions, opts:Options):Void {
+		final declMaps = options.GetAreDeclarationMapsEnabled();
+		if (options.InlineSourceMap.IsTrue()) {
+			if (result.Maps.Size() > 0 && !declMaps) {
+				t.Fatal("No sourcemap files should be generated if inlineSourceMaps was set.");
+			}
+			return;
+		} else if (options.SourceMap.IsTrue() || declMaps) {
+			var expectedMapCount = 0;
+			if (options.SourceMap.IsTrue()) {
+				expectedMapCount += result.GetNumberOfJSFiles(/*includeJSON*/ false);
+			}
+			if (declMaps) {
+				expectedMapCount += result.GetNumberOfJSFiles(/*includeJSON*/ true);
+			}
+			if (result.Maps.Size() != expectedMapCount) {
+				t.Fatal("Number of sourcemap files should be same as js files.");
+			}
+
+			var sourceMapCode:String;
+			if (options.NoEmitOnError.IsTrue() && Core.len(result.Diagnostics) != 0 || result.Maps.Size() == 0) {
+				sourceMapCode = Baseline.NoContent;
+			} else {
+				final sourceMapCodeBuilder = new StringBuf();
+				for (sourceMap in result.Maps.Values()) {
+					if (sourceMapCodeBuilder.length > 0) {
+						sourceMapCodeBuilder.add("\r\n");
+					}
+					sourceMapCodeBuilder.add(fileOutput(sourceMap, harnessSettings));
+					if (!options.InlineSourceMap.IsTrue()) {
+						sourceMapCodeBuilder.add(createSourceMapPreviewLink(sourceMap, result));
+					}
+				}
+				sourceMapCode = sourceMapCodeBuilder.toString();
+			}
+
+			if (Tspath.FileExtensionIsOneOf(baselinePath, [Tspath.ExtensionTs, Tspath.ExtensionTsx])) {
+				baselinePath = Tspath.ChangeExtension(baselinePath, Tspath.ExtensionJs + ".map");
+			}
+
+			Baseline.Run(t, baselinePath, sourceMapCode, opts);
+		}
+	}
+
+	static function createSourceMapPreviewLink(sourceMap:TestFile, result:CompilationResult):String {
+		// PORT: json.Unmarshal into sourcemap.RawSourceMap (same decoder as sourcemap's tryParseRawSourceMap).
+		final sourcemapJSON:ts.sourcemap.Generator.RawSourceMap = @:privateAccess ts.sourcemap.Sourcemap.unmarshalRawSourceMap(sourceMap.Content);
+		if (sourcemapJSON == null) {
+			throw "json: cannot unmarshal source map";
+		}
+
+		final outputJSFile = Core.Find(result.Outputs(), function(td:TestFile):Bool {
+			return StringTools.endsWith(td.UnitName, sourcemapJSON.File);
+		});
+
+		// !!! Strada uses a fallible approach to associating inputs and outputs derived from a source map output. The
+		// !!! commented logic below should be used after the Strada migration is complete:
+
+		////inputsAndOutputs := result.GetInputsAndOutputsForFile(sourceMap.UnitName)
+		////outputJSFile := inputsAndOutputs.Js
+
+		if (outputJSFile == null) {
+			return "";
+		}
+
+		final sourceTDs = Core.Map(sourcemapJSON.Sources, function(s:String):TestFile {
+			return Core.Find(result.Inputs(), function(td:TestFile):Bool {
+				return StringTools.endsWith(td.UnitName, s);
+			});
+		});
+		if (sourceTDs != null && Core.Some(sourceTDs, function(td:TestFile):Bool return td == null)) {
+			return "";
+		}
+
+		final hash = new StringBuf();
+		hash.add("\n//// https://sokra.github.io/source-map-visualization#base64,");
+		hash.add(base64EncodeChunk(outputJSFile.Content));
+		hash.add(",");
+		hash.add(base64EncodeChunk(sourceMap.Content));
+		if (sourceTDs != null)
+			for (td in sourceTDs) {
+				hash.add(",");
+				hash.add(base64EncodeChunk(td.Content));
+			}
+		hash.add("\n");
+		return hash.toString();
+	}
+
+	// PORT: url.QueryUnescape(url.QueryEscape(s)) is the identity; the result is the UTF-8 bytes of s.
+	static function base64EncodeChunk(s:String):String {
+		return go.Base64.StdEncoding.EncodeToString(haxe.io.Bytes.ofString(s));
+	}
+
+	// --- sourcemap_record_baseline.go ---
+
+	public static function DoSourcemapRecordBaseline(t:T, baselinePath:String, header:String, options:CompilerOptions, result:CompilationResult,
+			harnessSettings:HarnessOptions, opts:Options):Void {
+		var actual = Baseline.NoContent;
+		if (options.SourceMap.IsTrue() || options.InlineSourceMap.IsTrue() || options.DeclarationMap.IsTrue()) {
+			final record = removeTestPathPrefixes(result.GetSourceMapRecord(), false /*retainTrailingDirectorySeparator*/);
+			if (!(options.NoEmitOnError.IsTrue() && Core.len(result.Diagnostics) > 0) && record.length > 0) {
+				actual = record;
+			}
+		}
+
+		if (Tspath.FileExtensionIsOneOf(baselinePath, [Tspath.ExtensionTs, Tspath.ExtensionTsx])) {
+			baselinePath = Tspath.ChangeExtension(baselinePath, ".sourcemap.txt");
+		}
+
+		Baseline.Run(t, baselinePath, actual, opts);
 	}
 
 	// --- util.go ---

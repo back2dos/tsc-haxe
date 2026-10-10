@@ -1,12 +1,24 @@
 package ts.diagnostics;
 
+import haxe.macro.Expr;
 #if macro
 import haxe.macro.Context;
-import haxe.macro.Expr;
+#end
 
 // Replaces upstream internal/diagnostics/generate.go (diagnostics part).
 // Adds one static field per message to class Diagnostics, plus allMessages for keyToMessage.
+// embedLoc embeds a generated loc/<TgtCul>.json.gz (tools/gen/diagnostics/GenLoc.hx) as a
+// haxe.Resource (Go: //go:embed in loc_generated.go).
 class DiagnosticsMacro {
+	public static macro function embedLoc(filename:String):Expr {
+		final path = Context.resolvePath("ts/diagnostics/loc/" + filename);
+		Context.registerModuleDependency(Context.getLocalModule(), path);
+		final name = "diagnostics/loc/" + filename;
+		Context.addResource(name, sys.io.File.getBytes(path));
+		return macro $v{name};
+	}
+
+#if macro
 	public static function build():Array<Field> {
 		final fields = Context.getBuildFields();
 		final pos = Context.currentPos();
@@ -78,5 +90,5 @@ class DiagnosticsMacro {
 			varName = (varName.charAt(0) == "_" ? "X" : "X_") + varName;
 		return {varName: varName, key: key};
 	}
-}
 #end
+}

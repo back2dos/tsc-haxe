@@ -15,15 +15,14 @@ Set up the reference checkout with `make upstream`.
 
 ## Gate status (latest run, 2026-10-10)
 
-| Gate | JS | cpp |
-|---|---|---|
-| scanner, parser, binder, printer (12,445 files each) | 0 diffs | 0 diffs |
-| checker `.errors.txt` (14,915 configs; 2,117 skipped as in Go) | 12,785 pass / 4 fail / 9 crash | same |
-| checker `.types` (2,756 skipped) | 12,144 / 6 / 9 | same |
-| checker `.symbols` (2,756 skipped) | 12,149 / 1 / 9 | same |
-| tsc CLI scenarios (191; watch/build excluded) | 185 / 6 / 0 | 185 / 6 / 0 |
+All results are identical on JS and cpp.
 
-Not yet compared: `.js`, `.d.ts`, source-map and module-resolution baselines.
+| Gate | Result |
+|---|---|
+| scanner, parser, binder, printer (`make gates`; 12,445 files each) | 0 diffs |
+| checker + emit baselines (`make gate-checker`; 14,915 test configurations, skips as in Go) | errors 12,797, types 12,157, symbols 12,157, js 12,728 (11,714 .js references), map 12,797, sourcemap 12,797, trace 145 pass; **0 fail, 0 crash** |
+| tsc + tsc -b scenarios (`make gate-tsc`; 377, watch excluded) | 376 pass; 1 fail: `show-help-with-ExitStatus.DiagnosticsPresent_OutputsSkipped` — the upstream reference is stale (upstream's own Go test fails on it at the pin; our output is byte-identical to Go's actual output) |
+| real project (`make gate-realworld`): TypeScript 6 compiler sources (193k lines), declarations only / full emit with source maps | 154 / 308 files and diagnostics byte-identical |
 
 ## Data files copied from upstream
 
@@ -49,8 +48,8 @@ Non-test Go lines, measured at the pin. "gen" = lines that upstream generates; w
 | 1 | debug | 61 | 0 | done |
 | 1 | semver | 712 | 0 | done |
 | 1 | json | 100 | 0 | done (thin layer over haxe.Json) |
-| 1 | diagnostics | 9423 | 8804 | messages + Format ported; localization not ported |
-| 1 | locale | 28 | 0 | done (no tag matching) |
+| 1 | diagnostics | 9423 | 8804 | done (13 locales, generated from the .lcl files) |
+| 1 | locale | 28 | 0 | done (+ golang.org/x/text/language port, 4,398 golden cases vs Go) |
 | 2 | vfs | 3131 | 606 | done (all sub-packages incl. vfsmatch, vfstest) |
 | 2 | bundled | 1110 | 568 | done (libs as haxe.Resource) |
 | 4 | scanner | 4256 | 0 | done — Phase 2 gate: 12,445 files byte-identical (JS, cpp) |
@@ -64,15 +63,15 @@ Non-test Go lines, measured at the pin. "gen" = lines that upstream generates; w
 | 7 | outputpaths | 307 | 0 | done |
 | 7 | tsoptions | 6101 | 0 | done — 165 upstream baselines byte-identical |
 | 8 | evaluator | 168 | 0 | done |
-| 8 | checker | 59818 | 25 | ported (15 lanes on a generated skeleton); not yet gated (Phase 7) |
+| 8 | checker | 59818 | 25 | done — all errors/types/symbols baselines match |
 | 8 | nodebuilder | 78 | 0 | done |
 | 8 | pseudochecker | 1126 | 0 | done |
 | 9 | printer | 11442 | 0 | done — print gate: 12,445 files byte-identical (JS, cpp) |
 | 9 | sourcemap | 1013 | 0 | done |
-| 9 | transformers | 24305 | 0 | ported (lanes T1–T3); tstransforms unit tests pass; not yet gated (.js baselines) |
+| 9 | transformers | 24305 | 0 | done — all .js/.d.ts/source-map baselines match |
 | 10 | compiler | 5658 | 0 | done (+ Phase 7 harness: `make gate-checker`) |
 | 10 | diagnosticwriter | 506 | 0 | done |
-| 10 | execute | 9348 | 0 | tsc CLI non-watch + incremental done (`make gate-tsc`); `tsc -b` and watch not ported |
+| 10 | execute | 9348 | 0 | tsc CLI, tsc -b, incremental done; watch mode not ported |
 | — | glob, nativepath, symlinks | 781 | 0 | done |
 | — | tracing | 763 | 0 | done (xxh3 shim) |
 | | **Total** | **190551** | **~26000** | |

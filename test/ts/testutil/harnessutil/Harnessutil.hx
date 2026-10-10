@@ -5,7 +5,7 @@ import ts.diagnostics.Diagnostics.Message;
 
 // Port of internal/testutil/harnessutil/harnessutil.go: the package-level funcs and vars (and
 // NewOutputRecorderFS of recorderfs.go) are statics of this class; the types follow below.
-// PORT: sourcemap_recorder.go (GetSourceMapRecord) is not ported yet: the gate does not check source map records.
+// sourcemap_recorder.go: types in SourcemapRecorder.hx.
 class Harnessutil {
 	// Posix-style path to additional test libraries
 	static inline final testLibFolder = "/.lib";
@@ -623,7 +623,9 @@ class Harnessutil {
 		return Strings.Compare(a.UnitName, b.UnitName);
 	}
 
-	// PORT: testBuildInfoReader / getTestBuildInfoReader need package execute/incremental (not ported).
+	static function getTestBuildInfoReader(host:CompilerHost):TestBuildInfoReader {
+		return new TestBuildInfoReader(Incremental.NewBuildInfoReader(host));
+	}
 
 	static function createProgram(host:CompilerHost, config:ParsedCommandLine):ProgramLike {
 		var singleThreaded = TSUnknown;
@@ -637,8 +639,9 @@ class Harnessutil {
 		programOptions.SingleThreaded = singleThreaded;
 		final program = Compiler.NewProgram(programOptions);
 		if (config.CompilerOptions().Incremental.IsTrue()) {
-			// PORT: skipped, needs execute/incremental (incremental.ReadBuildInfoProgram / incremental.NewProgram).
-			throw "unported: incremental program (needs execute/incremental)";
+			final oldProgram = Incremental.ReadBuildInfoProgram(config, getTestBuildInfoReader(host), host);
+			final incrementalProgram = Incremental.NewProgram(program, oldProgram, Incremental.CreateHost(host), false);
+			return incrementalProgram;
 		}
 		return program;
 	}
@@ -1246,7 +1249,42 @@ class CompilationResult {
 		return null;
 	}
 
-	// PORT: GetSourceMapRecord is not ported yet (needs sourcemap_recorder.go).
+	public function GetSourceMapRecord():String {
+		if (this.Result == null || Core.len(this.Result.SourceMaps) == 0) {
+			return "";
+		}
+
+		final sourceMapRecorder = new WriterAggregator();
+		for (sourceMapData in this.Result.SourceMaps) {
+			var prevSourceFile:SourceFile = null;
+			var currentFile:TestFile;
+
+			if (Tspath.IsDeclarationFileName(sourceMapData.GeneratedFile)) {
+				currentFile = this.DTS.GetOrZero(sourceMapData.GeneratedFile);
+			} else {
+				currentFile = this.JS.GetOrZero(sourceMapData.GeneratedFile);
+			}
+
+			final sourceMapSpanWriter = SourceMapSpanWriter.newSourceMapSpanWriter(sourceMapRecorder, sourceMapData.SourceMap, currentFile);
+			final mapper = ts.sourcemap.Sourcemap.DecodeMappings(sourceMapData.SourceMap.Mappings);
+			for (decodedSourceMapping in mapper.Values()) {
+				var currentSourceFile:SourceFile = null;
+				if (decodedSourceMapping.IsSourceMapping()) {
+					currentSourceFile = this.Program.GetSourceFile(sourceMapData.InputSourceFileNames[decodedSourceMapping.SourceIndex]);
+				}
+				if (currentSourceFile != prevSourceFile) {
+					if (currentSourceFile != null) {
+						sourceMapSpanWriter.recordNewSourceFileSpan(decodedSourceMapping, currentSourceFile.Text());
+					}
+					prevSourceFile = currentSourceFile;
+				} else {
+					sourceMapSpanWriter.recordSourceMapSpan(decodedSourceMapping);
+				}
+			}
+			sourceMapSpanWriter.close();
+		}
+		return sourceMapRecorder.String();
+	}
 }
 
 class CompilationOutput {
@@ -1256,4 +1294,21 @@ class CompilationOutput {
 	public var Map:TestFile = null;
 
 	public function new() {}
+}
+
+class TestBuildInfoReader implements ts.execute.incremental.Incremental.BuildInfoReader {
+	var inner:ts.execute.incremental.Incremental.BuildInfoReader = null;
+
+	public function new(inner:ts.execute.incremental.Incremental.BuildInfoReader) {
+		this.inner = inner;
+	}
+
+	public function ReadBuildInfo(config:ParsedCommandLine):ts.execute.incremental.BuildInfo {
+		final r = this.inner.ReadBuildInfo(config);
+		if (r == null) {
+			return null;
+		}
+		r.Version = Core.Version();
+		return r;
+	}
 }

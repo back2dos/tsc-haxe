@@ -1,0 +1,123 @@
+// Golden generator for test/ts/locale/LocaleTest.hx (golang.org/x/text v0.38.0, as pinned by
+// upstream tsc/go.mod). Run from a scratch module (never inside upstream/):
+//   mkdir /tmp/x && cp locale_golden.go.txt /tmp/x/main.go && cd /tmp/x
+//   printf 'module langref\n\ngo 1.26\n\nrequire golang.org/x/text v0.38.0\n' > go.mod
+//   grep 'golang.org/x/text v0.38.0' <repo>/upstream/tsc/go.sum > go.sum
+//   GOTOOLCHAIN=go1.26.9 GOFLAGS=-mod=mod GOPROXY=off go run . > <repo>/test/ts/locale/locale.golden.txt
+// One JSON object per line: the input, whether language.Parse succeeded, the tag string
+// (Go keeps the partial tag on error, as internal/locale.Parse does), whether the tag is Und,
+// and the matcher result of internal/diagnostics/loc_generated.go (index, confidence) for
+// tags that are not Und (getLocalizedMessages skips Und).
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math/rand"
+	"os"
+
+	"golang.org/x/text/language"
+)
+
+var matcher = language.NewMatcher([]language.Tag{
+	language.English,
+	language.MustParse("zh-CN"),
+	language.MustParse("zh-TW"),
+	language.MustParse("cs-CZ"),
+	language.MustParse("de-DE"),
+	language.MustParse("es-ES"),
+	language.MustParse("fr-FR"),
+	language.MustParse("it-IT"),
+	language.MustParse("ja-JP"),
+	language.MustParse("ko-KR"),
+	language.MustParse("pl-PL"),
+	language.MustParse("pt-BR"),
+	language.MustParse("ru-RU"),
+	language.MustParse("tr-TR"),
+})
+
+var curated = []string{
+	"de", "de-DE", "de-AT", "de-CH", "zh-CN", "zh-TW", "zh-Hans", "zh-Hant", "zh-HK", "zh-MO", "zh-SG",
+	"zh", "zh-Hans-TW", "zh-Hant-CN", "zh-Hant-HK", "pt-BR", "pt", "pt-PT", "pt-AO", "cs", "cs-CZ", "sk",
+	"en", "en-US", "en-GB", "en-AU", "fr-CA", "fr", "fr-BE", "ja-JP", "ja", "ja-Latn", "ko", "ko-KP", "pl",
+	"ru", "ru-UA", "uk", "be", "tr", "tr-CY", "it", "it-CH", "es-ES", "es", "es-419", "es-MX", "es-AR",
+	"ca", "gl", "eu", "af-ZA", "af", "zu", "whoops", "", "x", "de_DE", "DE", "De_dE", "de-", "-de",
+	"de--DE", "en-GB-oed", "root", "und", "und-CZ", "und-Hant", "und-Cyrl", "und-Latn", "und-x-foo",
+	"en-US-POSIX", "en_us_posix", "i-klingon", "zh-min-nan", "zh-min", "art-lojban", "sgn-BE-FR",
+	"cel-gaulish", "i-default", "no-bok", "x-foo", "x-whoops", "de-x-foo", "de-u-co-phonebk",
+	"de-1996", "de-1901-1996", "de-1996-1901", "de-1996-1996", "de-CH-1901", "de-Latn-DE-1901",
+	"sr-Latn", "sr", "sh", "no", "nb", "nn", "iw", "he", "in", "id", "jw", "mo", "tl", "fil", "ms",
+	"cmn", "yue", "ar-EG", "hi", "1234", "abcdefghi", "de-DE-u-rg-chzzzz", "en-u-rg-uszzzz",
+	"de-Qaai", "en-840", "es-999", "en-001", "nl-BE", "ca-ES-valencia", "en-u-va-posix",
+	"aa-bb-cc-dd", "de-DE-x-a-b", "de-a-bcd-x-e", "en-t-de", "en-t-de-latn-de", "de-b-xyz-a-abc",
+	"de-u-cu-usd-co-phonebk", "de-u-co-phonebk-co-pinyin", "de-u-attr-co-phonebk", "de-u-zz-aa",
+	"ü", "dé", "de-ü", "qaa", "qtz", "de-DE-whoops", "de-whoops", "whoops-DE", "en-Whoops",
+	"zh-cmn", "zh-cmn-Hans", "zh-yue-HK", "ja-JP-u-ca-japanese", "tlh", "aaa", "zzz", "abc-def",
+	"en-US-x-twain", "en-a-bbb-a-ccc", "de-AT-1996", "en-Latn-US", "EN-LATN-US", "en-latn-us",
+	"sr-Cyrl-RS", "az-Arab-IR", "pa-Arab", "pa-PK", "kk", "uz-Cyrl", "mn-Mong", "zh-Bopo",
+	"en-u-co", "en-u-co-x", "x-", "x-a", "a-b", "en-a", "en-a-b", "de-DE-", "de.DE", "de DE",
+	"de-DE-1996-1996-1996-1996-1996-1996-1996-1996-1996-1996", "toolongsubtag", "de-toolongsubtag",
+	"en-US-u-rg-gbzzzz", "es-u-rg-mxzzzz", "fr-u-rg-cazzzz", "pt-u-rg-ptzzzz", "zh-u-rg-twzzzz",
+	"zh-HK-u-rg-cnzzzz", "en-ZZ", "en-AA", "en-QO", "en-XK", "sr-XK", "sq-XK", "zh-Hant-SG",
+	"de-419", "es-005", "en-150", "fr-029", "pt-PT-1990", "en-GB-u-sd-gbsct", "ru-Cyrl", "tr-Latn-TR",
+	"pl-Latn", "ko-Kore", "ko-Hang", "ja-Jpan", "ja-Hira", "zh-Hani", "cs-Latn-CZ", "it-SM", "it-VA",
+	"de-DE-u-rg-dezzzz", "en-GB-u-rg-gbzzzz", "en-u-rg-zzzzzz", "en-u-rg-xx", "en-US-u-co-phonebk-rg-uszzzz",
+	"zh-u-rg-cnzzzz", "en-US-1901-u-rg-uszzzz", "en-US-u-va-posix", "en-US-u-rg-uszzzz-va-posix",
+	"ca-ES-valencia-u-co-trad", "ca-valencia", "de-u-va-1901", "de-u-rg-atzzzz-co-phonebk", "sr-Latn-u-rg-rszzzz",
+	"en-u-rg-001zzz", "ja-JP-u-rg-jpzzzz-x-a", "de-t-en-u-rg-dezzzz",
+}
+
+func main() {
+	inputs := append([]string{}, curated...)
+	for a := 'a'; a <= 'z'; a++ {
+		for b := 'a'; b <= 'z'; b++ {
+			inputs = append(inputs, string([]rune{a, b}))
+		}
+	}
+	r := rand.New(rand.NewSource(7))
+	alpha := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+	for i := 0; i < 2000; i++ {
+		n := r.Intn(16)
+		b := make([]byte, n)
+		for k := range b {
+			b[k] = alpha[r.Intn(len(alpha))]
+		}
+		inputs = append(inputs, string(b))
+	}
+	// Structured random tags: lang[-script][-region][-variant][-ext].
+	langs := []string{"de", "en", "zh", "pt", "cs", "fr", "es", "ja", "ko", "pl", "ru", "tr", "it", "sr", "no", "nb", "iw", "sh", "mo", "und", "cmn", "yue", "xx", "qaa", "tlh", "fil", "tl"}
+	scripts := []string{"", "Latn", "Hans", "Hant", "Cyrl", "Arab", "Qaai", "Zzzz", "Xxxx", "Jpan", "Kore"}
+	regions := []string{"", "DE", "US", "CN", "TW", "HK", "BR", "PT", "CZ", "419", "001", "150", "ZZ", "XK", "QO", "AT", "CH", "MD", "AA", "999"}
+	tails := []string{"", "-1996", "-1901", "-x-foo", "-u-co-phonebk", "-u-rg-uszzzz", "-u-rg-dezzzz", "-t-en", "-a-bcd", "-whoops", "-valencia"}
+	for i := 0; i < 1500; i++ {
+		s := langs[r.Intn(len(langs))]
+		if sc := scripts[r.Intn(len(scripts))]; sc != "" {
+			s += "-" + sc
+		}
+		if rg := regions[r.Intn(len(regions))]; rg != "" {
+			s += "-" + rg
+		}
+		s += tails[r.Intn(len(tails))]
+		inputs = append(inputs, s)
+	}
+	enc := json.NewEncoder(os.Stdout)
+	for _, s := range inputs {
+		tag, err := language.Parse(s)
+		idx, conf := -1, "-"
+		if tag != language.Und {
+			_, i, c := matcher.Match(tag)
+			idx, conf = i, c.String()
+		}
+		if err := enc.Encode(struct {
+			In    string `json:"in"`
+			Ok    bool   `json:"ok"`
+			Tag   string `json:"tag"`
+			Und   bool   `json:"und"`
+			Index int    `json:"index"`
+			Conf  string `json:"conf"`
+		}{s, err == nil, tag.String(), tag == language.Und, idx, conf}); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+}

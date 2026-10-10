@@ -58,8 +58,10 @@ class StdoutWriter implements Writer {
 	}
 
 	public function Write(p:std.String):ValueError<Int> {
-		this.out.writeString(p);
-		return new ValueError<Int>(p.length, null);
+		// Go writes the string's bytes as they are; go.Utf8.StringToBytes keeps U+FFFE as Go's byte 0xFE.
+		final b = go.Utf8.StringToBytes(p);
+		this.out.writeFullBytes(b, 0, b.length);
+		return new ValueError<Int>(b.length, null);
 	}
 }
 

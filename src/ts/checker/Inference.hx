@@ -832,8 +832,11 @@ class Inference {
 									final endIndex = sourceArity - Checker.getEndElementCount(target.TargetTupleType(), ElementFlagsFixed);
 									final startIndex = endIndex - impliedArity;
 									if (startIndex >= startLength) {
-										final trailingSlice = c.createTupleTypeEx(c.getTypeArguments(source).slice(startIndex, endIndex),
-											source.TargetTupleType().elementInfos.slice(startIndex, endIndex), false /*readonly*/);
+										// PORT: Go reslices a possibly nil slice (empty tuple); keep nil instead of `null.slice`.
+										final sourceTypeArguments = c.getTypeArguments(source);
+										final trailingSlice = c.createTupleTypeEx(sourceTypeArguments != null ? sourceTypeArguments.slice(startIndex, endIndex) : null,
+											source.TargetTupleType().elementInfos != null ? source.TargetTupleType().elementInfos.slice(startIndex, endIndex) : null,
+											false /*readonly*/);
 										final restType = c.getElementTypeOfSliceOfTupleType(source, startLength, endLength + impliedArity, false, false);
 										if (restType != null) {
 											c.inferFromTypes(n, restType, elementTypes[startLength]);

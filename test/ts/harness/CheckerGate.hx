@@ -8,22 +8,30 @@ import ts.testutil.harnessutil.Harnessutil;
 
 // Checker gate (Phase 7): runs the ported compiler-runner logic (internal/testrunner, submodule mode)
 // over the TypeScript test corpus (tests/cases/compiler and tests/cases/conformance) and compares the
-// .errors.txt, .types and .symbols baselines with upstream/tsc/testdata/baselines/reference/submodule.
+// .errors.txt, .types, .symbols, .js (with .d.ts output and DtsFileErrors), .js.map, .sourcemap.txt and
+// .trace.json baselines with upstream/tsc/testdata/baselines/reference/submodule.
 //
-// Usage: CheckerGate [--out DIR] [--case NAME]... [--filter SUBSTR] [--limit N] [--tolerate-emit-crash]
+// Usage: CheckerGate [--out DIR] [--case NAME]... [--filter SUBSTR] [--limit N] [--shard I/N] [--tolerate-emit-crash]
 //   --case NAME     only the test file NAME (basename with or without .ts/.tsx); repeatable
 //   --filter S      only test files whose path contains S
 //   --limit N       at most N test files
+//   --shard I/N     only every N-th test file, starting at I (0-based), for parallel runs
 //   --tolerate-emit-crash  an exception in Program.Emit does not fail the case (empty emit result)
 //
-// Output (stdout): per kind (errors/types/symbols) the number of cases (= test configurations) and
+// Output (stdout): per kind (errors/types/symbols/js/map/sourcemap/trace) the number of cases (= test configurations) and
 // passed/failed/crashed/skipped. DIR/results.txt has one line per case and kind:
 //   <kind> <status> <suite>/<configured name> <detail>
 // where detail is the first differing line (fail) or the first line of the panic (crash).
 class CheckerGate {
-	static final kinds = ["errors", "types", "symbols"];
-	static final subtestOfKind = ["errors" => "error", "types" => "type", "symbols" => "symbol"];
-	static final extOfKind = ["errors" => ".errors.txt", "types" => ".types", "symbols" => ".symbols"];
+	static final kinds = ["errors", "types", "symbols", "js", "map", "sourcemap", "trace"];
+	static final subtestOfKind = [
+		"errors" => "error", "types" => "type", "symbols" => "symbol", "js" => "output", "map" => "sourcemap", "sourcemap" => "sourcemap record",
+		"trace" => "module resolution"
+	];
+	static final extOfKind = [
+		"errors" => ".errors.txt", "types" => ".types", "symbols" => ".symbols", "js" => ".js", "map" => ".js.map", "sourcemap" => ".sourcemap.txt",
+		"trace" => ".trace.json"
+	];
 
 	static var compareLog:Array<{reference:String, local:String, actual:String, matched:Bool}> = [];
 
@@ -32,6 +40,7 @@ class CheckerGate {
 		final cases:Array<String> = [];
 		var filter:Null<String> = null;
 		var limit = -1;
+		var shard = 0, shards = 1;
 		final args = Sys.args();
 		var i = 0;
 		while (i < args.length) {
@@ -44,6 +53,10 @@ class CheckerGate {
 					filter = args[++i];
 				case "--limit":
 					limit = Std.parseInt(args[++i]);
+				case "--shard":
+					final p = args[++i].split("/");
+					shard = Std.parseInt(p[0]);
+					shards = Std.parseInt(p[1]);
 				case "--tolerate-emit-crash":
 					Harnessutil.TolerateEmitCrash = true;
 				default:
@@ -64,6 +77,7 @@ class CheckerGate {
 			counts.set(k, ["pass" => 0, "fail" => 0, "crash" => 0, "skip" => 0]);
 		var configCount = 0;
 		var fileCount = 0;
+		var fileIndex = 0;
 		final t0 = haxe.Timer.stamp();
 
 		final runners = [
@@ -82,6 +96,8 @@ class CheckerGate {
 					continue;
 				if (limit >= 0 && fileCount >= limit)
 					break;
+				if (fileIndex++ % shards != shard)
+					continue;
 				fileCount++;
 
 				final root = new T("");
@@ -112,7 +128,8 @@ class CheckerGate {
 							if (config.skipped && !config.failed) {
 								status = "skip";
 								detail = firstLine(config.messages);
-							} else if (config.failed) {
+							} else if (config.failed && config.messages.length > 0) {
+								// a panic of the configuration itself (a failing sibling subtest only marks it failed)
 								status = "crash";
 								detail = firstLine(config.messages);
 							} else {
@@ -120,6 +137,9 @@ class CheckerGate {
 								status = "skip";
 								detail = "no baseline";
 							}
+						} else if (sub.skipped && !sub.failed) {
+							status = "skip";
+							detail = firstLine(sub.messages);
 						} else if (sub.panicked) {
 							status = "crash";
 							detail = firstLine(sub.messages);
@@ -144,10 +164,10 @@ class CheckerGate {
 		sys.io.File.saveContent(out + "/results.txt", results.toString());
 		final secs = Std.int(haxe.Timer.stamp() - t0);
 		Sys.println('test files: $fileCount, cases (configurations): $configCount, ${secs}s');
-		Sys.println(pad("kind", 8) + pad("cases", 7) + pad("pass", 7) + pad("fail", 7) + pad("crash", 7) + pad("skip", 7));
+		Sys.println(pad("kind", 10) + pad("cases", 7) + pad("pass", 7) + pad("fail", 7) + pad("crash", 7) + pad("skip", 7));
 		for (k in kinds) {
 			final c = counts.get(k);
-			Sys.println(pad(k, 8) + pad("" + configCount, 7) + pad("" + c.get("pass"), 7) + pad("" + c.get("fail"), 7) + pad("" + c.get("crash"), 7)
+			Sys.println(pad(k, 10) + pad("" + configCount, 7) + pad("" + c.get("pass"), 7) + pad("" + c.get("fail"), 7) + pad("" + c.get("crash"), 7)
 				+ pad("" + c.get("skip"), 7));
 		}
 	}
@@ -171,8 +191,13 @@ class CheckerGate {
 
 	static function firstDiff(configuredName:String, kind:String, sub:T):String {
 		final ext = extOfKind[kind];
+		var stem = configuredName;
+		if (StringTools.endsWith(stem, ".tsx"))
+			stem = stem.substring(0, stem.length - 4);
+		else if (StringTools.endsWith(stem, ".ts"))
+			stem = stem.substring(0, stem.length - 3);
 		for (c in compareLog) {
-			if (!c.matched && StringTools.endsWith(c.reference, ext)) {
+			if (!c.matched && StringTools.endsWith(c.reference, "/" + stem + ext)) {
 				final expected = sys.FileSystem.exists(c.reference) ? sys.io.File.getContent(c.reference) : Baseline.NoContent;
 				final a = expected.split("\n");
 				final b = c.actual.split("\n");

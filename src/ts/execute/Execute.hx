@@ -1,7 +1,7 @@
 package ts.execute;
 
 // Port of internal/execute/tsc.go (package execute).
-// PORT: watcher.go (watch mode) and execute/build (tsc -b) are not ported; see the PORT notes.
+// PORT: watcher.go (watch mode) is not ported; see the PORT notes.
 class Execute {
 	static function startTracingIfNeeded(sys:System, config:ParsedCommandLine, testing:Null<CommandLineTesting>):Null<Tracing> {
 		final traceDir = config.CompilerOptions().GenerateTrace;
@@ -65,9 +65,12 @@ class Execute {
 			return new CommandLineResult(ExitStatusSuccess);
 		}
 
-		// PORT: skipped, needs execute/build (build.NewOrchestrator(...).Start(ctx)); not ported yet.
-		sys.Writer().Write("tsc -b (build mode) is not ported yet.\n");
-		return new CommandLineResult(ExitStatusNotImplemented);
+		final options = new ts.execute.build.Orchestrator.Options();
+		options.Sys = sys;
+		options.Command = buildCommand;
+		options.Testing = testing;
+		final orchestrator = Build.NewOrchestrator(options);
+		return orchestrator.Start(ctx);
 	}
 
 	static function tscCompilation(ctx:Context, sys:System, commandLine:ParsedCommandLine, testing:Null<CommandLineTesting>):CommandLineResult {

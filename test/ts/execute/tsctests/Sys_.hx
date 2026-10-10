@@ -42,18 +42,8 @@ class TestClock implements Clock {
 }
 
 // PORT: Go `*strings.Builder` used as io.Writer; one adapter per builder so `w == s.Writer()` works.
-class BuilderWriter implements Writer {
-	public final b:Builder;
-
-	public function new(b:Builder) {
-		this.b = b;
-	}
-
-	public function Write(p:String):ValueError<Int> {
-		this.b.WriteString(p);
-		return new ValueError<Int>(p.length, null);
-	}
-}
+// The adapter is go.Strings.BuilderWriter (shared with execute/build, whose task builders reach GetTrace).
+typedef BuilderWriter = go.Strings.BuilderWriter;
 
 class TestSys implements System implements CommandLineTesting {
 	public var currentWrite:Builder = null;
@@ -423,8 +413,7 @@ class OutputSanitizer {
 	function addOutputLine(s:String):Void {
 		s = go.Strings.ReplaceAll(s, "'" + Core.Version() + "'", "'" + Harnessutil.FakeTSVersion + "'");
 		s = go.Strings.ReplaceAll(s, Tsctests.englishVersion, Tsctests.fakeEnglishVersion);
-		// PORT: the Czech replacement (czechVersion → fakeCzechVersion) needs localized messages,
-		// which the diagnostics port does not have (locale has no tag matching).
+		s = go.Strings.ReplaceAll(s, Tsctests.czechVersion, Tsctests.fakeCzechVersion);
 		s = Fsbaselineutil.SanitizeInternalSymbolName(s);
 		this.outputLines.push(s);
 	}

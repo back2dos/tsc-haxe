@@ -3,6 +3,7 @@ class TestMain {
 		go.SlicesSortTest.run();
 		ts.diagnostics.DiagnosticsTest.run();
 		ts.debug.DebugTest.run();
+		ts.locale.LocaleTest.run();
 		ts.stringutil.StringutilTest.run();
 		ts.semver.SemverTest.run();
 		ts.glob.GlobTest.run();
@@ -37,6 +38,7 @@ class TestMain {
 		ts.testutil.baseline.BaselineTest.run();
 		ts.execute.ExecuteTest.run();
 		ts.execute.incremental.IncrementalTest.run();
+		ts.execute.build.BuildTest.run();
 		ts.packagejson.PackagejsonTest.run();
 		ts.module.ModuleTest.run();
 		ts.symlinks.SymlinksTest.run();

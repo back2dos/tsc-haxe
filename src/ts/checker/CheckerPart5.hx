@@ -1293,6 +1293,8 @@ class CheckerPart5 {
 			final t = c.newObjectType(kind, symbol);
 			links.declaredType = t;
 			final outerTypeParameters = c.getOuterTypeParametersOfClassOrInterface(symbol);
+			// PORT: Go's append below leaves len(outerTypeParameters) unchanged; Haxe push grows the same array.
+			final outerTypeParameterCount = Core.len(outerTypeParameters);
 			final typeParameters = c.appendLocalTypeParametersOfClassOrInterfaceOrTypeAlias(outerTypeParameters, symbol);
 			// A class or interface is generic if it has type parameters or a "this" type. We always give classes a "this" type
 			// because it is not feasible to analyze all members to determine if the "this" type escapes the class (in particular,
@@ -1309,7 +1311,7 @@ class CheckerPart5 {
 				final all = typeParameters == null ? [] : typeParameters.copy();
 				all.push(d.thisType);
 				d.allTypeParameters = all;
-				d.outerTypeParameterCount = Core.len(outerTypeParameters);
+				d.outerTypeParameterCount = outerTypeParameterCount;
 				d.resolvedTypeArguments = d.TypeParameters();
 				d.instantiations = new StringMap<Type>();
 				d.instantiations.set(Checker.getTypeListKey(d.resolvedTypeArguments).Key(), t);

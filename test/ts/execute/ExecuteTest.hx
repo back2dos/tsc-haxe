@@ -36,7 +36,9 @@ class ExecuteTest {
 			ts.execute.tsctests.TscTest.TestTscCommandline();
 			ts.execute.tsctests.TscTest.TestTscMissingFiles();
 			ts.execute.tsctests.ShowconfigTest.TestShowConfig();
-			T.eq(31 + 17, compared);
+			// 31 tsc + 1 tsbuild ("when build not first argument") scenarios in TestTscCommandline and
+			// TestTscMissingFiles, 17 in TestShowConfig.
+			T.eq(31 + 1 + 17, compared);
 			Gate.OnBaseline = function(path, actual) {};
 			Gate.OnCrash = function(name, path, err, partial) {};
 		});

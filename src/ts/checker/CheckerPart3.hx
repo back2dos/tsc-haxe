@@ -1503,7 +1503,8 @@ class CheckerPart3 {
 				return info.typeParameter == restType;
 			});
 			if (info != null) {
-				if (Core.FindIndex(args.slice(argCount), Checker.isSpreadArgument) < 0) {
+				// PORT: Go `args[argCount:]` of a nil slice is nil; Haxe `null.slice` throws.
+				if (Core.FindIndex(args != null ? args.slice(argCount) : null, Checker.isSpreadArgument) < 0) {
 					info.impliedArity = Core.len(args) - argCount;
 				}
 			}

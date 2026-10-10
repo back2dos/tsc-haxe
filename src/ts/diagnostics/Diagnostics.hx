@@ -1,6 +1,9 @@
 package ts.diagnostics;
 
 import ts.locale.Locale;
+import go.text.language.Language;
+import go.text.language.Language.Confidence;
+import go.text.language.Language.Tag;
 
 // Port of internal/diagnostics/diagnostics.go.
 // Message statics (diagnostics_generated.go) are added by DiagnosticsMacro.
@@ -22,9 +25,40 @@ class Diagnostics {
 		return Format(text, args);
 	}
 
-	// PORT: localization (loc_generated.go, locale matcher) is not ported yet. English only.
-	static function getLocalizedMessages(loc:Locale):Null<Map<String, String>> {
-		return null;
+	// PORT: Go sync.Map keyed by language.Tag; keyed by the tag string here (equal tags have
+	// equal strings). A cached nil is stored as a key without a value (localizedMessagesNil).
+	static final localizedMessagesCache = new haxe.ds.StringMap<haxe.ds.StringMap<String>>();
+	static final localizedMessagesNil = new haxe.ds.StringMap<Bool>();
+
+	static function getLocalizedMessages(locale:Locale):Null<haxe.ds.StringMap<String>> {
+		final loc:Tag = locale;
+		if (loc.equals(Language.Und))
+			return null;
+
+		// Check cache first
+		final cacheKey = loc.String();
+		if (localizedMessagesNil.exists(cacheKey))
+			return null;
+		final cached = localizedMessagesCache.get(cacheKey);
+		if (cached != null)
+			return cached;
+
+		var messages:Null<haxe.ds.StringMap<String>> = null;
+
+		final r = LocGenerated.matcher.Match([loc]);
+		final index = r.b;
+		final confidence = r.c;
+		if (confidence >= Confidence.Low && index >= 0 && index < LocGenerated.localeFuncs.length) {
+			final fn = LocGenerated.localeFuncs[index];
+			if (fn != null)
+				messages = fn();
+		}
+
+		if (messages == null)
+			localizedMessagesNil.set(cacheKey, true);
+		else
+			localizedMessagesCache.set(cacheKey, messages);
+		return messages;
 	}
 
 	static final placeholderRegexp = ~/{(\d+)}/g;

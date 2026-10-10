@@ -55,12 +55,12 @@ class TscInput {
 	// Go `(test *tscInput) run(t, scenario)`.
 	// PORT: no testing.T. The subtest is reported to the gate hooks (Runner.Gate): `Gate.Filter` selects
 	// subtests by their Go name, `Gate.OnBaseline` receives the baseline (Go baseline.Run), `Gate.OnCrash`
-	// a thrown error, `Gate.OnError` the t.Errorf text. Watch and build subtests (tscWatch/tsbuild) are
-	// skipped: watch mode and execute/build are not ported.
+	// a thrown error, `Gate.OnError` the t.Errorf text. Watch subtests (tscWatch/tsbuildWatch) are
+	// skipped: watch mode is not ported.
 	public function run(scenario:String):Void {
 		final subFolder = this.getBaselineSubFolder();
 		final name = subFolder + "/" + scenario + "/" + this.subScenario;
-		if (subFolder != "tsc") {
+		if (subFolder != "tsc" && subFolder != "tsbuild") {
 			Gate.OnSkipped(name);
 			return;
 		}

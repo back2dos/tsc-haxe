@@ -3,11 +3,13 @@
 # test/ts/testrunner, test/ts/testutil/{harnessutil,tsbaseline,baseline}) over all test files of
 # upstream/tsc/_submodules/TypeScript/tests/cases/{compiler,conformance} (*.ts, *.tsx; with the
 # @directives, multi-file splitting and configuration variants of the Go runner) and compares the
-# .errors.txt, .types and .symbols baselines with upstream/tsc/testdata/baselines/reference/submodule.
+# .errors.txt, .types, .symbols, .js (incl. .d.ts output and DtsFileErrors), .js.map, .sourcemap.txt and
+# .trace.json baselines with upstream/tsc/testdata/baselines/reference/submodule.
 #
 # Usage:
-#   tools/gate/checker.sh [--no-build] [--js-only|--cpp-only] [gate args...]
+#   tools/gate/checker.sh [--no-build] [--js-only|--cpp-only] [--jobs N] [gate args...]
 #       full run on JS and cpp; per kind: cases, pass, fail, crash, skip.
+#       --jobs N runs N gate processes in parallel (each on every N-th test file) and merges the results.
 #       Per-case results: bin/gate-checker/out-<target>/results.txt
 #       ("<kind> <pass|fail|crash|skip> <suite>/<configured name> <first differing line | panic>")
 #   tools/gate/checker.sh --case <name> [--case <name>...]
@@ -23,6 +25,7 @@ mkdir -p "$out"
 build=1
 targets="js cpp"
 casemode=0
+jobs=1
 args=""
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -30,6 +33,7 @@ while [ $# -gt 0 ]; do
 	--js-only) targets="js" ;;
 	--cpp-only) targets="cpp" ;;
 	--case) casemode=1; args="$args --case $2"; shift ;;
+	--jobs) jobs=$2; shift ;;
 	*) args="$args $1" ;;
 	esac
 	shift
@@ -47,17 +51,47 @@ if [ $build = 1 ]; then
 	done
 fi
 
+rungate() { # target outdir args...
+	t=$1
+	d=$2
+	shift 2
+	if [ $t = js ]; then
+		node --stack-size=7000 --max-old-space-size=8000 $out/gate.js --out "$d" "$@"
+	else
+		$out/cpp/CheckerGate --out "$d" "$@"
+	fi
+}
+
 for t in $targets; do
 	dir=$out/out-$t
 	if [ $casemode = 1 ]; then dir=$out/case; fi
 	rm -rf "$dir/local"
 	echo "== $t"
-	if [ $t = js ]; then
+	if [ $casemode = 1 ] || [ "$jobs" -le 1 ]; then
 		# shellcheck disable=SC2086
-		node --stack-size=7000 --max-old-space-size=8000 $out/gate.js --out "$dir" $args
+		rungate $t "$dir" $args
 	else
-		# shellcheck disable=SC2086
-		$out/cpp/CheckerGate --out "$dir" $args
+		rm -rf "$dir/shards"
+		mkdir -p "$dir/shards"
+		i=0
+		while [ $i -lt "$jobs" ]; do
+			# shellcheck disable=SC2086
+			rungate $t "$dir/shards/$i" $args --shard $i/$jobs >"$dir/shards/$i.log" 2>&1 &
+			i=$((i + 1))
+		done
+		wait
+		# per-case lines in test file order (stable sort on the case name keeps the kind order)
+		cat "$dir"/shards/*/results.txt | LC_ALL=C sort -s -k3,3 >"$dir/results.txt"
+		mkdir -p "$dir/local"
+		for s in "$dir"/shards/*; do
+			if [ -d "$s/local" ]; then cp -r "$s/local/." "$dir/local/"; fi
+		done
+		awk '{ k[$1]=1; n[$1]++; c[$1" "$2]++ }
+			END {
+				printf "%-10s%-7s%-7s%-7s%-7s%-7s\n", "kind", "cases", "pass", "fail", "crash", "skip"
+				split("errors types symbols js map sourcemap trace", ks, " ")
+				for (i = 1; i <= 7; i++) { x = ks[i]; if (x in k) printf "%-10s%-7d%-7d%-7d%-7d%-7d\n", x, n[x], c[x" pass"], c[x" fail"], c[x" crash"], c[x" skip"] }
+			}' "$dir/results.txt"
 	fi
 done
 

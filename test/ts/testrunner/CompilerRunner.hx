@@ -78,10 +78,11 @@ class CompilerBaselineRunner implements Runner {
 			Harnessutil.SkipUnsupportedCompilerOptions(t, compilerTest.options);
 
 			compilerTest.verifyDiagnostics(t, this.testSuitName, this.isSubmodule);
-			// PORT: not ported yet (js_emit_baseline.go, sourcemap_baseline.go, sourcemap_record_baseline.go,
-			// module_resolution_baseline.go): verifyJavaScriptOutput, verifySourceMapOutput, verifySourceMapRecord,
-			// verifyModuleResolution. The checker gate compares .errors.txt, .types and .symbols only.
+			compilerTest.verifyJavaScriptOutput(t, this.testSuitName, this.isSubmodule);
+			compilerTest.verifySourceMapOutput(t, this.testSuitName, this.isSubmodule);
+			compilerTest.verifySourceMapRecord(t, this.testSuitName, this.isSubmodule);
 			compilerTest.verifyTypesAndSymbols(t, this.testSuitName, this.isSubmodule);
+			compilerTest.verifyModuleResolution(t, this.testSuitName, this.isSubmodule);
 			compilerTest.verifyUnionOrdering(t);
 			compilerTest.verifyParentPointers(t);
 		} catch (e:haxe.Exception) {
@@ -144,6 +145,58 @@ class CompilerTest {
 		});
 	}
 
+	function testHeader(isSubmodule:Bool):String {
+		var headerComponents = Tspath.GetPathComponentsRelativeTo(Repo.TestDataPath(), this.filename, new ComparePathsOptions());
+		if (isSubmodule) {
+			headerComponents = headerComponents.slice(4); // Strip "./../_submodules/TypeScript" prefix
+		}
+		return Tspath.GetPathFromPathComponents(headerComponents);
+	}
+
+	function verifyJavaScriptOutput(t:T, suiteName:String, isSubmodule:Bool):Void {
+		if (!this.hasNonDtsFiles) {
+			return;
+		}
+
+		t.Run("output", function(t:T) {
+			if (Testrunner.skippedEmitTests.exists(this.basename)) {
+				t.Skip(Testrunner.skippedEmitTests.get(this.basename));
+			}
+
+			try {
+				final header = testHeader(isSubmodule);
+				Tsbaseline.DoJSEmitBaseline(t, this.configuredName, header, this.options, this.result, this.tsConfigFiles, this.toBeCompiled,
+					this.otherFiles, this.harnessOptions, new Options(suiteName, isSubmodule));
+			} catch (e:haxe.Exception) {
+				Testutil.RecoverAndFail(t, "Panic on creating js output for test " + this.filename, e);
+			}
+		});
+	}
+
+	function verifySourceMapOutput(t:T, suiteName:String, isSubmodule:Bool):Void {
+		t.Run("sourcemap", function(t:T) {
+			try {
+				final header = testHeader(isSubmodule);
+				Tsbaseline.DoSourcemapBaseline(t, this.configuredName, header, this.options, this.result, this.harnessOptions,
+					new Options(suiteName, isSubmodule));
+			} catch (e:haxe.Exception) {
+				Testutil.RecoverAndFail(t, "Panic on creating source map output for test " + this.filename, e);
+			}
+		});
+	}
+
+	function verifySourceMapRecord(t:T, suiteName:String, isSubmodule:Bool):Void {
+		t.Run("sourcemap record", function(t:T) {
+			try {
+				final header = testHeader(isSubmodule);
+				Tsbaseline.DoSourcemapRecordBaseline(t, this.configuredName, header, this.options, this.result, this.harnessOptions,
+					new Options(suiteName, isSubmodule));
+			} catch (e:haxe.Exception) {
+				Testutil.RecoverAndFail(t, "Panic on creating source map record for test " + this.filename, e);
+			}
+		});
+	}
+
 	function verifyTypesAndSymbols(t:T, suiteName:String, isSubmodule:Bool):Void {
 		final noTypesAndSymbols = this.harnessOptions.NoTypesAndSymbols;
 		if (noTypesAndSymbols) {
@@ -161,6 +214,22 @@ class CompilerTest {
 		final header = Tspath.GetPathFromPathComponents(headerComponents);
 		Tsbaseline.DoTypeAndSymbolBaseline(t, this.configuredName, header, program, allFiles == null ? [] : allFiles, new Options(suiteName, isSubmodule), false,
 			false, Core.len(this.result.Diagnostics) > 0);
+	}
+
+	function verifyModuleResolution(t:T, suiteName:String, isSubmodule:Bool):Void {
+		if (!this.options.TraceResolution.IsTrue()) {
+			return;
+		}
+
+		t.Run("module resolution", function(t:T) {
+			try {
+				final opts = new Options(suiteName, isSubmodule);
+				opts.SkipDiffWithOld = true;
+				Tsbaseline.DoModuleResolutionBaseline(t, this.configuredName, this.result.Trace, opts);
+			} catch (e:haxe.Exception) {
+				Testutil.RecoverAndFail(t, "Panic on creating module resolution baseline for test " + this.filename, e);
+			}
+		});
 	}
 
 	// PORT: union ordering check: the Go version shuffles with math/rand/v2 PCG(1234, 5678); here the

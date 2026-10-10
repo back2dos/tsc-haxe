@@ -61,3 +61,7 @@ cli-js:
 
 cli-cpp:
 	$(HAXE) build-cpp.hxml
+
+.PHONY: gate-realworld
+gate-realworld:
+	tools/gate/realworld.sh

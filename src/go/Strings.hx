@@ -423,3 +423,19 @@ class Builder {
 	// strings.Builder.Grow: capacity hint only.
 	public inline function Grow(size:Int):Void {}
 }
+
+// PORT: Go `*strings.Builder` used as an io.Writer (`Write` appends). Haxe's Builder has no Write
+// method, so this adapter wraps it; create one adapter per builder so identity comparisons of
+// writers (`w == sys.Writer()`) behave like Go's pointer comparison.
+class BuilderWriter implements go.Io.Writer {
+	public final b:Builder;
+
+	public function new(b:Builder) {
+		this.b = b;
+	}
+
+	public function Write(p:String):go.Tuple.ValueError<Int> {
+		this.b.WriteString(p);
+		return new go.Tuple.ValueError<Int>(p.length, null);
+	}
+}

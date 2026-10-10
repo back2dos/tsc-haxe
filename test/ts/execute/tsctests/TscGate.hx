@@ -3,8 +3,8 @@ package ts.execute.tsctests;
 import sys.FileSystem;
 import sys.io.File;
 
-// Gate main (not in Go): runs the ported tsc scenarios (TscTest, ShowconfigTest) and compares each
-// baseline byte for byte with upstream/tsc/testdata/baselines/reference/<tsc/...>.
+// Gate main (not in Go): runs the ported tsc scenarios (TscTest, ShowconfigTest, TscbuildTest) and compares
+// each baseline byte for byte with upstream/tsc/testdata/baselines/reference/<tsc|tsbuild/...>.
 // Usage: TscGate [--case <substring>] [--local <dir>]
 // Prints one line per scenario: `PASS|FAIL|CRASH <tsc/scenario/file.js>` and writes the actual
 // baselines to <local>/<path> (default bin/execute/local).
@@ -65,6 +65,7 @@ class TscGate {
 		};
 		TscTest.run();
 		ShowconfigTest.run();
+		TscbuildTest.run();
 		Sys.println('SUMMARY pass=$pass fail=$fail crash=$crash');
 		Sys.exit(fail == 0 && crash == 0 ? 0 : 1);
 	}
