@@ -22,7 +22,7 @@ All results are identical on JS and cpp.
 | scanner, parser, binder, printer (`make gates`; 12,445 files each) | 0 diffs |
 | checker + emit baselines (`make gate-checker`; 14,915 test configurations, skips as in Go) | errors 12,797, types 12,157, symbols 12,157, js 12,728 (11,714 .js references), map 12,797, sourcemap 12,797, trace 145 pass; **0 fail, 0 crash** |
 | tsc + tsc -b scenarios (`make gate-tsc`; 377, watch excluded) | 376 pass; 1 fail: `show-help-with-ExitStatus.DiagnosticsPresent_OutputsSkipped` — the upstream reference is stale (upstream's own Go test fails on it at the pin; our output is byte-identical to Go's actual output) |
-| real project (`make gate-realworld`): TypeScript 6 compiler sources (193k lines), declarations only / full emit with source maps | 154 / 308 files and diagnostics byte-identical |
+| real projects (`make gate-realworld`; deps pinned from upstream lock files, installed into `bin/`) | **4 projects, 32 compiler runs, all byte-identical to Go** (stdout, exit code, every output file incl. `.tsbuildinfo`): TypeScript 6 compiler sources (193k lines; decl + full emit); the whole TypeScript 6 solution via `tsc -b` (13 projects, 453k lines; clean, up-to-date, touch, edit, with and without `node_modules`); `_packages/native-preview` (`tsc -b`, 38k lines); `_extension` (3.5k lines) |
 
 ## Performance (Phase 9, real project: TypeScript 6 compiler sources, 193k lines)
 
