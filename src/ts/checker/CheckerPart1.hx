@@ -2442,7 +2442,7 @@ class CheckerPart1 {
 			if (someButNotAllOverloadFlags != 0) {
 				final canonicalFlags = c.getEffectiveDeclarationFlags(getCanonicalOverload(overloads, implementation), flagsToCheck);
 				// PORT: Go map[*ast.SourceFile][]*ast.Node; iteration order does not matter (diagnostics are sorted).
-				final groups = new ObjectMap<SourceFile, Array<Node>>();
+				final groups = new IdentityMap<SourceFile, Array<Node>>();
 				for (overload_ in overloads) {
 					final sourceFile = Ast.GetSourceFileOfNode(overload_);
 					var group = groups.get(sourceFile);

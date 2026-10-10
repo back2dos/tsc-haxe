@@ -1,5 +1,5 @@
 import haxe.ds.IntMap;
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 import haxe.ds.StringMap;
 import go.Context;
 import go.Errors;

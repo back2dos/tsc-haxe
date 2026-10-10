@@ -1,6 +1,6 @@
 package ts.printer;
 
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 
 // Port of factory.go (types and NodeFactory methods; NewNodeFactory, flattenCommaElement and
 // flattenCommaElements are package statics in class Printer).
@@ -49,7 +49,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 		autoGenerate.Suffix = options.Suffix;
 		autoGenerate.Node = node;
 		if (emitContext.autoGenerate == null) {
-			emitContext.autoGenerate = new ObjectMap<Node, AutoGenerateInfo>();
+			emitContext.autoGenerate = new IdentityMap<Node, AutoGenerateInfo>();
 		}
 		emitContext.autoGenerate.set(name, autoGenerate);
 		return name;
@@ -129,7 +129,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 		autoGenerate.Suffix = options.Suffix;
 		autoGenerate.Node = node;
 		if (emitContext.autoGenerate == null) {
-			emitContext.autoGenerate = new ObjectMap<Node, AutoGenerateInfo>();
+			emitContext.autoGenerate = new IdentityMap<Node, AutoGenerateInfo>();
 		}
 		emitContext.autoGenerate.set(name, autoGenerate);
 		return name;
@@ -173,7 +173,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 		}
 		final node = NewStringLiteral(text, TokenFlagsNone);
 		if (emitContext.textSource == null) {
-			emitContext.textSource = new ObjectMap<Node, Node>();
+			emitContext.textSource = new IdentityMap<Node, Node>();
 		}
 		emitContext.textSource.set(node, textSourceNode);
 		return node;

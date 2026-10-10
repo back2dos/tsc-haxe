@@ -1,6 +1,8 @@
 class TestMain {
 	static function main() {
 		go.SlicesSortTest.run();
+		go.IdentityMapTest.run();
+		go.StringsPrefixTest.run();
 		ts.diagnostics.DiagnosticsTest.run();
 		ts.debug.DebugTest.run();
 		ts.locale.LocaleTest.run();

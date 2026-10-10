@@ -26,7 +26,7 @@ class WrappedFS implements FS {
 	public function FileExists(path:String):Bool {
 		final r = Bundled.splitPath(path);
 		if (r.ok) {
-			return Bundled.embeddedContents.exists(r.value);
+			return Bundled.embeddedContentsExists(r.value);
 		}
 		return this.fs.FileExists(path);
 	}
@@ -34,7 +34,7 @@ class WrappedFS implements FS {
 	public function ReadFile(path:String):ValueOk<String> {
 		final r = Bundled.splitPath(path);
 		if (r.ok) {
-			final contents = Bundled.embeddedContents.get(r.value);
+			final contents = Bundled.embeddedContentsGet(r.value);
 			return new ValueOk(contents == null ? "" : contents, contents != null);
 		}
 		return this.fs.ReadFile(path);
@@ -70,7 +70,7 @@ class WrappedFS implements FS {
 			if (rest == "" || rest == "libs") {
 				return new ts.bundled.Embed.FileInfo(ModeDir, rest, 0);
 			}
-			final lib = Bundled.embeddedContents.get(rest);
+			final lib = Bundled.embeddedContentsGet(rest);
 			if (lib != null) {
 				final libName = StringTools.startsWith(rest, "libs/") ? rest.substring(5) : rest;
 				return new ts.bundled.Embed.FileInfo(ModeNone, libName, go.Utf8.ByteLen(lib));

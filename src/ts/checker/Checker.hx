@@ -687,7 +687,7 @@ class WideningContext {
 	var siblings:Array<Type> = null; // Types of siblings
 	var resolvedProperties:Array<Symbol> = null; // Properties occurring in sibling object literals
 	var childContexts:StringMap<WideningContext> = null;
-	var widenedTypes:ObjectMap<Type, Type> = null;
+	var widenedTypes:IdentityMap<Type, Type> = null;
 
 	public function new() {}
 
@@ -1112,7 +1112,7 @@ class Checker {
 	var program:Program = null;
 	var compilerOptions:CompilerOptions = null;
 	var files:Array<SourceFile> = null;
-	var fileIndexMap:ObjectMap<SourceFile, Int> = null;
+	var fileIndexMap:IdentityMap<SourceFile, Int> = null;
 	var compareSymbols:(Symbol, Symbol) -> Int = null;
 	var compareSymbolChains:(Array<Symbol>, Array<Symbol>) -> Int = null;
 	public var TypeCount:Int = 0;
@@ -1152,13 +1152,13 @@ class Checker {
 	var nanType:Type = null;
 	var bigintLiteralTypes:StringMap<Type> /* key: jsnum.PseudoBigInt, encoded by PseudoBigInt.String() */ = null;
 	var enumLiteralTypes:StringMap<Type> /* key: checker.EnumLiteralKey */ = null;
-	var enumNaNLiteralTypes:ObjectMap<Symbol, Type> = null;
+	var enumNaNLiteralTypes:IdentityMap<Symbol, Type> = null;
 	var indexedAccessTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
 	var templateLiteralTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
 	var stringMappingTypes:StringMap<Type> /* key: checker.StringMappingKey */ = null;
-	var uniqueESSymbolTypes:ObjectMap<Symbol, Type> = null;
-	var thisExpandoKinds:ObjectMap<Symbol, ThisAssignmentDeclarationKind> = null;
-	var thisExpandoLocations:ObjectMap<Symbol, Node> = null;
+	var uniqueESSymbolTypes:IdentityMap<Symbol, Type> = null;
+	var thisExpandoKinds:IdentityMap<Symbol, ThisAssignmentDeclarationKind> = null;
+	var thisExpandoLocations:IdentityMap<Symbol, Node> = null;
 	var subtypeReductionCache:StringMap<Array<Type>> /* key: checker.CacheHashKey */ = null;
 	var cachedTypes:StringMap<Type> /* key: checker.CachedTypeKey */ = null;
 	var cachedSignatures:StringMap<Signature> /* key: checker.CachedSignatureKey */ = null;
@@ -1178,7 +1178,7 @@ class Checker {
 	var unknownSymbol:Symbol = null;
 	var unresolvedSymbols:StringMap<Symbol> = null;
 	var errorTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
-	var moduleSymbols:ObjectMap<Node, Symbol> = null;
+	var moduleSymbols:IdentityMap<Node, Symbol> = null;
 	var globalThisSymbol:Symbol = null;
 	var symbolTableAliasCache:IntMap<Array<Symbol>> = null;
 	var classExpressionNameTables:IntMap<SymbolTable> = null;
@@ -1194,7 +1194,7 @@ class Checker {
 	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new Symbol());
 	var signatureArena:Arena<Signature> = new Arena<Signature>(() -> new Signature());
 	var indexInfoArena:Arena<IndexInfo> = new Arena<IndexInfo>(() -> new IndexInfo());
-	var mergedSymbols:ObjectMap<Symbol, Symbol> = null;
+	var mergedSymbols:IdentityMap<Symbol, Symbol> = null;
 	var factory:NodeFactory = new NodeFactory();
 	var nodeLinks:LinkStore<Node, NodeLinks> = new LinkStore<Node, NodeLinks>(() -> new NodeLinks());
 	var signatureLinks:LinkStore<Node, SignatureLinks> = new LinkStore<Node, SignatureLinks>(() -> new SignatureLinks());
@@ -1223,8 +1223,8 @@ class Checker {
 	var symbolContainerLinks:LinkStore<Symbol, ContainingSymbolLinks> = new LinkStore<Symbol, ContainingSymbolLinks>(() -> new ContainingSymbolLinks());
 	var sourceFileLinks:LinkStore<SourceFile, SourceFileLinks> = new LinkStore<SourceFile, SourceFileLinks>(() -> new SourceFileLinks());
 	var regExpScanner:Scanner = null;
-	var patternForType:ObjectMap<Type, Node> = null;
-	var contextFreeTypes:ObjectMap<Node, Type> = null;
+	var patternForType:IdentityMap<Type, Node> = null;
+	var contextFreeTypes:IdentityMap<Node, Type> = null;
 	var anyType:Type = null;
 	var autoType:Type = null;
 	var wildcardType:Type = null;
@@ -1289,7 +1289,7 @@ class Checker {
 	var unknownSignature:Signature = null;
 	var resolvingSignature:Signature = null;
 	var silentNeverSignature:Signature = null;
-	var cachedArgumentsReferenced:ObjectMap<Node, Bool> = null;
+	var cachedArgumentsReferenced:IdentityMap<Node, Bool> = null;
 	var enumNumberIndexInfo:IndexInfo = null;
 	var anyBaseTypeIndexInfo:IndexInfo = null;
 	var patternAmbientModules:Array<PatternAmbientModule> = null;
@@ -1330,11 +1330,11 @@ class Checker {
 	var antecedentTypes:Array<Type> = null;
 	var flowAnalysisDisabled:Bool = false;
 	var flowInvocationCount:Int = 0;
-	var flowTypeCache:ObjectMap<Node, Type> = null;
+	var flowTypeCache:IdentityMap<Node, Type> = null;
 	var lastFlowNode:FlowNode = null;
 	var lastFlowNodeReachable:Bool = false;
-	var flowNodeReachable:ObjectMap<FlowNode, Bool> = null;
-	var flowNodePostSuper:ObjectMap<FlowNode, Bool> = null;
+	var flowNodeReachable:IdentityMap<FlowNode, Bool> = null;
+	var flowNodePostSuper:IdentityMap<FlowNode, Bool> = null;
 	var renamedBindingElementsInTypes:Array<Node> = null;
 	var contextualInfos:Array<ContextualInfo> = null;
 	var inferenceContextInfos:Array<InferenceContextInfo> = null;
@@ -1427,7 +1427,7 @@ class Checker {
 	var mu:Any /* sync.Mutex */ = null /* PORT: Go zero struct */;
 	var tracer:Tracer = null; // Optional tracer for trace events and type recording (for --generateTrace)
 	// PORT: identity numbers for pointer fields of struct map keys (see EnumLiteralKey); not in Go.
-	var identityKeys:ObjectMap<{}, Int> = new ObjectMap<{}, Int>();
+	var identityKeys:IdentityMap<{}, Int> = new IdentityMap<{}, Int>();
 	var identityKeyCount:Int = 0;
 
 	public function new() {}
@@ -1566,13 +1566,13 @@ class Checker {
 		c.numberLiteralTypes = new StringMap<Type>();
 		c.bigintLiteralTypes = new StringMap<Type>();
 		c.enumLiteralTypes = new StringMap<Type>();
-		c.enumNaNLiteralTypes = new ObjectMap<Symbol, Type>();
+		c.enumNaNLiteralTypes = new IdentityMap<Symbol, Type>();
 		c.indexedAccessTypes = new StringMap<Type>();
 		c.templateLiteralTypes = new StringMap<Type>();
 		c.stringMappingTypes = new StringMap<Type>();
-		c.uniqueESSymbolTypes = new ObjectMap<Symbol, Type>();
-		c.thisExpandoKinds = new ObjectMap<Symbol, ThisAssignmentDeclarationKind>();
-		c.thisExpandoLocations = new ObjectMap<Symbol, Node>();
+		c.uniqueESSymbolTypes = new IdentityMap<Symbol, Type>();
+		c.thisExpandoKinds = new IdentityMap<Symbol, ThisAssignmentDeclarationKind>();
+		c.thisExpandoLocations = new IdentityMap<Symbol, Node>();
 		c.subtypeReductionCache = new StringMap<Array<Type>>();
 		c.cachedTypes = new StringMap<Type>();
 		c.cachedSignatures = new StringMap<Signature>();
@@ -1591,7 +1591,7 @@ class Checker {
 		c.unknownSymbol = c.newSymbol(SymbolFlagsProperty, "unknown");
 		c.unresolvedSymbols = new StringMap<Symbol>();
 		c.errorTypes = new StringMap<Type>();
-		c.moduleSymbols = new ObjectMap<Node, Symbol>();
+		c.moduleSymbols = new IdentityMap<Node, Symbol>();
 		c.globalThisSymbol = c.newSymbolEx(SymbolFlagsModule, "globalThis", CheckFlagsReadonly);
 		c.globalThisSymbol.Exports = c.globals;
 		c.globals.set(c.globalThisSymbol.Name, c.globalThisSymbol);
@@ -1604,9 +1604,9 @@ class Checker {
 		c.unionOfUnionTypes = new StringMap<Type>();
 		c.intersectionTypes = new StringMap<Type>();
 		c.propertiesTypes = new StringMap<Type>();
-		c.mergedSymbols = new ObjectMap<Symbol, Symbol>();
-		c.patternForType = new ObjectMap<Type, Node>();
-		c.contextFreeTypes = new ObjectMap<Node, Type>();
+		c.mergedSymbols = new IdentityMap<Symbol, Symbol>();
+		c.patternForType = new IdentityMap<Type, Node>();
+		c.contextFreeTypes = new IdentityMap<Node, Type>();
 		c.anyType = c.newIntrinsicType(TypeFlagsAny, "any");
 		c.autoType = c.newIntrinsicTypeEx(TypeFlagsAny, "any", ObjectFlagsNonInferrableType);
 		c.wildcardType = c.newIntrinsicType(TypeFlagsAny, "any");
@@ -1682,7 +1682,7 @@ class Checker {
 		c.unknownSignature = c.newSignature(SignatureFlagsNone, null, null, null, null, c.errorType, null, 0);
 		c.resolvingSignature = c.newSignature(SignatureFlagsNone, null, null, null, null, c.anyType, null, 0);
 		c.silentNeverSignature = c.newSignature(SignatureFlagsNone, null, null, null, null, c.silentNeverType, null, 0);
-		c.cachedArgumentsReferenced = new ObjectMap<Node, Bool>();
+		c.cachedArgumentsReferenced = new IdentityMap<Node, Bool>();
 		c.enumNumberIndexInfo = new IndexInfo();
 		c.enumNumberIndexInfo.keyType = c.numberType;
 		c.enumNumberIndexInfo.valueType = c.stringType;
@@ -1698,8 +1698,8 @@ class Checker {
 		typeofNames.sort(Strings.Compare);
 		c.typeofType = c.getUnionType(Core.Map(typeofNames, s -> c.getStringLiteralType(s)));
 		c.flowLoopCache = new StringMap<Type>();
-		c.flowNodeReachable = new ObjectMap<FlowNode, Bool>();
-		c.flowNodePostSuper = new ObjectMap<FlowNode, Bool>();
+		c.flowNodeReachable = new IdentityMap<FlowNode, Bool>();
+		c.flowNodePostSuper = new IdentityMap<FlowNode, Bool>();
 		c.subtypeRelation = new Relation();
 		c.strictSubtypeRelation = new Relation();
 		c.assignableRelation = new Relation();
@@ -1762,8 +1762,8 @@ class Checker {
 		return new Pair<Checker, Any>(c, c.mu);
 	}
 
-	static function createFileIndexMap(files:Array<SourceFile>):ObjectMap<SourceFile, Int> {
-		final result = new ObjectMap<SourceFile, Int>();
+	static function createFileIndexMap(files:Array<SourceFile>):IdentityMap<SourceFile, Int> {
+		final result = new IdentityMap<SourceFile, Int>();
 		if (files != null) {
 			for (i in 0...files.length) {
 				result.set(files[i], i);
@@ -3393,7 +3393,7 @@ class Checker {
 		return NewNodeBuilderEx(ch, e, null /*idToSymbol*/);
 	}
 
-	public static function NewNodeBuilderEx(ch:Checker, e:EmitContext, idToSymbol:ObjectMap<IdentifierNode, Symbol>):NodeBuilder {
+	public static function NewNodeBuilderEx(ch:Checker, e:EmitContext, idToSymbol:IdentityMap<IdentifierNode, Symbol>):NodeBuilder {
 		final impl = newNodeBuilderImpl(ch, e, idToSymbol);
 		final b = new NodeBuilder();
 		b.impl = impl;
@@ -3440,9 +3440,9 @@ class Checker {
 
 	static inline final noTruncationMaximumTruncationLength:Int = 1000000;
 
-	static function newNodeBuilderImpl(ch:Checker, e:EmitContext, idToSymbol:ObjectMap<IdentifierNode, Symbol>):NodeBuilderImpl {
+	static function newNodeBuilderImpl(ch:Checker, e:EmitContext, idToSymbol:IdentityMap<IdentifierNode, Symbol>):NodeBuilderImpl {
 		if (idToSymbol == null) {
-			idToSymbol = new ObjectMap<IdentifierNode, Symbol>();
+			idToSymbol = new IdentityMap<IdentifierNode, Symbol>();
 		}
 		final b = new NodeBuilderImpl();
 		b.f = e.Factory.AsNodeFactory();
@@ -4481,8 +4481,8 @@ class Checker {
 	static function runWithoutResolvedSignatureCaching<T>(c:Checker, node:Node, fn:() -> T):T {
 		var ancestorNode = Ast.FindAncestor(node, fn_IsCallLikeOrFunctionLikeExpression);
 		if (ancestorNode != null) {
-			final cachedResolvedSignatures = new ObjectMap<SignatureLinks, Signature>();
-			final cachedTypes = new ObjectMap<ValueSymbolLinks, Type>();
+			final cachedResolvedSignatures = new IdentityMap<SignatureLinks, Signature>();
+			final cachedTypes = new IdentityMap<ValueSymbolLinks, Type>();
 			while (ancestorNode != null) {
 				final signatureLinks = c.signatureLinks.Get(ancestorNode);
 				cachedResolvedSignatures.set(signatureLinks, signatureLinks.resolvedSignature);

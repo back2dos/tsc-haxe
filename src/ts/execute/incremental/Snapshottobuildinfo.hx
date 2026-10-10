@@ -12,7 +12,7 @@ class ToBuildInfo {
 	var comparePathsOptions:ComparePathsOptions = null;
 	var fileNameToFileId:StringMap<BuildInfoFileId> = new StringMap();
 	var fileNamesToFileIdListId:StringMap<BuildInfoFileIdListId> = new StringMap();
-	var roots:ObjectMap<SourceFile, Path> = new ObjectMap();
+	var roots:IdentityMap<SourceFile, Path> = new IdentityMap();
 
 	public function new() {}
 

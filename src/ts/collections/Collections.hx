@@ -4,7 +4,7 @@ package ts.collections;
 //
 // PORT: the collection classes are NOT @:generic: Haxe cannot build `Map<K, V>` inside a
 // class generic over K, even with @:generic (Haxe 4.3.7 / 5.0.0-preview.1). They store Go maps
-// in go.GoMap, which picks StringMap / IntMap / ObjectMap from the first key at run time.
+// in go.GoMap, which picks StringMap / IntMap / IdentityMap from the first key at run time.
 // Size hints have no Haxe equivalent and are ignored. Go explicit type arguments
 // (`NewSetWithSizeHint[string](n)`) come from the expected type in Haxe:
 // `final s:Set<String> = Collections.NewSetWithSizeHint(n);`.

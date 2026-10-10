@@ -26,7 +26,7 @@ class SourceFileAdapter implements SourceFileForSpecifierGeneration {
 		this.File = file;
 	}
 
-	static final cache = new haxe.ds.ObjectMap<SourceFile, SourceFileAdapter>();
+	static final cache = new IdentityMap<SourceFile, SourceFileAdapter>();
 
 	public static function Of(file:SourceFile):SourceFileAdapter {
 		if (file == null) {

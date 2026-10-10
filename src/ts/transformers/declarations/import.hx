@@ -1,6 +1,7 @@
 // GENERATED SKELETON by tools/gen/skeleton for internal/transformers/declarations.
 import haxe.ds.IntMap;
 import go.Fmt;
+import go.IdentityMap;
 import go.Slices;
 import go.Strings;
 import go.Tuple;

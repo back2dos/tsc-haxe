@@ -1,5 +1,5 @@
 // GENERATED SKELETON by tools/gen/skeleton for internal/transformers/estransforms.
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 import haxe.ds.StringMap;
 import go.Slices;
 import go.Strings;

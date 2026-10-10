@@ -2139,7 +2139,7 @@ class CheckerPart5 {
 		// Only cache in child contexts since the root context never widens a particular object literal type more than once
 		if (context != null && context.parent != null) {
 			if (context.widenedTypes == null) {
-				context.widenedTypes = new ObjectMap<Type, Type>();
+				context.widenedTypes = new IdentityMap<Type, Type>();
 			}
 			context.widenedTypes.set(t, result);
 		}

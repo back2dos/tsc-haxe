@@ -1214,7 +1214,7 @@ class UnionType extends UnionOrIntersectionType {
 	var regularType:Type = null;
 	var origin:Type = null; // Denormalized union, intersection, or index type in which union originates
 	var keyPropertyName:std.String = ""; // Property with unique unit type that exists in every object/intersection in union type
-	var constituentMap:ObjectMap<Type, Type> = null; // Constituents keyed by unit type discriminants
+	var constituentMap:IdentityMap<Type, Type> = null; // Constituents keyed by unit type discriminants
 
 	public function new() {
 		super();

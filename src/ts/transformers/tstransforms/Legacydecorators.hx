@@ -17,7 +17,7 @@ class LegacyDecoratorsTransformer {
 		 * A map that keeps track of aliases created for classes with decorators to avoid issues
 		 * with the double-binding behavior of classes.
 		 */
-	var classAliases:ObjectMap<Node, Node> = null;
+	var classAliases:IdentityMap<Node, Node> = null;
 	var enclosingClasses:Array<ClassDeclaration> = null;
 
 	public function new() {}
@@ -60,7 +60,7 @@ class LegacyDecoratorsTransformer {
 			case KindParameter:
 				return visitParamerDeclaration(node.AsParameterDeclaration());
 			case KindSourceFile:
-				classAliases = new ObjectMap<Node, Node>();
+				classAliases = new IdentityMap<Node, Node>();
 				enclosingClasses = null;
 				final result = Visitor().VisitEachChild(node);
 				EmitContext().AddEmitHelper(result, ...Core.Coalesce(EmitContext().ReadEmitHelpers(), [])); // PORT: spread of a nil slice is an empty variadic call

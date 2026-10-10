@@ -2,9 +2,11 @@
 # Project toolchain: stock Haxe 4.3.7 (the haxe on PATH is a fork whose std does not match hxcpp).
 # -D HXCPP_CPP17: hxcpp's default C++11 applies trigraphs to string literals ("??=" becomes "#");
 # C++17 removes trigraphs. Only hxcpp reads this define.
+# -D HXCPP_SINGLE_THREADED_APP: the port never starts a thread; hxcpp then reads its allocation
+# context from a global instead of pthread_getspecific on every allocation (PORT: perf, measured).
 # go.NilRange: Go `range`/`xs...` over a nil slice or map does nothing; the macro gives every
 # `for (x in e)` and `...e` in packages ts and go the same semantics (see src/go/NilRange.hx).
 # `-cp src` comes first, so a later `-cp` given by the caller still wins (Haxe takes the later one).
 H="${HAXE_HOME:-/home/mib/Development/tools/haxe-347}"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-HAXE_STD_PATH="$H/std" exec "$H/haxe" -D HXCPP_CPP17 -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit "$@"
+HAXE_STD_PATH="$H/std" exec "$H/haxe" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit "$@"

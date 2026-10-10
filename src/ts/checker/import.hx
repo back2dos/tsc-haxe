@@ -1,6 +1,6 @@
 // GENERATED SKELETON by tools/gen/skeleton for internal/checker.
 import haxe.ds.IntMap;
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 import haxe.ds.StringMap;
 import go.Cmp;
 import go.Context;

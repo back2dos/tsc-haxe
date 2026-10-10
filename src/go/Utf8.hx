@@ -96,10 +96,10 @@ class Utf8 {
 	// as that single byte, so output bytes equal Go's.
 	public static function StringToBytes(s:String):Bytes {
 		if (s.indexOf("\u{FFFE}") < 0) {
-			return Bytes.ofString(s, UTF8);
+			return utf8Bytes(s);
 		}
 		final parts = s.split("\u{FFFE}");
-		final encoded = [for (part in parts) Bytes.ofString(part, UTF8)];
+		final encoded = [for (part in parts) utf8Bytes(part)];
 		var total = parts.length - 1;
 		for (e in encoded)
 			total += e.length;
@@ -114,6 +114,19 @@ class Utf8 {
 			pos += encoded[k].length;
 		}
 		return out;
+	}
+
+	// Bytes.ofString(s, UTF8). PORT: perf — on node, Buffer.from encodes natively (Haxe's JS encoder
+	// pushes every byte into an Array: measured 1.6 % of a full emit). Only for text without
+	// surrogates: Haxe's encoder and Buffer.from treat lone surrogates differently.
+	static function utf8Bytes(s:String):Bytes {
+		#if nodejs
+		if (!js.Syntax.code("/[\\uD800-\\uDFFF]/.test({0})", s)) {
+			final buf = js.node.Buffer.from(s, "utf8");
+			return Bytes.ofData(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length));
+		}
+		#end
+		return Bytes.ofString(s, UTF8);
 	}
 
 	// len(s) in Go: the UTF-8 byte length of s (U+FFFE is Go's single byte 0xFE, see StringToBytes).

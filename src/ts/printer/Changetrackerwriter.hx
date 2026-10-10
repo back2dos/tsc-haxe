@@ -1,6 +1,6 @@
 package ts.printer;
 
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 
 // Port of changetrackerwriter.go (types and methods; NewChangeTrackerWriter is a package static in
 // class Printer).
@@ -12,8 +12,8 @@ class ChangeTrackerWriter implements EmitTextWriter implements Grower {
 	public var textWriter:TextWriter = new TextWriter();
 	var lastNonTriviaPosition:Int = 0;
 	// PORT: Go `map[triviaPositionKey]int` with *ast.Node / *ast.NodeList keys → identity maps.
-	var pos:ObjectMap<{}, Int> = null;
-	var end:ObjectMap<{}, Int> = null;
+	var pos:IdentityMap<{}, Int> = null;
+	var end:IdentityMap<{}, Int> = null;
 
 	public function new() {}
 

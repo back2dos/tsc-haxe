@@ -1,7 +1,7 @@
 package ts.printer;
 
 import haxe.ds.IntMap;
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 
 // Port of emitcontext.go (types and methods; NewEmitContext, GetEmitContext, isHoistedVariable and
 // nextAutoGenerateId are package statics in class Printer).
@@ -12,12 +12,12 @@ import haxe.ds.ObjectMap;
 @:allow(ts.printer)
 class EmitContext {
 	public var Factory:NodeFactory = null; // Required. The NodeFactory to use to create new nodes
-	var autoGenerate:ObjectMap<Node, AutoGenerateInfo> = null;
-	var textSource:ObjectMap<Node, Node> = null;
-	var original:ObjectMap<Node, Node> = null;
+	var autoGenerate:IdentityMap<Node, AutoGenerateInfo> = null;
+	var textSource:IdentityMap<Node, Node> = null;
+	var original:IdentityMap<Node, Node> = null;
 	var emitNodes:LinkStore<Node, EmitNode> = new LinkStore<Node, EmitNode>(fn_newEmitNode);
-	var assignedName:ObjectMap<Node, Node> = null;
-	var classThis:ObjectMap<Node, Node> = null;
+	var assignedName:IdentityMap<Node, Node> = null;
+	var classThis:IdentityMap<Node, Node> = null;
 	var varScopeStack:Stack<VarScope> = new Stack<VarScope>();
 	var letScopeStack:Stack<VarScope> = new Stack<VarScope>();
 	var emitHelpers:OrderedSet<EmitHelper> = new OrderedSet<EmitHelper>();
@@ -436,7 +436,7 @@ class EmitContext {
 		}
 
 		if (this.original == null) {
-			this.original = new ObjectMap<Node, Node>();
+			this.original = new IdentityMap<Node, Node>();
 		}
 
 		final existing = this.original.get(node);
@@ -586,7 +586,7 @@ class EmitContext {
 
 	public function SetAssignedName(node:Node, name:Expression):Void {
 		if (assignedName == null) {
-			assignedName = new ObjectMap<Node, Node>();
+			assignedName = new IdentityMap<Node, Node>();
 		}
 		assignedName.set(node, name);
 	}
@@ -597,7 +597,7 @@ class EmitContext {
 
 	public function SetClassThis(node:Node, classThis:IdentifierNode):Void {
 		if (this.classThis == null) {
-			this.classThis = new ObjectMap<Node, Node>();
+			this.classThis = new IdentityMap<Node, Node>();
 		}
 		this.classThis.set(node, classThis);
 	}

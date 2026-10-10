@@ -9,13 +9,14 @@ import haxe.Constraints.IMap;
 // map at run time from the first key that is stored:
 //   String (and abstracts over String)  → haxe.ds.StringMap
 //   Int (and abstracts over Int)        → haxe.ds.IntMap
-//   anything else (class instances)     → haxe.ds.ObjectMap, keyed by identity like Go *T
+//   anything else (class instances)     → go.IdentityMap, keyed by identity like Go *T
 // Not supported (throw): null keys, Float keys with a fraction, Bool keys, struct-valued keys
 // (Go compares structs by value; encode them as a String key instead).
 // The map is created lazily: an empty GoMap behaves like a Go nil map for reads.
 // Unlike Go, iteration order is deterministic; upstream never depends on map order.
 class GoMap<K, V> {
 	var m:Null<IMap<K, V>> = null;
+	var o:Null<IdentityMap<K, V>> = null; // m when the keys are objects; PORT: perf, one lookup per set
 	var n:Int = 0;
 
 	public function new() {}
@@ -37,8 +38,16 @@ class GoMap<K, V> {
 
 	// m[key] = value
 	public function set(key:K, value:V):Void {
-		if (m == null)
+		if (m == null) {
 			m = newBacking(key);
+			if (Std.isOfType(m, IdentityMap))
+				o = cast m;
+		}
+		if (o != null) {
+			if (o.add(key, value))
+				n++;
+			return;
+		}
 		if (!m.exists(key))
 			n++;
 		m.set(key, value);
@@ -74,6 +83,8 @@ class GoMap<K, V> {
 		final c = new GoMap<K, V>();
 		if (m != null) {
 			c.m = m.copy();
+			if (o != null)
+				c.o = cast c.m;
 			c.n = n;
 		}
 		return c;
@@ -89,7 +100,7 @@ class GoMap<K, V> {
 			return cast new haxe.ds.IntMap<V>();
 		if (Std.isOfType(k, Float) || Std.isOfType(k, Bool))
 			throw "GoMap: key type not supported: " + Std.string(k);
-		return cast new haxe.ds.ObjectMap<{}, V>();
+		return new IdentityMap<K, V>();
 	}
 }
 

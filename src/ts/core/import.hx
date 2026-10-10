@@ -1,6 +1,7 @@
 import go.Context;
 import go.Errors;
 import go.GoMap;
+import go.IdentityMap;
 import go.Maps;
 import go.Math;
 import go.Slices;

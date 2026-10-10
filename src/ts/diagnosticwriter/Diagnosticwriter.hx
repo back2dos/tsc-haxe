@@ -1,6 +1,6 @@
 package ts.diagnosticwriter;
 
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 
 // Port of internal/diagnosticwriter (diagnosticwriter.go): package-level funcs, consts and vars;
 // the types follow the package class in this module.
@@ -328,7 +328,7 @@ class Diagnosticwriter {
 	static function getErrorSummary(diags:Array<Diagnostic>):ErrorSummary {
 		var totalErrorCount = 0;
 		var globalErrors:Array<Diagnostic> = null;
-		var errorsByFile:ObjectMap<FileLike, Array<Diagnostic>> = null;
+		var errorsByFile:IdentityMap<FileLike, Array<Diagnostic>> = null;
 
 		if (diags != null) {
 			for (diagnostic in diags) {
@@ -343,7 +343,7 @@ class Diagnosticwriter {
 					globalErrors.push(diagnostic);
 				} else {
 					if (errorsByFile == null) {
-						errorsByFile = new ObjectMap<FileLike, Array<Diagnostic>>();
+						errorsByFile = new IdentityMap<FileLike, Array<Diagnostic>>();
 					}
 					var list = errorsByFile.get(diagnostic.File());
 					if (list == null) {
@@ -559,7 +559,7 @@ class ASTDiagnostic implements Diagnostic {
 // SourceFile class does not declare FileLike, so it is wrapped. The wrapper is cached per SourceFile so
 // that File() keeps Go's pointer identity (getErrorSummary uses the file as a map key).
 class FileLikeOfSourceFile implements FileLike {
-	static var cache:ObjectMap<SourceFile, FileLikeOfSourceFile> = null;
+	static var cache:IdentityMap<SourceFile, FileLikeOfSourceFile> = null;
 
 	public final SourceFile:SourceFile;
 
@@ -569,7 +569,7 @@ class FileLikeOfSourceFile implements FileLike {
 
 	public static function of(file:SourceFile):FileLikeOfSourceFile {
 		if (cache == null) {
-			cache = new ObjectMap<SourceFile, FileLikeOfSourceFile>();
+			cache = new IdentityMap<SourceFile, FileLikeOfSourceFile>();
 		}
 		var f = cache.get(file);
 		if (f == null) {
@@ -606,7 +606,7 @@ typedef FormattedWriter = (output:Writer, text:String, formatStyle:String) -> Vo
 class ErrorSummary {
 	public var TotalErrorCount:Int = 0;
 	public var GlobalErrors:Array<Diagnostic> = null;
-	public var ErrorsByFile:ObjectMap<FileLike, Array<Diagnostic>> = null;
+	public var ErrorsByFile:IdentityMap<FileLike, Array<Diagnostic>> = null;
 	public var SortedFiles:Array<FileLike> = null;
 
 	public function new() {}

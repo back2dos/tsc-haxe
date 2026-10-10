@@ -24,6 +24,17 @@ All results are identical on JS and cpp.
 | tsc + tsc -b scenarios (`make gate-tsc`; 377, watch excluded) | 376 pass; 1 fail: `show-help-with-ExitStatus.DiagnosticsPresent_OutputsSkipped` — the upstream reference is stale (upstream's own Go test fails on it at the pin; our output is byte-identical to Go's actual output) |
 | real project (`make gate-realworld`): TypeScript 6 compiler sources (193k lines), declarations only / full emit with source maps | 154 / 308 files and diagnostics byte-identical |
 
+## Performance (Phase 9, real project: TypeScript 6 compiler sources, 193k lines)
+
+Wall time / peak memory, idle machine, `tools/gate/realworld.sh`. Go runs with `--singleThreaded`.
+
+| Mode | Go | Haxe cpp | Haxe JS |
+|---|---|---|---|
+| declarations only | 1.17 s / 408 MB | 4.02 s / 1,030 MB | 5.82 s / 695 MB |
+| full emit + source maps | 1.85 s / 543 MB | 5.66 s / 1,241 MB | 7.84 s / 958 MB |
+
+Before Phase 9: cpp 5.16 s / 7.93 s, JS 6.66 s / 9.50 s. Remaining cost centres: hxcpp GC + allocation zeroing (~15–18% on cpp), string-keyed relation caches (~3%), Int boxing in generic code (~2%).
+
 ## Data files copied from upstream
 
 | File | Source |

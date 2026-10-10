@@ -4,6 +4,45 @@ package go;
 // Where Go decodes UTF-8 runes, these decode UTF-16; a lone surrogate plays the role of
 // Go's invalid UTF-8 byte (utf8.RuneError).
 class Strings {
+	// Go `s[:n]` (0 <= n <= len(s)) without copying, for a long-lived text that is cut repeatedly.
+	// PORT: perf — Go slices share the bytes; hxcpp's substring copies (the parser cuts the
+	// source text before every JSDoc comment: measured 0.3 s and 330 MB on a 193k-line project).
+	// On hxcpp the result shares s's buffer, which is not NUL-terminated at n and whose cached
+	// hash belongs to s. Use it only as scanner/parser text: never as a map key, in a `switch`,
+	// or with code that reads past its length (c_str, file or console output). hxcpp keeps a
+	// string in UTF-16 form only if it has a character above 127 (String.eq relies on that), so
+	// an all-ASCII prefix of a UTF-16 string is cut from a narrow copy (made once per text). JS: substring (V8 shares the characters).
+	public static function Prefix(s:String, n:Int):String {
+		#if cpp
+		if (n >= s.length)
+			return s;
+		if (n <= 0)
+			return "";
+		if (untyped __cpp__("{0}.isUTF16Encoded()", s)) {
+			if (!untyped __cpp__("({0}.raw_ptr() == {1}.raw_ptr() && {0}.length == {1}.length)", s, prefixText)) {
+				var i = 0;
+				while (i < s.length && StringTools.fastCodeAt(s, i) <= 127)
+					i++;
+				prefixText = s;
+				prefixAscii = s.substring(0, i); // narrow copy of the all-ASCII start, made once
+			}
+			if (n <= prefixAscii.length)
+				return n == prefixAscii.length ? prefixAscii : untyped __cpp__("::String({0}.raw_ptr(), {1})", prefixAscii, n);
+			return untyped __cpp__("::String({0}.raw_wptr(), {1})", s, n);
+		}
+		return untyped __cpp__("::String({0}.raw_ptr(), {1})", s, n);
+		#else
+		return s.substring(0, n);
+		#end
+	}
+
+	#if cpp
+	// The last UTF-16 text cut by Prefix and a narrow copy of its start up to the first
+	// character above 127.
+	static var prefixText:String = "";
+	static var prefixAscii:String = "";
+	#end
+
 	// strings.Compare: Go compares bytes, i.e. code-point order. UTF-16 code-unit order differs
 	// for supplementary characters against U+E000..U+FFFF, so compare code points at the first
 	// difference. Lone surrogates compare as their own value (Go WTF-8 bytes sort the same way).

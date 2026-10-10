@@ -236,12 +236,12 @@ func (u *Unit) mapType(m *types.Map) string {
 		}
 		return u.tok(u.g.builtin("go", "GoMap", "GoMap")) + "<" + u.T(k) + ", " + v + ">"
 	case *types.Pointer, *types.Chan:
-		return u.tok(u.g.builtin("haxe.ds", "ObjectMap", "ObjectMap")) + "<" + u.T(k) + ", " + v + ">"
+		return u.tok(u.g.builtin("go", "IdentityMap", "IdentityMap")) + "<" + u.T(k) + ", " + v + ">"
 	case *types.Interface:
 		if ku.Empty() {
 			return u.tok(u.g.builtin("go", "GoMap", "GoMap")) + "<Any, " + v + ">"
 		}
-		return u.tok(u.g.builtin("haxe.ds", "ObjectMap", "ObjectMap")) + "<" + u.T(k) + ", " + v + ">"
+		return u.tok(u.g.builtin("go", "IdentityMap", "IdentityMap")) + "<" + u.T(k) + ", " + v + ">"
 	case *types.Struct, *types.Array:
 		u.note("struct map key encoded as String (PORTING §4a)", types.TypeString(k, nil))
 		return u.tok(u.g.builtin("haxe.ds", "StringMap", "StringMap")) + "<" + v + "> /* key: " + types.TypeString(k, func(p *types.Package) string { return p.Name() }) + " */"

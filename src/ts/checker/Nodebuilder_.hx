@@ -264,7 +264,7 @@ class Nodebuilder_ {
 		return new Pair<NodeBuilder, () -> Void>(c.typeToStringNodebuilder, releaseNodes);
 	}
 
-	static function getNodeBuilderEx(c:Checker, idToSymbol:ObjectMap<IdentifierNode, Symbol>):NodeBuilder {
+	static function getNodeBuilderEx(c:Checker, idToSymbol:IdentityMap<IdentifierNode, Symbol>):NodeBuilder {
 		final b = Checker.NewNodeBuilderEx(c, Printer.NewEmitContext(), idToSymbol);
 		return b;
 	}

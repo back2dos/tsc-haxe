@@ -352,9 +352,9 @@ class FilesParser {
 		// as a duplicate more than once would cause it to be released more times than it
 		// was acquired when the snapshot is disposed, leaving a dangling cache entry that
 		// panics the next time it is referenced.
-		var recordedDuplicates:ObjectMap<ParseTaskData, Set<std.String>> = null;
-		var collectFiles:(tasks:Array<ParseTask>, seen:ObjectMap<ParseTaskData, std.String>) -> Void = null;
-		collectFiles = function(tasks:Array<ParseTask>, seen:ObjectMap<ParseTaskData, std.String>) {
+		var recordedDuplicates:IdentityMap<ParseTaskData, Set<std.String>> = null;
+		var collectFiles:(tasks:Array<ParseTask>, seen:IdentityMap<ParseTaskData, std.String>) -> Void = null;
+		collectFiles = function(tasks:Array<ParseTask>, seen:IdentityMap<ParseTaskData, std.String>) {
 			for (task0 in tasks) {
 				var task = task0;
 				final includeReason = task.includeReason;
@@ -377,7 +377,7 @@ class FilesParser {
 					final checkedName = seen.get(data);
 					if (task.file != null && checkedName != task.normalizedFilePath) {
 						if (recordedDuplicates == null) {
-							recordedDuplicates = new ObjectMap();
+							recordedDuplicates = new IdentityMap();
 						}
 						var dups = recordedDuplicates.get(data);
 						if (dups == null) {
@@ -536,7 +536,7 @@ class FilesParser {
 			}
 		};
 
-		collectFiles(loader.rootTasks, new ObjectMap());
+		collectFiles(loader.rootTasks, new IdentityMap());
 		loader.sortLibs(libFiles);
 
 		final allFiles = libFiles.concat(files);

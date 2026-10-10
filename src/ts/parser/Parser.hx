@@ -1,6 +1,6 @@
 package ts.parser;
 
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 import haxe.ds.StringMap;
 
 // Port of internal/parser (parser.go, jsdoc.go, reparser.go, references.go, utilities.go, types.go).
@@ -656,11 +656,11 @@ class Parser {
 		Ast.SetExternalModuleIndicator(result, opts.ExternalModuleIndicatorOptions);
 	}
 
-	function createJSDocCache():ObjectMap<Node, Array<Node>> {
+	function createJSDocCache():IdentityMap<Node, Array<Node>> {
 		if (Core.len(jsdocInfos) == 0) {
 			return null;
 		}
-		var result = new ObjectMap<Node, Array<Node>>();
+		var result = new IdentityMap<Node, Array<Node>>();
 		for (info in jsdocInfos) {
 			result.set(info.parent, info.jsDocs);
 		}

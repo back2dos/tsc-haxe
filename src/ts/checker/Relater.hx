@@ -1194,7 +1194,7 @@ class Relater {
 		return null;
 	}
 
-	static function computeKeyPropertyNameAndMap(c:Checker, t:Type):Pair<std.String, ObjectMap<Type, Type>> {
+	static function computeKeyPropertyNameAndMap(c:Checker, t:Type):Pair<std.String, IdentityMap<Type, Type>> {
 		final types = t.Types();
 		if (types.length < 10 || t.objectFlags & ObjectFlagsPrimitiveUnion != 0 || Core.CountWhere(types, Checker.isObjectOrInstantiableNonPrimitive) < 10) {
 			return new Pair(Ast.InternalSymbolNameMissing, null);
@@ -1230,8 +1230,8 @@ class Relater {
 	// types of the property by that name in each constituent type. No map is returned if some key property
 	// has a non-literal type or if less than 10 or less than 50% of the constituents have a unique key.
 	// Entries with duplicate keys have unknownType as the value.
-	static function mapTypesByKeyProperty(c:Checker, types:Array<Type>, keyPropertyName:std.String):ObjectMap<Type, Type> {
-		final typesByKey = new ObjectMap<Type, Type>();
+	static function mapTypesByKeyProperty(c:Checker, types:Array<Type>, keyPropertyName:std.String):IdentityMap<Type, Type> {
+		final typesByKey = new IdentityMap<Type, Type>();
 		var count = 0;
 		for (t in types) {
 			if (t.flags & (TypeFlagsObject | TypeFlagsIntersection | TypeFlagsInstantiableNonPrimitive) != 0) {

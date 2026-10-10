@@ -1,7 +1,7 @@
 package ts.ast;
 
 import haxe.ds.IntMap;
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 import haxe.ds.StringMap;
 
 // Port of internal/ast.
@@ -12396,7 +12396,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	public var AmbientModuleNames:Array<String> = null;
 	public var CommentDirectives:Array<CommentDirective> = null;
 
-	var jsdocCache:ObjectMap<Node, Array<Node>> = null;
+	var jsdocCache:IdentityMap<Node, Array<Node>> = null;
 	var hasLazyJSDoc:Bool = false;
 
 	public var ReparsedClones:Array<Node> = null;
@@ -12434,7 +12434,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 
 	// PORT: `Hash xxh3.Uint128` is not ported yet (language service; package xxh3).
 	// PORT: Go `map[TokenCacheKey]*Node` (struct key) → parent → "pos:end" → token.
-	var tokenCache:ObjectMap<Node, StringMap<Node>> = null;
+	var tokenCache:IdentityMap<Node, StringMap<Node>> = null;
 	var tokenFactory:NodeFactory = null;
 	var declarationMap:StringMap<Array<Node>> = null;
 	var nameTableDone:Bool = false; // PORT: sync.Once
@@ -12493,7 +12493,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		jsdocDiagnostics = diags;
 	}
 
-	public function SetJSDocCache(cache:ObjectMap<Node, Array<Node>>):Void {
+	public function SetJSDocCache(cache:IdentityMap<Node, Array<Node>>):Void {
 		jsdocCache = cache;
 	}
 
@@ -12513,7 +12513,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		// Slow path: parse and cache under write lock
 		final jsdocs = Ast.parseJSDocForNode(this, n);
 		if (jsdocCache == null) {
-			jsdocCache = new ObjectMap<Node, Array<Node>>();
+			jsdocCache = new IdentityMap<Node, Array<Node>>();
 		}
 		jsdocCache.set(n, jsdocs);
 		return jsdocs;
@@ -12675,7 +12675,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 			throw 'Cannot create token from reparsed node of kind ${parent.Kind.String()}';
 		}
 		if (tokenCache == null) {
-			tokenCache = new ObjectMap<Node, StringMap<Node>>();
+			tokenCache = new IdentityMap<Node, StringMap<Node>>();
 		}
 		final token = Ast.createToken(kind, this, pos, end, flags);
 		token.Loc = loc;

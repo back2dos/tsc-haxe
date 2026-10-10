@@ -620,9 +620,9 @@ class Incremental {
 
 		final handler = new AffectedFilesHandler(ctx, program);
 		var wg = Core.NewWorkGroup(handler.program.program.SingleThreaded());
-		// PORT: collections.SyncSet[*ast.SourceFile] → an ObjectMap keyed by identity plus the
+		// PORT: collections.SyncSet[*ast.SourceFile] → an IdentityMap keyed by identity plus the
 		// insertion order (Go: random order; the result does not depend on it).
-		final resultSet = new ObjectMap<SourceFile, Bool>();
+		final resultSet = new IdentityMap<SourceFile, Bool>();
 		final result:Array<SourceFile> = [];
 		program.snapshot.changedFilesSet.Range(function(file:Path):Bool {
 			wg.Queue(function() {

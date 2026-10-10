@@ -106,7 +106,7 @@ class NodeBuilderImpl {
 	// reusable visitor
 	var cloneBindingNameVisitor:NodeVisitor = null;
 	// symbols for synthesized identifiers, needed for e.g. inlay hints
-	var idToSymbol:ObjectMap<IdentifierNode, Symbol> = null;
+	var idToSymbol:IdentityMap<IdentifierNode, Symbol> = null;
 
 	public function new() {}
 
@@ -700,7 +700,7 @@ class NodeBuilderImpl {
 						&& this.ch.getSymbolIfSameReference(res, symbol) != null) {
 						symbolName = symbol.Name;
 					} else {
-						final results = new ObjectMap<Symbol, std.String>();
+						final results = new IdentityMap<Symbol, std.String>();
 						// PORT: Go collects the map keys (random order) and sorts them; collect in an array as we go.
 						final resultSymbols:Array<Symbol> = [];
 						for (name => ex in exports) {

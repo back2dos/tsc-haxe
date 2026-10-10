@@ -98,7 +98,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	var commonSourceDirectory:std.String = "";
 	var commonSourceDirectoryOnce:Bool = false; // PORT: sync.Once → flag
 
-	var declarationDiagnosticCache:ObjectMap<SourceFile, Array<Diagnostic>> = new ObjectMap(); // PORT: SyncMap → ObjectMap
+	var declarationDiagnosticCache:IdentityMap<SourceFile, Array<Diagnostic>> = new IdentityMap(); // PORT: SyncMap → IdentityMap
 
 	var programDiagnostics:Array<Diagnostic> = null;
 	var hasEmitBlockingDiagnostics:Set<Path> = new Set<Path>();
@@ -749,9 +749,9 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.collectCheckerDiagnostics(ctx, sourceFile, this.getSemanticDiagnosticsWithChecker);
 	}
 
-	public function GetSemanticDiagnosticsWithoutNoEmitFiltering(ctx:Context, sourceFiles:Array<SourceFile>):ObjectMap<SourceFile, Array<Diagnostic>> {
+	public function GetSemanticDiagnosticsWithoutNoEmitFiltering(ctx:Context, sourceFiles:Array<SourceFile>):IdentityMap<SourceFile, Array<Diagnostic>> {
 		final allDiags = this.collectCheckerDiagnosticsFromFiles(ctx, sourceFiles, this.getBindAndCheckDiagnosticsWithChecker);
-		final result = new ObjectMap<SourceFile, Array<Diagnostic>>();
+		final result = new IdentityMap<SourceFile, Array<Diagnostic>>();
 		for (i in 0...allDiags.length) {
 			result.set(sourceFiles[i], Compiler.SortAndDeduplicateDiagnostics(allDiags[i]));
 		}

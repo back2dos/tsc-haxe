@@ -66,7 +66,7 @@ class PrivateEnvironmentData {
 class PrivateEnvironment {
 	var data:PrivateEnvironmentData = new PrivateEnvironmentData();
 	var members:StringMap<PrivateIdentifierInfo> = null;
-	var generatedIdentifiers:ObjectMap<Node, PrivateIdentifierInfo> = null;
+	var generatedIdentifiers:IdentityMap<Node, PrivateIdentifierInfo> = null;
 
 	public function new() {}
 }
@@ -120,7 +120,7 @@ class ClassFieldsTransformer {
 	var currentClassElement:ClassElement = null;
 	// classAliases maps class declarations to alias identifiers for substituting class name
 	// references in static initializers. Replaces Strada's onSubstituteNode/trySubstituteClassAlias.
-	var classAliases:ObjectMap<Node, IdentifierNode> = null;
+	var classAliases:IdentityMap<Node, IdentifierNode> = null;
 	var enclosingClassDeclarations:Set<Node> = new Set<Node>();
 	var inIterationStatement:Bool = false;
 	// insideComputedPropertyName replaces Strada's onEmitNode for ComputedPropertyName, which
@@ -194,7 +194,7 @@ class ClassFieldsTransformer {
 		}
 		lexicalEnvironment = null;
 		shouldTransformPrivateStaticElementsInFile = (EmitContext().EmitFlags(node.AsNode()) & EFTransformPrivateStaticElements) != 0;
-		classAliases = new ObjectMap<Node, IdentifierNode>();
+		classAliases = new IdentityMap<Node, IdentifierNode>();
 		enclosingClassDeclarations.Clear();
 		final visited = Visitor().VisitEachChild(node.AsNode());
 		EmitContext().AddEmitHelper(visited, ...EmitContext().ReadEmitHelpers());
@@ -2936,7 +2936,7 @@ class ClassFieldsTransformer {
 	function setPrivateIdentifier(env:PrivateEnvironment, name:Node, info:PrivateIdentifierInfo):Void {
 		if (EmitContext().HasAutoGenerateInfo(name)) {
 			if (env.generatedIdentifiers == null) {
-				env.generatedIdentifiers = new ObjectMap<Node, PrivateIdentifierInfo>();
+				env.generatedIdentifiers = new IdentityMap<Node, PrivateIdentifierInfo>();
 			}
 			env.generatedIdentifiers.set(EmitContext().GetNodeForGeneratedName(name), info);
 		} else {

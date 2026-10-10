@@ -1022,7 +1022,7 @@ class CheckerPart2 {
 		if (indexSymbol == null || Core.len(indexSymbol.Declarations) <= 1) {
 			return;
 		}
-		final indexSignatureMap = new ObjectMap<Type, Array<Node>>();
+		final indexSignatureMap = new IdentityMap<Type, Array<Node>>();
 		for (declaration in indexSymbol.Declarations) {
 			if (Ast.IsIndexSignatureDeclaration(declaration)) {
 				final parameters = declaration.Parameters();
@@ -3303,7 +3303,7 @@ class CheckerPart2 {
 
 	static function checkUnusedLocalsAndParameters(c:Checker, node:Node):Void {
 		final variableParents = new Set<Node>();
-		var importClauses:ObjectMap<Node, Array<Node>> = null;
+		var importClauses:IdentityMap<Node, Array<Node>> = null;
 		final locals = node.Locals();
 		if (locals != null) {
 			for (local in locals) {
@@ -3319,7 +3319,7 @@ class CheckerPart2 {
 					} else if (Ast.IsImportClause(declaration) || Ast.IsImportSpecifier(declaration) || Ast.IsNamespaceImport(declaration)) {
 						if (!Checker.isIdentifierThatStartsWithUnderscore(declaration.Name())) {
 							if (importClauses == null) {
-								importClauses = new ObjectMap<Node, Array<Node>>();
+								importClauses = new IdentityMap<Node, Array<Node>>();
 							}
 							final importClause = Checker.importClauseFromImported(declaration);
 							var list = importClauses.get(importClause);
@@ -3518,7 +3518,7 @@ class CheckerPart2 {
 		// If control flow analysis was required to determine the type, it is worth caching.
 		if (c.flowInvocationCount != startInvocationCount) {
 			if (c.flowTypeCache == null) {
-				c.flowTypeCache = new ObjectMap<Node, Type>();
+				c.flowTypeCache = new IdentityMap<Node, Type>();
 			}
 			c.flowTypeCache.set(node, t);
 		}

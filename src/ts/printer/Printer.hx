@@ -1,6 +1,6 @@
 package ts.printer;
 
-import haxe.ds.ObjectMap;
+import go.IdentityMap;
 import haxe.ds.StringMap;
 
 // Port of internal/printer.
@@ -61,7 +61,7 @@ class Printer {
 	var nameGenerator:NameGenerator = new NameGenerator();
 	var makeFileLevelOptimisticUniqueName:(std.String) -> std.String = null;
 	// PORT: arena — commentStateArena / sourceMapStateArena: one `new` per state (see header of core.Arena).
-	public var IdToSymbol:ObjectMap<Node, Symbol> = null;
+	public var IdToSymbol:IdentityMap<Node, Symbol> = null;
 
 	// PORT: out fields for second results (see header).
 	var outPos:Int = 0;
@@ -69,7 +69,7 @@ class Printer {
 
 	// PORT: sourcemap.Source adapters for SourceFile (Go: *ast.SourceFile satisfies the interface
 	// structurally). Cached per SourceFile so that identity comparisons of sources hold.
-	var sourceFileSources:ObjectMap<SourceFile, SourceFileSource> = null;
+	var sourceFileSources:IdentityMap<SourceFile, SourceFileSource> = null;
 
 	function new() {}
 
@@ -4837,7 +4837,7 @@ class Printer {
 	// PORT: the cached sourcemap.Source adapter of a SourceFile (see the field sourceFileSources).
 	function sourceFileSource(sourceFile:SourceFile):Source {
 		if (sourceFileSources == null) {
-			sourceFileSources = new ObjectMap<SourceFile, SourceFileSource>();
+			sourceFileSources = new IdentityMap<SourceFile, SourceFileSource>();
 		}
 		var s = sourceFileSources.get(sourceFile);
 		if (s == null) {
@@ -6008,8 +6008,8 @@ class Printer {
 		ctw.textWriter.newLine = newline;
 		ctw.textWriter.indentSize = indentSize;
 		ctw.lastNonTriviaPosition = 0;
-		ctw.pos = new ObjectMap<{}, Int>();
-		ctw.end = new ObjectMap<{}, Int>();
+		ctw.pos = new IdentityMap<{}, Int>();
+		ctw.end = new IdentityMap<{}, Int>();
 		ctw.textWriter.Clear();
 		return ctw;
 	}

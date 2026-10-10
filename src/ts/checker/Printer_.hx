@@ -467,7 +467,7 @@ class Printer_ {
 		return result;
 	}
 
-	public static function TypeToTypeNode(c:Checker, t:Type, enclosingDeclaration:Node, flags:Flags, idToSymbol:ObjectMap<IdentifierNode, Symbol>):TypeNode {
+	public static function TypeToTypeNode(c:Checker, t:Type, enclosingDeclaration:Node, flags:Flags, idToSymbol:IdentityMap<IdentifierNode, Symbol>):TypeNode {
 		final nodeBuilder = c.getNodeBuilderEx(idToSymbol);
 		return nodeBuilder.TypeToTypeNode(t, enclosingDeclaration, flags, InternalFlagsNone, null);
 	}
@@ -553,12 +553,12 @@ class Printer_ {
 		return r;
 	}
 
-	public static function TypeToTypeNodeEx(c:Checker, t:Type, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, idToSymbol:ObjectMap<IdentifierNode, Symbol>):TypeNode {
+	public static function TypeToTypeNodeEx(c:Checker, t:Type, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, idToSymbol:IdentityMap<IdentifierNode, Symbol>):TypeNode {
 		final nodeBuilder = c.getNodeBuilderEx(idToSymbol);
 		return nodeBuilder.TypeToTypeNode(t, enclosingDeclaration, flags, internalFlags, null);
 	}
 
-	public static function TypePredicateToTypePredicateNode(c:Checker, t:TypePredicate, enclosingDeclaration:Node, flags:Flags, idToSymbol:ObjectMap<IdentifierNode, Symbol>):TypePredicateNodeNode {
+	public static function TypePredicateToTypePredicateNode(c:Checker, t:TypePredicate, enclosingDeclaration:Node, flags:Flags, idToSymbol:IdentityMap<IdentifierNode, Symbol>):TypePredicateNodeNode {
 		final nodeBuilder = c.getNodeBuilderEx(idToSymbol);
 		return nodeBuilder.TypePredicateToTypePredicateNode(t, enclosingDeclaration, flags, InternalFlagsNone, null);
 	}

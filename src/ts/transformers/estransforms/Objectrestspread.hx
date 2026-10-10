@@ -11,7 +11,7 @@ class ObjectRestSpreadTransformer {
 	var compilerOptions:CompilerOptions = null;
 	var inExportedVariableStatement:Bool = false;
 	var expressionResultIsUnused:Bool = false;
-	var parametersWithPrecedingObjectRestOrSpread:ObjectMap<Node, Bool> = null;
+	var parametersWithPrecedingObjectRestOrSpread:IdentityMap<Node, Bool> = null;
 
 	public function new() {}
 
@@ -114,13 +114,13 @@ class ObjectRestSpreadTransformer {
 		return Visitor().VisitEachChild(node.AsNode());
 	}
 
-	function collectParametersWithPrecedingObjectRestOrSpread(node:Node):ObjectMap<Node, Bool> {
-		var result:ObjectMap<Node, Bool> = null;
+	function collectParametersWithPrecedingObjectRestOrSpread(node:Node):IdentityMap<Node, Bool> {
+		var result:IdentityMap<Node, Bool> = null;
 		for (parameter in node.Parameters()) {
 			if (result != null) {
 				result.set(parameter, true);
 			} else if ((parameter.SubtreeFacts() & SubtreeContainsObjectRestOrSpread) != 0) {
-				result = new ObjectMap<Node, Bool>();
+				result = new IdentityMap<Node, Bool>();
 			}
 		}
 		return result;
@@ -622,5 +622,5 @@ class ObjectRestSpreadTransformer {
 	}
 }
 
-typedef OldParamScope = ObjectMap<Node, Bool>;
+typedef OldParamScope = IdentityMap<Node, Bool>;
 

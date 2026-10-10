@@ -25,7 +25,7 @@ class CheckerPool_ implements CheckerPool {
 	var createCheckersOnce:Bool = false; // PORT: sync.Once → flag
 	var checkers:Array<Checker> = null;
 	var locks:Array<Any> = null; // PORT: []*sync.Mutex → opaque values, never locked
-	var fileAssociations:ObjectMap<SourceFile, Checker> = null;
+	var fileAssociations:IdentityMap<SourceFile, Checker> = null;
 
 	public function new() {}
 
@@ -82,7 +82,7 @@ class CheckerPool_ implements CheckerPool {
 
 		wg.RunAndWait();
 
-		this.fileAssociations = new ObjectMap();
+		this.fileAssociations = new IdentityMap();
 		final files = this.program.processedFiles.files;
 		for (i in 0...files.length) {
 			this.fileAssociations.set(files[i], this.checkers[i % checkerCount]);

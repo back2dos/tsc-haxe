@@ -132,7 +132,7 @@ class Jsdoc {
 		// if there is no \n before start, -1 is one index before the first character in the string
 		var initialIndent = start + 4 - (Parser.lastIndexOfNewLine(p.sourceText, start) + 1);
 		// -2 for trailing `*/`
-		p.sourceText = p.sourceText.substring(0, end - 2);
+		p.sourceText = go.Strings.Prefix(p.sourceText, end - 2); // PORT: perf, no copy (Go slices)
 		p.scanner.SetText(p.sourceText);
 		// +3 for leading `/**`
 		p.scanner.ResetPos(start + 3);

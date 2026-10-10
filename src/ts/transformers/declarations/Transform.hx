@@ -94,7 +94,7 @@ class DeclarationTransformer {
 	var inClassExpressionDeclaration:Bool = false; // true when serializing members of a class expression kept as a class declaration
 
 	// PORT: identity numbers for the *ast.Node field of the thisPropertyAssignmentKey struct key.
-	var identityKeys:haxe.ds.ObjectMap<Node, Int> = new haxe.ds.ObjectMap<Node, Int>();
+	var identityKeys:IdentityMap<Node, Int> = new IdentityMap<Node, Int>();
 	var identityKeyCount:Int = 0;
 
 	public function new() {}

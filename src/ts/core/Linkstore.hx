@@ -5,9 +5,9 @@ package ts.core;
 // Links store
 // PORT: PORTING.md §4a — built with a factory for the Go zero value of V:
 // `new LinkStore<K, V>(() -> new V())`. Get creates the value on first access, like Go.
-// Go `map[K]*V` → go.GoMap<K, V> (K is generic).
+// Go `map[K]*V` → go.IdentityMap<K, V> (every K is a pointer type: Node, Symbol, SourceFile).
 class LinkStore<K, V> {
-	var entries:Null<GoMap<K, V>> = null;
+	var entries:Null<IdentityMap<K, V>> = null;
 	final arena:Arena<V>;
 
 	public function new(factory:() -> V) {
@@ -20,7 +20,7 @@ class LinkStore<K, V> {
 			return value;
 		}
 		if (entries == null) {
-			entries = new GoMap<K, V>();
+			entries = new IdentityMap<K, V>();
 		}
 		value = arena.New();
 		entries.set(key, value);
