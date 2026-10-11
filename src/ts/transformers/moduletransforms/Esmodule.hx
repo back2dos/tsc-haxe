@@ -224,7 +224,7 @@ class ESModuleTransformer {
 		final arguments:Array<Expression> = [];
 		arguments.push(argument);
 
-		final rest = Visitor().VisitSlice(node.Arguments.Nodes.slice(1)).a;
+		final rest = Visitor().VisitSlice(node.Arguments.Nodes.slice(1));
 		if (rest != null)
 			for (r in rest)
 				arguments.push(r);

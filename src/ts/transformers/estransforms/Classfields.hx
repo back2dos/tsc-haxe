@@ -867,7 +867,7 @@ class ClassFieldsTransformer {
 		EmitContext().SetSourceMapRange(setter, sourceMapRange);
 
 		// Visit the results in a second pass
-		final visited = accessorFieldResultVisitor.VisitSlice([backingField, getter, setter]).a;
+		final visited = accessorFieldResultVisitor.VisitSlice([backingField, getter, setter]);
 		return Factory().NewSyntaxList(visited);
 	}
 
@@ -1324,7 +1324,7 @@ class ClassFieldsTransformer {
 	function setCurrentClassElementAndVisitStatements(classElement:Node, statements:Array<Statement>):Array<Statement> {
 		final savedCurrentClassElement = currentClassElement;
 		currentClassElement = classElement;
-		final result = Visitor().VisitSlice(statements).a;
+		final result = Visitor().VisitSlice(statements);
 		currentClassElement = savedCurrentClassElement;
 		return result;
 	}
@@ -2257,7 +2257,7 @@ class ClassFieldsTransformer {
 		}
 
 		// Visit statements before super
-		final visited = Visitor().VisitSlice(statementsIn.slice(statementOffset, superStatementIndex)).a;
+		final visited = Visitor().VisitSlice(statementsIn.slice(statementOffset, superStatementIndex));
 		if (visited != null) {
 			for (s in visited) {
 				statementsOut.push(s);
@@ -2279,7 +2279,7 @@ class ClassFieldsTransformer {
 				catchClause, finallyBlock);
 			statementsOut.push(updated);
 		} else {
-			final visited = Visitor().VisitSlice(statementsIn.slice(superStatementIndex, superStatementIndex + 1)).a;
+			final visited = Visitor().VisitSlice(statementsIn.slice(superStatementIndex, superStatementIndex + 1));
 			if (visited != null) {
 				for (s in visited) {
 					statementsOut.push(s);
@@ -2319,7 +2319,7 @@ class ClassFieldsTransformer {
 		}
 
 		// Visit remaining statements
-		final visited2 = Visitor().VisitSlice(statementsIn.slice(statementOffset)).a;
+		final visited2 = Visitor().VisitSlice(statementsIn.slice(statementOffset));
 		if (visited2 != null) {
 			for (s in visited2) {
 				statementsOut.push(s);
@@ -2418,7 +2418,7 @@ class ClassFieldsTransformer {
 						statements.push(s);
 					}
 				}
-				final visited = Visitor().VisitSlice(body.Statements.Nodes == null ? null : body.Statements.Nodes.slice(statementOffset)).a;
+				final visited = Visitor().VisitSlice(body.Statements.Nodes == null ? null : body.Statements.Nodes.slice(statementOffset));
 				if (visited != null) {
 					for (s in visited) {
 						if (statements == null) {

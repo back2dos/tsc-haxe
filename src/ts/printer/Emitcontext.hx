@@ -556,15 +556,16 @@ class EmitContext {
 	}
 
 	// Gets the range for a token of a node when emitting source maps.
-	// PORT: Go returns (core.TextRange, bool) → ValueOk.
-	public function TokenSourceMapRange(node:Node, kind:Kind):ValueOk<TextRange> {
+	// PORT: perf — Go returns (core.TextRange, bool); here the range, or null for Go's ok == false (no result object per
+	// token).
+	public function TokenSourceMapRange(node:Node, kind:Kind):Null<TextRange> {
 		final emitNode = emitNodes.TryGet(node);
 		if (emitNode != null && emitNode.tokenSourceMapRanges != null) {
 			if (emitNode.tokenSourceMapRanges.exists(kind)) {
-				return new ValueOk(emitNode.tokenSourceMapRanges.get(kind), true);
+				return emitNode.tokenSourceMapRanges.get(kind);
 			}
 		}
-		return new ValueOk(new TextRange(0, 0), false);
+		return null;
 	}
 
 	// Sets the range for a token of a node when emitting source maps.

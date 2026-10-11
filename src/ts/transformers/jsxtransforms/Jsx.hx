@@ -462,7 +462,7 @@ class JSXTransformer {
 
 	function transformJsxSpreadAttributesToProps(node:JsxSpreadAttribute):Array<Node> {
 		if (Ast.IsObjectLiteralExpression(node.Expression) && !Jsxtransforms.hasProto(node.Expression.AsObjectLiteralExpression())) {
-			final res = Visitor().VisitSlice(node.Expression.Properties()).a;
+			final res = Visitor().VisitSlice(node.Expression.Properties());
 			return res;
 		}
 		return [Factory().NewSpreadAssignment(Visitor().Visit(node.Expression))];

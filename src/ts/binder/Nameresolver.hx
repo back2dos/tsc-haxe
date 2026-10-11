@@ -5,20 +5,55 @@ package ts.binder;
 
 @:allow(ts.binder)
 class NameResolver {
+	// PORT: perf (typed resolver hooks instead of Go func fields): Go's func fields GetSymbolOfDeclaration, Error, Lookup,
+	// SymbolReferenced, SetRequiresScopeChangeCache, GetRequiresScopeChangeCache, OnPropertyWithInvalidInitializer,
+	// OnFailedToResolveSymbol and OnSuccessfullyResolvedSymbol are methods with the same names. The base methods do what Go
+	// does when the field is nil; the checker overrides them (CheckerNameResolver in CheckerPart1.hx). A call through a Go
+	// func field became a function value, which boxes String/Int arguments on hxcpp.
 	public var CompilerOptions:CompilerOptions = null;
-	public var GetSymbolOfDeclaration:(node:Node) -> Symbol = null;
-	public var Error:(location:Node, message:Message, ...args:Any) -> Diagnostic = null;
 	public var Globals:SymbolTable = null;
 	public var ArgumentsSymbol:Symbol = null;
 	public var RequireSymbol:Symbol = null;
-	public var Lookup:(symbols:SymbolTable, name:std.String, meaning:SymbolFlags) -> Symbol = null;
-	public var SymbolReferenced:(symbol:Symbol, meaning:SymbolFlags) -> Void = null;
-	public var SetRequiresScopeChangeCache:(node:Node, value:Tristate) -> Void = null;
-	public var GetRequiresScopeChangeCache:(node:Node) -> Tristate = null;
-	public var OnPropertyWithInvalidInitializer:(location:Node, name:std.String, declaration:Node, result:Symbol) -> Bool = null;
-	public var OnFailedToResolveSymbol:(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message) -> Void = null;
-	public var OnSuccessfullyResolvedSymbol:(location:Node, result:Symbol, meaning:SymbolFlags, lastLocation:Node,
-		associatedDeclarationForContainingInitializerOrBindingName:Node, withinDeferredContext:Bool) -> Void = null;
+
+	public function GetSymbolOfDeclaration(node:Node):Symbol {
+		// Default implementation does not support merged symbols
+		return node.Symbol();
+	}
+
+	public function Error(location:Node, message:Message, ...args:Any):Diagnostic {
+		// Default implementation does not report errors
+		return null;
+	}
+
+	public function Lookup(symbols:SymbolTable, name:std.String, meaning:SymbolFlags):Symbol {
+		// Default implementation does not support following aliases or merged symbols
+		if (meaning != 0) {
+			final symbol = symbols == null ? null : symbols.get(name);
+			if (symbol != null) {
+				if (symbol.Flags & meaning != 0) {
+					return symbol;
+				}
+			}
+		}
+		return null;
+	}
+
+	public function SymbolReferenced(symbol:Symbol, meaning:SymbolFlags):Void {}
+
+	public function SetRequiresScopeChangeCache(node:Node, value:Tristate):Void {}
+
+	public function GetRequiresScopeChangeCache(node:Node):Tristate {
+		return TSUnknown;
+	}
+
+	public function OnPropertyWithInvalidInitializer(location:Node, name:std.String, declaration:Node, result:Symbol):Bool {
+		return false;
+	}
+
+	public function OnFailedToResolveSymbol(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message):Void {}
+
+	public function OnSuccessfullyResolvedSymbol(location:Node, result:Symbol, meaning:SymbolFlags, lastLocation:Node,
+		associatedDeclarationForContainingInitializerOrBindingName:Node, withinDeferredContext:Bool):Void {}
 
 	public function new() {}
 
@@ -317,9 +352,7 @@ class NameResolver {
 		// If `result === lastSelfReferenceLocation.symbol`, that means that we are somewhere inside `lastSelfReferenceLocation` looking up a name, and resolving to `lastLocation` itself.
 		// That means that this is a self-reference of `lastLocation`, and shouldn't count this when considering whether `lastLocation` is used.
 		if (isUse && result != null && (lastSelfReferenceLocation == null || result != lastSelfReferenceLocation.Symbol())) {
-			if (SymbolReferenced != null) {
-				SymbolReferenced(result, meaning);
-			}
+			SymbolReferenced(result, meaning); // PORT: perf (typed resolver hooks): the base method is Go's nil case
 		}
 		if (result == null && !excludeGlobals) {
 			result = lookup(Globals, name, meaning | SymbolFlagsGlobalLookup);
@@ -333,19 +366,14 @@ class NameResolver {
 		}
 		if (nameNotFoundMessage != null) {
 			if (propertyWithInvalidInitializer != null
-				&& OnPropertyWithInvalidInitializer != null
 				&& OnPropertyWithInvalidInitializer(originalLocation, name, propertyWithInvalidInitializer, result)) {
 				return null;
 			}
 			if (result == null) {
-				if (OnFailedToResolveSymbol != null) {
-					OnFailedToResolveSymbol(originalLocation, name, meaning, nameNotFoundMessage);
-				}
+				OnFailedToResolveSymbol(originalLocation, name, meaning, nameNotFoundMessage);
 			} else {
-				if (OnSuccessfullyResolvedSymbol != null) {
-					OnSuccessfullyResolvedSymbol(originalLocation, result, meaning, lastLocation, associatedDeclarationForContainingInitializerOrBindingName,
-						withinDeferredContext);
-				}
+				OnSuccessfullyResolvedSymbol(originalLocation, result, meaning, lastLocation, associatedDeclarationForContainingInitializerOrBindingName,
+					withinDeferredContext);
 			}
 		}
 		return result;
@@ -361,15 +389,11 @@ class NameResolver {
 				// - nullish coalesce pre-es2020
 				// - spread assignment in binding pattern pre-es2017
 				final functionLocation = location;
-				var declarationRequiresScopeChange = TSUnknown;
-				if (GetRequiresScopeChangeCache != null) {
-					declarationRequiresScopeChange = GetRequiresScopeChangeCache(functionLocation);
-				}
+				// PORT: perf (typed resolver hooks): the base Get/SetRequiresScopeChangeCache methods are Go's nil case
+				var declarationRequiresScopeChange = GetRequiresScopeChangeCache(functionLocation);
 				if (declarationRequiresScopeChange == TSUnknown) {
 					declarationRequiresScopeChange = Core.IfElse(Core.Some(functionLocation.Parameters(), requiresScopeChange), TSTrue, TSFalse);
-					if (SetRequiresScopeChangeCache != null) {
-						SetRequiresScopeChangeCache(functionLocation, declarationRequiresScopeChange);
-					}
+					SetRequiresScopeChangeCache(functionLocation, declarationRequiresScopeChange);
 				}
 				return declarationRequiresScopeChange != TSTrue;
 			}
@@ -408,35 +432,15 @@ class NameResolver {
 	}
 
 	function error(location:Node, message:Message, ...args:Any):Void {
-		if (Error != null) {
-			Error(location, message, ...args);
-		}
-		// Default implementation does not report errors
+		Error(location, message, ...args);
 	}
 
 	function getSymbolOfDeclaration(node:Node):Symbol {
-		if (GetSymbolOfDeclaration != null) {
-			return GetSymbolOfDeclaration(node);
-		}
-
-		// Default implementation does not support merged symbols
-		return node.Symbol();
+		return GetSymbolOfDeclaration(node);
 	}
 
 	function lookup(symbols:SymbolTable, name:std.String, meaning:SymbolFlags):Symbol {
-		if (Lookup != null) {
-			return Lookup(symbols, name, meaning);
-		}
-		// Default implementation does not support following aliases or merged symbols
-		if (meaning != 0) {
-			final symbol = symbols == null ? null : symbols.get(name);
-			if (symbol != null) {
-				if (symbol.Flags & meaning != 0) {
-					return symbol;
-				}
-			}
-		}
-		return null;
+		return Lookup(symbols, name, meaning);
 	}
 
 	function argumentsSymbol():Symbol {

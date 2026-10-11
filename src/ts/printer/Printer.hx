@@ -5633,8 +5633,9 @@ class Printer {
 			return;
 		}
 
-		final lc = sourceMapLineCharCache.getLineAndCharacter(pos);
-		final err = sourceMapGenerator.AddSourceMapping(writer.GetLine(), writer.GetColumn(), sourceMapSourceIndex, lc.a, lc.b);
+		final line = sourceMapLineCharCache.getLineAndCharacter(pos);
+		final character = sourceMapLineCharCache.lastCharacter; // PORT: perf (second result of getLineAndCharacter)
+		final err = sourceMapGenerator.AddSourceMapping(writer.GetLine(), writer.GetColumn(), sourceMapSourceIndex, line, character);
 		if (err != null) {
 			throw err;
 		}
@@ -5707,9 +5708,8 @@ class Printer {
 		}
 
 		final emitFlags = emitContext.EmitFlags(contextNode);
-		final r = emitContext.TokenSourceMapRange(contextNode, token);
-		final loc = r.value;
-		final hasLoc = r.ok;
+		final loc = emitContext.TokenSourceMapRange(contextNode, token);
+		final hasLoc = loc != null; // PORT: perf (null for Go's ok == false); loc is read only when hasLoc
 		if (hasLoc) {
 			pos = loc.Pos();
 		}

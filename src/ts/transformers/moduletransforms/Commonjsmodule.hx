@@ -300,7 +300,7 @@ class CommonJSModuleTransformer {
 		final split2 = Factory().SplitCustomPrologue(rest);
 		final custom = split2.a;
 		rest = split2.b;
-		final visitedCustom = topLevelVisitor.VisitSlice(custom).a;
+		final visitedCustom = topLevelVisitor.VisitSlice(custom);
 		if (visitedCustom != null) {
 			for (s in visitedCustom) {
 				statements.push(s);
@@ -354,7 +354,7 @@ class CommonJSModuleTransformer {
 		}
 
 		// visit the remaining statements in the source file
-		rest = topLevelVisitor.VisitSlice(rest).a;
+		rest = topLevelVisitor.VisitSlice(rest);
 		if (rest != null) {
 			for (s in rest) {
 				statements.push(s);
@@ -1735,9 +1735,9 @@ class CommonJSModuleTransformer {
 				firstArgumentChanged = true;
 			}
 
-			final r = Visitor().VisitSlice(node.Arguments.Nodes.slice(1));
-			final rest = r.a;
-			final restChanged = r.b;
+			final v = Visitor();
+			final rest = v.VisitSlice(node.Arguments.Nodes.slice(1));
+			final restChanged = v.VisitSliceChanged; // PORT: perf (second result of VisitSlice)
 			if (firstArgumentChanged || restChanged) {
 				final arguments = [firstArgument];
 				if (rest != null) {

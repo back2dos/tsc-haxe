@@ -1283,8 +1283,25 @@ class Checker {
 	var globalThisSymbol:Symbol = null;
 	var symbolTableAliasCache:IntMap<Array<Symbol>> = null;
 	var classExpressionNameTables:IntMap<SymbolTable> = null;
-	var resolveName:(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message, isUse:Bool, excludeGlobals:Bool) -> Symbol = null;
-	var resolveNameForSymbolSuggestion:(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message, isUse:Bool, excludeGlobals:Bool) -> Symbol = null;
+	// PORT: perf — second result (includes) of addTypesToUnion/addTypeToUnion, read by the caller right after the call.
+	var addTypesToUnionIncludes:TypeFlags = 0;
+	// PORT: perf — second result (location) of isConstructorDeclaredThisProperty, read by the caller right after the call.
+	var isConstructorDeclaredThisPropertyLocation:Node = null;
+	// PORT: perf (typed resolver hooks instead of Go func fields): Go's func fields resolveName and
+	// resolveNameForSymbolSuggestion (= the Resolve method values) are direct calls on the two resolvers. A function value
+	// with six arguments packs them into an Array per call on hxcpp.
+	var nameResolver:NameResolver = null;
+	var suggestionNameResolver:NameResolver = null;
+
+	inline function resolveName(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message, isUse:Bool, excludeGlobals:Bool):Symbol {
+		return nameResolver.Resolve(location, name, meaning, nameNotFoundMessage, isUse, excludeGlobals);
+	}
+
+	inline function resolveNameForSymbolSuggestion(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message, isUse:Bool,
+			excludeGlobals:Bool):Symbol {
+		return suggestionNameResolver.Resolve(location, name, meaning, nameNotFoundMessage, isUse, excludeGlobals);
+	}
+
 	var tupleTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
 	var unionTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
 	var unionOfUnionTypes:StringMap<Type> /* key: checker.UnionOfUnionKey */ = null;
@@ -1700,10 +1717,8 @@ class Checker {
 		c.globalThisSymbol = c.newSymbolEx(SymbolFlagsModule, "globalThis", CheckFlagsReadonly);
 		c.globalThisSymbol.Exports = c.globals;
 		c.globals.set(c.globalThisSymbol.Name, c.globalThisSymbol);
-		final nameResolver = c.createNameResolver();
-		c.resolveName = nameResolver.Resolve;
-		final suggestionNameResolver = c.createNameResolverForSuggestion();
-		c.resolveNameForSymbolSuggestion = suggestionNameResolver.Resolve;
+		c.nameResolver = c.createNameResolver(); // PORT: perf (typed resolver hooks), see resolveName
+		c.suggestionNameResolver = c.createNameResolverForSuggestion();
 		c.tupleTypes = new StringMap<Type>();
 		c.unionTypes = new StringMap<Type>();
 		c.unionOfUnionTypes = new StringMap<Type>();

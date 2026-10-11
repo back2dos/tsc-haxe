@@ -16,6 +16,8 @@ class TextWriter implements EmitTextWriter implements Grower {
 	public var lineCount:Int = 0;
 	public var linePos:Int = 0;
 	public var hasTrailingCommentState:Bool = false;
+	// PORT: perf — reused by updateLineCountAndPosFor (Go's iter.Seq there does not allocate per call).
+	final lineStartsSeq:ECMALineStartsSeqIterator = new ECMALineStartsSeqIterator("");
 
 	public function new() {}
 
@@ -103,7 +105,7 @@ class TextWriter implements EmitTextWriter implements Grower {
 		var count = 0;
 		var lastLineStart:TextPos = 0;
 
-		for (lineStart in Core.ComputeECMALineStartsSeq(s)) {
+		for (lineStart in lineStartsSeq.reset(s)) { // PORT: perf (Go: core.ComputeECMALineStartsSeq(s))
 			count++;
 			lastLineStart = lineStart;
 		}

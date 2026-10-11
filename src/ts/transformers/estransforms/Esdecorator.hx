@@ -1093,7 +1093,7 @@ class EsDecoratorTransformer {
 				} else {
 					for (s in initializerStatements)
 						stmts.push(s);
-					final visited = Visitor().VisitSlice(rest).a;
+					final visited = Visitor().VisitSlice(rest);
 					if (visited != null)
 						for (s in visited)
 							stmts.push(s);

@@ -8,6 +8,7 @@ class NodeVisitor {
 	public var Visit:(node:Node) -> Node = null; // Required. The callback used to visit a node
 	public var Factory:NodeFactory = null; // Required. The NodeFactory used to produce new nodes when passed to VisitEachChild
 	public var Hooks:NodeVisitorHooks = new NodeVisitorHooks(); // Hooks to be invoked when visiting a node
+	public var VisitSliceChanged:Bool = false; // PORT: perf — second result of VisitSlice
 
 	public function new() {}
 
@@ -76,8 +77,8 @@ class NodeVisitor {
 		}
 
 		final r = VisitSlice(nodes.Nodes);
-		if (r.b) {
-			final list = Factory.NewNodeList(r.a);
+		if (VisitSliceChanged) {
+			final list = Factory.NewNodeList(r);
 			list.Loc = nodes.Loc;
 			return list;
 		}
@@ -99,8 +100,8 @@ class NodeVisitor {
 		}
 
 		final r = VisitSlice(nodes.Nodes);
-		if (r.b) {
-			final list = Factory.NewModifierList(r.a);
+		if (VisitSliceChanged) {
+			final list = Factory.NewModifierList(r);
 			list.Loc = nodes.Loc;
 			return list;
 		}
@@ -115,10 +116,12 @@ class NodeVisitor {
 	//   - If v.Visit returns nil, the visited Node will be absent in the output.
 	//   - If v.Visit returns a different Node than the input, a new slice will be generated and returned.
 	//   - If v.Visit returns a SyntaxList Node, then the children of that node will be merged into the output and a new slice will be returned.
-	// PORT: (result []*Node, changed bool) → Pair (a = result, b = changed).
-	public function VisitSlice(nodes:Array<Node>):Pair<Array<Node>, Bool> {
+	// PORT: perf — Go returns (result []*Node, changed bool); changed is left in VisitSliceChanged, read by the caller right
+	// after the call (no Pair per visited list).
+	public function VisitSlice(nodes:Array<Node>):Array<Node> {
 		if (nodes == null || Visit == null) {
-			return new Pair(nodes, false);
+			VisitSliceChanged = false;
+			return nodes;
 		}
 
 		var i = 0;
@@ -160,12 +163,14 @@ class NodeVisitor {
 					}
 				}
 
-				return new Pair(updated, true);
+				VisitSliceChanged = true;
+				return updated;
 			}
 			i++;
 		}
 
-		return new Pair(nodes, false);
+		VisitSliceChanged = false;
+		return nodes;
 	}
 
 	// Visits each child of a Node, possibly returning a new Node of the same kind in its place.

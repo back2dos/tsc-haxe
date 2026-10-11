@@ -1375,7 +1375,7 @@ class DeclarationTransformer {
 		if (needsDeclare) {
 			nsMods = [Factory().NewModifier(KindDeclareKeyword)];
 		}
-		members = declareStrippingVisitor.VisitSlice(members).a;
+		members = declareStrippingVisitor.VisitSlice(members);
 		return Factory().NewModuleDeclaration(Factory().NewModifierList(nsMods), KindNamespaceKeyword, nsName,
 			Factory().NewModuleBlock(Factory().NewNodeList(members)));
 	}
@@ -2007,10 +2007,10 @@ class DeclarationTransformer {
 				}
 			}
 			inputNodes = normalDeclarations;
-			extraImports = Visitor().VisitSlice(imports).a;
+			extraImports = Visitor().VisitSlice(imports);
 		}
 
-		final nodes = Visitor().VisitSlice(inputNodes).a;
+		final nodes = Visitor().VisitSlice(inputNodes);
 		if (Core.len(nodes) == 0) {
 			if (Core.len(extraImports) > 0) {
 				return Factory().NewSyntaxList(extraImports);
@@ -2305,7 +2305,7 @@ class DeclarationTransformer {
 	}
 
 	function transformJSDocTypeLiteral(input:JSDocTypeLiteral):Node {
-		final members = Visitor().VisitSlice(input.JSDocPropertyTags).a;
+		final members = Visitor().VisitSlice(input.JSDocPropertyTags);
 		final replacement = Factory().NewTypeLiteralNode(Factory().NewNodeList(members));
 		EmitContext().SetOriginal(replacement, input.AsNode());
 		return replacement;

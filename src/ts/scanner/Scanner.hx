@@ -2474,12 +2474,15 @@ class Scanner {
 		return SkipTriviaEx(text, pos, null);
 	}
 
+	// PORT: perf — Go's `&SkipTriviaOptions{}` for nil options stays on the stack; here one shared zero value.
+	static final defaultSkipTriviaOptions:SkipTriviaOptions = new SkipTriviaOptions();
+
 	public static function SkipTriviaEx(text:String, pos:Int, options:SkipTriviaOptions):Int {
 		if (Ast.PositionIsSynthesized(pos)) {
 			return pos;
 		}
 		if (options == null) {
-			options = new SkipTriviaOptions();
+			options = defaultSkipTriviaOptions; // PORT: perf (shared zero options; SkipTriviaEx only reads them)
 		}
 
 		final textLen = text.length;
@@ -3042,8 +3045,10 @@ class Scanner {
 	// Iterator over them is returned (a consumer that stops early observes the same ranges).
 	// PORT: perf — the concrete ArrayIterator type: through the `Iterator<T>` structure type hxcpp
 	// calls hasNext/next by name (a closure allocation per call).
+	// PORT: perf — the array is created on the first comment; without comments (most calls) the shared empty iterator
+	// is returned (no Array and no iterator per call).
 	static function iterateCommentRanges(f:NodeFactory, text:String, pos:Int, trailing:Bool):haxe.iterators.ArrayIterator<CommentRange> {
-		final result = new Array<CommentRange>();
+		var result:Array<CommentRange> = null;
 		var pendingPos = 0;
 		var pendingEnd = 0;
 		var pendingKind:Kind = KindUnknown;
@@ -3120,6 +3125,9 @@ class Scanner {
 
 						if (collecting) {
 							if (hasPendingCommentRange) {
+								if (result == null) {
+									result = [];
+								}
 								result.push(f.NewCommentRange(pendingKind, pendingPos, pendingEnd, pendingHasTrailingNewLine));
 							}
 
@@ -3146,10 +3154,19 @@ class Scanner {
 		}
 
 		if (hasPendingCommentRange) {
+			if (result == null) {
+				result = [];
+			}
 			result.push(f.NewCommentRange(pendingKind, pendingPos, pendingEnd, pendingHasTrailingNewLine));
+		}
+		if (result == null) {
+			return emptyCommentRangeIterator;
 		}
 		return result.iterator();
 	}
+
+	// PORT: perf — shared by all calls of iterateCommentRanges that find no comment (it never advances: the array is empty).
+	static final emptyCommentRangeIterator:haxe.iterators.ArrayIterator<CommentRange> = new haxe.iterators.ArrayIterator<CommentRange>([]);
 
 	// --- regexp.go ---
 

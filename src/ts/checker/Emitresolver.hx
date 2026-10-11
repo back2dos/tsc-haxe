@@ -716,7 +716,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		if (referenceResolver == null) {
 			final c = checker;
 			final hooks = new ReferenceResolverHooks();
-			hooks.ResolveName = c.resolveName;
+			hooks.ResolveName = c.nameResolver.Resolve; // PORT: perf (typed resolver hooks), see Checker.resolveName
 			hooks.GetResolvedSymbol = (node:Node) -> c.getResolvedSymbolOrNil(node);
 			hooks.GetMergedSymbol = (symbol:Symbol) -> c.getMergedSymbol(symbol);
 			hooks.GetParentOfSymbol = (symbol:Symbol) -> c.getParentOfSymbol(symbol);

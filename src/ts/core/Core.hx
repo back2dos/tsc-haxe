@@ -1463,8 +1463,8 @@ class FilterSeqIterator<T> {
 
 // PORT: iter.Seq returned by ComputeECMALineStartsSeq (the Go generator as a state machine).
 class ECMALineStartsSeqIterator {
-	final text:String;
-	final textLen:TextPos;
+	var text:String;
+	var textLen:TextPos;
 	var pos:TextPos = 0;
 	var lineStart:TextPos = 0;
 	var finished:Bool = false;
@@ -1474,6 +1474,19 @@ class ECMALineStartsSeqIterator {
 	public function new(text:String) {
 		this.text = text;
 		this.textLen = text.length;
+	}
+
+	// PORT: perf — starts the sequence again over another text, so that a hot caller (TextWriter, per written string)
+	// reuses one iterator instead of one allocation per call.
+	public function reset(text:String):ECMALineStartsSeqIterator {
+		this.text = text;
+		this.textLen = text.length;
+		pos = 0;
+		lineStart = 0;
+		finished = false;
+		hasValue = false;
+		value = 0;
+		return this;
 	}
 
 	// Runs the generator until the next yield.

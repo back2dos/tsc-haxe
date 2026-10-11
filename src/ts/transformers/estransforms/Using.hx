@@ -96,7 +96,7 @@ class UsingDeclarationTransformer {
 			final prologue = split.a, rest = split.b;
 			// PORT: pointer — Go passes &topLevelStatements; the Haxe array is shared by reference, so it starts non-null.
 			final topLevelStatements:Array<Statement> = [];
-			appendAll(topLevelStatements, Visitor().VisitSlice(prologue).a);
+			appendAll(topLevelStatements, Visitor().VisitSlice(prologue));
 
 			// Collect and transform any leading statements up to the first `using` or `await using`. This preserves
 			// the original statement order much as is possible.
@@ -106,7 +106,7 @@ class UsingDeclarationTransformer {
 				final statement = rest[pos];
 				if (Estransforms.getUsingKind(statement) != usingKindNone) {
 					if (pos > 0) {
-						appendAll(topLevelStatements, Visitor().VisitSlice(rest.slice(0, pos)).a);
+						appendAll(topLevelStatements, Visitor().VisitSlice(rest.slice(0, pos)));
 					}
 					break;
 				}
@@ -192,7 +192,7 @@ class UsingDeclarationTransformer {
 			final prologue = split.a, rest = split.b;
 			final envBinding = createEnvBinding();
 			final statements:Array<Statement> = [];
-			appendAll(statements, Visitor().VisitSlice(prologue).a);
+			appendAll(statements, Visitor().VisitSlice(prologue));
 			appendAll(statements, createDownlevelUsingStatements(
 				transformUsingDeclarations(rest, envBinding, null /*topLevelStatements*/),
 				envBinding,

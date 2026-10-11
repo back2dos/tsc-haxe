@@ -38,13 +38,15 @@ class LineCharacterCache {
 	public var cachedPos:Int = 0;
 	public var cachedChar:UTF16Offset = 0;
 	public var hasCached:Bool = false;
+	public var lastCharacter:UTF16Offset = 0; // PORT: perf — second result of getLineAndCharacter
 
 	public function new() {}
 
 	// getLineAndCharacter returns the 0-based line number and UTF-16 code unit
 	// offset from the start of that line for the given byte position.
-	// PORT: Go returns (line int, character core.UTF16Offset) → Pair (a = line, b = character).
-	public function getLineAndCharacter(pos:Int):Pair<Int, UTF16Offset> {
+	// PORT: perf — Go returns (line int, character core.UTF16Offset); character is left in lastCharacter, read by the
+	// caller right after the call (no Pair per source map position).
+	public function getLineAndCharacter(pos:Int):Int {
 		final line = Scanner.ComputeLineOfPosition(lineMap, pos);
 		final lineStart:Int = lineMap[line];
 		// When pos is beyond the source text (e.g., for error-recovery tokens like
@@ -68,6 +70,7 @@ class LineCharacterCache {
 		cachedPos = endPos;
 		cachedChar = cachedChar_;
 		hasCached = true;
-		return new Pair<Int, UTF16Offset>(line, character);
+		lastCharacter = character;
+		return line;
 	}
 }

@@ -1642,9 +1642,8 @@ class CheckerPart7 {
 	}
 
 	static function getUnionTypeWorker(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
-		final r = c.addTypesToUnion([], 0, types);
-		var typeSet = r.a;
-		final includes = r.b;
+		var typeSet = c.addTypesToUnion([], 0, types);
+		final includes = c.addTypesToUnionIncludes; // PORT: perf (second result of addTypesToUnion)
 		if (unionReduction != UnionReductionNone) {
 			if (includes & TypeFlagsAnyOrUnknown != 0) {
 				if (includes & TypeFlagsAny != 0) {
@@ -1766,7 +1765,9 @@ class CheckerPart7 {
 		};
 	}
 
-	static function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, types:Array<Type>):Pair<Array<Type>, TypeFlags> {
+	// PORT: perf — Go returns (typeSet, includes); includes is left in c.addTypesToUnionIncludes, read by the caller right
+	// after the call (no Pair per type). The same for addTypeToUnion.
+	static function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, types:Array<Type>):Array<Type> {
 		var lastType:Type = null;
 		if (types != null) {
 			for (t in types) {
@@ -1776,22 +1777,21 @@ class CheckerPart7 {
 						if (t.alias != null || u.origin != null) {
 							includes |= TypeFlagsUnion;
 						}
-						final r = c.addTypesToUnion(typeSet, includes, u.types);
-						typeSet = r.a;
-						includes = r.b;
+						typeSet = c.addTypesToUnion(typeSet, includes, u.types);
+						includes = c.addTypesToUnionIncludes;
 					} else {
-						final r = c.addTypeToUnion(typeSet, includes, t);
-						typeSet = r.a;
-						includes = r.b;
+						typeSet = c.addTypeToUnion(typeSet, includes, t);
+						includes = c.addTypesToUnionIncludes;
 					}
 					lastType = t;
 				}
 			}
 		}
-		return new Pair<Array<Type>, TypeFlags>(typeSet, includes);
+		c.addTypesToUnionIncludes = includes;
+		return typeSet;
 	}
 
-	static function addTypeToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t:Type):Pair<Array<Type>, TypeFlags> {
+	static function addTypeToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t:Type):Array<Type> {
 		final flags = t.flags;
 		// We ignore 'never' types in unions
 		if (flags & TypeFlagsNever == 0) {
@@ -1823,7 +1823,8 @@ class CheckerPart7 {
 				}
 			}
 		}
-		return new Pair<Array<Type>, TypeFlags>(typeSet, includes);
+		c.addTypesToUnionIncludes = includes;
+		return typeSet;
 	}
 
 	static function addNamedUnions(c:Checker, namedUnions:Array<Type>, types:Array<Type>):Array<Type> {
@@ -3220,9 +3221,9 @@ class CheckerPart7 {
 
 	static function isThisPropertyAccessInConstructor(c:Checker, node:Node, prop:Symbol):Bool {
 		var constructor:Node = null;
-		final r = c.isConstructorDeclaredThisProperty(prop);
-		if (r.a == thisAssignmentDeclarationConstructor) {
-			constructor = r.b;
+		final kind = c.isConstructorDeclaredThisProperty(prop);
+		if (kind == thisAssignmentDeclarationConstructor) {
+			constructor = c.isConstructorDeclaredThisPropertyLocation; // PORT: perf (second result)
 		} else if (Checker.isThisProperty(node) && c.isAutoTypedProperty(prop)) {
 			constructor = c.getDeclaringConstructor(prop);
 		}

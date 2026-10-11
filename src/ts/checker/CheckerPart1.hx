@@ -359,44 +359,23 @@ class CheckerPart1 {
 		}
 	}
 
+	// PORT: perf (typed resolver hooks instead of Go func fields): the hooks are overrides in CheckerNameResolver and
+	// CheckerNameResolverForSuggestion (end of this file), see NameResolver.
 	static function createNameResolver(c:Checker):NameResolver {
-		final r = new NameResolver();
+		final r = new CheckerNameResolver(c);
 		r.CompilerOptions = c.compilerOptions;
-		r.GetSymbolOfDeclaration = c.getSymbolOfDeclaration;
-		// PORT: explicit closure; a bound `c.error` closure of a rest-args extension method passes the rest array as one
-		// argument (measured, Haxe 4.3.7 JS output).
-		r.Error = function(location:Node, message:Message, ...args:Any):Diagnostic {
-			return c.error(location, message, ...args);
-		};
 		r.Globals = c.globals;
 		r.ArgumentsSymbol = c.argumentsSymbol;
 		r.RequireSymbol = c.requireSymbol;
-		r.Lookup = c.getSymbol;
-		r.SymbolReferenced = c.symbolReferenced;
-		r.SetRequiresScopeChangeCache = c.setRequiresScopeChangeCache;
-		r.GetRequiresScopeChangeCache = c.getRequiresScopeChangeCache;
-		r.OnPropertyWithInvalidInitializer = c.checkAndReportErrorForInvalidInitializer;
-		r.OnFailedToResolveSymbol = c.onFailedToResolveSymbol;
-		r.OnSuccessfullyResolvedSymbol = c.onSuccessfullyResolvedSymbol;
 		return r;
 	}
 
 	static function createNameResolverForSuggestion(c:Checker):NameResolver {
-		final r = new NameResolver();
+		final r = new CheckerNameResolverForSuggestion(c);
 		r.CompilerOptions = c.compilerOptions;
-		r.GetSymbolOfDeclaration = c.getSymbolOfDeclaration;
-		// PORT: explicit closure; a bound `c.error` closure of a rest-args extension method passes the rest array as one
-		// argument (measured, Haxe 4.3.7 JS output).
-		r.Error = function(location:Node, message:Message, ...args:Any):Diagnostic {
-			return c.error(location, message, ...args);
-		};
 		r.Globals = c.globals;
 		r.ArgumentsSymbol = c.argumentsSymbol;
 		r.RequireSymbol = c.requireSymbol;
-		r.Lookup = c.getSuggestionForSymbolNameLookup;
-		r.SymbolReferenced = c.symbolReferenced;
-		r.SetRequiresScopeChangeCache = c.setRequiresScopeChangeCache;
-		r.GetRequiresScopeChangeCache = c.getRequiresScopeChangeCache;
 		return r;
 	}
 
@@ -2955,5 +2934,64 @@ class CheckerPart1 {
 		if (node.Locals() != null) {
 			c.registerForUnusedIdentifiersCheck(node);
 		}
+	}
+}
+
+// PORT: perf (typed resolver hooks instead of Go func fields): the hooks that createNameResolverForSuggestion sets
+// (GetSymbolOfDeclaration, Error, Lookup = getSuggestionForSymbolNameLookup, SymbolReferenced, Set/GetRequiresScopeChangeCache).
+@:allow(ts.checker)
+class CheckerNameResolverForSuggestion extends NameResolver {
+	final c:Checker;
+
+	public function new(c:Checker) {
+		super();
+		this.c = c;
+	}
+
+	override public function GetSymbolOfDeclaration(node:Node):Symbol {
+		return c.getSymbolOfDeclaration(node);
+	}
+
+	override public function Error(location:Node, message:Message, ...args:Any):Diagnostic {
+		return c.error(location, message, ...args);
+	}
+
+	override public function Lookup(symbols:SymbolTable, name:std.String, meaning:SymbolFlags):Symbol {
+		return c.getSuggestionForSymbolNameLookup(symbols, name, meaning);
+	}
+
+	override public function SymbolReferenced(symbol:Symbol, meaning:SymbolFlags):Void {
+		c.symbolReferenced(symbol, meaning);
+	}
+
+	override public function SetRequiresScopeChangeCache(node:Node, value:Tristate):Void {
+		c.setRequiresScopeChangeCache(node, value);
+	}
+
+	override public function GetRequiresScopeChangeCache(node:Node):Tristate {
+		return c.getRequiresScopeChangeCache(node);
+	}
+}
+
+// PORT: perf (typed resolver hooks instead of Go func fields): the hooks that createNameResolver sets: the ones above, but
+// Lookup = getSymbol, plus OnPropertyWithInvalidInitializer, OnFailedToResolveSymbol and OnSuccessfullyResolvedSymbol.
+@:allow(ts.checker)
+class CheckerNameResolver extends CheckerNameResolverForSuggestion {
+	override public function Lookup(symbols:SymbolTable, name:std.String, meaning:SymbolFlags):Symbol {
+		return c.getSymbol(symbols, name, meaning);
+	}
+
+	override public function OnPropertyWithInvalidInitializer(location:Node, name:std.String, declaration:Node, result:Symbol):Bool {
+		return c.checkAndReportErrorForInvalidInitializer(location, name, declaration, result);
+	}
+
+	override public function OnFailedToResolveSymbol(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message):Void {
+		c.onFailedToResolveSymbol(location, name, meaning, nameNotFoundMessage);
+	}
+
+	override public function OnSuccessfullyResolvedSymbol(location:Node, result:Symbol, meaning:SymbolFlags, lastLocation:Node,
+			associatedDeclarationForContainingInitializerOrBindingName:Node, withinDeferredContext:Bool):Void {
+		c.onSuccessfullyResolvedSymbol(location, result, meaning, lastLocation, associatedDeclarationForContainingInitializerOrBindingName,
+			withinDeferredContext);
 	}
 }

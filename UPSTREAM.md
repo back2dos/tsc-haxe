@@ -30,12 +30,12 @@ Wall time / peak memory, best of 3, idle machine, `tools/bench.sh`. Go runs with
 
 | Workload | Go | Haxe cpp | Haxe JS |
 |---|---|---|---|
-| ts6-compiler (193k lines), declarations only | 1.14 s / 405 MB | 2.98 s / 794 MB | 5.66 s / 675 MB |
-| ts6-compiler, full emit + source maps | 1.80 s / 521 MB | 4.16 s / 1,188 MB | 7.65 s / 927 MB |
-| ts6-solution (`tsc -b`, 453k lines), clean | 3.55 s / 600 MB | 8.63 s / 1,314 MB | 15.28 s / 1,120 MB |
-| native-preview, clean | 0.48 s / 220 MB | 1.26 s / 489 MB | 3.04 s / 444 MB |
+| ts6-compiler (193k lines), declarations only | 1.14 s / 405 MB | 2.77 s / 852 MB | 5.66 s / 675 MB |
+| ts6-compiler, full emit + source maps | 1.80 s / 521 MB | 3.87 s / 1,035 MB | 7.65 s / 927 MB |
+| ts6-solution (`tsc -b`, 453k lines), clean | 3.55 s / 600 MB | 8.15 s / 1,311 MB | 15.28 s / 1,120 MB |
+| native-preview, clean | 0.48 s / 220 MB | 1.16 s / 396 MB | 3.04 s / 444 MB |
 
-History (ts6-compiler decl / full): before Phase 9, cpp 5.16 / 7.93 s, JS 6.66 / 9.50 s; after pass 1, cpp 4.02 / 5.66 s, JS 5.82 / 7.84 s. Pass 2 removed a quadratic text copy (native-preview cpp was 3.15 s / 1,345 MB) and most per-call allocations that Go does not make. Profiling tools: docs/PORTING.md §7a.
+History (ts6-compiler decl / full): before Phase 9, cpp 5.16 / 7.93 s, JS 6.66 / 9.50 s; after pass 1, cpp 4.02 / 5.66 s, JS 5.82 / 7.84 s; after pass 2, cpp 2.98 / 4.16 s. Pass 2 removed a quadratic text copy (native-preview cpp was 3.15 s / 1,345 MB) and most per-call allocations that Go does not make. Pass 3 replaced the binder's name-resolver function fields with typed methods and removed most remaining per-call result objects (cpp allocations −27% objects on full emit). Profiling tools: docs/PORTING.md §7a.
 
 Remaining cost centres on cpp: GC + allocation (~20% incl. callees, of which ~4% is hxcpp re-sorting its block list on heap growth), live data about 2× Go (object headers, Dynamic fields, UTF-16). JS time is mostly V8 running the checker.
 

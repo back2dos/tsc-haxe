@@ -1764,9 +1764,8 @@ class CheckerPart5 {
 
 	static function getWidenedTypeForAssignmentDeclaration(c:Checker, symbol:Symbol):Type {
 		var t:Type = null;
-		final r = c.isConstructorDeclaredThisProperty(symbol);
-		final kind = r.a;
-		final location = r.b;
+		final kind = c.isConstructorDeclaredThisProperty(symbol);
+		final location = c.isConstructorDeclaredThisPropertyLocation; // PORT: perf (second result)
 		switch (kind) {
 			case thisAssignmentDeclarationTyped:
 				if (location == null) {
@@ -1904,9 +1903,12 @@ class CheckerPart5 {
 	// A property is considered a constructor declared property when all declaration sites are this.xxx assignments,
 	// when no declaration sites have JSDoc type annotations, and when at least one declaration site is in the body of
 	// a class constructor.
-	static function isConstructorDeclaredThisProperty(c:Checker, symbol:Symbol):Pair<ThisAssignmentDeclarationKind, Node> {
+	// PORT: perf — Go returns (kind, location); location is left in c.isConstructorDeclaredThisPropertyLocation, read by
+	// the caller right after the call (no Pair per property access).
+	static function isConstructorDeclaredThisProperty(c:Checker, symbol:Symbol):ThisAssignmentDeclarationKind {
 		if (symbol.ValueDeclaration == null || !Ast.IsBinaryExpression(symbol.ValueDeclaration)) {
-			return new Pair<ThisAssignmentDeclarationKind, Node>(thisAssignmentDeclarationNone, null);
+			c.isConstructorDeclaredThisPropertyLocation = null;
+			return thisAssignmentDeclarationNone;
 		}
 		if (c.thisExpandoKinds.exists(symbol)) {
 			final kind = c.thisExpandoKinds.get(symbol);
@@ -1914,7 +1916,8 @@ class CheckerPart5 {
 				throw "location should be cached whenever this expando symbol is cached";
 			}
 			final location = c.thisExpandoLocations.get(symbol);
-			return new Pair<ThisAssignmentDeclarationKind, Node>(kind, location);
+			c.isConstructorDeclaredThisPropertyLocation = location;
+			return kind;
 		}
 		var allThis = true;
 		var typeAnnotation:Node = null;
@@ -1947,7 +1950,8 @@ class CheckerPart5 {
 		}
 		c.thisExpandoKinds.set(symbol, kind);
 		c.thisExpandoLocations.set(symbol, location);
-		return new Pair<ThisAssignmentDeclarationKind, Node>(kind, location);
+		c.isConstructorDeclaredThisPropertyLocation = location;
+		return kind;
 	}
 
 	static function isGlobalSymbolConstructor(c:Checker, node:Node):Bool {

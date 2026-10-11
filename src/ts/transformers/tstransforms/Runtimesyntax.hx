@@ -502,7 +502,7 @@ class RuntimeSyntaxTransformer {
 			} else { // node.Body.Kind == ast.KindModuleDeclaration
 				// !!! Strada didn't do this; why?
 				// tx.currentScope = node.AsNode()
-				statements = Visitor().VisitSlice([node.Body]).a;
+				statements = Visitor().VisitSlice([node.Body]);
 				final moduleBlock = Tstransforms.getInnermostModuleDeclarationFromDottedModule(node).Body.AsModuleBlock();
 				statementsLocation = moduleBlock.Statements.Loc.WithPos(-1);
 			}
@@ -795,7 +795,7 @@ class RuntimeSyntaxTransformer {
 			statements = appendAll(statements, transformConstructorBodyWorker(rest, superPath, parameterPropertyAssignments));
 		} else {
 			statements = appendAll(statements, parameterPropertyAssignments);
-			statements = appendAll(statements, Visitor().VisitSlice(rest).a);
+			statements = appendAll(statements, Visitor().VisitSlice(rest));
 		}
 
 		statements = EmitContext().EndAndMergeVariableEnvironment(statements);
@@ -830,7 +830,7 @@ class RuntimeSyntaxTransformer {
 		final superStatement = statementsIn[superStatementIndex];
 
 		// visit up to the statement containing `super`
-		statementsOut = appendAll(statementsOut, Visitor().VisitSlice(statementsIn.slice(0, superStatementIndex)).a);
+		statementsOut = appendAll(statementsOut, Visitor().VisitSlice(statementsIn.slice(0, superStatementIndex)));
 
 		// if the statement containing `super` is a `try` statement, transform the body of the `try` block
 		if (Ast.IsTryStatement(superStatement)) {
@@ -860,14 +860,14 @@ class RuntimeSyntaxTransformer {
 			popNode(grandparentOfTryStatement);
 		} else {
 			// visit the statement containing `super`
-			statementsOut = appendAll(statementsOut, Visitor().VisitSlice(statementsIn.slice(superStatementIndex, superStatementIndex + 1)).a);
+			statementsOut = appendAll(statementsOut, Visitor().VisitSlice(statementsIn.slice(superStatementIndex, superStatementIndex + 1)));
 
 			// insert the initializer statements
 			statementsOut = appendAll(statementsOut, initializerStatements);
 		}
 
 		// visit the statements after `super`
-		statementsOut = appendAll(statementsOut, Visitor().VisitSlice(statementsIn.slice(superStatementIndex + 1)).a);
+		statementsOut = appendAll(statementsOut, Visitor().VisitSlice(statementsIn.slice(superStatementIndex + 1)));
 		return statementsOut;
 	}
 

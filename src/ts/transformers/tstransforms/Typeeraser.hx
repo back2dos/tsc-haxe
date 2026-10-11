@@ -225,7 +225,7 @@ class TypeEraserTransformer {
 				// preserve decorators for the decorator transforms
 				if (Ast.HasDecorators(node)) {
 					final decorators = node.Decorators();
-					final visited = Visitor().VisitSlice(decorators).a;
+					final visited = Visitor().VisitSlice(decorators);
 					if (modifiers == null) {
 						modifiers = Factory().NewModifierList(visited);
 					} else {
