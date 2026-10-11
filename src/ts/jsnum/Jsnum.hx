@@ -500,7 +500,9 @@ abstract Number(Float) from Float to Float {
 	@:op(A + B) static function add(a:Number, b:Number):Number;
 	@:op(A - B) static function sub(a:Number, b:Number):Number;
 	@:op(A * B) static function mul(a:Number, b:Number):Number;
-	@:op(A / B) static function div(a:Number, b:Number):Number;
+	@:op(A / B) static inline function div(a:Number, b:Number):Number {
+		return go.Math.Div(a, b); // PORT: python — x / 0 (inline `a / b` on the other targets)
+	}
 	@:op(-A) static function neg(a:Number):Number;
 	@:op(A == B) static function eq(a:Number, b:Number):Bool;
 	@:op(A != B) static function ne(a:Number, b:Number):Bool;
@@ -566,7 +568,7 @@ abstract Number(Float) from Float to Float {
 
 	// https://tc39.es/ecma262/2024/multipage/ecmascript-data-types-and-values.html#sec-numeric-types-number-leftShift
 	public function LeftShift(y:Number):Number {
-		return toInt32() << y.toShiftCount();
+		return go.Math.Shl(toInt32(), y.toShiftCount()); // PORT: python — wraps (plain `<<` elsewhere)
 	}
 
 	// https://tc39.es/ecma262/2024/multipage/ecmascript-data-types-and-values.html#sec-numeric-types-number-bitwiseNOT

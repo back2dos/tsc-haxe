@@ -2,7 +2,7 @@ package go;
 
 import go.Tuple.Pair;
 import haxe.Int64;
-#if !cpp
+#if !(cpp || python)
 import haxe.io.FPHelper;
 #end
 
@@ -61,6 +61,9 @@ class Math {
 	static function bitsHigh(f:Float):Int {
 		#if cpp
 		return 0;
+		#elseif python
+		// PORT: python — exact bit cast with struct (haxe.io.FPHelper's portable code is inexact).
+		return python.Syntax.code("__import__('struct').unpack('<ii', __import__('struct').pack('<d', {0}))[1]", f);
 		#else
 		return FPHelper.doubleToI64(f).high;
 		#end
@@ -72,6 +75,8 @@ class Math {
 	static function bitsLow(f:Float):Int {
 		#if cpp
 		return 0;
+		#elseif python
+		return python.Syntax.code("__import__('struct').unpack('<ii', __import__('struct').pack('<d', {0}))[0]", f);
 		#else
 		return FPHelper.doubleToI64(f).low;
 		#end
@@ -83,10 +88,50 @@ class Math {
 	static function fromBits(low:Int, high:Int):Float {
 		#if cpp
 		return 0;
+		#elseif python
+		return python.Syntax.code("__import__('struct').unpack('<d', __import__('struct').pack('<II', {0} & 0xFFFFFFFF, {1} & 0xFFFFFFFF))[0]", low, high);
 		#else
 		return FPHelper.i64ToDouble(low, high);
 		#end
 	}
+
+	// x as a signed 32-bit Int (two's complement wrap), like Go int32 arithmetic: JS `x | 0`; hxcpp
+	// and the JVM wrap Int arithmetic anyway. PORT: python — Python ints do not wrap.
+	public static inline function Wrap32(x:Int):Int {
+		#if python
+		return python.Syntax.code("(({0} + 0x80000000) & 0xFFFFFFFF) - 0x80000000", x);
+		#else
+		return x | 0;
+		#end
+	}
+
+	// x << n (0 <= n < 32) wrapped to 32 bits like Go int32/uint32 and JS `<<`.
+	// PORT: python — Python's `<<` does not drop the high bits; plain `<<` elsewhere.
+	public static inline function Shl(x:Int, n:Int):Int {
+		#if python
+		return python.Syntax.code("((({0} << {1}) + 0x80000000) & 0xFFFFFFFF) - 0x80000000", x, n);
+		#else
+		return x << n;
+		#end
+	}
+
+	// Float division a / b with IEEE 754 results for b == 0 (±Inf, NaN) on every target.
+	// PORT: python — Python raises ZeroDivisionError for x / 0 (also for floats); elsewhere `a / b`.
+	public static inline function Div(a:Float, b:Float):Float {
+		#if python
+		return b == 0 ? divZero(a, b) : a / b;
+		#else
+		return a / b;
+		#end
+	}
+
+	#if python
+	static function divZero(a:Float, b:Float):Float {
+		if (a == 0 || IsNaN(a))
+			return NaN();
+		return Signbit(a) != Signbit(b) ? Inf(-1) : Inf(1);
+	}
+	#end
 
 	// math.Signbit
 	public static inline function Signbit(x:Float):Bool {
@@ -292,7 +337,7 @@ class Math {
 			}
 		} else if (IsInf(x, 0)) {
 			if (IsInf(x, -1)) {
-				return Pow(1 / x, -y); // Pow(-0, -y)
+				return Pow(Div(1, x), -y); // Pow(-0, -y)
 			}
 			if (y < 0) {
 				return 0;
@@ -302,7 +347,7 @@ class Math {
 		} else if (y == 0.5) {
 			return Sqrt(x);
 		} else if (y == -0.5) {
-			return 1 / Sqrt(x);
+			return Div(1, Sqrt(x));
 		}
 
 		final mf = Modf(Abs(y));
@@ -373,7 +418,7 @@ class Math {
 		// if y < 0 { ans = 1 / ans }
 		// but in the opposite order
 		if (y < 0) {
-			a1 = 1 / a1;
+			a1 = Div(1, a1);
 			ae = -ae;
 		}
 		return Ldexp(a1, ae);

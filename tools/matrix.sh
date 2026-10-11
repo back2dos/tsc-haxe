@@ -5,13 +5,13 @@
 # unit tests; this script only runs them and parses their result tables.
 #
 # Usage: tools/matrix.sh [--targets LIST] [--suites LIST] [--sample T=N,...] [--jobs N] [--out FILE] [--no-build]
-#   --targets  comma separated, from js,cpp,jvm,cs,py (default js,cpp,jvm). The table always has all
+#   --targets  comma separated, from js,cpp,jvm,cs,py (default js,cpp,jvm,cs,py). The table always has all
 #              five columns; a target that is not run shows "—".
 #   --suites   comma separated, from unit,scanner,parser,binder,printer,checker,tsc,realworld (default all)
 #   --sample   per target: run only every N-th input of the corpus gates (scanner, parser, binder,
 #              printer: corpus files; checker: test files; tsc: scenarios). The cell then says
 #              "(1/N)". With N > 1 the realworld suite runs only the small project tsc-extension.
-#              Default: py=20 (Python is slow); all other targets 1.
+#              Default: 1 for every target (a full Python run takes about 36 min).
 #   --jobs     parallel processes for the checker gate (default 16)
 #   --out      output file (default docs/MATRIX.md)
 #   --no-build reuse the binaries of the previous run
@@ -22,9 +22,9 @@ cd "$root"
 ROOT=$root
 . tools/targets.sh
 
-targets="js cpp jvm"
+targets="js cpp jvm cs py"
 suites="unit scanner parser binder printer checker tsc realworld"
-samples="py=20"
+samples=""
 jobs=16
 outfile=docs/MATRIX.md
 build=1
@@ -131,6 +131,6 @@ done
 } >"$log/versions.txt"
 
 commit=$(git rev-parse --short HEAD)
-git diff --quiet HEAD -- src test tools Makefile *.hxml 2>/dev/null || commit="$commit + local changes"
+git diff --quiet HEAD -- src std-py test tools Makefile *.hxml 2>/dev/null || commit="$commit + local changes"
 python3 tools/matrix.py "$log/runs.txt" "$log/versions.txt" "$commit" "$cmdline" "$targets" "$outfile"
 echo "wrote $outfile"

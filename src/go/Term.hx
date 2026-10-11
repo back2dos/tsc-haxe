@@ -25,6 +25,8 @@ class Term {
 			case 2: !cs.system.Console.IsErrorRedirected;
 			case _: false;
 		}
+		#elseif python
+		return python.Syntax.code("__import__('os').isatty({0})", fd);
 		#else
 		return false;
 		#end
@@ -46,6 +48,12 @@ class Term {
 			return 0;
 		try {
 			return cs.system.Console.WindowWidth;
+		} catch (e:Dynamic) {
+			return 0;
+		}
+		#elseif python
+		try {
+			return python.Syntax.code("__import__('os').get_terminal_size({0}).columns", fd);
 		} catch (e:Dynamic) {
 			return 0;
 		}

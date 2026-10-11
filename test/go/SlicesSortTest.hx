@@ -8,9 +8,9 @@ class SlicesSortTest {
 	static var rng = -1831433054; // uint32 2463534242
 
 	static function next():Int {
-		rng ^= rng << 13;
+		rng ^= Math.Shl(rng, 13); // PORT: python — 32-bit wrap (Math.Shl)
 		rng ^= rng >>> 17;
-		rng ^= rng << 5;
+		rng ^= Math.Shl(rng, 5);
 		return rng;
 	}
 
@@ -52,7 +52,7 @@ class SlicesSortTest {
 	static function emit(kind:String, n:Int, pat:Int, x:Array<Rec>):String {
 		var h = 5381;
 		for (r in x)
-			h = ((h << 5) + h + r.id) | 0;
+			h = Math.Wrap32(Math.Shl(h, 5) + h + r.id); // PORT: python — `| 0` does not wrap there
 		final sb = new StringBuf();
 		sb.add('$kind $n $pat ${StringTools.hex(h, 8)}');
 		if (n <= 100)
@@ -95,7 +95,7 @@ class SlicesSortTest {
 				final sb = new StringBuf();
 				sb.add('F $n');
 				for (v in f)
-					sb.add(std.Math.isNaN(v) ? " N" : (v == 0 && 1 / v < 0 ? " -0" : ' ${Std.int(v)}'));
+					sb.add(std.Math.isNaN(v) ? " N" : (v == 0 && Math.Signbit(v) ? " -0" : ' ${Std.int(v)}'));
 				out.push(sb.toString());
 				n += 7;
 			}

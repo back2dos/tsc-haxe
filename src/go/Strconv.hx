@@ -503,7 +503,12 @@ private class StrconvFloat {
 		#else
 		// PORT: jvm/cs/python — Std.string(Float) is the shortest round-trip decimal (JVM: Double.toString
 		// since JDK 19; Python repr; .NET Core "R"), only in another notation.
+		#if python
+		// PORT: python — a Float can hold a Python int (exact, printed with all digits): repr(float(x)).
+		final e = toExponential(python.Syntax.code("repr(float({0}))", x));
+		#else
 		final e = toExponential(Std.string(x));
+		#end
 		// PORT: jvm — JDK 19+ Double.toString never gives fewer than 2 digits (4.9E-324, where JS
 		// gives 5e-324): try the 1-digit decimals around a 2-digit result, the nearer one first.
 		if (e.length > 3 && e.charAt(1) == "." && e.charAt(3) == "e") {
