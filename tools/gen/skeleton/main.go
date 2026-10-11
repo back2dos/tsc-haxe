@@ -107,8 +107,15 @@ func main() {
 	}
 	check(tu.Finish(*out))
 
+	// Paths in the report are relative to the project root (the report is committed).
+	rel := func(p string) string {
+		if r, err := filepath.Rel(*root, p); err == nil && !strings.HasPrefix(r, "..") {
+			return r
+		}
+		return p
+	}
 	var r strings.Builder
-	fmt.Fprintf(&r, "skeleton %s → %s\n", *pkgRel, *out)
+	fmt.Fprintf(&r, "skeleton %s → %s\n", *pkgRel, rel(*out))
 	fmt.Fprintf(&r, "  modules %d, lines %d, types %d, fields %d, enum values %d, funcs %d, methods %d\n",
 		len(tu.modules), tu.nLines, tu.nTypes, tu.nFields, tu.nEnumVals, tu.nFuncs, tu.nMethods)
 	if len(tu.SplitInfo) > 0 {
@@ -118,7 +125,7 @@ func main() {
 		}
 	}
 	if rep != nil {
-		fmt.Fprintf(&r, "external stubs → %s\n", *ext)
+		fmt.Fprintf(&r, "external stubs → %s\n", rel(*ext))
 		fmt.Fprintf(&r, "  packages without Haxe port (stubbed): %s\n", strings.Join(rep.stubPkgs, ", "))
 		fmt.Fprintf(&r, "  packages with missing types (ExtStubs.hx): %s\n", strings.Join(rep.partialPkgs, ", "))
 		n := 0

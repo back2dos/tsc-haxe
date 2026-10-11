@@ -1,4 +1,4 @@
-skeleton internal/checker → /home/mib/Development/research/haxe-ts/bin/skeleton/checker
+skeleton internal/checker → bin/skeleton/checker
   modules 32, lines 15753, types 209, fields 860, enum values 504, funcs 370, methods 2490
 split modules:
   CheckerPart1.hx  checker.go:1-3970  Go lines 3970, methods 113, kept instance (interface) 0 []
@@ -9,7 +9,7 @@ split modules:
   CheckerPart6.hx  checker.go:19956-23931  Go lines 3976, methods 177, kept instance (interface) 0 []
   CheckerPart7.hx  checker.go:23932-27915  Go lines 3984, methods 207, kept instance (interface) 0 []
   CheckerPart8.hx  checker.go:27916-31926  Go lines 4011, methods 178, kept instance (interface) 0 []
-external stubs → /home/mib/Development/research/haxe-ts/bin/skeleton/_ext
+external stubs → bin/skeleton/_ext
   packages without Haxe port (stubbed): internal/printer
   packages with missing types (ExtStubs.hx): 
   stub lines 354, stubbed symbols 78
