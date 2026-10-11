@@ -11,6 +11,7 @@ import haxe.io.Bytes;
 // realpath, utimes, symlink) are implemented per target in class OsNative below:
 //   JS (hxnodejs): require('fs') *Sync functions; the error is the Node error code ("ENOENT").
 //   hxcpp: POSIX calls through untyped __cpp__; errno is mapped to the same code names.
+//   C#:    the same POSIX calls through P/Invoke into libc (Linux only; see OsNative).
 // PORT: POSIX semantics only (Linux, macOS). Windows paths/APIs are not implemented.
 // PORT: errors are *PathError{Op, Path, Err} like Go; Err is an Errno with Go's message text for
 // the common errno values. ModTime has millisecond precision on JS.
@@ -880,6 +881,63 @@ static int go_os_utimes(::String path, double atime, double mtime) {
 	return ::utimes(path.utf8_str(), tv) == 0 ? 0 : errno;
 }
 ')
+#elseif cs
+// PORT: cs — the same POSIX calls as on cpp, through P/Invoke into libc (.NET has no lstat/st_mode
+// API). stat/lstat use statx(2): its struct layout is the same on every Linux architecture
+// (PORT: cs supports Linux only). errno becomes the error code name through its strerror text.
+@:classCode('
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "statx", SetLastError = true)]
+	static extern unsafe int go_statx(int dirfd, string path, int flags, uint mask, byte* buf);
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "mkdir", SetLastError = true)]
+	static extern int go_mkdir(string path, uint mode);
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "unlink", SetLastError = true)]
+	static extern int go_unlink(string path);
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "rmdir", SetLastError = true)]
+	static extern int go_rmdir(string path);
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "symlink", SetLastError = true)]
+	static extern int go_symlink(string target, string path);
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "realpath", SetLastError = true)]
+	static extern System.IntPtr go_realpath(string path, System.IntPtr resolved);
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "free")]
+	static extern void go_free(System.IntPtr p);
+	[System.Runtime.InteropServices.DllImport("libc", EntryPoint = "utimes", SetLastError = true)]
+	static extern unsafe int go_utimes(string path, long* tv);
+
+	static int go_errno() {
+		return System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
+	}
+
+	// [errno] or [0, st_mode, st_size, mtime sec, mtime nsec]
+	static unsafe double[] go_os_stat(string path, bool follow) {
+		byte* buf = stackalloc byte[256];
+		// AT_FDCWD, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS
+		if (go_statx(-100, path, follow ? 0 : 0x100, 0x7ff, buf) != 0)
+			return new double[] { go_errno() };
+		return new double[] { 0, *(ushort*)(buf + 28), (double)*(ulong*)(buf + 40), *(long*)(buf + 112), *(uint*)(buf + 120) };
+	}
+
+	static int go_os_realpath_errno = 0;
+
+	static string go_os_realpath(string path) {
+		System.IntPtr r = go_realpath(path, System.IntPtr.Zero);
+		if (r == System.IntPtr.Zero) {
+			go_os_realpath_errno = go_errno();
+			return null;
+		}
+		string s = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(r);
+		go_free(r);
+		return s;
+	}
+
+	static unsafe int go_os_utimes(string path, double atime, double mtime) {
+		long* tv = stackalloc long[4];
+		tv[0] = (long)atime;
+		tv[1] = (long)((atime - (double)tv[0]) * 1e6);
+		tv[2] = (long)mtime;
+		tv[3] = (long)((mtime - (double)tv[2]) * 1e6);
+		return go_utimes(path, tv) == 0 ? 0 : go_errno();
+	}
+')
 #end
 class OsNative {
 	#if js
@@ -905,6 +963,16 @@ class OsNative {
 		}
 		#elseif cpp
 		final a:Array<Float> = untyped __cpp__("go_os_stat({0}, {1})", path, follow);
+		if (a[0] != 0) {
+			r.err = errname(Std.int(a[0]));
+		} else {
+			r.mode = Std.int(a[1]);
+			r.size = Std.int(a[2]);
+			r.mtimeSec = a[3];
+			r.mtimeNsec = Std.int(a[4]);
+		}
+		#elseif cs
+		final a:cs.NativeArray<Float> = cs.Syntax.code("go_os_stat({0}, {1})", path, follow);
 		if (a[0] != 0) {
 			r.err = errname(Std.int(a[0]));
 		} else {
@@ -980,6 +1048,30 @@ class OsNative {
 	}
 	#end
 
+	#if cs
+	// PORT: cs — errno → code name through the C library's message (the numbers differ per OS).
+	static function errname(e:Int):String {
+		final msg:String = cs.Syntax.code("System.Runtime.InteropServices.Marshal.GetPInvokeErrorMessage({0})", e);
+		return switch msg {
+			case "No such file or directory": "ENOENT";
+			case "File exists": "EEXIST";
+			case "Not a directory": "ENOTDIR";
+			case "Is a directory": "EISDIR";
+			case "Permission denied": "EACCES";
+			case "Operation not permitted": "EPERM";
+			case "Directory not empty": "ENOTEMPTY";
+			case "Too many levels of symbolic links": "ELOOP";
+			case "Invalid argument": "EINVAL";
+			case "Input/output error": "EIO";
+			case "File name too long": "ENAMETOOLONG";
+			case "Device or resource busy": "EBUSY";
+			case "Read-only file system": "EROFS";
+			case "Invalid cross-device link": "EXDEV";
+			case _: Std.string(e);
+		}
+	}
+	#end
+
 	public static function mkdir(path:String, perm:Int):Null<String> {
 		#if js
 		try {
@@ -990,6 +1082,9 @@ class OsNative {
 		}
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::mkdir({0}.utf8_str(), (mode_t){1}) == 0 ? 0 : errno)", path, perm);
+		return e == 0 ? null : errname(e);
+		#elseif cs
+		final e:Int = cs.Syntax.code("(go_mkdir({0}, (uint){1}) == 0 ? 0 : go_errno())", path, perm);
 		return e == 0 ? null : errname(e);
 		#elseif jvm
 		try {
@@ -1018,6 +1113,9 @@ class OsNative {
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::unlink({0}.utf8_str()) == 0 ? 0 : errno)", path);
 		return e == 0 ? null : errname(e);
+		#elseif cs
+		final e:Int = cs.Syntax.code("(go_unlink({0}) == 0 ? 0 : go_errno())", path);
+		return e == 0 ? null : errname(e);
 		#elseif jvm
 		try {
 			if (isDir(path))
@@ -1042,6 +1140,9 @@ class OsNative {
 		}
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::rmdir({0}.utf8_str()) == 0 ? 0 : errno)", path);
+		return e == 0 ? null : errname(e);
+		#elseif cs
+		final e:Int = cs.Syntax.code("(go_rmdir({0}) == 0 ? 0 : go_errno())", path);
 		return e == 0 ? null : errname(e);
 		#elseif jvm
 		try {
@@ -1070,6 +1171,9 @@ class OsNative {
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::symlink({0}.utf8_str(), {1}.utf8_str()) == 0 ? 0 : errno)", target, path);
 		return e == 0 ? null : errname(e);
+		#elseif cs
+		final e:Int = cs.Syntax.code("(go_symlink({0}, {1}) == 0 ? 0 : go_errno())", target, path);
+		return e == 0 ? null : errname(e);
 		#elseif jvm
 		try {
 			java.nio.file.Files.createSymbolicLink(jpath(path), jpath(target));
@@ -1092,6 +1196,9 @@ class OsNative {
 		}
 		#elseif cpp
 		final e:Int = untyped __cpp__("go_os_utimes({0}, {1}, {2})", path, atime, mtime);
+		return e == 0 ? null : errname(e);
+		#elseif cs
+		final e:Int = cs.Syntax.code("go_os_utimes({0}, {1}, {2})", path, atime, mtime);
 		return e == 0 ? null : errname(e);
 		#elseif jvm
 		try {
@@ -1124,6 +1231,13 @@ class OsNative {
 		final s:String = untyped __cpp__("go_os_realpath({0})", path);
 		if (s == null) {
 			realpathErr = errname(untyped __cpp__("go_os_realpath_errno"));
+			return null;
+		}
+		return s;
+		#elseif cs
+		final s:String = cs.Syntax.code("go_os_realpath({0})", path);
+		if (s == null) {
+			realpathErr = errname(cs.Syntax.code("go_os_realpath_errno"));
 			return null;
 		}
 		return s;

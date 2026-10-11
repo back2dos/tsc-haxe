@@ -920,7 +920,7 @@ process.stdout.write(JSON.stringify(await script(...process.argv.slice(2))));';
 		if (!nodeChecked) {
 			nodeChecked = true;
 			try {
-				nodeFound = Sys.command("node", ["-e", ""]) == 0;
+				nodeFound = command("node", ["-e", ""]) == 0;
 			} catch (e:Dynamic) {
 				nodeFound = false;
 			}
@@ -988,6 +988,19 @@ process.stdout.write(JSON.stringify(await script(...process.argv.slice(2))));';
 		process.exit(r.status === null ? 1 : r.status);
 	";
 
+	// Sys.command with exact arguments.
+	static function command(cmd:String, args:Array<String>):Int {
+		#if cs
+		// PORT: cs — hxcs joins the arguments with Mono's quoting rules; .NET on Linux splits them
+		// with Windows rules (backslashes and quotes change). Process.Start(file, args) passes argv as is.
+		final argv = cs.Lib.nativeArray(args, true);
+		return cs.Syntax.code("((global::System.Func<int>)(() => { var p = global::System.Diagnostics.Process.Start({0}, (string[]){1}); p.WaitForExit(); return p.ExitCode; }))()",
+			cmd, argv);
+		#else
+		return Sys.command(cmd, args);
+		#end
+	}
+
 	static function evalNodeScript(script:String, dir:String, args:Array<String>):Dynamic {
 		final scriptPath = dir + "/script.mjs";
 		writeFile(scriptPath, script);
@@ -997,7 +1010,7 @@ process.stdout.write(JSON.stringify(await script(...process.argv.slice(2))));';
 		final outPath = dir + "/output.json";
 		final files = "[" + [for (f in pendingFiles) "[" + jsonString(f[0]) + "," + jsonString(f[1]) + "]"].join(",") + "]";
 		pendingFiles = [];
-		final code = Sys.command("node", ["--input-type=module", "-e", bootstrapScript, outPath, files, dir, loaderPath].concat(args));
+		final code = command("node", ["--input-type=module", "-e", bootstrapScript, outPath, files, dir, loaderPath].concat(args));
 		final output = sys.io.File.getContent(outPath);
 		if (code != 0) {
 			throw "failed to run node: exit " + code + "\n" + output;

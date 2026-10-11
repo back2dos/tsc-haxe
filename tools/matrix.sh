@@ -121,6 +121,7 @@ done
 	echo "haxe $(tools/haxe --version 2>&1)"
 	echo "hxcpp $(haxelib path hxcpp 2>/dev/null | sed -n 's/^-D hxcpp=//p')"
 	echo "hxjava $(haxelib path hxjava 2>/dev/null | sed -n 's/^-D hxjava=//p')"
+	echo "hxcs $(HAXELIB_PATH="$HAXELIB_CS" haxelib path hxcs 2>/dev/null | sed -n 's/^-D hxcs=//p')"
 	echo "hxnodejs $(haxelib path hxnodejs 2>/dev/null | sed -n 's/^-D hxnodejs=//p')"
 	echo "node $($NODE --version 2>&1)"
 	echo "g++ $(g++ --version 2>&1 | head -1)"

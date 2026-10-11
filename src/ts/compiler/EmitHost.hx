@@ -3,6 +3,11 @@ package ts.compiler;
 // Port of emitHost.go (types and methods; newEmitHost is in Compiler.hx).
 
 // NOTE: EmitHost operations must be thread-safe
+#if cs
+// PORT: cs — hxcs drops the members that this interface declares again; C# then rejects a call
+// through EmitHost to a member of two base interfaces as ambiguous (CS0121). Declare them in C#.
+@:classCode("new global::ts.core.CompilerOptions Options();\nnew global::Array SourceFiles();\nnew bool UseCaseSensitiveFileNames();\nnew string GetCurrentDirectory();\nnew string CommonSourceDirectory();\nnew bool IsEmitBlocked(string file);\n")
+#end
 interface EmitHost extends ts.printer.Emithost.EmitHost extends ts.transformers.declarations.Transform.DeclarationEmitHost extends SourceFileMayBeEmittedHost {
 	function Options():CompilerOptions;
 	function SourceFiles():Array<SourceFile>;

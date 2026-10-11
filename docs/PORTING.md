@@ -194,6 +194,23 @@ Toolchain paths: `tools/env.sh` (overridable by environment variables). Build/ru
 - **Stack:** deep recursion needs `java -Xss1g` (`JAVA_OPTS` in `tools/env.sh`; the java launcher runs `main()` in a thread of that size). Parallel JVMs (checker gate `--jobs`) get `-Xmx3g -XX:ParallelGCThreads=2` each; with defaults 16 JVMs were killed by the OOM killer.
 - `-Xlog:exceptions=off`: Haxe declares `throws java.lang.Object` on methods that throw a `String`; HotSpot logs a warning **to stdout** when it reflects on one (this broke the real-project stdout comparison).
 
+Rules learned on C# (hxcs 4.2.0 sources, .NET 8 `dotnet build`; `hx_build cs` writes the `.csproj`; each one measured):
+
+- **Generics are erased** (`-D erase-generics`). With real C# generics, hxcs copies an object when it casts between two instantiations (a `GoMap<object, object>` used as `GoMap<string, object>`): the two copies diverge, and `IMap` casts throw `InvalidCastException`. Do not remove the define.
+- **Spread passes the backing array.** With erased generics, `f(...a)` gives the callee the native array of `a`, which is longer than `a` (null elements at the end; a null `EmitHelper` crashed 1,757 checker cases). `go.NilRange` passes every spread through `go.CsTarget.exactRest` on C#. No action needed in packages `ts` and `go`.
+- **Constant 0 binds to the empty constructor.** hxcs gives each class a constructor `C(haxe.lang.EmptyObject)`, and C# converts a constant `0` to any enum: `new SyncMap<Path, FileEmitKind>(FileEmitKindNone)` called it, and the fields stayed null. `go.CsTarget.constructorArity` gives every one-parameter constructor a second optional parameter on C#. No action needed in new code.
+- **A member must not have the name of its type.** hxcs renames it in that type only (`Error.Error()` → `Error_Error()`), so the implementations no longer match. `go.CsTarget.names` gives every such member name the native name `<name>_` in all types. No action needed.
+- **Interface members declared again are dropped.** C# then rejects a call through the sub-interface as ambiguous (CS0121). Example: `ts.compiler.EmitHost` declares them again in C# with `@:classCode`. Do the same for a new interface that extends two interfaces with the same member.
+- **Culture:** the project sets `InvariantGlobalization` (no ICU). Without it `StartsWith`/`EndsWith` (Haxe `StringTools`) and `Std.string(Float)` follow the user's locale. String `<`, `compare` and `indexOf` are ordinal in hxcs.
+- **`String.fromCharCode` throws for a surrogate** (`Char.ConvertFromUtf32`). Use `go.Utf16.CodeUnitString` for one UTF-16 unit.
+- **Static closures:** hxcs calls a static function used as a value (`Ast.IsIdentifier` as a predicate) through `Type.GetMethods()` on every call. `src/cs/internal/Function.hx` shadows the std file and looks the methods up once (ts6-compiler decl 9.7 s → 7.6 s).
+- **JIT:** the `.csproj` sets `TieredPGO` off (ts6-compiler decl 7.5 s → 5.5 s).
+- **Output:** the Haxe std `cs.io.NativeOutput` writes one byte per call (one `write(2)` per byte on stdout). `src/cs/io/NativeOutput.hx` shadows it with a block `writeBytes`. Do not write to `Sys.stdout()` byte by byte.
+- **Processes:** `Sys.command`/`sys.io.Process` quote arguments for Mono; .NET splits them with Windows rules (quotes and backslashes change). Example: `JsnumTest.command` uses `Process.Start(file, string[])`.
+- **File system:** `go.OsNative` calls libc through P/Invoke (`statx`, `mkdir`, …; Linux only); errno names come from the `strerror` text.
+- **Stack:** the launcher class `HxLauncher` (written by `hx_cs_project`) runs `main()` in a thread with a 1 GB stack. `HXCS_FIRST_CHANCE=1` prints each .NET exception with its stack when it is thrown (a Haxe rethrow keeps only the stack of the rethrow).
+- hxcs warns "No overload found for this constructor call" for a constructor with a closure argument; the call is correct (checked), `hx_build` filters the warning. MSBuild compiles only one of two files whose names differ only in case (`Pseudochecker.cs`, `PseudoChecker.cs`); `hx_cs_project` renames the second one.
+
 ## 8. Tests and lanes
 
 - Package class name = Go package name with the first letter in upper case: `stringutil` → `ts.stringutil.Stringutil`.
