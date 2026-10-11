@@ -1,4 +1,4 @@
-# haxe-ts
+# tsc-haxe
 
 A Haxe port of the TypeScript 7 compiler (`tsc`, the Go version in
 [microsoft/TypeScript](https://github.com/microsoft/TypeScript) at tag `v7.0.2`). The port is manual,
