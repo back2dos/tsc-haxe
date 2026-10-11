@@ -11,7 +11,7 @@ diagnostics, `.js`, `.d.ts`, source maps, `.tsbuildinfo` and the command-line ou
 ## Motivation
 
 We needed a large, real validation project written in Haxe for our
-[fiberus](https://github.com/fiberus-hx/fiberus) target: a program big and demanding enough to find
+[fiberus](https://github.com/fiberus-hx) target: a program big and demanding enough to find
 code generator and runtime bugs, and to measure and fix performance. A compiler is a good fit: about
 185k lines, millions of small objects, deep recursion, and an exact reference (the Go compiler and the
 upstream test corpus) that shows every wrong result. The fiberus build and its measurements are on
