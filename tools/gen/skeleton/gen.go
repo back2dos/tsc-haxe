@@ -41,7 +41,7 @@ type TypeDecl struct {
 	kind     string // class, interface, enum, abstract, typedef, alias, constraint
 	base     *TypeDecl
 	methods  []*item // instance methods (declared in the type's file)
-	nmethods int      // all methods, any file
+	nmethods int     // all methods, any file
 	impl     []string
 	public   map[string]bool // methods forced public (interface implementations)
 	// prepared
