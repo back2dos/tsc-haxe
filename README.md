@@ -158,6 +158,24 @@ N-th input). `tools/matrix.sh --help` lists the matrix options.
 
 The full rules are in [docs/PORTING.md](docs/PORTING.md).
 
+## AI disclosure
+
+This port was written by AI. The code, the tests, the tools and the documentation were produced with
+[Claude Code](https://claude.com/claude-code) using the model Claude Opus 5.5. Large phases ran as
+parallel sub-agents (for example one lane per checker part or per target), which the main session
+planned, merged and verified.
+
+The human role: choosing the goal, the scope and the targets, making the decisions at each step, and
+reviewing the results. The fiberus fixes found by this project were done in a separate session.
+
+Time: about 33 hours of wall-clock time, from 2026-10-10 09:35 to 2026-10-11 18:27 (CEST). This
+includes the port, the gates, three performance passes, the JVM, C# and Python targets, and the
+fiberus spike.
+
+Correctness does not rest on trust in the generated code. It rests on the gates: every target is
+compared byte for byte with the Go compiler and with the upstream test baselines (see Status and
+[docs/MATRIX.md](docs/MATRIX.md)).
+
 ## License
 
 Apache License 2.0, as the upstream TypeScript compiler. See [LICENSE](LICENSE) and
