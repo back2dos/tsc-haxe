@@ -18,11 +18,15 @@ class NilRange {
 	public static function apply():Void {
 		for (pack in ["ts", "go"])
 			Compiler.addGlobalMetadata(pack, "@:build(go.NilRange.build())", true, true, false);
+		if (Context.defined("cs"))
+			Context.onGenerate(go.CsTarget.names); // PORT: cs (see go.CsTarget)
 	}
 
 	public static function build():Array<Field> {
 		final fields = Context.getBuildFields();
 		final jvm = Context.defined("jvm");
+		if (Context.defined("cs"))
+			go.CsTarget.constructorArity(fields); // PORT: cs (see go.CsTarget)
 		for (f in fields) {
 			// PORT: jvm — large literal tables in static initializers (see go.JvmStatics).
 			if (jvm && f.access != null && f.access.contains(AStatic)) {
@@ -114,10 +118,16 @@ class NilRange {
 			// Go `f(xs...)` with a nil slice passes zero arguments; Haxe `f(...xs)` throws on null.
 			case EUnop(OpSpread, false, inner):
 				final inner2 = rewrite(inner);
-				macro @:pos(e.pos) ...{
-					final __nilSpread = $inner2;
-					__nilSpread != null ? __nilSpread : [];
-				};
+				if (Context.defined("cs")) // PORT: cs — spread of the exact length (see go.CsTarget.exactRest)
+					macro @:pos(e.pos) ...{
+						final __nilSpread = $inner2;
+						__nilSpread != null ? go.CsTarget.exactRest(__nilSpread) : [];
+					};
+				else
+					macro @:pos(e.pos) ...{
+						final __nilSpread = $inner2;
+						__nilSpread != null ? __nilSpread : [];
+					};
 			case _:
 				haxe.macro.ExprTools.map(e, rewrite);
 		}

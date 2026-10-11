@@ -17,6 +17,14 @@ class Term {
 		// PORT: jvm — JDK 21 has no isatty: System.console() is non-null when stdin and stdout
 		// are both terminals (an approximation of isatty(fd) for fd 0-2).
 		return fd >= 0 && fd <= 2 && java.lang.System.console() != null;
+		#elseif cs
+		// PORT: cs — .NET's Is*Redirected is isatty(fd) on Unix.
+		return switch fd {
+			case 0: !cs.system.Console.IsInputRedirected;
+			case 1: !cs.system.Console.IsOutputRedirected;
+			case 2: !cs.system.Console.IsErrorRedirected;
+			case _: false;
+		}
 		#else
 		return false;
 		#end
@@ -32,6 +40,15 @@ class Term {
 		return stream.columns;
 		#elseif cpp
 		return untyped __cpp__("([&]{ struct winsize ws; if (::ioctl({0}, TIOCGWINSZ, &ws) != 0) return 0; return (int)ws.ws_col; })()", fd);
+		#elseif cs
+		// PORT: cs — Console.WindowWidth is the terminal width (TIOCGWINSZ); it throws without a terminal.
+		if (!IsTerminal(fd))
+			return 0;
+		try {
+			return cs.system.Console.WindowWidth;
+		} catch (e:Dynamic) {
+			return 0;
+		}
 		#else
 		return 0;
 		#end

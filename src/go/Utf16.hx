@@ -123,6 +123,9 @@ class Utf16 {
 	public static function CodeUnitString(c:Int):String {
 		#if cpp
 		return IsSurrogate(c) ? cppCodeUnit(c) : String.fromCharCode(c);
+		#elseif cs
+		// PORT: cs — String.fromCharCode is Char.ConvertFromUtf32, which throws for a surrogate.
+		return cs.Syntax.code("((char){0}).ToString()", c);
 		#else
 		return String.fromCharCode(c);
 		#end

@@ -15,6 +15,8 @@ class Runtime {
 	public static function GC():Void {
 		#if cpp
 		cpp.vm.Gc.run(true);
+		#elseif cs
+		cs.system.GC.Collect();
 		#end
 	}
 
@@ -28,6 +30,8 @@ class Runtime {
 		#elseif jvm
 		final rt = java.lang.Runtime.getRuntime();
 		m.Alloc = haxe.Int64.toInt((rt.totalMemory() - rt.freeMemory()) >> 10) * 1024.0; // PORT: jvm (KB resolution)
+		#elseif cs
+		m.Alloc = haxe.Int64.toInt(cs.system.GC.GetTotalMemory(false) >> 10) * 1024.0; // PORT: cs (KB resolution)
 		#end
 		m.Mallocs = 0;
 	}
