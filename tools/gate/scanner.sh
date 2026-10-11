@@ -6,27 +6,45 @@
 # Corpus: upstream/tsc/_submodules/TypeScript/tests/cases/{compiler,conformance}, all files
 # named *.ts *.tsx *.js *.jsx *.mts *.cts (at the pin: 12114 .ts, 330 .tsx, 1 .js).
 #
-# Usage: tools/gate/scanner.sh [--no-build]
+# Usage: tools/gate/scanner.sh [--no-build] [--targets LIST] [--sample N]
+#   --targets LIST  comma separated targets (js,cpp,jvm,cs,py; default js,cpp; see tools/targets.sh)
+#   --sample N      only every N-th corpus file (files 1, 1+N, 1+2N, ... of the sorted list; Go too)
 # Exit status: 0 when every mode/target has 0 differing files.
 set -e
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
+ROOT=$root
+. tools/targets.sh
 out=bin/scanner/gate
 mkdir -p "$out"
 cases=upstream/tsc/_submodules/TypeScript/tests/cases
 
-if [ "$1" != "--no-build" ]; then
-	echo "building Haxe dumpers (JS, cpp) ..."
-	tools/haxe -cp src -cp test -D analyzer-optimize -main ts.scanner.TokenDump -lib hxnodejs -js bin/scanner/dump-js.js
-	tools/haxe -cp src -cp test -D analyzer-optimize -main ts.scanner.TokenDump -cpp bin/scanner/dump-cpp -D HXCPP_QUIET >/dev/null
+build=1
+targets="js cpp"
+sample=1
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--no-build) build=0 ;;
+	--targets) targets=$(hx_list "$2"); shift ;;
+	--sample) sample=$2; shift ;;
+	*) echo "unknown argument $1"; exit 2 ;;
+	esac
+	shift
+done
+main=ts.scanner.TokenDump
+if [ $build = 1 ]; then
+	echo "building Haxe dumpers ($targets) ..."
+	for t in $targets; do hx_build $t $main bin/scanner/dump; done
 	[ -x .ref/tsdump-tokens ] || tools/dump/build.sh
 fi
 
 find "$cases/compiler" "$cases/conformance" -type f \
 	\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mts' -o -name '*.cts' \) |
-	LC_ALL=C sort > "$out/corpus.txt"
-nfiles=$(wc -l < "$out/corpus.txt")
-echo "corpus: $nfiles files"
+	LC_ALL=C sort > "$out/corpus-all.txt"
+nfiles=$(wc -l < "$out/corpus-all.txt")
+hx_sample "$sample" "$out/corpus-all.txt" "$out/corpus.txt"
+nsample=$(wc -l < "$out/corpus.txt")
+echo "corpus: $nfiles files; sample 1/$sample: $nsample files"
 
 # now_ms: wall clock in milliseconds
 now_ms() { date +%s%3N; }
@@ -36,7 +54,7 @@ run() {
 	name=$1
 	shift
 	t0=$(now_ms)
-	"$@" > "$out/$name.txt"
+	"$@" > "$out/$name.txt" || echo "$name: exit status $?" >&2
 	t1=$(now_ms)
 	echo "$name $((t1 - t0))" >> "$out/times.txt"
 }
@@ -47,12 +65,14 @@ for mode in normal trivia; do
 	flag=""
 	[ "$mode" = trivia ] && flag="-trivia"
 	run "ref-$mode" .ref/tsdump-tokens $flag $(cat "$out/corpus.txt")
-	run "js-$mode" node bin/scanner/dump-js.js $flag "@$out/corpus.txt"
-	run "cpp-$mode" bin/scanner/dump-cpp/TokenDump $flag "@$out/corpus.txt"
+	for t in $targets; do
+		# shellcheck disable=SC2046
+		run "$t-$mode" $(hx_cmd $t $main bin/scanner/dump) $flag "@$out/corpus.txt"
+	done
 done
 
 # Per-file comparison: split each dump at its "## <file>" headers.
-python3 - "$out" <<'EOF'
+python3 - "$out" "$targets" <<'EOF'
 import sys
 out = sys.argv[1]
 def split(path):
@@ -73,7 +93,7 @@ print(f"{'mode':8} {'target':6} {'files':>6} {'diffs':>6} {'ms':>7}")
 for mode in ('normal', 'trivia'):
     ro, rf = split(f'{out}/ref-{mode}.txt')
     print(f"{mode:8} {'go':6} {len(ro):6} {'-':>6} {times['ref-'+mode]:>7}")
-    for target in ('js', 'cpp'):
+    for target in sys.argv[2].split():
         to, tf = split(f'{out}/{target}-{mode}.txt')
         diffs = [f for f in ro if rf[f] != tf.get(f)]
         missing = len(ro) != len(to)

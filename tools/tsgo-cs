@@ -1,0 +1,6 @@
+#!/bin/sh
+# Launcher for the cs build of tsgo (bin/tsgo-cs*, built with `make cli-cs`; see tools/targets.sh).
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/tools/targets.sh"
+# shellcheck disable=SC2046
+exec $(hx_cmd cs ts.cmd.Tsgo "$ROOT/bin/tsgo") "$@"

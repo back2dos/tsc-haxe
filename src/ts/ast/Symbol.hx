@@ -5,8 +5,13 @@ import haxe.ds.StringMap;
 // Port of symbol.go (types and methods; the InternalSymbolName* constants and the package
 // functions are in Ast.hx).
 
+// PORT: Go checker.TypeSystemEntity is `any` (a *Symbol, *Node, *Type or *Signature). Here it is an
+// empty interface that these four classes implement, so a typed cast to it is valid on every target
+// (the JVM checks every cast). ts.checker.Checker.TypeSystemEntity refers to it.
+interface TypeSystemEntity {}
+
 // Symbol
-class Symbol {
+class Symbol implements TypeSystemEntity {
 	public var Flags:SymbolFlags = 0;
 	public var CheckFlags:CheckFlags = 0; // Non-zero only in transient symbols created by Checker
 	public var Name:String = "";

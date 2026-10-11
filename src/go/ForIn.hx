@@ -19,13 +19,31 @@ import haxe.macro.Type;
 // Same elements in the same order as the maps' own iterators (StringMap/IntMap: keys() order and a
 // get() per key, like MapKeyValueIterator; IdentityMap: the snapshot its keyValueIterator copies).
 // Every other collection keeps its `for` loop unchanged. On JS the loops are never rewritten.
+// On the other targets (JVM, C#, Python) the same rewrite iterates over snapshots for correctness:
+// all StringMap/IntMap loops (also with Int/Float/Bool values) and `for (k in m.keys())`.
 class ForIn {
 	public static macro function values(coll:Expr, v:Expr, body:Expr):Expr {
 		final pos = Context.currentPos();
+		final cpp = Context.defined("cpp");
+		// PORT: jvm/cs/python — `for (k in m.keys())` iterates over a snapshot of the keys (the
+		// native iterators of these targets fail or misbehave when the body changes the map; Go allows it).
+		if (!cpp) {
+			switch coll.expr {
+				case ECall({expr: EField(m, "keys")}, []):
+					switch mapKind(m) {
+						case MString(_):
+							return macro @:pos(pos) for ($v in go.ForIn.StringKeys($m)) $body;
+						case MInt(_):
+							return macro @:pos(pos) for ($v in go.ForIn.IntKeys($m)) $body;
+						case _:
+					}
+				case _:
+			}
+		}
 		switch mapKind(coll) {
-			case MString(vt) if (!isBasic(vt)):
+			case MString(vt) if (!cpp || !isBasic(vt)):
 				return macro @:pos(pos) for ($v in go.ForIn.StringValues($coll)) $body;
-			case MInt(vt) if (!isBasic(vt)):
+			case MInt(vt) if (!cpp || !isBasic(vt)):
 				return macro @:pos(pos) for ($v in go.ForIn.IntValues($coll)) $body;
 			case MIdentity:
 				return macro @:pos(pos) for ($v in $coll.valuesArray()) $body;
@@ -94,6 +112,40 @@ class ForIn {
 
 	public static inline function IntKeys<T>(m:haxe.ds.IntMap<T>):Array<Int> {
 		return untyped __global__.__int_hash_keys(@:privateAccess m.h);
+	}
+	#elseif !js
+	// PORT: jvm/cs/python — snapshots, so the loop body may change the map (Go semantics; JVM's
+	// HashMap iterators throw ConcurrentModificationException, Python's dict iterators RuntimeError).
+	public static function StringValues<T>(m:haxe.ds.StringMap<T>):Array<T> {
+		final a = new Array<T>();
+		final it = m.iterator();
+		while (it.hasNext())
+			a.push(it.next());
+		return a;
+	}
+
+	public static function StringKeys<T>(m:haxe.ds.StringMap<T>):Array<String> {
+		final a = new Array<String>();
+		final it = m.keys();
+		while (it.hasNext())
+			a.push(it.next());
+		return a;
+	}
+
+	public static function IntValues<T>(m:haxe.ds.IntMap<T>):Array<T> {
+		final a = new Array<T>();
+		final it = m.iterator();
+		while (it.hasNext())
+			a.push(it.next());
+		return a;
+	}
+
+	public static function IntKeys<T>(m:haxe.ds.IntMap<T>):Array<Int> {
+		final a = new Array<Int>();
+		final it = m.keys();
+		while (it.hasNext())
+			a.push(it.next());
+		return a;
 	}
 	#end
 

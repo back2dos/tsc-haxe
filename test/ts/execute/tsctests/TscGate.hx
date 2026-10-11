@@ -5,7 +5,8 @@ import sys.io.File;
 
 // Gate main (not in Go): runs the ported tsc scenarios (TscTest, ShowconfigTest, TscbuildTest) and compares
 // each baseline byte for byte with upstream/tsc/testdata/baselines/reference/<tsc|tsbuild/...>.
-// Usage: TscGate [--case <substring>] [--local <dir>]
+// Usage: TscGate [--case <substring>] [--sample N] [--local <dir>]
+// --sample N: only every N-th scenario (scenarios 0, N, 2N, ... in run order, after --case).
 // Prints one line per scenario: `PASS|FAIL|CRASH <tsc/scenario/file.js>` and writes the actual
 // baselines to <local>/<path> (default bin/execute/local).
 class TscGate {
@@ -16,10 +17,13 @@ class TscGate {
 		final args = Sys.args();
 		var i = 0;
 		var caseFilter:Null<String> = null;
+		var sample = 1;
 		while (i < args.length) {
 			switch (args[i]) {
 				case "--case":
 					caseFilter = args[++i];
+				case "--sample":
+					sample = Std.parseInt(args[++i]);
 				case "--local":
 					local = args[++i];
 				default:
@@ -28,11 +32,16 @@ class TscGate {
 			}
 			i++;
 		}
-		if (caseFilter != null) {
+		if (caseFilter != null || sample > 1) {
 			final f = caseFilter;
+			var k = 0;
 			Gate.Filter = function(name:String):Bool {
-				final file = Strings.ReplaceAll(name, " ", "-");
-				return name.indexOf(f) >= 0 || file.indexOf(f) >= 0;
+				if (f != null) {
+					final file = Strings.ReplaceAll(name, " ", "-");
+					if (name.indexOf(f) < 0 && file.indexOf(f) < 0)
+						return false;
+				}
+				return k++ % sample == 0;
 			};
 		}
 		var pass = 0, fail = 0, crash = 0;

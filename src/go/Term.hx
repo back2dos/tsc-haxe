@@ -13,6 +13,10 @@ class Term {
 		return stream.isTTY == true;
 		#elseif cpp
 		return untyped __cpp__("::isatty({0}) != 0", fd);
+		#elseif jvm
+		// PORT: jvm — JDK 21 has no isatty: System.console() is non-null when stdin and stdout
+		// are both terminals (an approximation of isatty(fd) for fd 0-2).
+		return fd >= 0 && fd <= 2 && java.lang.System.console() != null;
 		#else
 		return false;
 		#end

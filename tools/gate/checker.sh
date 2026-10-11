@@ -7,9 +7,11 @@
 # .trace.json baselines with upstream/tsc/testdata/baselines/reference/submodule.
 #
 # Usage:
-#   tools/gate/checker.sh [--no-build] [--js-only|--cpp-only] [--jobs N] [gate args...]
-#       full run on JS and cpp; per kind: cases, pass, fail, crash, skip.
+#   tools/gate/checker.sh [--no-build] [--targets LIST | --js-only | --cpp-only] [--jobs N] [--sample N] [gate args...]
+#       full run on JS and cpp (default; --targets js,cpp,jvm,cs,py, see tools/targets.sh);
+#       per kind: cases, pass, fail, crash, skip; then "time <target> <ms>".
 #       --jobs N runs N gate processes in parallel (each on every N-th test file) and merges the results.
+#       --sample N runs only every N-th test file (files 0, N, 2N, ... in the gate's file order).
 #       Per-case results: bin/gate-checker/out-<target>/results.txt
 #       ("<kind> <pass|fail|crash|skip> <suite>/<configured name> <first differing line | panic>")
 #   tools/gate/checker.sh --case <name> [--case <name>...]
@@ -19,6 +21,8 @@
 set -e
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
+ROOT=$root
+. tools/targets.sh
 out=bin/gate-checker
 mkdir -p "$out"
 
@@ -26,12 +30,15 @@ build=1
 targets="js cpp"
 casemode=0
 jobs=1
+sample=1
 args=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--no-build) build=0 ;;
 	--js-only) targets="js" ;;
 	--cpp-only) targets="cpp" ;;
+	--targets) targets=$(hx_list "$2"); shift ;;
+	--sample) sample=$2; shift ;;
 	--case) casemode=1; args="$args --case $2"; shift ;;
 	--jobs) jobs=$2; shift ;;
 	*) args="$args $1" ;;
@@ -40,14 +47,15 @@ while [ $# -gt 0 ]; do
 done
 if [ $casemode = 1 ]; then targets="js"; fi
 
+main=ts.harness.CheckerGate
+# Parallel JVMs: a bounded heap and few GC threads each (16 JVMs with default heaps and 32 GC threads
+# each were killed by the OOM killer and spent most of their time in the kernel).
+HX_NODE_OPTS=--max-old-space-size=8000
+if [ "$jobs" -gt 1 ]; then JAVA_OPTS="$JAVA_OPTS -Xmx${GATE_JVM_XMX:-3g} -XX:ParallelGCThreads=2"; fi
 if [ $build = 1 ]; then
 	for t in $targets; do
 		echo "building gate ($t) ..."
-		if [ $t = js ]; then
-			tools/haxe -cp src -cp test -D analyzer-optimize -main ts.harness.CheckerGate -lib hxnodejs -js $out/gate.js
-		else
-			tools/haxe -cp src -cp test -D analyzer-optimize -main ts.harness.CheckerGate -cpp $out/cpp -D HXCPP_QUIET -D HXCPP_CHECK_POINTER >/dev/null
-		fi
+		hx_build $t $main $out/gate -D HXCPP_CHECK_POINTER
 	done
 fi
 
@@ -55,11 +63,8 @@ rungate() { # target outdir args...
 	t=$1
 	d=$2
 	shift 2
-	if [ $t = js ]; then
-		node --stack-size=7000 --max-old-space-size=8000 $out/gate.js --out "$d" "$@"
-	else
-		$out/cpp/CheckerGate --out "$d" "$@"
-	fi
+	# shellcheck disable=SC2046
+	$(hx_cmd $t $main $out/gate) --out "$d" "$@"
 }
 
 for t in $targets; do
@@ -67,7 +72,8 @@ for t in $targets; do
 	if [ $casemode = 1 ]; then dir=$out/case; fi
 	rm -rf "$dir/local"
 	echo "== $t"
-	if [ $casemode = 1 ] || [ "$jobs" -le 1 ]; then
+	t0=$(date +%s%3N)
+	if [ $casemode = 1 ] || { [ "$jobs" -le 1 ] && [ "$sample" -le 1 ]; }; then
 		# shellcheck disable=SC2086
 		rungate $t "$dir" $args
 	else
@@ -76,7 +82,8 @@ for t in $targets; do
 		i=0
 		while [ $i -lt "$jobs" ]; do
 			# shellcheck disable=SC2086
-			rungate $t "$dir/shards/$i" $args --shard $i/$jobs >"$dir/shards/$i.log" 2>&1 &
+			# sample N: shard (N*i)/(N*jobs), i.e. the files 0, N, 2N, ... split over the jobs
+			rungate $t "$dir/shards/$i" $args --shard $((sample * i))/$((sample * jobs)) >"$dir/shards/$i.log" 2>&1 &
 			i=$((i + 1))
 		done
 		wait
@@ -93,6 +100,7 @@ for t in $targets; do
 				for (i = 1; i <= 7; i++) { x = ks[i]; if (x in k) printf "%-10s%-7d%-7d%-7d%-7d%-7d\n", x, n[x], c[x" pass"], c[x" fail"], c[x" crash"], c[x" skip"] }
 			}' "$dir/results.txt"
 	fi
+	echo "time $t $(($(date +%s%3N) - t0))"
 done
 
 if [ $casemode = 1 ]; then

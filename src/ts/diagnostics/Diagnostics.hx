@@ -61,7 +61,7 @@ class Diagnostics {
 		return messages;
 	}
 
-	static final placeholderRegexp = ~/{(\d+)}/g;
+	static final placeholderRegexp = ~/\{([0-9]+)\}/g; // PORT: jvm — `{` escaped (Java regex rejects a bare `{`)
 
 	public static function Format(text:String, args:Array<String>):String {
 		if (args == null || args.length == 0)

@@ -11,6 +11,10 @@ import haxe.Constraints.IMap;
 //          kept in insertion order (a deleted key that is set again goes to the end).
 //   JS:    a native ES6 Map (identity keys, insertion order); ObjectMap adds an `__id__` field
 //          to every key object (a hidden-class change) and stores values under sparse integer keys.
+//   other: keys and values in arrays in insertion order (holes for deleted entries, compacted when
+//          they are more than half), plus an identity index key -> array position: on JVM a
+//          java.util.IdentityHashMap (haxe.ds.ObjectMap uses equals()/hashCode()), elsewhere
+//          haxe.ds.ObjectMap.
 // keys()/iterator()/keyValueIterator() iterate over a snapshot (like haxe.ds.ObjectMap), so the
 // map may be changed during iteration. Keys must be class instances (not null, String, Int).
 class IdentityMap<K, V> implements IMap<K, V> {
@@ -27,24 +31,47 @@ class IdentityMap<K, V> implements IMap<K, V> {
 	var shift:Int = 32; // 32 - log2(slots.length)
 	var used:Int = 0; // ks.length (live entries + holes)
 	var count:Int = 0; // live entries
-	#else
+	#elseif js
 	var m:js.lib.Map<K, V>;
+	#else
+	// Entries in insertion order; a deleted entry has a null key (a hole).
+	var ks:Array<K> = [];
+	var vs:Array<V> = [];
+	var idx:IdentityIndex = new IdentityIndex();
+	var count:Int = 0; // live entries
 	#end
 
 	public function new() {
-		#if !cpp
+		#if js
 		m = new js.lib.Map();
 		#end
 	}
 
 	// len(m)
 	public inline function size():Int {
-		#if cpp
-		return count;
-		#else
+		#if js
 		return m.size;
+		#else
+		return count;
 		#end
 	}
+
+	#if !(cpp || js)
+	// Removes the holes from ks/vs and renumbers the index.
+	function compact():Void {
+		final nk = new Array<K>(), nv = new Array<V>();
+		for (i in 0...ks.length) {
+			final k = ks[i];
+			if (k != null) {
+				idx.set(k, nk.length);
+				nk.push(k);
+				nv.push(vs[i]);
+			}
+		}
+		ks = nk;
+		vs = nv;
+	}
+	#end
 
 	#if cpp
 	// Fibonacci hash of the key's address (objects are at least 8-byte aligned).
@@ -110,16 +137,21 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		#if cpp
 		final e = find(k);
 		return e < 0 ? null : vs[e];
-		#else
+		#elseif js
 		return m.get(k);
+		#else
+		final e = idx.get(k);
+		return e < 0 ? null : vs[e];
 		#end
 	}
 
 	public function exists(k:K):Bool {
 		#if cpp
 		return find(k) >= 0;
-		#else
+		#elseif js
 		return m.has(k);
+		#else
+		return idx.get(k) >= 0;
 		#end
 	}
 
@@ -157,10 +189,23 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		if (used * 2 > slots.length)
 			rehash(count * 4); // load ≤ 1/2 (after removing holes)
 		return true;
-		#else
+		#elseif js
 		final n = m.size;
 		m.set(k, v);
 		return m.size != n;
+		#else
+		if (k == null)
+			throw "IdentityMap: null key";
+		final e = idx.get(k);
+		if (e >= 0) {
+			vs[e] = v;
+			return false;
+		}
+		idx.set(k, ks.length);
+		ks.push(k);
+		vs.push(v);
+		count++;
+		return true;
 		#end
 	}
 
@@ -198,8 +243,19 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		}
 		slots[i] = 0;
 		return true;
-		#else
+		#elseif js
 		return m.delete(k);
+		#else
+		final e = idx.get(k);
+		if (e < 0)
+			return false;
+		idx.remove(k);
+		ks[e] = null;
+		vs[e] = null;
+		count--;
+		if (count * 2 < ks.length - 8)
+			compact();
+		return true;
 		#end
 	}
 
@@ -222,8 +278,10 @@ class IdentityMap<K, V> implements IMap<K, V> {
 				a.push(k);
 		}
 		return a;
-		#else
+		#elseif js
 		return [for (k in new js.lib.HaxeIterator(m.keys())) k];
+		#else
+		return [for (k in ks) if (k != null) k];
 		#end
 	}
 
@@ -234,8 +292,10 @@ class IdentityMap<K, V> implements IMap<K, V> {
 			if (ks[i] != null)
 				a.push(vs[i]);
 		return a;
-		#else
+		#elseif js
 		return [for (v in new js.lib.HaxeIterator(m.values())) v];
+		#else
+		return [for (i in 0...ks.length) if (ks[i] != null) vs[i]];
 		#end
 	}
 
@@ -259,8 +319,14 @@ class IdentityMap<K, V> implements IMap<K, V> {
 			c.used = c.count = count;
 			c.rehash(count * 4);
 		}
-		#else
+		#elseif js
 		m.forEach((v, k, _) -> c.m.set(k, v));
+		#else
+		for (i in 0...ks.length) {
+			final k = ks[i];
+			if (k != null)
+				c.add(k, vs[i]);
+		}
 		#end
 		return c;
 	}
@@ -288,8 +354,13 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		slots = null;
 		shift = 32;
 		used = count = 0;
-		#else
+		#elseif js
 		m.clear();
+		#else
+		ks = [];
+		vs = [];
+		idx = new IdentityIndex();
+		count = 0;
 		#end
 	}
 }
@@ -325,6 +396,33 @@ private abstract SlotArray(Array<IdentityMapSlot>) {
 
 	public inline function push(v:Dynamic):Void {
 		untyped __cpp__("{0}->push({1})", this, v);
+	}
+}
+#end
+
+#if !(cpp || js)
+// Identity index of IdentityMap: key object -> position in ks (-1 when absent).
+private abstract IdentityIndex(#if jvm java.util.IdentityHashMap<Dynamic, Null<Int>> #else haxe.ds.ObjectMap<Dynamic, Int> #end) {
+	public inline function new() {
+		// PORT: jvm — haxe.ds.ObjectMap compares keys with equals()/hashCode(); this map uses identity.
+		this = #if jvm new java.util.IdentityHashMap() #else new haxe.ds.ObjectMap() #end;
+	}
+
+	public inline function get(k:Dynamic):Int {
+		final v:Null<Int> = this.get(k);
+		return v == null ? -1 : v;
+	}
+
+	public inline function set(k:Dynamic, i:Int):Void {
+		#if jvm
+		this.put(k, i);
+		#else
+		this.set(k, i);
+		#end
+	}
+
+	public inline function remove(k:Dynamic):Void {
+		this.remove(k);
 	}
 }
 #end

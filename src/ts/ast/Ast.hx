@@ -12128,7 +12128,8 @@ abstract MutableNode(NodeDefault) from NodeDefault to NodeDefault {
 // PORT: Go `NodeDefault` (embedded through NodeBase in every node data struct) + the fields of
 // Go `Node`. The public non-inline methods are the nodeData interface: tools/gen/ast reads this
 // class to decide which promoted methods are overrides.
-class NodeDefault {
+// PORT: implements TypeSystemEntity (Go `any`, see Symbol.hx).
+class NodeDefault implements ts.ast.Symbol.TypeSystemEntity {
 	public var Kind:Kind = 0;
 	public var Flags:NodeFlags = 0;
 	// PORT: Go `Loc core.TextRange` → two Int fields with an inline Loc property (no allocation).

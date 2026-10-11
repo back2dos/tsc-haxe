@@ -21,8 +21,7 @@ enum abstract CheckMode(Int) from Int to Int {
 	var CheckModeForceTuple = 1 << 7;
 }
 
-interface TypeSystemEntity {
-}
+typedef TypeSystemEntity = ts.ast.Symbol.TypeSystemEntity; // PORT: Go `any`, see ts/ast/Symbol.hx
 
 enum abstract TypeSystemPropertyName(Int) from Int to Int {
 	var TypeSystemPropertyNameType = 0;

@@ -12,7 +12,8 @@ import haxe.macro.Expr;
 // `{ final tmp = e; if (tmp != null) for (x in tmp) ... }`. Integer ranges (`a...b`) are unchanged.
 // It also makes a rest spread `f(...xs)` of a null array pass zero arguments, like Go `f(xs...)`,
 // and a `.length` read of null give 0, like Go `len(nil)`. On cpp the loops go through go.ForIn
-// (PORT: perf: map loops over arrays instead of hxcpp's by-name iterator calls).
+// (PORT: perf: map loops over arrays instead of hxcpp's by-name iterator calls); on JVM, C# and
+// Python too (map loops over snapshots, see go.ForIn).
 class NilRange {
 	public static function apply():Void {
 		for (pack in ["ts", "go"])
@@ -21,7 +22,18 @@ class NilRange {
 
 	public static function build():Array<Field> {
 		final fields = Context.getBuildFields();
+		final jvm = Context.defined("jvm");
 		for (f in fields) {
+			// PORT: jvm — large literal tables in static initializers (see go.JvmStatics).
+			if (jvm && f.access != null && f.access.contains(AStatic)) {
+				switch f.kind {
+					case FVar(t, e) if (e != null):
+						f.kind = FVar(t, go.JvmStatics.rewriteStatic(e));
+					case FProp(g, s, t, e) if (e != null):
+						f.kind = FProp(g, s, t, go.JvmStatics.rewriteStatic(e));
+					case _:
+				}
+			}
 			switch f.kind {
 				case FFun(fn) if (fn.expr != null):
 					fn.expr = rewrite(fn.expr);
@@ -62,13 +74,13 @@ class NilRange {
 				final body2 = rewrite(body);
 				switch it.expr {
 					case EBinop(OpIn, v, coll) if (!isInterval(coll)):
-						if (Context.defined("cpp"))
+						if (!Context.defined("js"))
 							makeLoopWith(e.pos, rewrite(coll), tmp -> macro @:pos(e.pos) go.ForIn.values($tmp, $v, $body2));
 						else
 							makeLoop(e.pos, v, rewrite(coll), body2, (v, tmp) -> macro $v in $tmp);
 					// `for (k => v in m)` parses as `k => (v in m)`
 					case EBinop(OpArrow, k, {expr: EBinop(OpIn, v, coll)}):
-						if (Context.defined("cpp"))
+						if (!Context.defined("js"))
 							makeLoopWith(e.pos, rewrite(coll), tmp -> macro @:pos(e.pos) go.ForIn.keyValues($tmp, $k, $v, $body2));
 						else
 							makeLoop(e.pos, v, rewrite(coll), body2, (v, tmp) -> macro $k => $v in $tmp);

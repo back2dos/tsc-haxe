@@ -137,7 +137,7 @@ Upstream generated files are not ported by hand. We generate them from the same 
 - A Go typed nil slice inside an `any` (prints `null` in JSON, unlike an empty slice) → identity sentinels, see `Tsoptions.nilAnySlice`.
 - Regex patterns supplied by users at run time (preferences) go to `EReg` unchanged; RE2-only syntax is a known deviation.
 - `regexp`: `go.Regexp` takes an EReg pattern that the porter rewrites to behave like Go on JS **and** hxcpp PCRE2. Rewrite rules are in the header of `src/go/Regexp.hx` (no `\d \s \w \b`, no `$`, no `i` flag). Prefer a hand loop when the pattern is simple.
-- Shims must behave the same on JS and hxcpp.
+- Shims must behave the same on every target (JS, hxcpp, JVM; C# and Python next).
 
 ## 7a. Toolchain
 
@@ -177,7 +177,22 @@ Upstream generated files are not ported by hand. We generate them from the same 
 - **Deep recursion on JS:** Go stacks grow; node's default stack does not. Deeply nested inputs (e.g. 5,000 nested binary expressions) need `node --stack-size=7000` (the gates use it; the JS launcher of the final CLI must set it too).
 - **Static initialization order** across classes is not defined in Haxe. A package-level var whose initializer uses another class's statics must be a lazy getter (`static var X(get, never)`), not a `static final` with an initializer.
 - A module whose Go file name clashes with a Haxe core type (`string.go`) gets a `_` suffix: `String_.hx`.
-- A shim named like a std class (`go.Math`) hides the std class inside package `go`; write `std.Math` there. Use `#if js` / `#if cpp` only inside shims, never in ported code.
+- A shim named like a std class (`go.Math`) hides the std class inside package `go`; write `std.Math` there. Use target conditionals only inside shims (`src/go/`), never in ported code. Shape: `#if cpp … #elseif js … #else <portable Haxe> #end`; the portable branch keeps Go semantics (insertion order, identity keys) and serves JVM, C# and Python. Mark target-only code `// PORT: <target> <reason>`.
+
+## 7b. Other targets (JVM; C# and Python next)
+
+Toolchain paths: `tools/env.sh` (overridable by environment variables). Build/run of one main on one target: `tools/targets.sh` (`hx_build`, `hx_cmd`). Gates take `--targets js,cpp,jvm,cs,py` and `--sample N`; `make matrix` writes `docs/MATRIX.md`. Rules learned on the JVM (each one measured):
+
+- **64 KB per method.** Haxe puts all static initializers of a class into one JVM method; large literal tables overflow it (`IO.Overflow("write_ui16")` from the generator, no position). `go.JvmStatics` (applied by `go.NilRange` on JVM only) turns a static literal `Array<Int>`/`Array<String>` of 32+ constants into a decode call of a string; `DiagnosticsMacro` assigns the ~3,000 messages in chunk functions on JVM. A new large static table needs no action if it is a literal array of constants.
+- **Casts are checked.** `(cast x : I)` throws `ClassCastException` when the class of `x` does not implement `I` (hxcpp and JS never check). Example: Go `TypeSystemEntity` is `any`; it is now an empty interface (`ts.ast.Symbol.TypeSystemEntity`) that `Symbol`, `NodeDefault`, `Type` and `Signature` implement.
+- **Inferred locals from `Dynamic`** (§7a) also fail here: `final v = r.value; … final s:String = v;` types `v` as `String` and the JVM casts an `Array` to it (`Tsoptions.parseJsonToStringKey`). Annotate `:Dynamic`.
+- **Java generics box.** A Java collection typed `IdentityHashMap<K, Int>` returns `0` for a missing key (null unboxed); declare `Null<Int>`.
+- **Spread into a generic rest parameter:** `f(...ints)` with `ints:Array<Int>` and `function f<T>(...items:T)` fails JVM verification (`VerifyError: [I is not assignable to [Ljava/lang/Object;`). Pass the arguments directly, as Go does (`Compiler.plainJSErrors`).
+- **Regex:** Java rejects a bare `{` (`~/{(\d+)}/`); write `~/\{([0-9]+)\}/`. Patterns must work on JS, PCRE2 (hxcpp) and `java.util.regex`.
+- **Map iteration while the body changes the map** (allowed in Go): JVM's `HashMap` throws `ConcurrentModificationException`, Python's dict raises. On every target except JS, `go.ForIn` iterates `StringMap`/`IntMap` loops and `for (k in m.keys())` over snapshots (hxcpp already did).
+- **`Std.string(Float)` differs per target** (`1e+21` JS, `1.0E21` JVM). Never use it for output; `go.Strconv` formats floats like Go (on JVM from `Double.toString`, the shortest round-trip digits since JDK 19, plus a 1-digit check for the JDK's 2-digit minimum: `4.9E-324` → `5e-324`).
+- **Stack:** deep recursion needs `java -Xss1g` (`JAVA_OPTS` in `tools/env.sh`; the java launcher runs `main()` in a thread of that size). Parallel JVMs (checker gate `--jobs`) get `-Xmx3g -XX:ParallelGCThreads=2` each; with defaults 16 JVMs were killed by the OOM killer.
+- `-Xlog:exceptions=off`: Haxe declares `throws java.lang.Object` on methods that throw a `String`; HotSpot logs a warning **to stdout** when it reflects on one (this broke the real-project stdout comparison).
 
 ## 8. Tests and lanes
 
@@ -196,5 +211,5 @@ Upstream generated files are not ported by hand. We generate them from the same 
 - A test directory may have its own `import.hx`.
 - Tests reach unexported functions with `@:allow(ts.<pkg>)` on the package class.
 - `Fuzz*` functions: port as runs over their seed inputs (what `go test` does without `-fuzz`). `Benchmark*`: not ported; list them in the report.
-- Each test must pass on **JS and hxcpp**.
+- Each test must pass on **JS, hxcpp and JVM** (`make test`, `make test-jvm`).
 - A test that cannot be ported yet (it needs an unported package) stays in the file as a comment: `// PORT: skipped, needs <pkg>`.

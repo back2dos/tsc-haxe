@@ -1,0 +1,6 @@
+#!/bin/sh
+# Launcher for the jvm build of tsgo (bin/tsgo-jvm*, built with `make cli-jvm`; see tools/targets.sh).
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/tools/targets.sh"
+# shellcheck disable=SC2046
+exec $(hx_cmd jvm ts.cmd.Tsgo "$ROOT/bin/tsgo") "$@"

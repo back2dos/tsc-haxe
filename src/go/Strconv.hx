@@ -501,9 +501,59 @@ private class StrconvFloat {
 		}
 		return fmtE(x, 16);
 		#else
-		throw "StrconvFloat.shortest: unsupported target";
+		// PORT: jvm/cs/python — Std.string(Float) is the shortest round-trip decimal (JVM: Double.toString
+		// since JDK 19; Python repr; .NET Core "R"), only in another notation.
+		final e = toExponential(Std.string(x));
+		// PORT: jvm — JDK 19+ Double.toString never gives fewer than 2 digits (4.9E-324, where JS
+		// gives 5e-324): try the 1-digit decimals around a 2-digit result, the nearer one first.
+		if (e.length > 3 && e.charAt(1) == "." && e.charAt(3) == "e") {
+			final d0 = StringTools.fastCodeAt(e, 0) - "0".code, d1 = StringTools.fastCodeAt(e, 2) - "0".code;
+			final rest = e.substring(3);
+			final near = d1 >= 5 ? d0 + 1 : d0, far = d1 >= 5 ? d0 : d0 + 1;
+			for (c in [near, far]) {
+				if (c >= 1 && c <= 9 && parse(c + rest) == x)
+					return c + rest;
+			}
+		}
+		return e;
 		#end
 	}
+
+	#if !(js || cpp)
+	// "123.45", "1.0E21", "1e-07", … → "d.ddde±X" (JS toExponential() form), same digits.
+	static function toExponential(s:String):String {
+		final digits = new StringBuf();
+		var exp = 0; // decimal exponent of the first collected digit
+		var seenDot = false, started = false, i = 0, n = 0;
+		while (i < s.length) {
+			final c = StringTools.fastCodeAt(s, i);
+			if (c == ".".code) {
+				seenDot = true;
+			} else if (c >= "0".code && c <= "9".code) {
+				if (c != "0".code || started) {
+					if (!started)
+						exp = seenDot ? -(n + 1) : 0;
+					started = true;
+					digits.addChar(c);
+				} else if (seenDot) {
+					n++; // leading zero after the dot
+				}
+				if (started && !seenDot && digits.length > 1)
+					exp++;
+			} else if (c == "e".code || c == "E".code) {
+				exp += Std.parseInt(StringTools.replace(s.substring(i + 1), "+", ""));
+				break;
+			}
+			i++;
+		}
+		var d = digits.toString();
+		var end = d.length;
+		while (end > 1 && StringTools.fastCodeAt(d, end - 1) == "0".code)
+			end--;
+		d = d.substring(0, end);
+		return d.charAt(0) + (d.length > 1 ? "." + d.substring(1) : "") + "e" + (exp < 0 ? "-" : "+") + Std.string(exp < 0 ? -exp : exp);
+	}
+	#end
 
 	#if cpp
 	// digits + 1 (up) or digits - 1 (down) as a decimal string; null if down would lose a digit.
@@ -551,6 +601,8 @@ private class StrconvFloat {
 		return js.Syntax.code("Number({0})", s);
 		#elseif cpp
 		return untyped __cpp__("strtod({0}.utf8_str(), 0)", s);
+		#elseif jvm
+		return java.lang.Double.DoubleClass.parseDouble(s); // PORT: jvm — correctly rounded
 		#else
 		return Std.parseFloat(s);
 		#end

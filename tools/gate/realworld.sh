@@ -1,9 +1,9 @@
 #!/bin/sh
 # Phase 8 gate: compiles real projects with the reference tsgo (Go, --singleThreaded) and with the
-# Haxe tsc (JS: node --stack-size=7000 bin/realworld/tsgo.js, cpp: bin/realworld/tsgo-cpp/Tsgo), and
-# compares, after every step, stdout + exit code and every file of the working copy byte for byte.
-# Each compiler works on its own copy (bin/realworld/w-go, w-js, w-cpp: same path length); nothing is
-# ever written into upstream/. --verbose build output is compared with its "hh:mm:ss AM - " clock
+# Haxe tsc (JS: node --stack-size=7000 bin/realworld/tsgo-js.js, cpp: bin/realworld/tsgo-cpp/Tsgo, other
+# targets: tools/targets.sh), and compares, after every step, stdout + exit code and every file of the
+# working copy byte for byte. Each compiler works on its own copy (bin/realworld/w-go, w-js, w-cpp, ...);
+# nothing is ever written into upstream/. --verbose build output is compared with its "hh:mm:ss AM - " clock
 # prefix removed (the only nondeterministic part).
 #
 # Projects:
@@ -41,18 +41,36 @@
 #   The lock subset (package.json + package-lock.json) is derived from upstream's lock by the node
 #   snippet below (same resolution as node: nested node_modules entries included).
 #
-# Usage: tools/gate/realworld.sh [--no-build]   (--no-build: reuse bin/realworld/tsgo.js, tsgo-cpp)
+# Usage: tools/gate/realworld.sh [--no-build] [--targets LIST] [--projects LIST]
+#   --no-build       reuse bin/realworld/tsgo-<target> (tools/targets.sh)
+#   --targets LIST   comma separated targets (js,cpp,jvm,cs,py; default js,cpp); Go always runs
+#   --projects LIST  comma separated subset of: ts6-compiler ts6-solution native-preview tsc-extension
 # Exit status: 0 when every project/mode/step/target is identical to Go.
 set -e
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
+ROOT=$root
+. tools/targets.sh
 out=bin/realworld
 mkdir -p "$out"
 
-if [ "$1" != "--no-build" ]; then
-	echo "building Haxe tsc (JS, cpp) ..."
-	tools/haxe -main ts.cmd.Tsgo -D analyzer-optimize -lib hxnodejs -js "$out/tsgo.js"
-	tools/haxe -main ts.cmd.Tsgo -D analyzer-optimize -cpp "$out/tsgo-cpp" -D HXCPP_QUIET >/dev/null
+build=1
+targets="js cpp"
+projects="ts6-compiler ts6-solution native-preview tsc-extension"
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--no-build) build=0 ;;
+	--targets) targets=$(hx_list "$2"); shift ;;
+	--projects) projects=$(echo "$2" | tr ',' ' '); shift ;;
+	*) echo "unknown argument $1"; exit 2 ;;
+	esac
+	shift
+done
+want() { case " $projects " in *" $1 "*) return 0 ;; esac; return 1; }
+main=ts.cmd.Tsgo
+if [ $build = 1 ]; then
+	echo "building Haxe tsc ($targets) ..."
+	for t in $targets; do hx_build $t $main "$out/tsgo"; done
 	[ -x .ref/tsgo ] || make ref
 fi
 
@@ -124,13 +142,12 @@ printf "$fmt" project mode step tgt seconds maxKB exit files diffs stdout
 # (each in $out/w-<tgt>) and compares stdout+exit code and the whole working copy with Go's.
 step() {
 	proj=$1; mode=$2; st=$3; prep=$4; shift 4
-	for tgt in go js cpp; do
+	for tgt in go $targets; do
 		w="$out/w-$tgt"
 		(cd "$w" && eval "$prep")
 		case $tgt in
 			go)  cmd="$root/.ref/tsgo"; post=--singleThreaded ;;
-			js)  cmd="node --stack-size=7000 $root/$out/tsgo.js"; post= ;;
-			cpp) cmd="$root/$out/tsgo-cpp/Tsgo"; post= ;;
+			*)   cmd=$(hx_cmd $tgt $main "$root/$out/tsgo"); post= ;;
 		esac
 		rc=0
 		# shellcheck disable=SC2086
@@ -158,15 +175,15 @@ EOT
 }
 # fresh <template>: new working copies for all targets
 fresh() {
-	for tgt in go js cpp; do rm -rf "$out/w-$tgt"; cp -r "$1" "$out/w-$tgt"; done
+	for tgt in go $targets; do rm -rf "$out/w-$tgt"; cp -r "$1" "$out/w-$tgt"; done
 }
 
 # ts6-compiler: compiled in place (sources under upstream/ are only read), outputs in w-<tgt>
 src="$root/upstream/src"
-for mode in decl full; do
+want ts6-compiler && for mode in decl full; do
 	extra=""
 	[ $mode = full ] && extra="--emitDeclarationOnly false --sourceMap"
-	for tgt in go js cpp; do
+	for tgt in go $targets; do
 		rm -rf "$out/w-$tgt"; mkdir -p "$out/w-$tgt"
 		cat > "$out/w-$tgt/tsconfig.json" <<EOF
 {
@@ -180,7 +197,7 @@ EOF
 	step ts6-compiler $mode b1 : -p tsconfig.json $extra
 done
 
-for mode in decl full; do
+want ts6-solution && for mode in decl full; do
 	extra=""
 	[ $mode = full ] && extra="--emitDeclarationOnly false"
 	fresh "$t6"
@@ -195,16 +212,22 @@ for mode in decl full; do
 done
 
 # build mode with errors: no node_modules (@types/node, mocha, chai missing), pretty output from the config
-fresh "$t6"
-for tgt in go js cpp; do rm -rf "$out/w-$tgt/node_modules"; done
-step ts6-solution notyp b1 : -b src/tsconfig.json
-step ts6-solution notyp b2 : -b src/tsconfig.json --verbose
+if want ts6-solution; then
+	fresh "$t6"
+	for tgt in go $targets; do rm -rf "$out/w-$tgt/node_modules"; done
+	step ts6-solution notyp b1 : -b src/tsconfig.json
+	step ts6-solution notyp b2 : -b src/tsconfig.json --verbose
+fi
 
-fresh "$tt"
-step native-preview -    b1 : -b _packages/native-preview/test
-step native-preview -    b2 : -b _packages/native-preview/test --verbose
-fresh "$tt"
-step tsc-extension decl  p1 : -p _extension
-step tsc-extension emit  p1 : -p _extension --noEmit false --declaration --sourceMap
+if want native-preview; then
+	fresh "$tt"
+	step native-preview -    b1 : -b _packages/native-preview/test
+	step native-preview -    b2 : -b _packages/native-preview/test --verbose
+fi
+if want tsc-extension; then
+	fresh "$tt"
+	step tsc-extension decl  p1 : -p _extension
+	step tsc-extension emit  p1 : -p _extension --noEmit false --declaration --sourceMap
+fi
 
 exit $status

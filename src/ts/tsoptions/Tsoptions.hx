@@ -2820,7 +2820,7 @@ class Tsoptions {
 			}
 			r = m.Get("extends");
 			if (r.ok) {
-				final v = r.value;
+				final v:Dynamic = r.value; // PORT: explicit Dynamic (PORTING.md §7a: inferred locals from Dynamic)
 				if (isString(v)) {
 					final str:std.String = v;
 					result.Set("extends", ([str] : Array<Dynamic>));

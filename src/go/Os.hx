@@ -913,11 +913,66 @@ class OsNative {
 			r.mtimeSec = a[3];
 			r.mtimeNsec = Std.int(a[4]);
 		}
+		#elseif jvm
+		try {
+			final m = if (follow) java.nio.file.Files.readAttributes(jpath(path),
+				"unix:mode,size,lastModifiedTime") else java.nio.file.Files.readAttributes(jpath(path), "unix:mode,size,lastModifiedTime",
+					java.nio.file.LinkOption.NOFOLLOW_LINKS);
+			r.mode = (cast m.get("mode") : Int);
+			r.size = haxe.Int64.toInt((cast m.get("size") : haxe.Int64));
+			final t:java.nio.file.attribute.FileTime = cast m.get("lastModifiedTime");
+			final i = t.toInstant();
+			r.mtimeSec = haxe.Int64.toInt(i.getEpochSecond());
+			r.mtimeNsec = i.getNano();
+		} catch (e:Dynamic) {
+			r.err = jvmCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
 		return r;
 	}
+
+	#if jvm
+	// PORT: jvm — java.nio.file; the exception becomes the POSIX error code name.
+	static function jpath(path:String):java.nio.file.Path {
+		return java.nio.file.Paths.get(path);
+	}
+
+	public static function jvmCode(e:Dynamic):String {
+		if (Std.isOfType(e, java.nio.file.NoSuchFileException))
+			return "ENOENT";
+		if (Std.isOfType(e, java.nio.file.FileAlreadyExistsException))
+			return "EEXIST";
+		if (Std.isOfType(e, java.nio.file.DirectoryNotEmptyException))
+			return "ENOTEMPTY";
+		if (Std.isOfType(e, java.nio.file.NotDirectoryException))
+			return "ENOTDIR";
+		if (Std.isOfType(e, java.nio.file.AccessDeniedException))
+			return "EACCES";
+		if (Std.isOfType(e, java.nio.file.FileSystemLoopException))
+			return "ELOOP";
+		if (Std.isOfType(e, java.nio.file.FileSystemException)) {
+			final reason:Null<String> = (cast e : java.nio.file.FileSystemException).getReason();
+			switch reason {
+				case "Not a directory": return "ENOTDIR";
+				case "Is a directory": return "EISDIR";
+				case "Too many levels of symbolic links": return "ELOOP";
+				case "File name too long": return "ENAMETOOLONG";
+				case "Permission denied": return "EACCES";
+				case "Operation not permitted": return "EPERM";
+				case "Read-only file system": return "EROFS";
+				case "Invalid argument": return "EINVAL";
+				case _:
+			}
+		}
+		return "EIO";
+	}
+
+	static function isDir(path:String):Bool {
+		return java.nio.file.Files.isDirectory(jpath(path), java.nio.file.LinkOption.NOFOLLOW_LINKS);
+	}
+	#end
 
 	#if cpp
 	static function errname(e:Int):String {
@@ -936,6 +991,17 @@ class OsNative {
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::mkdir({0}.utf8_str(), (mode_t){1}) == 0 ? 0 : errno)", path, perm);
 		return e == 0 ? null : errname(e);
+		#elseif jvm
+		try {
+			final b = new StringBuf();
+			for (i in 0...9)
+				b.add((perm & (1 << (8 - i))) != 0 ? "rwx".charAt(i % 3) : "-");
+			java.nio.file.Files.createDirectory(jpath(path),
+				java.nio.file.attribute.PosixFilePermissions.asFileAttribute(java.nio.file.attribute.PosixFilePermissions.fromString(b.toString())));
+			return null;
+		} catch (e:Dynamic) {
+			return jvmCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -952,6 +1018,15 @@ class OsNative {
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::unlink({0}.utf8_str()) == 0 ? 0 : errno)", path);
 		return e == 0 ? null : errname(e);
+		#elseif jvm
+		try {
+			if (isDir(path))
+				return "EISDIR"; // Files.delete would remove an empty directory
+			java.nio.file.Files.delete(jpath(path));
+			return null;
+		} catch (e:Dynamic) {
+			return jvmCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -968,6 +1043,17 @@ class OsNative {
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::rmdir({0}.utf8_str()) == 0 ? 0 : errno)", path);
 		return e == 0 ? null : errname(e);
+		#elseif jvm
+		try {
+			if (!isDir(path)) {
+				final st = stat(path, false);
+				return st.err != null ? st.err : "ENOTDIR";
+			}
+			java.nio.file.Files.delete(jpath(path));
+			return null;
+		} catch (e:Dynamic) {
+			return jvmCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -984,6 +1070,13 @@ class OsNative {
 		#elseif cpp
 		final e:Int = untyped __cpp__("(::symlink({0}.utf8_str(), {1}.utf8_str()) == 0 ? 0 : errno)", target, path);
 		return e == 0 ? null : errname(e);
+		#elseif jvm
+		try {
+			java.nio.file.Files.createSymbolicLink(jpath(path), jpath(target));
+			return null;
+		} catch (e:Dynamic) {
+			return jvmCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1000,6 +1093,17 @@ class OsNative {
 		#elseif cpp
 		final e:Int = untyped __cpp__("go_os_utimes({0}, {1}, {2})", path, atime, mtime);
 		return e == 0 ? null : errname(e);
+		#elseif jvm
+		try {
+			final view:java.nio.file.attribute.BasicFileAttributeView = cast java.nio.file.Files.getFileAttributeView(jpath(path),
+				java.lang.Class.forName("java.nio.file.attribute.BasicFileAttributeView"));
+			final us = (t:Float) -> java.nio.file.attribute.FileTime.from(haxe.Int64.fromFloat(std.Math.ffloor(t * 1e6)),
+				java.util.concurrent.TimeUnit.MICROSECONDS);
+			view.setTimes(us(mtime), us(atime), null);
+			return null;
+		} catch (e:Dynamic) {
+			return jvmCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1023,6 +1127,13 @@ class OsNative {
 			return null;
 		}
 		return s;
+		#elseif jvm
+		try {
+			return jpath(path).toRealPath().toString();
+		} catch (e:Dynamic) {
+			realpathErr = jvmCode(e);
+			return null;
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end

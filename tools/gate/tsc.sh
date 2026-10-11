@@ -5,7 +5,9 @@
 # compares every baseline byte for byte with upstream/tsc/testdata/baselines/reference/{tsc,tsbuild}/**
 # (read in place, never copied).
 #
-# Usage: tools/gate/tsc.sh [--no-build] [--js-only|--cpp-only] [--case <substring>]
+# Usage: tools/gate/tsc.sh [--no-build] [--targets LIST | --js-only | --cpp-only] [--sample N] [--case <substring>]
+#   --targets LIST      comma separated targets (js,cpp,jvm,cs,py; default js,cpp; see tools/targets.sh)
+#   --sample N          only every N-th scenario (in run order)
 #   --case <substring>  run only the scenarios whose baseline path or name contains <substring>
 #                       and print the full diff (reference vs actual) for each non-passing one.
 # Output: per target the number of scenarios, PASS, FAIL, CRASH and the list of failures.
@@ -13,31 +15,32 @@
 set -e
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
+ROOT=$root
+. tools/targets.sh
 out=bin/execute/gate
 mkdir -p "$out"
 build=1
 targets="js cpp"
 case_filter=""
+sample=1
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--no-build) build=0 ;;
 		--js-only) targets="js" ;;
 		--cpp-only) targets="cpp" ;;
+		--targets) shift; targets=$(hx_list "$1") ;;
+		--sample) shift; sample=$1 ;;
 		--case) shift; case_filter="$1" ;;
 		*) echo "unknown argument $1"; exit 2 ;;
 	esac
 	shift
 done
 
+main=ts.execute.tsctests.TscGate
 if [ $build = 1 ]; then
 	for t in $targets; do
-		if [ "$t" = js ]; then
-			echo "building TscGate (js) ..."
-			tools/haxe -cp test -D analyzer-optimize -main ts.execute.tsctests.TscGate -lib hxnodejs -js "$out/tscgate.js"
-		else
-			echo "building TscGate (cpp) ..."
-			tools/haxe -cp test -D analyzer-optimize -main ts.execute.tsctests.TscGate -cpp "$out/cpp" -D HXCPP_QUIET -D HXCPP_CHECK_POINTER >/dev/null
-		fi
+		echo "building TscGate ($t) ..."
+		hx_build $t $main $out/tscgate -D HXCPP_CHECK_POINTER
 	done
 fi
 
@@ -48,12 +51,10 @@ for t in $targets; do
 	mkdir -p "$out/$t"
 	set -- --local "$out/$t/local"
 	[ -n "$case_filter" ] && set -- "$@" --case "$case_filter"
+	[ "$sample" -gt 1 ] && set -- "$@" --sample "$sample"
 	t0=$(date +%s%3N)
-	if [ "$t" = js ]; then
-		timeout 3600 node --stack-size=7000 "$out/tscgate.js" "$@" > "$out/$t/result.txt" 2>&1 || true
-	else
-		timeout 3600 "$out/cpp/TscGate" "$@" > "$out/$t/result.txt" 2>&1 || true
-	fi
+	# shellcheck disable=SC2046
+	timeout "${TSC_GATE_TIMEOUT:-3600}" $(hx_cmd $t $main $out/tscgate) "$@" > "$out/$t/result.txt" 2>&1 || true
 	t1=$(date +%s%3N)
 	pass=$(grep -c '^PASS ' "$out/$t/result.txt" || true)
 	fail=$(grep -c '^FAIL ' "$out/$t/result.txt" || true)

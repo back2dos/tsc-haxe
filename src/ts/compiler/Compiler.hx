@@ -748,7 +748,8 @@ class Compiler {
 
 	static function get_plainJSErrors():Set<Int> {
 		if (_plainJSErrors == null) {
-			_plainJSErrors = Collections.NewSetFromItems(...[
+			// PORT: direct arguments as in Go (a spread of an Array<Int> into a generic rest parameter fails JVM verification)
+			_plainJSErrors = Collections.NewSetFromItems(
 				// binder errors
 				Diagnostics.Cannot_redeclare_block_scoped_variable_0.Code(),
 				Diagnostics.A_module_cannot_have_multiple_default_exports.Code(),
@@ -842,8 +843,8 @@ class Compiler {
 				Diagnostics.X_await_using_statements_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules.Code(),
 				Diagnostics.Private_field_0_must_be_declared_in_an_enclosing_class.Code(),
 				// Type errors
-				Diagnostics.This_condition_will_always_return_0_since_JavaScript_compares_objects_by_reference_not_value.Code(),
-			]);
+				Diagnostics.This_condition_will_always_return_0_since_JavaScript_compares_objects_by_reference_not_value.Code()
+			);
 		}
 		return _plainJSErrors;
 	}

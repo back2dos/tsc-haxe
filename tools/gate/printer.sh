@@ -12,27 +12,45 @@
 # trigraphs to generated string literals ("??=" becomes "#"), which breaks the scanner's token
 # table (Scanner.TokenToString(KindQuestionQuestionEqualsToken) == "" on cpp).
 #
-# Usage: tools/gate/printer.sh [--no-build]
+# Usage: tools/gate/printer.sh [--no-build] [--targets LIST] [--sample N]
+#   --targets LIST  comma separated targets (js,cpp,jvm,cs,py; default js,cpp; see tools/targets.sh)
+#   --sample N      only every N-th corpus file (files 1, 1+N, 1+2N, ... of the sorted list; Go too)
 # Exit status: 0 when every target has 0 differing files.
 set -e
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
+ROOT=$root
+. tools/targets.sh
 out=bin/printer/gate
 mkdir -p "$out"
 cases=upstream/tsc/_submodules/TypeScript/tests/cases
 
-if [ "$1" != "--no-build" ]; then
-	echo "building Haxe dumpers (JS, cpp) ..."
-	tools/haxe -cp src -cp test -D analyzer-optimize -main ts.printer.PrintDump -lib hxnodejs -js bin/printer/dump-js.js
-	tools/haxe -cp src -cp test -D analyzer-optimize -main ts.printer.PrintDump -cpp bin/printer/dump-cpp -D HXCPP_QUIET -D HXCPP_CHECK_POINTER >/dev/null
+build=1
+targets="js cpp"
+sample=1
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--no-build) build=0 ;;
+	--targets) targets=$(hx_list "$2"); shift ;;
+	--sample) sample=$2; shift ;;
+	*) echo "unknown argument $1"; exit 2 ;;
+	esac
+	shift
+done
+main=ts.printer.PrintDump
+if [ $build = 1 ]; then
+	echo "building Haxe dumpers ($targets) ..."
+	for t in $targets; do hx_build $t $main bin/printer/dump -D HXCPP_CHECK_POINTER; done
 	[ -x .ref/tsdump-print ] || tools/dump/build.sh
 fi
 
 find "$root/$cases/compiler" "$root/$cases/conformance" -type f \
 	\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mts' -o -name '*.cts' \) |
-	LC_ALL=C sort > "$out/corpus.txt"
-nfiles=$(wc -l < "$out/corpus.txt")
-echo "corpus: $nfiles files"
+	LC_ALL=C sort > "$out/corpus-all.txt"
+nfiles=$(wc -l < "$out/corpus-all.txt")
+hx_sample "$sample" "$out/corpus-all.txt" "$out/corpus.txt"
+nsample=$(wc -l < "$out/corpus.txt")
+echo "corpus: $nfiles files; sample 1/$sample: $nsample files"
 
 # now_ms: wall clock in milliseconds
 now_ms() { date +%s%3N; }
@@ -42,18 +60,20 @@ run() {
 	name=$1
 	shift
 	t0=$(now_ms)
-	"$@" > "$out/$name.txt" 2> "$out/$name.err"
+	"$@" > "$out/$name.txt" 2> "$out/$name.err" || echo "$name: exit status $?" >&2
 	t1=$(now_ms)
 	echo "$name $((t1 - t0))" >> "$out/times.txt"
 }
 
 : > "$out/times.txt"
 run ref .ref/tsdump-print "@$out/corpus.txt"
-run js node --stack-size=7000 bin/printer/dump-js.js "@$out/corpus.txt"
-run cpp bin/printer/dump-cpp/PrintDump "@$out/corpus.txt"
+for t in $targets; do
+	# shellcheck disable=SC2046
+	run $t $(hx_cmd $t $main bin/printer/dump) "@$out/corpus.txt"
+done
 
 # Per-file comparison: split each dump at its "## <file>" headers.
-python3 - "$out" <<'EOF'
+python3 - "$out" "$targets" <<'EOF'
 import sys
 out = sys.argv[1]
 def split(path):
@@ -79,7 +99,7 @@ bad = False
 ro, rf = split(f'{out}/ref.txt')
 print(f"{'target':6} {'files':>6} {'diffs':>6} {'ms':>7} {'print-ms':>8}")
 print(f"{'go':6} {len(ro):6} {'-':>6} {times['ref']:>7} {printms('ref'):>8}")
-for target in ('js', 'cpp'):
+for target in sys.argv[2].split():
     to, tf = split(f'{out}/{target}.txt')
     diffs = [f for f in ro if rf[f] != tf.get(f)]
     missing = len(ro) != len(to)

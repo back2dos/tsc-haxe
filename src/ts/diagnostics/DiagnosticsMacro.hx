@@ -38,6 +38,11 @@ class DiagnosticsMacro {
 		codes.sort((a, b) -> a - b);
 
 		final all:Array<Expr> = [];
+		// PORT: jvm — one static initializer with all ~3,000 messages exceeds the JVM's 64 KB
+		// limit per method. On JVM the fields are plain statics assigned by chunk functions
+		// (called from __init__, i.e. from the class initializer, in the same order).
+		final chunked = Context.defined("jvm");
+		final inits:Array<Expr> = [];
 		for (code in codes) {
 			final e = byCode.get(code);
 			final names = convertPropertyName(e.key, code);
@@ -45,20 +50,75 @@ class DiagnosticsMacro {
 			final unnecessary = e.m.reportsUnnecessary == true;
 			final elided = e.m.elidedInCompatabilityPyramid == true; // [sic] spelling as in Strada
 			final deprecated = e.m.reportsDeprecated == true;
+			final init = macro new ts.diagnostics.Diagnostics.Message($v{code}, ts.diagnostics.Diagnostics.Category.$category, $v{names.key}, $v{e.key},
+				$v{unnecessary}, $v{elided}, $v{deprecated});
+			if (chunked) {
+				fields.push({
+					name: names.varName,
+					access: [APublic, AStatic],
+					kind: FProp("default", "null", macro :ts.diagnostics.Diagnostics.Message, null),
+					pos: pos,
+				});
+				final n = names.varName;
+				inits.push(macro $i{n} = $init);
+			} else {
+				fields.push({
+					name: names.varName,
+					access: [APublic, AStatic, AFinal],
+					kind: FVar(macro :ts.diagnostics.Diagnostics.Message, init),
+					pos: pos,
+				});
+			}
+			all.push(macro $i{names.varName});
+		}
+		if (!chunked) {
 			fields.push({
-				name: names.varName,
-				access: [APublic, AStatic, AFinal],
-				kind: FVar(macro :ts.diagnostics.Diagnostics.Message,
-					macro new ts.diagnostics.Diagnostics.Message($v{code}, ts.diagnostics.Diagnostics.Category.$category, $v{names.key}, $v{e.key},
-						$v{unnecessary}, $v{elided}, $v{deprecated})),
+				name: "allMessages",
+				access: [AStatic, AFinal],
+				kind: FVar(macro :Array<ts.diagnostics.Diagnostics.Message>, macro $a{all}),
 				pos: pos,
 			});
-			all.push(macro $i{names.varName});
+			return fields;
 		}
 		fields.push({
 			name: "allMessages",
-			access: [AStatic, AFinal],
-			kind: FVar(macro :Array<ts.diagnostics.Diagnostics.Message>, macro $a{all}),
+			access: [AStatic],
+			kind: FVar(macro :Array<ts.diagnostics.Diagnostics.Message>, null),
+			pos: pos,
+		});
+		final calls:Array<Expr> = [];
+		var i = 0;
+		while (i < inits.length) {
+			final name = "initMessages" + calls.length;
+			final body = inits.slice(i, i + 200);
+			fields.push({
+				name: name,
+				access: [AStatic],
+				kind: FFun({args: [], ret: macro :Void, expr: macro $b{body}}),
+				pos: pos,
+			});
+			calls.push(macro $i{name}());
+			i += 200;
+		}
+		final chunk = 1000;
+		calls.push(macro allMessages = []);
+		i = 0;
+		while (i < all.length) {
+			final name = "initAllMessages" + Std.int(i / chunk);
+			final pushes = [for (e in all.slice(i, i + chunk)) macro allMessages.push($e)];
+			fields.push({
+				name: name,
+				access: [AStatic],
+				kind: FFun({args: [], ret: macro :Void, expr: macro $b{pushes}}),
+				pos: pos,
+			});
+			calls.push(macro $i{name}());
+			i += chunk;
+		}
+		fields.push({
+			name: "__init__",
+			access: [AStatic],
+			kind: FFun({args: [], ret: macro :Void, expr: macro $b{calls}}),
 			pos: pos,
 		});
 		return fields;

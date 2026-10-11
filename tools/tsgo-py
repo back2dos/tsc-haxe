@@ -1,0 +1,6 @@
+#!/bin/sh
+# Launcher for the py build of tsgo (bin/tsgo-py*, built with `make cli-py`; see tools/targets.sh).
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/tools/targets.sh"
+# shellcheck disable=SC2046
+exec $(hx_cmd py ts.cmd.Tsgo "$ROOT/bin/tsgo") "$@"
