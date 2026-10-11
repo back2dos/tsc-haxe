@@ -2,17 +2,21 @@
 // tables of the utilities golden test on both sides:
 //   - tools/gen/ast/goref/utilref/funcs.go         (Go, overlaid next to utilref/main.go)
 //   - test/ts/ast/UtilitiesGoldenTable.hx          (Haxe replay table)
+//
 // Selected shapes (exported package functions, no type parameters):
-//   kind functions: func(Kind) bool | int-like
-//   node functions: func(*N, rest...) bool | int-like | string | *N | []*N, where N is Node or an
-//                   alias of Node; rest params are bool (every combination is printed) or *N
-//                   (passed node.Parent).
+//
+//	kind functions: func(Kind) bool | int-like
+//	node functions: func(*N, rest...) bool | int-like | string | *N | []*N, where N is Node or an
+//	                alias of Node; rest params are bool (every combination is printed) or *N
+//	                (passed node.Parent).
+//
 // Usage (from the project root): go run ./tools/gen/ast/goref/utilref/gen  (see ../../utilref.sh)
 package main
 
 import (
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -239,7 +243,11 @@ func main() {
 	h.WriteString(hBody.String())
 	h.WriteString("\t\t];\n\t}\n}\n")
 
-	if err := os.WriteFile("tools/gen/ast/goref/utilref/funcs.go", []byte(g.String()), 0o644); err != nil {
+	src, err := format.Source([]byte(g.String()))
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile("tools/gen/ast/goref/utilref/funcs.go", src, 0o644); err != nil {
 		panic(err)
 	}
 	if err := os.WriteFile("test/ts/ast/UtilitiesGoldenTable.hx", []byte(h.String()), 0o644); err != nil {

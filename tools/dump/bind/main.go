@@ -4,15 +4,17 @@
 //
 // Usage: tsdump-bind FILE...   (an argument "@LIST" reads one path per line from LIST)
 // Output per file: "## <file>", then
-//   one line per node (ForEachChild pre-order, JSDoc nodes as in tsdump-ast, marked "@jsdoc "):
-//     <2*depth spaces><Kind> <pos> <end> <NodeFlags>[ sym=#S][ locals=#S,#S..][ flow=#F][ end=#F][ ret=#F][ fall=#F]
-//   then the symbols, numbered in order of first reference (node order; locals, members and
-//   exports in name order, Go byte order of the UTF-8 names):
-//     S #S <name> <SymbolFlags> decls=<Kind@pos,..> value=<Kind@pos|-> parent=<#S|-> export=<#S|-> members=<#S,..> exports=<#S,..>
-//   then the flow nodes, numbered in order of first reference (node order, then antecedents):
-//     F #F <FlowFlags> node=<Kind@pos|-> ante=<#F|-> antes=<#F,..>
-//   then the bind diagnostics:
-//     D <code> <pos> <len> <message>
+//
+//	one line per node (ForEachChild pre-order, JSDoc nodes as in tsdump-ast, marked "@jsdoc "):
+//	  <2*depth spaces><Kind> <pos> <end> <NodeFlags>[ sym=#S][ locals=#S,#S..][ flow=#F][ end=#F][ ret=#F][ fall=#F]
+//	then the symbols, numbered in order of first reference (node order; locals, members and
+//	exports in name order, Go byte order of the UTF-8 names):
+//	  S #S <name> <SymbolFlags> decls=<Kind@pos,..> value=<Kind@pos|-> parent=<#S|-> export=<#S|-> members=<#S,..> exports=<#S,..>
+//	then the flow nodes, numbered in order of first reference (node order, then antecedents):
+//	  F #F <FlowFlags> node=<Kind@pos|-> ante=<#F|-> antes=<#F,..>
+//	then the bind diagnostics:
+//	  D <code> <pos> <len> <message>
+//
 // Positions are UTF-16 code-unit offsets; <name> is escaped as in tsdump-tokens, and the internal
 // symbol name prefix byte 0xFE prints as \uFFFE (the Haxe port stores it as U+FFFE).
 package main
@@ -71,8 +73,13 @@ type dumper struct {
 func dump(out *bufio.Writer, file string, text string) {
 	pm := ast.ComputePositionMap(text)
 	d := &dumper{
-		out:     out,
-		u:       func(p int) int { if p < 0 { return p }; return pm.UTF8ToUTF16(p) },
+		out: out,
+		u: func(p int) int {
+			if p < 0 {
+				return p
+			}
+			return pm.UTF8ToUTF16(p)
+		},
 		symIds:  map[*ast.Symbol]int{},
 		flowIds: map[*ast.FlowNode]int{},
 	}

@@ -4,13 +4,17 @@
 //
 // Usage: tsdump-ast FILE...   (an argument "@LIST" reads one path per line from LIST)
 // Output per file: "## <file>", then one line per node in ForEachChild pre-order:
-//   <2*depth spaces><Kind> <pos> <end> <NodeFlags> [<text>]
+//
+//	<2*depth spaces><Kind> <pos> <end> <NodeFlags> [<text>]
+//
 // JSDoc nodes attached to a node follow its line, marked "@jsdoc", before its children.
 // <text> only for Identifier, PrivateIdentifier, StringLiteral, NumericLiteral, BigIntLiteral,
 // NoSubstitutionTemplateLiteral, TemplateHead/Middle/Tail, RegularExpressionLiteral, JsxText;
 // escaped per UTF-16 code unit as in tsdump-tokens.
 // Then the parse diagnostics (file.Diagnostics(), then file.JSDiagnostics()):
-//   D <code> <pos> <len> <message text, escaped>
+//
+//	D <code> <pos> <len> <message text, escaped>
+//
 // Positions are UTF-16 code-unit offsets. The script kind comes from the file extension.
 package main
 

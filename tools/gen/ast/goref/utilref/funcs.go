@@ -425,7 +425,9 @@ var nodeFuncs = []func(n *ast.Node, lb labels) string{
 	func(n *ast.Node, lb labels) string { return fb(ast.IsClassElement(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsMethodOrAccessor(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsPrivateIdentifierClassElementDeclaration(n)) },
-	func(n *ast.Node, lb labels) string { return fb(ast.IsObjectLiteralOrClassExpressionMethodOrAccessor(n)) },
+	func(n *ast.Node, lb labels) string {
+		return fb(ast.IsObjectLiteralOrClassExpressionMethodOrAccessor(n))
+	},
 	func(n *ast.Node, lb labels) string { return fb(ast.IsTypeElement(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsObjectLiteralElement(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsObjectLiteralMethod(n)) },
@@ -438,7 +440,9 @@ var nodeFuncs = []func(n *ast.Node, lb labels) string{
 	func(n *ast.Node, lb labels) string { return fb(ast.IsStatement(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsFunctionBlock(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsBlockOrCatchScoped(n)) },
-	func(n *ast.Node, lb labels) string { return fb(ast.IsCatchClauseVariableDeclarationOrBindingElement(n)) },
+	func(n *ast.Node, lb labels) string {
+		return fb(ast.IsCatchClauseVariableDeclarationOrBindingElement(n))
+	},
 	func(n *ast.Node, lb labels) string { return fb(ast.IsTypeNode(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsJSDocTypeAssertion(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsPrologueDirective(n)) },
@@ -494,8 +498,12 @@ var nodeFuncs = []func(n *ast.Node, lb labels) string{
 	func(n *ast.Node, lb labels) string { return fb(ast.IsBindableStaticNameExpression(n, true)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsBindableStaticNameExpression(n, false)) },
 	func(n *ast.Node, lb labels) string { return lb.of(ast.GetElementOrPropertyAccessName(n)) },
-	func(n *ast.Node, lb labels) string { return fb(ast.IsExpressionWithTypeArgumentsInClassExtendsClause(n)) },
-	func(n *ast.Node, lb labels) string { return lb.of(ast.TryGetClassExtendingExpressionWithTypeArguments(n)) },
+	func(n *ast.Node, lb labels) string {
+		return fb(ast.IsExpressionWithTypeArgumentsInClassExtendsClause(n))
+	},
+	func(n *ast.Node, lb labels) string {
+		return lb.of(ast.TryGetClassExtendingExpressionWithTypeArguments(n))
+	},
 	func(n *ast.Node, lb labels) string { return lb.of(ast.GetNameOfDeclaration(n)) },
 	func(n *ast.Node, lb labels) string { return lb.of(ast.GetNonAssignedNameOfDeclaration(n)) },
 	func(n *ast.Node, lb labels) string { return lb.of(ast.GetAssignedName(n)) },
@@ -582,7 +590,9 @@ var nodeFuncs = []func(n *ast.Node, lb labels) string{
 	func(n *ast.Node, lb labels) string { return fb(ast.IsRequireCall(n, false)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsRequireVariableStatement(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsVariableDeclarationInitializedToRequire(n)) },
-	func(n *ast.Node, lb labels) string { return fb(ast.IsVariableDeclarationInitializedToBareOrAccessedRequire(n)) },
+	func(n *ast.Node, lb labels) string {
+		return fb(ast.IsVariableDeclarationInitializedToBareOrAccessedRequire(n))
+	},
 	func(n *ast.Node, lb labels) string { return lb.of(ast.GetModuleSpecifierOfBareOrAccessedRequire(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsModuleExportsAccessExpression(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsModuleExportsQualifiedName(n)) },
@@ -611,13 +621,17 @@ var nodeFuncs = []func(n *ast.Node, lb labels) string{
 	func(n *ast.Node, lb labels) string { return fb(ast.IsValidTypeOnlyAliasUseSite(n)) },
 	func(n *ast.Node, lb labels) string { return fs(ast.GetPropertyNameForPropertyNameNode(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsPartOfTypeOnlyImportOrExportDeclaration(n)) },
-	func(n *ast.Node, lb labels) string { return fb(ast.IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration(n)) },
+	func(n *ast.Node, lb labels) string {
+		return fb(ast.IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration(n))
+	},
 	func(n *ast.Node, lb labels) string { return fb(ast.IsEmittableImport(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsResolutionModeOverrideHost(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.HasResolutionModeOverride(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsStringTextContainingNode(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsTemplateLiteralToken(n)) },
-	func(n *ast.Node, lb labels) string { return lb.of(ast.GetExternalModuleImportEqualsDeclarationExpression(n)) },
+	func(n *ast.Node, lb labels) string {
+		return lb.of(ast.GetExternalModuleImportEqualsDeclarationExpression(n))
+	},
 	func(n *ast.Node, lb labels) string { return lb.of(ast.GetThisParameter(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsLateVisibilityPaintedStatement(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsExternalModuleAugmentation(n)) },
@@ -663,7 +677,9 @@ var nodeFuncs = []func(n *ast.Node, lb labels) string{
 	func(n *ast.Node, lb labels) string { return lb.list(ast.GetElementsOfBindingOrAssignmentPattern(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsDeclarationBindingElement(n)) },
 	func(n *ast.Node, lb labels) string { return lb.of(ast.GetTargetOfBindingOrAssignmentElement(n)) },
-	func(n *ast.Node, lb labels) string { return lb.of(ast.TryGetPropertyNameOfBindingOrAssignmentElement(n)) },
+	func(n *ast.Node, lb labels) string {
+		return lb.of(ast.TryGetPropertyNameOfBindingOrAssignmentElement(n))
+	},
 	func(n *ast.Node, lb labels) string { return fb(ast.ContainsObjectRestOrSpread(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsEmptyObjectLiteral(n)) },
 	func(n *ast.Node, lb labels) string { return fb(ast.IsEmptyArrayLiteral(n)) },

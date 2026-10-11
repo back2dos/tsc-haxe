@@ -4,9 +4,13 @@
 //
 // Usage: tsdump-tokens [-trivia] FILE...
 // Output per file: "## <file>", then one line per token:
-//   <Kind> <pos> <end> <flags> <value>
+//
+//	<Kind> <pos> <end> <flags> <value>
+//
 // and one line per scanner error:
-//   E <code> <pos> <len>
+//
+//	E <code> <pos> <len>
+//
 // Positions are UTF-16 code-unit offsets. <value> is escaped per UTF-16 code unit:
 // \n \r \t \\ \" stay, any unit outside 0x20..0x7E is \uXXXX.
 package main
