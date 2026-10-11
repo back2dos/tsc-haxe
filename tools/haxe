@@ -1,5 +1,5 @@
 #!/bin/sh
-# Project toolchain: stock Haxe 4.3.7 (the haxe on PATH is a fork whose std does not match hxcpp).
+# Project toolchain: Haxe 4.3.7 from HAXE_HOME (tools/env.sh), else the haxe on PATH.
 # -D HXCPP_CPP17: hxcpp's default C++11 applies trigraphs to string literals ("??=" becomes "#");
 # C++17 removes trigraphs. Only hxcpp reads this define.
 # -D HXCPP_SINGLE_THREADED_APP: the port never starts a thread; hxcpp then reads its allocation
@@ -13,5 +13,6 @@
 # `-cp src` comes first, so a later `-cp` given by the caller still wins (Haxe takes the later one).
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 . "$ROOT/tools/env.sh" # HAXE_HOME
-H="$HAXE_HOME"
-HAXE_STD_PATH="$H/std" exec "$H/haxe" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP -D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit "$@"
+set -- -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP -D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit "$@"
+[ -z "$HAXE_HOME" ] && exec haxe "$@"
+HAXE_STD_PATH="$HAXE_HOME/std" exec "$HAXE_HOME/haxe" "$@"

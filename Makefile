@@ -2,7 +2,7 @@ PIN       := 1e4744d68260a7cb91b62b12edc3f6a2187faaf1
 TS_PIN    := 4d4f005c8541e0255a9d8791205fdce326e462bc
 GO        := GOTOOLCHAIN=go1.26.9 go
 HAXE      := tools/haxe
-# Toolchain paths (JAVA, DOTNET, PYTHON, ...) live in tools/env.sh; build/run per target: tools/targets.sh.
+# Toolchains (HAXE_HOME, JAVA, DOTNET, PYTHON, ...): tools/env.sh (defaults from PATH, overrides in tools/env.local.sh); build/run per target: tools/targets.sh.
 TARGETS   := ROOT=$(CURDIR); . tools/targets.sh
 
 .PHONY: test test-js test-cpp test-jvm test-cs test-py upstream ref
@@ -16,6 +16,11 @@ test-js:
 test-cpp:
 	$(HAXE) test-cpp.hxml
 	./bin/cpp/TestMain
+
+# hxcs 4.2.0 for the C# target, in the project-local haxelib repo tools/.haxelib-cs (not in git).
+.PHONY: setup-cs
+setup-cs:
+	$(TARGETS); mkdir -p "$$HAXELIB_CS" && HAXELIB_PATH="$$HAXELIB_CS" $${HAXE_HOME:+$$HAXE_HOME/}haxelib --never install hxcs 4.2.0
 
 # Unit tests on the other targets (bin/test-jvm.jar, bin/test-cs/, bin/test-py.py).
 test-jvm test-cs test-py:

@@ -3,3 +3,4 @@
 /bin/
 /tools/.haxelib-cs/
 /.claude/worktrees/
+/tools/env.local.sh
