@@ -8,6 +8,20 @@ One Haxe code base compiles to five targets: **JavaScript (Node), C++ (hxcpp), J
 Python**. On every target the compiler gives output that is **byte-identical to the Go compiler**:
 diagnostics, `.js`, `.d.ts`, source maps, `.tsbuildinfo` and the command-line output.
 
+## Motivation
+
+We needed a large, real validation project written in Haxe for our
+[fiberus](https://github.com/fiberus-hx/fiberus) target: a program big and demanding enough to find
+code generator and runtime bugs, and to measure and fix performance. A compiler is a good fit: about
+185k lines, millions of small objects, deep recursion, and an exact reference (the Go compiler and the
+upstream test corpus) that shows every wrong result. The fiberus build and its measurements are on
+the branch `fiberus-spike`.
+
+The intention is **not** to replace the Go compiler. The project shows what Haxe makes possible
+across targets: one code base that runs the full TypeScript compiler on Node, as a native binary, on
+the JVM, on .NET and on Python, with the same output everywhere. Porting and maintaining five
+separate versions of a compiler of this size would not be feasible.
+
 ## Status
 
 | | |
