@@ -130,6 +130,6 @@ done
 } >"$log/versions.txt"
 
 commit=$(git rev-parse --short HEAD)
-git diff --quiet HEAD -- src test tools Makefile *.hxml 2>/dev/null || commit="$commit + local changes"
+git diff --quiet HEAD -- src std-py test tools Makefile *.hxml 2>/dev/null || commit="$commit + local changes"
 python3 tools/matrix.py "$log/runs.txt" "$log/versions.txt" "$commit" "$cmdline" "$targets" "$outfile"
 echo "wrote $outfile"

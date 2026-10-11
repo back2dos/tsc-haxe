@@ -148,7 +148,7 @@ class Xxh3 {
 
 			// bits.RotateLeft32(bits.ReverseBytes32(uint32(acc.Lo)), 13)
 			final rb = bswap32(acc.Lo.low);
-			acc.Hi = Int64.make(0, (rb << 13) | (rb >>> 19));
+			acc.Hi = Int64.make(0, Math.Shl(rb, 13) | (rb >>> 19)); // PORT: python — Math.Shl wraps
 			acc.Lo = acc.Lo ^ Int64.make(0, 0xbe4ba423 ^ 0x396cfeb8); // key32_000 ^ key32_004
 			acc.Hi = acc.Hi ^ Int64.make(0, 0x1cad21f7 ^ 0x2c81017c); // key32_008 ^ key32_012
 
@@ -506,7 +506,7 @@ class Xxh3 {
 	}
 
 	static function bswap32(x:Int):Int {
-		return ((x & 0xff) << 24) | (((x >>> 8) & 0xff) << 16) | (((x >>> 16) & 0xff) << 8) | ((x >>> 24) & 0xff);
+		return Math.Shl(x & 0xff, 24) | (((x >>> 8) & 0xff) << 16) | (((x >>> 16) & 0xff) << 8) | ((x >>> 24) & 0xff); // PORT: python — Math.Shl wraps
 	}
 
 	// bits.ReverseBytes64

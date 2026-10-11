@@ -11,6 +11,7 @@ import haxe.io.Bytes;
 // realpath, utimes, symlink) are implemented per target in class OsNative below:
 //   JS (hxnodejs): require('fs') *Sync functions; the error is the Node error code ("ENOENT").
 //   hxcpp: POSIX calls through untyped __cpp__; errno is mapped to the same code names.
+//   JVM: java.nio.file; Python: module os (OSError.errno → code name).
 // PORT: POSIX semantics only (Linux, macOS). Windows paths/APIs are not implemented.
 // PORT: errors are *PathError{Op, Path, Err} like Go; Err is an Errno with Go's message text for
 // the common errno values. ModTime has millisecond precision on JS.
@@ -927,6 +928,16 @@ class OsNative {
 		} catch (e:Dynamic) {
 			r.err = jvmCode(e);
 		}
+		#elseif python
+		try {
+			final st:Dynamic = python.Syntax.code("__import__('os').stat({0}, follow_symlinks={1})", pyPath(path), follow);
+			r.mode = st.st_mode;
+			r.size = st.st_size;
+			r.mtimeSec = python.Syntax.code("{0}.st_mtime_ns // 1000000000", st);
+			r.mtimeNsec = python.Syntax.code("{0}.st_mtime_ns % 1000000000", st);
+		} catch (e:Dynamic) {
+			r.err = pyCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -974,6 +985,19 @@ class OsNative {
 	}
 	#end
 
+	#if python
+	// PORT: python — os module; OSError.errno becomes the POSIX error code name. Paths go to the OS
+	// as native str (python.U16: strings are in UTF-16 form inside the port).
+	static inline function pyPath(path:String):String {
+		return python.U16.fromU16(path);
+	}
+
+	public static function pyCode(e:Dynamic):String {
+		final code:Null<String> = python.Syntax.code("__import__('errno').errorcode.get(getattr({0}, 'errno', None) or -1)", e);
+		return code == null ? "EIO" : code;
+	}
+	#end
+
 	#if cpp
 	static function errname(e:Int):String {
 		return untyped __cpp__("go_os_errname({0})", e);
@@ -1002,6 +1026,13 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return jvmCode(e);
 		}
+		#elseif python
+		try {
+			python.Syntax.code("__import__('os').mkdir({0}, {1})", pyPath(path), perm);
+			return null;
+		} catch (e:Dynamic) {
+			return pyCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1026,6 +1057,13 @@ class OsNative {
 			return null;
 		} catch (e:Dynamic) {
 			return jvmCode(e);
+		}
+		#elseif python
+		try {
+			python.Syntax.code("__import__('os').unlink({0})", pyPath(path));
+			return null;
+		} catch (e:Dynamic) {
+			return pyCode(e);
 		}
 		#else
 		throw "go.Os: unsupported target";
@@ -1054,6 +1092,13 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return jvmCode(e);
 		}
+		#elseif python
+		try {
+			python.Syntax.code("__import__('os').rmdir({0})", pyPath(path));
+			return null;
+		} catch (e:Dynamic) {
+			return pyCode(e);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1076,6 +1121,13 @@ class OsNative {
 			return null;
 		} catch (e:Dynamic) {
 			return jvmCode(e);
+		}
+		#elseif python
+		try {
+			python.Syntax.code("__import__('os').symlink({0}, {1})", pyPath(target), pyPath(path));
+			return null;
+		} catch (e:Dynamic) {
+			return pyCode(e);
 		}
 		#else
 		throw "go.Os: unsupported target";
@@ -1103,6 +1155,14 @@ class OsNative {
 			return null;
 		} catch (e:Dynamic) {
 			return jvmCode(e);
+		}
+		#elseif python
+		try {
+			// Microsecond precision like the cpp branch (utimes(2)).
+			python.Syntax.code("__import__('os').utime({0}, ns=(int({1} * 1e6) * 1000, int({2} * 1e6) * 1000))", pyPath(path), atime, mtime);
+			return null;
+		} catch (e:Dynamic) {
+			return pyCode(e);
 		}
 		#else
 		throw "go.Os: unsupported target";
@@ -1132,6 +1192,13 @@ class OsNative {
 			return jpath(path).toRealPath().toString();
 		} catch (e:Dynamic) {
 			realpathErr = jvmCode(e);
+			return null;
+		}
+		#elseif python
+		try {
+			return python.U16.toU16(python.Syntax.code("__import__('os').path.realpath({0}, strict=True)", pyPath(path)));
+		} catch (e:Dynamic) {
+			realpathErr = pyCode(e);
 			return null;
 		}
 		#else

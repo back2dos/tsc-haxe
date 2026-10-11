@@ -427,15 +427,15 @@ class Slices {
 			final mask = (1 << bitsLen(length)) - 1; // nextPowerOfTwo(length) - 1
 			final base = a + Std.int(length / 4) * 2;
 			for (idx in base - 1...base + 2) {
-				// r ^= r << 13
-				hi = hi ^ ((hi << 13) | (lo >>> 19));
-				lo = lo ^ (lo << 13);
+				// r ^= r << 13 (PORT: python — Math.Shl wraps to 32 bits; plain `<<` elsewhere)
+				hi = hi ^ (Math.Shl(hi, 13) | (lo >>> 19));
+				lo = lo ^ Math.Shl(lo, 13);
 				// r ^= r >> 7
-				lo = lo ^ ((lo >>> 7) | (hi << 25));
+				lo = lo ^ ((lo >>> 7) | Math.Shl(hi, 25));
 				hi = hi ^ (hi >>> 7);
 				// r ^= r << 17
-				hi = hi ^ ((hi << 17) | (lo >>> 15));
-				lo = lo ^ (lo << 17);
+				hi = hi ^ (Math.Shl(hi, 17) | (lo >>> 15));
+				lo = lo ^ Math.Shl(lo, 17);
 				var other = lo & mask;
 				if (other >= length)
 					other -= length;

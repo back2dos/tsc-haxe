@@ -6,7 +6,7 @@
 #   cpp  B-cpp/<M>          native binary (hxcpp)
 #   jvm  B-jvm.jar          $JAVA $JAVA_OPTS -jar B-jvm.jar
 #   cs   B-cs/              C# sources (hxcs, -D no-compilation) + dotnet build   [lane 2: not ready]
-#   py   B-py.py            $PYTHON B-py.py                                  [lane 3: not verified]
+#   py   B-py.py            $PYTHON B-py.py (main() runs in a big-stack thread, see go.PyTarget)
 #
 # hx_build <target> <main> <base> [haxe args...]   builds (quiet); exit status of the build
 # hx_cmd <target> <main> <base>                    prints the command line that runs the build
@@ -22,7 +22,8 @@ hx_build() {
 	js) "$ROOT/tools/haxe" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" -lib hxnodejs -js "$_b-js.js" ;;
 	cpp) "$ROOT/tools/haxe" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" -cpp "$_b-cpp" -D HXCPP_QUIET >/dev/null ;;
 	jvm) "$ROOT/tools/haxe" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" --jvm "$_b-jvm.jar" ;;
-	py) "$ROOT/tools/haxe" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" --python "$_b-py.py" ;;
+	# py: std-py/ holds std overrides that keep strings in UTF-16 form (see std-py/python/U16.hx).
+	py) "$ROOT/tools/haxe" -cp "$ROOT/std-py" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" --python "$_b-py.py" ;;
 	cs)
 		# TODO(lane 2): generate a .csproj for $_b-cs and build it with "$DOTNET" build.
 		HAXELIB_PATH="$HAXELIB_CS" "$ROOT/tools/haxe" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" --cs "$_b-cs" -D no-compilation || return 1

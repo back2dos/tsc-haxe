@@ -18,6 +18,8 @@ class NilRange {
 	public static function apply():Void {
 		for (pack in ["ts", "go"])
 			Compiler.addGlobalMetadata(pack, "@:build(go.NilRange.build())", true, true, false);
+		if (Context.defined("python"))
+			go.PyTarget.apply(); // PORT: python — std-py/ class path, output rewrite
 	}
 
 	public static function build():Array<Field> {

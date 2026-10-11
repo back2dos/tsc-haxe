@@ -28,6 +28,9 @@ class Runtime {
 		#elseif jvm
 		final rt = java.lang.Runtime.getRuntime();
 		m.Alloc = haxe.Int64.toInt((rt.totalMemory() - rt.freeMemory()) >> 10) * 1024.0; // PORT: jvm (KB resolution)
+		#elseif python
+		// PORT: python — no heap statistics: the peak resident set size of the process.
+		m.Alloc = python.Syntax.code("float(__import__('resource').getrusage(__import__('resource').RUSAGE_SELF).ru_maxrss * 1024)");
 		#end
 		m.Mallocs = 0;
 	}

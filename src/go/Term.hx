@@ -17,6 +17,8 @@ class Term {
 		// PORT: jvm — JDK 21 has no isatty: System.console() is non-null when stdin and stdout
 		// are both terminals (an approximation of isatty(fd) for fd 0-2).
 		return fd >= 0 && fd <= 2 && java.lang.System.console() != null;
+		#elseif python
+		return python.Syntax.code("__import__('os').isatty({0})", fd);
 		#else
 		return false;
 		#end
@@ -32,6 +34,12 @@ class Term {
 		return stream.columns;
 		#elseif cpp
 		return untyped __cpp__("([&]{ struct winsize ws; if (::ioctl({0}, TIOCGWINSZ, &ws) != 0) return 0; return (int)ws.ws_col; })()", fd);
+		#elseif python
+		try {
+			return python.Syntax.code("__import__('os').get_terminal_size({0}).columns", fd);
+		} catch (e:Dynamic) {
+			return 0;
+		}
 		#else
 		return 0;
 		#end

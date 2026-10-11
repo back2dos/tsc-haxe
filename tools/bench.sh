@@ -1,7 +1,7 @@
 #!/bin/sh
 # Phase 9 benchmark: best-of-N wall time / peak RSS of one compiler binary on the realworld workloads
 # (inputs as in tools/gate/realworld.sh; run that gate once first so bin/realworld/deps exists).
-# Usage: tools/bench.sh <cpp binary | .js file | go> [runs=3] [workloads="decl full sol np"]
+# Usage: tools/bench.sh <cpp binary | .js file | .py file | go> [runs=3] [workloads="decl full sol np"]
 # Outputs land in bin/bench/w (overwritten); compare outputs with tools/gate/realworld.sh, not here.
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root" || exit 1
@@ -9,6 +9,7 @@ bin=$1; runs=${2:-3}; loads=${3:-"decl full sol np"}
 case $bin in
 	go) cmd="$root/.ref/tsgo"; post=--singleThreaded ;;
 	*.js) cmd="node --stack-size=7000 $(realpath "$bin")"; post= ;;
+	*.py) cmd="${PYTHON:-python3} $(realpath "$bin")"; post= ;;
 	*) cmd=$(realpath "$bin"); post= ;;
 esac
 w=bin/bench/w; src="$root/upstream/src"; t6=bin/realworld/deps/ts6; tt=bin/realworld/deps/tsc
