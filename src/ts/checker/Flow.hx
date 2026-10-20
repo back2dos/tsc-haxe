@@ -57,7 +57,7 @@ class FlowType {
 @:allow(ts.checker)
 class SharedFlow {
 	var flow:FlowNode = null;
-	var flowType:FlowType = new FlowType();
+	var flowType:FlowType = FlowType.nil;
 
 	public function new() {}
 }
@@ -150,12 +150,10 @@ class Flow {
 		f.declaredType = declaredType;
 		f.initialType = Core.Coalesce(initialType, declaredType);
 		f.flowContainer = flowContainer;
-		f.sharedFlowStart = Core.len(c.sharedFlows);
+		f.sharedFlowStart = c.sharedFlowsLen;
 		c.flowInvocationCount++;
 		final evolvedType = c.getTypeAtFlowNode(f, flowNode).t;
-		if (c.sharedFlows != null) {
-			c.sharedFlows.resize(f.sharedFlowStart);
-		}
+		c.sharedFlowsLen = f.sharedFlowStart;
 		c.putFlowState(f);
 		// When the reference is 'x' in an 'x.length', 'x.push(value)', 'x.unshift(value)' or x[n] = value' operation,
 		// we give type 'any[]' to 'x' instead of using the type determined by control flow analysis such that operations
@@ -197,7 +195,7 @@ class Flow {
 				// We cache results of flow type resolution for shared nodes that were previously visited in
 				// the same getFlowTypeOfReference invocation. A node is considered shared when it is the
 				// antecedent of more than one node.
-				for (i in f.sharedFlowStart...Core.len(c.sharedFlows)) {
+				for (i in f.sharedFlowStart...c.sharedFlowsLen) {
 					if (c.sharedFlows[i].flow == flow) {
 						f.depth--;
 						return c.sharedFlows[i].flowType;
@@ -265,13 +263,21 @@ class Flow {
 			}
 			if (sharedFlow != null) {
 				// Record visited node and the associated type in the cache.
-				final sf = new SharedFlow();
-				sf.flow = sharedFlow;
-				sf.flowType = t;
+				// PORT: perf — Go appends a SharedFlow value to c.sharedFlows; the objects past
+				// sharedFlowsLen (the slice's length) are reused.
 				if (c.sharedFlows == null) {
 					c.sharedFlows = [];
 				}
-				c.sharedFlows.push(sf);
+				var sf:SharedFlow;
+				if (c.sharedFlowsLen < c.sharedFlows.length) {
+					sf = c.sharedFlows[c.sharedFlowsLen];
+				} else {
+					sf = new SharedFlow();
+					c.sharedFlows.push(sf);
+				}
+				c.sharedFlowsLen++;
+				sf.flow = sharedFlow;
+				sf.flowType = t;
 			}
 			f.depth--;
 			return t;

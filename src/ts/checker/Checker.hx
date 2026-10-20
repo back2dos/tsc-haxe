@@ -1463,6 +1463,7 @@ class Checker {
 	var flowLoopCache:StringMap<Type> /* key: checker.FlowLoopKey */ = null;
 	var flowLoopStack:Array<FlowLoopInfo> = null;
 	var sharedFlows:Array<SharedFlow> = null;
+	var sharedFlowsLen:Int = 0; // PORT: perf — len(c.sharedFlows); the array keeps its objects past it (see Flow)
 	var antecedentTypes:Array<Type> = null;
 	var flowAnalysisDisabled:Bool = false;
 	var flowInvocationCount:Int = 0;
