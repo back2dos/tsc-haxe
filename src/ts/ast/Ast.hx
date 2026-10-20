@@ -4847,14 +4847,14 @@ class Ast {
 	}
 
 	public static function IsImportNode(node:Node):Bool {
-		return IsAnyImportSyntax(node) || NodeKindIs(node, KindJSImportDeclaration);
+		return IsAnyImportSyntax(node) || node.Kind == KindJSImportDeclaration; // PORT: perf — NodeKindIs without the rest array
 	}
 
 	// Checks if the node is a genuine import declation. In particular the re-parsed KindJSImportDeclaration
 	// is explicitly excluded because the callers of this function are typically not prepared to handle it properly.
 	// For more permissive check, use IsImportNode.
 	public static function IsAnyImportSyntax(node:Node):Bool {
-		return NodeKindIs(node, KindImportDeclaration, KindImportEqualsDeclaration);
+		return node.Kind == KindImportDeclaration || node.Kind == KindImportEqualsDeclaration; // PORT: perf — NodeKindIs without the rest array
 	}
 
 	public static function IsJsonSourceFile(file:SourceFile):Bool {
@@ -5049,7 +5049,8 @@ class Ast {
 	}
 
 	public static function IsJSDocLinkLike(node:Node):Bool {
-		return NodeKindIs(node, KindJSDocLink, KindJSDocLinkCode, KindJSDocLinkPlain);
+		final k = node.Kind; // PORT: perf — NodeKindIs without the rest array
+		return k == KindJSDocLink || k == KindJSDocLinkCode || k == KindJSDocLinkPlain;
 	}
 
 	public static function IsJSDocTag(node:Node):Bool {
@@ -5228,7 +5229,7 @@ class Ast {
 	}
 
 	public static function IsBreakOrContinueStatement(node:Node):Bool {
-		return NodeKindIs(node, KindBreakStatement, KindContinueStatement);
+		return node.Kind == KindBreakStatement || node.Kind == KindContinueStatement; // PORT: perf — NodeKindIs without the rest array
 	}
 
 	// GetModuleInstanceState is used during binding as well as in transformations and tests, and therefore may be invoked
@@ -6133,7 +6134,7 @@ class Ast {
 	}
 
 	static function isPartOfPossiblyValidTypeOrAbstractComputedPropertyName(node:Node):Bool {
-		while (NodeKindIs(node, KindIdentifier, KindPropertyAccessExpression)) {
+		while (node.Kind == KindIdentifier || node.Kind == KindPropertyAccessExpression) { // PORT: perf — NodeKindIs without the rest array
 			node = node.Parent;
 		}
 		if (node.Kind != KindComputedPropertyName) {
@@ -6142,7 +6143,8 @@ class Ast {
 		if (HasSyntacticModifier(node.Parent, ModifierFlagsAbstract)) {
 			return true;
 		}
-		return NodeKindIs(node.Parent.Parent, KindInterfaceDeclaration, KindTypeLiteral);
+		final k = node.Parent.Parent.Kind; // PORT: perf — NodeKindIs without the rest array
+		return k == KindInterfaceDeclaration || k == KindTypeLiteral;
 	}
 
 	static function isShorthandPropertyNameUseSite(useSite:Node):Bool {

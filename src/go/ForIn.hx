@@ -117,35 +117,79 @@ class ForIn {
 	// PORT: jvm/cs/python — snapshots, so the loop body may change the map (Go semantics; JVM's
 	// HashMap iterators throw ConcurrentModificationException, Python's dict iterators RuntimeError).
 	public static function StringValues<T>(m:haxe.ds.StringMap<T>):Array<T> {
+		#if (target.name == "hxmc")
+		// PORT: perf — the snapshot at its size (no growth), hxmc: Array.resize allocates exactly
+		final a = new Array<T>();
+		a.resize(m.size());
+		var i = 0;
+		final it = m.iterator();
+		while (it.hasNext())
+			a[i++] = it.next();
+		return a;
+		#else
 		final a = new Array<T>();
 		final it = m.iterator();
 		while (it.hasNext())
 			a.push(it.next());
 		return a;
+		#end
 	}
 
 	public static function StringKeys<T>(m:haxe.ds.StringMap<T>):Array<String> {
+		#if (target.name == "hxmc")
+		// PORT: perf — the snapshot at its size (no growth), hxmc: Array.resize allocates exactly
+		final a = new Array<String>();
+		a.resize(m.size());
+		var i = 0;
+		final it = m.keys();
+		while (it.hasNext())
+			a[i++] = it.next();
+		return a;
+		#else
 		final a = new Array<String>();
 		final it = m.keys();
 		while (it.hasNext())
 			a.push(it.next());
 		return a;
+		#end
 	}
 
 	public static function IntValues<T>(m:haxe.ds.IntMap<T>):Array<T> {
+		#if (target.name == "hxmc")
+		// PORT: perf — the snapshot at its size (no growth), hxmc: Array.resize allocates exactly
+		final a = new Array<T>();
+		a.resize(m.size());
+		var i = 0;
+		final it = m.iterator();
+		while (it.hasNext())
+			a[i++] = it.next();
+		return a;
+		#else
 		final a = new Array<T>();
 		final it = m.iterator();
 		while (it.hasNext())
 			a.push(it.next());
 		return a;
+		#end
 	}
 
 	public static function IntKeys<T>(m:haxe.ds.IntMap<T>):Array<Int> {
+		#if (target.name == "hxmc")
+		// PORT: perf — the snapshot at its size (no growth), hxmc: Array.resize allocates exactly
+		final a = new Array<Int>();
+		a.resize(m.size());
+		var i = 0;
+		final it = m.keys();
+		while (it.hasNext())
+			a[i++] = it.next();
+		return a;
+		#else
 		final a = new Array<Int>();
 		final it = m.keys();
 		while (it.hasNext())
 			a.push(it.next());
 		return a;
+		#end
 	}
 	#end
 
