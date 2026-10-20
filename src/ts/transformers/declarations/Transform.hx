@@ -559,11 +559,15 @@ class DeclarationTransformer {
 	final diagnosticContextDiag:Array<GetSymbolAccessibilityDiagnostic> = [];
 	final diagnosticContextName:Array<Node> = [];
 	final diagnosticContextWithin:Array<Bool> = [];
+	var diagnosticContexts:Int = 0; // (the stack's depth; the arrays keep their length)
 
 	function cleanupDiagnosticContext():Void {
-		state.getSymbolAccessibilityDiagnostic = diagnosticContextDiag.pop();
-		state.errorNameNode = diagnosticContextName.pop();
-		suppressNewDiagnosticContexts = diagnosticContextWithin.pop();
+		final k = --diagnosticContexts;
+		state.getSymbolAccessibilityDiagnostic = diagnosticContextDiag[k];
+		state.errorNameNode = diagnosticContextName[k];
+		suppressNewDiagnosticContexts = diagnosticContextWithin[k];
+		diagnosticContextDiag[k] = null;
+		diagnosticContextName[k] = null;
 	}
 
 	function setupDiagnosticContext(input:Node):Void {
@@ -583,9 +587,16 @@ class DeclarationTransformer {
 		}
 
 		setupDiagnosticContextResult = canProdiceDiagnostic;
-		diagnosticContextDiag.push(oldDiag);
-		diagnosticContextName.push(oldName);
-		diagnosticContextWithin.push(oldWithinObjectLiteralType);
+		final k = diagnosticContexts++;
+		if (k == diagnosticContextDiag.length) {
+			diagnosticContextDiag.push(oldDiag);
+			diagnosticContextName.push(oldName);
+			diagnosticContextWithin.push(oldWithinObjectLiteralType);
+		} else {
+			diagnosticContextDiag[k] = oldDiag;
+			diagnosticContextName[k] = oldName;
+			diagnosticContextWithin[k] = oldWithinObjectLiteralType;
+		}
 	}
 
 	function visitDeclarationSubtree(input:Node):Node {
