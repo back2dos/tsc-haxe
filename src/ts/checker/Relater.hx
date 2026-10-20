@@ -227,7 +227,7 @@ class Relater {
 
 	// PORT: struct map key — EnumRelationKey{sourceId, targetId} encoded as a String for c.enumRelation.
 	static inline function enumRelationKeyString(sourceId:SymbolId, targetId:SymbolId):std.String {
-		return sourceId + ":" + targetId;
+		return go.MapKey.i2(sourceId, targetId);
 	}
 
 	// PORT: Go `==` on `any` compares dynamic type and value; Haxe/JS `==` on Dynamic is loose ("1" == 1).

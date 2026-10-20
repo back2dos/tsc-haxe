@@ -84,7 +84,7 @@ class EnumLiteralKey {
 	// value is a string or a jsnum.Number (NaN is cached separately by the caller, as in Go).
 	public static function keyOf(c:Checker, enumSymbol:Symbol, value:Any):std.String {
 		final v = Std.isOfType(value, std.String) ? "s" + (value : std.String) : "n" + Checker.numberLiteralKey((value : Float));
-		return Checker.identityKeyOf(c, enumSymbol) + ":" + v;
+		return go.MapKey.i1s(Checker.identityKeyOf(c, enumSymbol), v);
 	}
 
 	public function Key(c:Checker):std.String {
@@ -100,7 +100,7 @@ class EnumRelationKey {
 	public function new() {}
 
 	public static inline function keyOf(sourceId:SymbolId, targetId:SymbolId):std.String {
-		return sourceId + ":" + targetId;
+		return go.MapKey.i2(sourceId, targetId);
 	}
 
 	public function Key():std.String {
@@ -141,7 +141,7 @@ class CachedTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(kind:CachedTypeKind, typeId:TypeId):std.String {
-		return (kind : Int) + ":" + typeId;
+		return go.MapKey.i2((kind : Int), typeId);
 	}
 
 	public function Key():std.String {
@@ -159,7 +159,7 @@ class NarrowedTypeKey {
 	public function new() {}
 
 	public static function keyOf(t:Type, candidate:Type, assumeTrue:Bool, checkDerived:Bool):std.String {
-		return Checker.typeKeyOf(t) + ":" + Checker.typeKeyOf(candidate) + ":" + (assumeTrue ? "1" : "0") + (checkDerived ? "1" : "0");
+		return go.MapKey.i3(Checker.typeKeyOf(t), Checker.typeKeyOf(candidate), (assumeTrue ? 10 : 0) + (checkDerived ? 1 : 0));
 	}
 
 	public function Key():std.String {
@@ -177,7 +177,7 @@ class UnionOfUnionKey {
 	public function new() {}
 
 	public static function keyOf(id1:TypeId, id2:TypeId, r:UnionReduction, a:CacheHashKey):std.String {
-		return id1 + ":" + id2 + ":" + (r : Int) + ":" + a.Key();
+		return go.MapKey.i3s(id1, id2, (r : Int), a.Key());
 	}
 
 	public function Key():std.String {
@@ -193,7 +193,7 @@ class CachedSignatureKey {
 	public function new() {}
 
 	public static function keyOf(sig:Signature, key:CacheHashKey):std.String {
-		return (sig == null ? 0 : sig.id) + ":" + key.Key();
+		return go.MapKey.i1s(sig == null ? 0 : sig.id, key.Key());
 	}
 
 	public function Key():std.String {
@@ -209,7 +209,7 @@ class StringMappingKey {
 	public function new() {}
 
 	public static function keyOf(c:Checker, s:Symbol, t:Type):std.String {
-		return Checker.identityKeyOf(c, s) + ":" + Checker.typeKeyOf(t);
+		return go.MapKey.i2(Checker.identityKeyOf(c, s), Checker.typeKeyOf(t));
 	}
 
 	public function Key(c:Checker):std.String {
@@ -225,7 +225,7 @@ class AssignmentReducedKey {
 	public function new() {}
 
 	public static inline function keyOf(id1:TypeId, id2:TypeId):std.String {
-		return id1 + ":" + id2;
+		return go.MapKey.i2(id1, id2);
 	}
 
 	public function Key():std.String {
@@ -241,7 +241,7 @@ class DiscriminatedContextualTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(nodeId:NodeId, typeId:TypeId):std.String {
-		return nodeId + ":" + typeId;
+		return go.MapKey.i2(nodeId, typeId);
 	}
 
 	public function Key():std.String {
@@ -257,7 +257,7 @@ class InstantiationExpressionKey {
 	public function new() {}
 
 	public static inline function keyOf(nodeId:NodeId, typeId:TypeId):std.String {
-		return nodeId + ":" + typeId;
+		return go.MapKey.i2(nodeId, typeId);
 	}
 
 	public function Key():std.String {
@@ -273,7 +273,7 @@ class SubstitutionTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(baseId:TypeId, constraintId:TypeId):std.String {
-		return baseId + ":" + constraintId;
+		return go.MapKey.i2(baseId, constraintId);
 	}
 
 	public function Key():std.String {
@@ -290,7 +290,7 @@ class ReverseMappedTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(sourceId:TypeId, targetId:TypeId, constraintId:TypeId):std.String {
-		return sourceId + ":" + targetId + ":" + constraintId;
+		return go.MapKey.i3(sourceId, targetId, constraintId);
 	}
 
 	public function Key():std.String {
@@ -306,7 +306,7 @@ class IterationTypesKey {
 	public function new() {}
 
 	public static inline function keyOf(typeId:TypeId, use:IterationUse):std.String {
-		return typeId + ":" + (use : Int);
+		return go.MapKey.i2(typeId, (use : Int));
 	}
 
 	public function Key():std.String {
@@ -324,7 +324,7 @@ class PropertiesTypesKey {
 	public function new() {}
 
 	public static function keyOf(typeId:TypeId, include:TypeFlags, includeOrigin:Bool, unresolvedMembers:Bool):std.String {
-		return typeId + ":" + (include : Int) + ":" + (includeOrigin ? "1" : "0") + (unresolvedMembers ? "1" : "0");
+		return go.MapKey.i3(typeId, (include : Int), (includeOrigin ? 10 : 0) + (unresolvedMembers ? 1 : 0));
 	}
 
 	public function Key():std.String {
@@ -341,7 +341,7 @@ class NonExistentPropertyKey {
 	public function new() {}
 
 	public static function keyOf(c:Checker, propNode:Node, containingType:Type, isUncheckedJS:Bool):std.String {
-		return Checker.identityKeyOf(c, propNode) + ":" + Checker.typeKeyOf(containingType) + ":" + (isUncheckedJS ? "1" : "0");
+		return go.MapKey.i3(Checker.identityKeyOf(c, propNode), Checker.typeKeyOf(containingType), isUncheckedJS ? 1 : 0);
 	}
 
 	public function Key(c:Checker):std.String {
@@ -357,7 +357,7 @@ class FlowLoopKey {
 	public function new() {}
 
 	public static function keyOf(c:Checker, flowNode:FlowNode, refKey:CacheHashKey):std.String {
-		return Checker.identityKeyOf(c, flowNode) + ":" + refKey.Key();
+		return go.MapKey.i1s(Checker.identityKeyOf(c, flowNode), refKey.Key());
 	}
 
 	public function Key(c:Checker):std.String {

@@ -16,7 +16,7 @@ class InferenceKey {
 
 	// PORT: struct map key (map[InferenceKey]…), same convention as the key types in Checker.hx.
 	public static inline function keyOf(s:TypeId, t:TypeId):std.String {
-		return s + ":" + t;
+		return go.MapKey.i2(s, t);
 	}
 
 	public function Key():std.String {

@@ -45,7 +45,7 @@ class Symbolaccessibility {
 	// PORT: struct map key accessibleChainCacheKey{useOnlyExternalAliasing, location, meaning} encoded as a String
 	// (location by checker-local identity number, 0 for nil).
 	static function accessibleChainCacheKeyOf(c:Checker, useOnlyExternalAliasing:Bool, location:Node, meaning:SymbolFlags):std.String {
-		return (useOnlyExternalAliasing ? "1" : "0") + ":" + Checker.identityKeyOf(c, location) + ":" + (meaning : Int);
+		return go.MapKey.i3(useOnlyExternalAliasing ? 1 : 0, Checker.identityKeyOf(c, location), (meaning : Int));
 	}
 
 	// PORT: Go indexes a possibly-nil ast.SymbolTable (nil map lookup yields nil).
