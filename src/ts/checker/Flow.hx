@@ -23,7 +23,30 @@ class FlowType {
 	static final nil:FlowType = new FlowType();
 
 	// PORT: Go composite literal `FlowType{t: t, incomplete: incomplete}`.
+	// PORT: perf — FlowType is immutable (a Go value): one per type and flag, kept on the type.
 	static inline function of(t:Type, incomplete:Bool):FlowType {
+		return t == null ? make(t, incomplete) : incomplete ? ofIncomplete(t) : ofComplete(t);
+	}
+
+	static function ofComplete(t:Type):FlowType {
+		var ft:FlowType = @:privateAccess t.flowType;
+		if (ft == null) {
+			ft = make(t, false);
+			@:privateAccess t.flowType = ft;
+		}
+		return ft;
+	}
+
+	static function ofIncomplete(t:Type):FlowType {
+		var ft:FlowType = @:privateAccess t.flowTypeIncomplete;
+		if (ft == null) {
+			ft = make(t, true);
+			@:privateAccess t.flowTypeIncomplete = ft;
+		}
+		return ft;
+	}
+
+	static function make(t:Type, incomplete:Bool):FlowType {
 		final ft = new FlowType();
 		ft.t = t;
 		ft.incomplete = incomplete;

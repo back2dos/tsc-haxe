@@ -639,6 +639,9 @@ class Type implements TypeSystemEntity {
 	var alias:TypeAlias = null;
 	var checker:Checker = null;
 	var data:TypeData = null; // Type specific data
+	// PORT: perf — FlowType{t: this, incomplete: false/true}, made once (Go returns FlowType by value).
+	var flowType:FlowType = null;
+	var flowTypeIncomplete:FlowType = null;
 
 	public function new() {}
 
