@@ -1490,7 +1490,10 @@ class ECMALineStartsSeqIterator {
 	}
 
 	// Runs the generator until the next yield.
+	// PORT: perf — the position in a local while scanning (fields are memory on every target).
 	function advance():Void {
+		final text = this.text, textLen = this.textLen;
+		var pos = this.pos;
 		while (pos < textLen) {
 			final b = StringTools.fastCodeAt(text, pos);
 			if (b < Utf16.RuneSelf) {
@@ -1502,6 +1505,7 @@ class ECMALineStartsSeqIterator {
 						}
 					}
 					// fallthrough
+					this.pos = pos;
 					value = lineStart;
 					hasValue = true;
 					lineStart = pos;
@@ -1511,6 +1515,7 @@ class ECMALineStartsSeqIterator {
 				final ch = Utf16.DecodeRuneInString(text, pos);
 				pos += Utf16.RuneLen(ch);
 				if (Stringutil.IsLineBreak(ch)) {
+					this.pos = pos;
 					value = lineStart;
 					hasValue = true;
 					lineStart = pos;
@@ -1518,6 +1523,7 @@ class ECMALineStartsSeqIterator {
 				}
 			}
 		}
+		this.pos = pos;
 		value = lineStart;
 		hasValue = true;
 		finished = true;

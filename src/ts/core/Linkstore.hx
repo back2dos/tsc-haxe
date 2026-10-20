@@ -19,22 +19,24 @@ class LinkStore<K, V> {
 
 	public function Get(key:K):V {
 		final h:LinkHolder = cast key;
+		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.store == this)
+			if (e.store == self)
 				return cast e.value;
 			e = e.next;
 		}
 		final value = arena.New();
-		h.links = new LinkEntry(this, value, h.links);
+		h.links = new LinkEntry(self, value, h.links);
 		return value;
 	}
 
 	public function Has(key:K):Bool {
 		final h:LinkHolder = cast key;
+		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.store == this)
+			if (e.store == self)
 				return true;
 			e = e.next;
 		}
@@ -43,9 +45,10 @@ class LinkStore<K, V> {
 
 	public function TryGet(key:K):Null<V> {
 		final h:LinkHolder = cast key;
+		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.store == this)
+			if (e.store == self)
 				return cast e.value;
 			e = e.next;
 		}
@@ -61,11 +64,11 @@ class LinkHolder {
 }
 
 class LinkEntry {
-	public final store:Dynamic;
+	public final store:LinkStore<Dynamic, Dynamic>;
 	public final value:Dynamic;
 	public final next:LinkEntry;
 
-	public function new(store:Dynamic, value:Dynamic, next:LinkEntry) {
+	public function new(store:LinkStore<Dynamic, Dynamic>, value:Dynamic, next:LinkEntry) {
 		this.store = store;
 		this.value = value;
 		this.next = next;
