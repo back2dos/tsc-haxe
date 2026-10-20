@@ -857,6 +857,16 @@ class KeyHasher {
 		buf.set(n++, c);
 	}
 
+	// room for k more bytes (then Put writes them without a test)
+	inline function Reserve(k:Int):Void {
+		if (n + k > buf.length)
+			grow();
+	}
+
+	inline function Put(c:Int):Void {
+		buf.set(n++, c);
+	}
+
 	function grow():Void {
 		final b = haxe.io.Bytes.alloc(buf.length * 2);
 		b.blit(0, buf, 0, n);
@@ -2312,10 +2322,11 @@ class Checker {
 	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any 32-bit integer type.
 	static function hashWrite32(h:KeyHasher, value:Int):Void {
 		final v = value;
-		h.WriteByte(v & 0xFF);
-		h.WriteByte((v >>> 8) & 0xFF);
-		h.WriteByte((v >>> 16) & 0xFF);
-		h.WriteByte((v >>> 24) & 0xFF);
+		h.Reserve(4); // PORT: perf — one capacity test for the four bytes
+		h.Put(v & 0xFF);
+		h.Put((v >>> 8) & 0xFF);
+		h.Put((v >>> 16) & 0xFF);
+		h.Put((v >>> 24) & 0xFF);
 	}
 
 	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any integer type (Int here).
@@ -2323,14 +2334,15 @@ class Checker {
 		// PORT: the Haxe Int is 32 bits; Go's uint64 conversion sign-extends it.
 		final v = value;
 		final hi = v < 0 ? 0xFF : 0;
-		h.WriteByte(v & 0xFF);
-		h.WriteByte((v >>> 8) & 0xFF);
-		h.WriteByte((v >>> 16) & 0xFF);
-		h.WriteByte((v >>> 24) & 0xFF);
-		h.WriteByte(hi);
-		h.WriteByte(hi);
-		h.WriteByte(hi);
-		h.WriteByte(hi);
+		h.Reserve(8); // PORT: perf — one capacity test for the eight bytes
+		h.Put(v & 0xFF);
+		h.Put((v >>> 8) & 0xFF);
+		h.Put((v >>> 16) & 0xFF);
+		h.Put((v >>> 24) & 0xFF);
+		h.Put(hi);
+		h.Put(hi);
+		h.Put(hi);
+		h.Put(hi);
 	}
 
 	static function getTypeListKey(types:Array<Type>):CacheHashKey {
