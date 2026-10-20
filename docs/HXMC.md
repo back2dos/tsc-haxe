@@ -27,6 +27,12 @@ mode (deterministic). Go default (multithreaded) on the same machine: decl 2.09 
 | 2. branch threading of &&/\|\| chains, TESTI | / 760ac71 | 5.34 s (4.97), 543 MB | 5.03 s (4.89), 538 MB | | 23.57 G (-7.1%) | 1.34 / 1.37 |
 | 3. JSDoc text prefix without a copy (allocation 2.1 -> 1.05 GB) | 4f6c63e | 5.20 s (4.75), 485 MB | 5.20 s (4.89), 485 MB | 7.14 s, 510 MB | 22.33 G | (noise) |
 | 4. old space's first limit 512 MB (no major collection) | 9430753 / 5f0941c | 4.64 s (4.39), 394 MB | 4.34 s (4.16), 390 MB | 6.79 s, 879 MB | | 1.21 / 1.16 |
+| 5. KeyHasher keys as 16-bit units on hxmc | 5ff37be | | | | 20.30 G | |
+| 6. dynEq fast paths; FlowType per type; diagnostic-context stack (no closure per node) | c88429f, 520bff0 / 80ab8ba | | | | 20.34 G | |
+| 7. spilled values kept for the next instruction, TESTI for shared bit tests | 0611581 / e2730a5 | | | | 19.94 G | |
+| 8. LinkStore links on the key objects (no identity map per store) | f5a0c18 | 4.00 s (3.88), 348 MB | 3.55 s (3.42), 344 MB | | 19.64 G | 1.14 / 0.97 |
+| 9. LinkStore reference compare, line starts in locals | 91b6650 | 3.98 s (3.51), 349 MB | 3.88 s (3.53), 344 MB | | 19.36 G | 1.02 / 1.06 |
+| 10. write barrier tests the stored value first | / 83dbd92 | 3.87 s (3.57), 349 MB | 3.66 s (3.32), 345 MB | 5.43 s (5.13), 477 MB | 19.21 G | 1.09 / 1.01 (full 0.92) |
 
 Notes per step:
 
@@ -39,3 +45,15 @@ Notes per step:
    text up to each comment. The scanner keeps the longer string and Go's `len(s.text)` (`textLen`).
 4. The first major collection (at 256 MB) copied a live set still growing; with 512 MB the type
    check ends before any major collection. Full emit still runs one (later, so a higher peak).
+5. KeyHasher built 7-bit packed ASCII through haxe.io.Bytes.getString (UTF-8 decoding); hxmc's
+   strings take any 16-bit units.
+8. Go's LinkStore is a map per store; the lookups missed the cache twice (index, entry). The links
+   now hang off the key (`LinkHolder.links`), which the caller has just read. Peak memory also
+   dropped (no identity maps).
+10. hxmc's field barrier called the runtime for every store into an old object; now only for a
+   young value stored into an old object.
+
+Tried and dropped: pretenuring the parsed files into the old space (fewer minor collections, but
+the copying collector lays the trees out depth-first, which the later passes over them need:
+slower overall); interning identifiers process-wide on hxmc (no measurable change); a smaller
+first StringMap table (2 MB less allocation).
