@@ -11,6 +11,12 @@ class GcInit {
 	static function __init__():Void {
 		#if cpp
 		untyped __cpp__("::hx::RegisterVTableOffset(256)");
+		#elseif (target.name == "hxmc" && !hxmc.wasm_gc && hxmc.target != "wasm32-wasi")
+		// PORT: perf — hxmc's first major collection runs when the old space reaches 256 MB; the
+		// compiler keeps most of what it allocates (syntax trees, symbols, types) until it exits, so
+		// that collection copies a live set that is still growing (ts6-compiler: 0.3 s; peak memory
+		// 496 MB with it, 400 MB without). Go's collector first runs at 4 MB and then at twice the live heap.
+		hxmc.rt.Gc.setOldLimit(512);
 		#end
 	}
 }
