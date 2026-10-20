@@ -33,6 +33,16 @@ mode (deterministic). Go default (multithreaded) on the same machine: decl 2.09 
 | 8. LinkStore links on the key objects (no identity map per store) | f5a0c18 | 4.00 s (3.88), 348 MB | 3.55 s (3.42), 344 MB | | 19.64 G | 1.14 / 0.97 |
 | 9. LinkStore reference compare, line starts in locals | 91b6650 | 3.98 s (3.51), 349 MB | 3.88 s (3.53), 344 MB | | 19.36 G | 1.02 / 1.06 |
 | 10. write barrier tests the stored value first | / 83dbd92 | 3.87 s (3.57), 349 MB | 3.66 s (3.32), 345 MB | 5.43 s (5.13), 477 MB | 19.21 G | 1.09 / 1.01 (full 0.92) |
+| 11. SharedFlow reuse, map snapshots at size, go.MapKey struct keys, NodeKindIs, KeyHasher capacity, ContainsNonASCII; hxmc: 4-byte UTF-8 decoding | 7ed1fe1..c5b8b6c / eeb91a2 | | | | 18.64 G | |
+| 12. hxmc: gc-prefault helper thread; shrink-wrapped frames (-D hxmc.shrink-wrap); &&/\|\| chains as values threaded | 5622ad2, this commit / 3cb00e9, 84688b3, d9ea1f1 | **3.07 s (2.94), 356 MB** | **3.01 s (2.80), 350 MB** | **4.57 s (4.40), 490 MB** | 18.03 G (with the helper thread) | **0.90 / 0.92 (full 0.90)** |
+
+Final (step 12), median of 5 runs interleaved with Go `--singleThreaded` on the same machine: Go decl
+3.40 s / 406 MB, check 3.26 s / 395 MB, full 5.07 s / 520 MB; user CPU hxmc 2.95 / 2.93 / 4.31 s
+against Go's 3.63 / 3.55 / 5.54 s. Every project of `tools/gate/realworld.sh --targets hxmc`
+(ts6-compiler, ts6-solution in its three modes and four steps, native-preview, tsc-extension) is
+byte-identical to Go. Peak memory is below Go's on ts6-compiler; on ts6-solution (several programs in
+one process) it is about 1 GB against Go's 540-720 MB (the old space's copying major collection holds
+both copies at its peak).
 
 Notes per step:
 
@@ -52,6 +62,10 @@ Notes per step:
    dropped (no identity maps).
 10. hxmc's field barrier called the runtime for every store into an old object; now only for a
    young value stored into an old object.
+
+11-12. hxmc's builds of tsc-haxe pass `-D hxmc.gc-prefault` (a helper thread faults in the old
+   space's pages, as Go's GC workers run beside its single compiler thread) and `-D
+   hxmc.shrink-wrap` (opt-in in hxmc: it costs the HaxeBenchmarks' nbody 8%).
 
 Tried and dropped: pretenuring the parsed files into the old space (fewer minor collections, but
 the copying collector lays the trees out depth-first, which the later passes over them need:
