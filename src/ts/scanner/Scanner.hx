@@ -226,7 +226,14 @@ class Scanner {
 		return m;
 	})();
 
+	// PORT: perf — Go's s.text may be a slice of a longer string (parseJSDocComment's
+	// p.sourceText[:end-2]); here `text` holds the longer string and `textLen` is len(s.text), so no
+	// prefix is copied (targets other than JS and hxcpp copy substrings). Every read of the text
+	// stays below textLen as Go's does; helpers that measure their argument get Text() (made
+	// from the prefix once, when one asks for it).
 	var text:String = "";
+	var textLen:Int = 0;
+	var textPrefix:String = null; // Text() when textLen < text.length (made on demand)
 	var end:Int = 0;
 	var languageVariant:LanguageVariant = LanguageVariantStandard;
 	var scriptTarget:ScriptTarget = ScriptTargetNone;
@@ -263,6 +270,8 @@ class Scanner {
 		final hexDigitCache = cleared(this.hexDigitCache);
 		// *s = defaultScanner()
 		text = "";
+		textLen = 0;
+		textPrefix = null;
 		end = 0;
 		languageVariant = LanguageVariantStandard;
 		scriptTarget = ScriptTargetNone;
@@ -282,7 +291,28 @@ class Scanner {
 	}
 
 	public function Text():String {
-		return text;
+		if (textLen == text.length)
+			return text;
+		if (textPrefix == null)
+			textPrefix = go.Strings.Prefix(text, textLen);
+		return textPrefix;
+	}
+
+	// PORT: perf — Utf16.DecodeRuneInString(s.text, i) for s.text of length textLen (RuneError at
+	// or past the end; a surrogate pair only below textLen).
+	inline function decodeRuneAt(i:Int):Int {
+		var r = Utf16.RuneError;
+		if (i < textLen) {
+			r = StringTools.fastCodeAt(text, i);
+			if (r >= 0xD800 && r < 0xDC00 && i + 1 < textLen) {
+				final d = StringTools.fastCodeAt(text, i + 1);
+				if (d >= 0xDC00 && d < 0xE000)
+					r = ((r - 0xD800) << 10) + (d - 0xDC00) + 0x10000;
+			}
+			if (r >= 0xD800 && r < 0xE000)
+				r = Utf16.RuneError;
+		}
+		return r;
 	}
 
 	public function Token():Kind {
@@ -464,7 +494,18 @@ class Scanner {
 
 	public function SetText(text:String):Void {
 		this.text = text;
+		textLen = text.length;
+		textPrefix = null;
 		end = text.length;
+		setScannerState(new ScannerState());
+	}
+
+	// PORT: perf — SetText(text[:n]) without the copy (see textLen).
+	public function SetTextPrefix(text:String, n:Int):Void {
+		this.text = text;
+		textLen = n;
+		textPrefix = null;
+		end = n;
 		setScannerState(new ScannerState());
 	}
 
@@ -523,13 +564,13 @@ class Scanner {
 				r = b;
 			}
 		}
-		return r >= 0 ? r : Utf16.DecodeRuneInString(text, pos);
+		return r >= 0 ? r : decodeRuneAt(pos);
 	}
 
 	// PORT: utf16 — the size Go's charAndSize returns with `ch` at the current position: the
 	// UTF-16 length of ch, or 0 at the end of the text.
 	inline function charSize(ch:Int):Int {
-		return pos < text.length ? Utf16.RuneLen(ch) : 0;
+		return pos < textLen ? Utf16.RuneLen(ch) : 0;
 	}
 
 	// scanASCIIWhile advances s.pos over the longest run of ASCII bytes for which
@@ -839,8 +880,8 @@ class Scanner {
 					pos++;
 					token = KindSemicolonToken;
 				case '<'.code:
-					if (charAt(1) == '<'.code && isConflictMarkerTrivia(text, pos)) {
-						pos = scanConflictMarkerTrivia(text, pos, errorAt);
+					if (charAt(1) == '<'.code && isConflictMarkerTrivia(Text(), pos)) {
+						pos = scanConflictMarkerTrivia(Text(), pos, errorAt);
 						if (skipTrivia) {
 							continue;
 						} else {
@@ -867,8 +908,8 @@ class Scanner {
 						token = KindLessThanToken;
 					}
 				case '='.code:
-					if (charAt(1) == '='.code && isConflictMarkerTrivia(text, pos)) {
-						pos = scanConflictMarkerTrivia(text, pos, errorAt);
+					if (charAt(1) == '='.code && isConflictMarkerTrivia(Text(), pos)) {
+						pos = scanConflictMarkerTrivia(Text(), pos, errorAt);
 						if (skipTrivia) {
 							continue;
 						} else {
@@ -892,8 +933,8 @@ class Scanner {
 						token = KindEqualsToken;
 					}
 				case '>'.code:
-					if (charAt(1) == '>'.code && isConflictMarkerTrivia(text, pos)) {
-						pos = scanConflictMarkerTrivia(text, pos, errorAt);
+					if (charAt(1) == '>'.code && isConflictMarkerTrivia(Text(), pos)) {
+						pos = scanConflictMarkerTrivia(Text(), pos, errorAt);
 						if (skipTrivia) {
 							continue;
 						} else {
@@ -937,8 +978,8 @@ class Scanner {
 					pos++;
 					token = KindOpenBraceToken;
 				case '|'.code:
-					if (charAt(1) == '|'.code && isConflictMarkerTrivia(text, pos)) {
-						pos = scanConflictMarkerTrivia(text, pos, errorAt);
+					if (charAt(1) == '|'.code && isConflictMarkerTrivia(Text(), pos)) {
+						pos = scanConflictMarkerTrivia(Text(), pos, errorAt);
 						if (skipTrivia) {
 							continue;
 						} else {
@@ -1024,7 +1065,7 @@ class Scanner {
 					var size = charSize(ch);
 					if (ch == Utf16.RuneError) {
 						errorAt(Diagnostics.File_appears_to_be_binary, 0, 0);
-						pos = text.length;
+						pos = textLen;
 						token = KindNonTextFileMarkerTrivia;
 						return token;
 					}
@@ -1090,9 +1131,9 @@ class Scanner {
 		}
 		pos++;
 		var kind:CommentDirectiveKind;
-		if (hasPrefixAt(text, pos, "ts-expect-error")) {
+		if (hasPrefixAt(Text(), pos, "ts-expect-error")) {
 			kind = CommentDirectiveKindExpectError;
-		} else if (hasPrefixAt(text, pos, "ts-ignore")) {
+		} else if (hasPrefixAt(Text(), pos, "ts-ignore")) {
 			kind = CommentDirectiveKindIgnore;
 		} else {
 			return;
@@ -1270,7 +1311,7 @@ class Scanner {
 				p++;
 				var regExpFlags:RegularExpressionFlags = RegularExpressionFlagsNone;
 				while (p < end) {
-					final ch = Utf16.DecodeRuneInString(text, p);
+					final ch = decodeRuneAt(p);
 					final size = Utf16.RuneLen(ch);
 					if (ch == Utf16.RuneError || !IsIdentifierPart(ch)) {
 						break;
@@ -1381,8 +1422,8 @@ class Scanner {
 					break;
 				}
 				if (ch == '<'.code) {
-					if (isConflictMarkerTrivia(text, pos)) {
-						pos = scanConflictMarkerTrivia(text, pos, errorAt);
+					if (isConflictMarkerTrivia(Text(), pos)) {
+						pos = scanConflictMarkerTrivia(Text(), pos, errorAt);
 						token = KindConflictMarkerTrivia;
 						return token;
 					}
@@ -1480,14 +1521,14 @@ class Scanner {
 	public function ScanJSDocCommentTextToken(inBackticks:Bool):Kind {
 		fullStartPos = pos;
 		tokenFlags = TokenFlagsNone;
-		if (pos >= text.length) {
+		if (pos >= textLen) {
 			token = KindEndOfFile;
 			return token;
 		}
 		tokenStart = pos;
 		var ch = charAndSize();
 		var size = charSize(ch);
-		while (pos < text.length && !Stringutil.IsLineBreak(ch) && ch != '`'.code) {
+		while (pos < textLen && !Stringutil.IsLineBreak(ch) && ch != '`'.code) {
 			if (!inBackticks) {
 				if (ch == '{'.code) {
 					break;
@@ -1495,7 +1536,7 @@ class Scanner {
 					// @ doesn't start a new tag inside ``, and elsewhere, only after whitespace and before identifier
 					final previous = Utf16.DecodeLastRuneBefore(text, pos);
 					if (Stringutil.IsWhiteSpaceSingleLine(previous)) {
-						final next = Utf16.DecodeRuneInString(text, pos + size);
+						final next = decodeRuneAt(pos + size);
 						if (IsIdentifierStart(next)) {
 							break;
 						}
@@ -1518,17 +1559,17 @@ class Scanner {
 	// and return true if a JSDoc tag can follow. Identifier starts indicate a tag name.
 	// Whitespace, newlines, and EOF are also accepted to support incomplete tags for code completion.
 	public function CanFollowJSDocAt():Bool {
-		if (pos >= text.length) {
+		if (pos >= textLen) {
 			return true;
 		}
-		final ch = Utf16.DecodeRuneInString(text, pos);
+		final ch = decodeRuneAt(pos);
 		return IsIdentifierStart(ch) || Stringutil.IsWhiteSpaceSingleLine(ch) || Stringutil.IsLineBreak(ch);
 	}
 
 	public function ScanJSDocToken():Kind {
 		fullStartPos = pos;
 		tokenFlags = TokenFlagsNone;
-		if (pos >= text.length) {
+		if (pos >= textLen) {
 			token = KindEndOfFile;
 			return token;
 		}
@@ -1622,7 +1663,7 @@ class Scanner {
 		if (IsIdentifierStart(ch)) {
 			var char = ch;
 			while (true) {
-				if (pos >= text.length) {
+				if (pos >= textLen) {
 					break;
 				}
 				char = charAndSize();
@@ -1714,6 +1755,9 @@ class Scanner {
 		// Fast path for simple strings without escape sequences.
 		// PORT: strings.IndexByte(s.text[s.pos:], byte(quote)) without the slice.
 		var strLen = text.indexOf(quote == "'".code ? "'" : '"', pos);
+		if (strLen >= textLen) {
+			strLen = -1; // (past len(s.text))
+		}
 		if (strLen >= 0) {
 			strLen -= pos;
 		}
@@ -1967,7 +2011,7 @@ class Scanner {
 				// we need to decode the full rune and advance past all its bytes.
 				if (ch >= Utf16.RuneSelf) {
 					pos--; // back up past the single-byte advance
-					ch = Utf16.DecodeRuneInString(text, pos);
+					ch = decodeRuneAt(pos);
 					pos += Utf16.RuneLen(ch);
 				}
 				// LineContinuation: a backslash followed by a line terminator is "the empty code unit sequence".

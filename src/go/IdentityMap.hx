@@ -53,7 +53,9 @@ class IdentityMap<K, V> implements IMap<K, V> {
 
 	// len(m)
 	public inline function size():Int {
-		#if (js || target.name == "hxmc")
+		#if js
+		return m.size;
+		#elseif (target.name == "hxmc")
 		return m.size();
 		#else
 		return count;

@@ -112,7 +112,34 @@ class Parser {
 	var factory:NodeFactory = new NodeFactory();
 
 	var opts:SourceFileParseOptions = new SourceFileParseOptions();
-	var sourceText:String = "";
+	// PORT: perf — Go's p.sourceText may be a slice (parseJSDocComment's p.sourceText[:end-2]): the
+	// longer string and the length (setSourceTextPrefix); the prefix is made only when read.
+	var sourceText(get, set):String;
+	var sourceTextFull:String = "";
+	var sourceTextLen:Int = 0;
+	var sourceTextPrefix:String = null;
+
+	function get_sourceText():String {
+		if (sourceTextLen == sourceTextFull.length)
+			return sourceTextFull;
+		if (sourceTextPrefix == null)
+			sourceTextPrefix = go.Strings.Prefix(sourceTextFull, sourceTextLen);
+		return sourceTextPrefix;
+	}
+
+	function set_sourceText(v:String):String {
+		sourceTextFull = v;
+		sourceTextLen = v.length;
+		sourceTextPrefix = null;
+		return v;
+	}
+
+	// p.sourceText = text[:n]
+	function setSourceTextPrefix(text:String, n:Int):Void {
+		sourceTextFull = text;
+		sourceTextLen = n;
+		sourceTextPrefix = null;
+	}
 
 	var scriptKind:ScriptKind = ScriptKindUnknown;
 	var languageVariant:LanguageVariant = LanguageVariantStandard;
