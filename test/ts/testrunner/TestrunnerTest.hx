@@ -5,7 +5,7 @@ package ts.testrunner;
 // (tools/gate/checker.sh, test/ts/harness/CheckerGate.hx), not unit tests.
 class TestrunnerTest {
 	public static function run() {
-		T.run("TestMakeUnitsFromTest", () -> {
+		std.T.run("TestMakeUnitsFromTest", () -> {
 			final code = '// @strict: true
 // @noEmit: true
 // @filename: firstFile.ts
@@ -20,14 +20,14 @@ function bar() { return "b"; }';
 function bar() { return "b"; }', "secondFile.ts");
 			final actual = @:privateAccess Testrunner.makeUnitsFromTest(code, "simpleTest.ts");
 			@:privateAccess {
-				T.eq(2, actual.testUnitData.length);
-				T.eq(testUnit1.content, actual.testUnitData[0].content);
-				T.eq(testUnit1.name, actual.testUnitData[0].name);
-				T.eq(testUnit2.content, actual.testUnitData[1].content);
-				T.eq(testUnit2.name, actual.testUnitData[1].name);
-				T.eq(null, actual.tsConfig);
-				T.eq(null, actual.tsConfigFileUnitData);
-				T.isTrue(actual.symlinks != null && !actual.symlinks.keys().hasNext());
+				std.T.eq(2, actual.testUnitData.length);
+				std.T.eq(testUnit1.content, actual.testUnitData[0].content);
+				std.T.eq(testUnit1.name, actual.testUnitData[0].name);
+				std.T.eq(testUnit2.content, actual.testUnitData[1].content);
+				std.T.eq(testUnit2.name, actual.testUnitData[1].name);
+				std.T.eq(null, actual.tsConfig);
+				std.T.eq(null, actual.tsConfigFileUnitData);
+				std.T.isTrue(actual.symlinks != null && !actual.symlinks.keys().hasNext());
 			}
 		});
 	}

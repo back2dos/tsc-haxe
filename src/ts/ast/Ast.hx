@@ -12129,7 +12129,8 @@ abstract MutableNode(NodeDefault) from NodeDefault to NodeDefault {
 // Go `Node`. The public non-inline methods are the nodeData interface: tools/gen/ast reads this
 // class to decide which promoted methods are overrides.
 // PORT: implements TypeSystemEntity (Go `any`, see Symbol.hx).
-class NodeDefault implements ts.ast.Symbol.TypeSystemEntity {
+// PORT: perf — extends core.LinkHolder (the links of the checker's LinkStores, see there).
+class NodeDefault extends ts.core.Linkstore.LinkHolder implements ts.ast.Symbol.TypeSystemEntity {
 	public var Kind:Kind = 0;
 	public var Flags:NodeFlags = 0;
 	// PORT: Go `Loc core.TextRange` → two Int fields with an inline Loc property (no allocation).
@@ -12139,7 +12140,9 @@ class NodeDefault implements ts.ast.Symbol.TypeSystemEntity {
 	public var id:Int = 0; // PORT: atomic.Uint64 → Int (single-threaded; ids fit in 32 bits)
 	public var Parent:Node = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 
 	inline function get_Loc():TextRange {
 		return new TextRange(pos, end);

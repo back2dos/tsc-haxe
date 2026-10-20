@@ -707,13 +707,19 @@ class CoreTest {
 			T.eq(256, Core.nextArenaSize(200));
 			T.eq(2, Core.nextArenaSize(0));
 
-			final store = new LinkStore<String, Stack<Int>>(() -> new Stack<Int>());
-			T.isTrue(!store.Has("a"));
-			T.eq(null, store.TryGet("a"));
-			final s = store.Get("a");
-			T.isTrue(store.Has("a"));
-			T.eq(s, store.Get("a"));
-			T.eq(s, store.TryGet("a"));
+			// (keys are pointers in the compiler: nodes and symbols, which hold their links)
+			final store = new LinkStore<ts.ast.Symbol, Stack<Int>>(() -> new Stack<Int>());
+			final store2 = new LinkStore<ts.ast.Symbol, Stack<Int>>(() -> new Stack<Int>());
+			final a = new ts.ast.Symbol();
+			T.isTrue(!store.Has(a));
+			T.eq(null, store.TryGet(a));
+			final s = store.Get(a);
+			T.isTrue(store.Has(a));
+			T.eq(s, store.Get(a));
+			T.eq(s, store.TryGet(a));
+			T.isTrue(!store2.Has(a));
+			T.isTrue(store2.Get(a) != s);
+			T.eq(s, store.Get(a));
 
 			final st = new Stack<String>();
 			T.eq(0, st.Len());
