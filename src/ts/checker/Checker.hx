@@ -865,6 +865,25 @@ class KeyHasher {
 
 	// The packed bytes; the hasher goes back to the pool.
 	function Sum():std.String {
+		#if (target.name == "hxmc")
+		// PORT: perf — hxmc's strings are 16-bit units that need not be valid UTF-16: two bytes per
+		// unit and a last unit holding n's parity (injective too), no packing and no UTF-8 decoding.
+		final m = (n + 1) >> 1;
+		final s = hxmc.rt.Str.make(m + 1);
+		final d = hxmc.rt.Str.chars(s);
+		final b = buf;
+		var i = 0;
+		while (i + 1 < n) {
+			d.set(i >> 1, b.get(i) | (b.get(i + 1) << 8));
+			i += 2;
+		}
+		if (i < n)
+			d.set(i >> 1, b.get(i));
+		d.set(m, n & 1);
+		n = 0;
+		pool.push(this);
+		return s;
+		#end
 		final m = Std.int((n * 8 + 6) / 7);
 		if (packed == null || packed.length < m)
 			packed = haxe.io.Bytes.alloc(m < 256 ? 256 : m * 2);
