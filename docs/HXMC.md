@@ -71,3 +71,24 @@ Tried and dropped: pretenuring the parsed files into the old space (fewer minor 
 the copying collector lays the trees out depth-first, which the later passes over them need:
 slower overall); interning identifiers process-wide on hxmc (no measurable change); a smaller
 first StringMap table (2 MB less allocation).
+
+## wasm32-wasi
+
+`tools/targets.sh` target `hxmc-wasm`: the same build with `-D hxmc.target=wasm32-wasi`, run under
+node by hxmc's WASI runner (`$HXMC_HOME/hxmc/bootstrap/wasi.mjs`, which preopens `/`). `go.Os` there is
+`go.OsWasi` (WASI's path calls, WASI's errno values, realpath a component at a time over lstat and
+readlink). The real-project gate passes on it as on `hxmc` (`tools/gate/realworld.sh --targets
+hxmc,hxmc-wasm`: every project, mode and step). Unit tests: as `hxmc`, plus `TestSymlinkRealpath` and
+`TestGetAccessibleEntries`, whose absolute symlink targets WASI refuses (EPERM under node; Go's own
+wasip1 `os.Symlink` passes them on the same way).
+
+ts6-compiler under node v24.21.0 against the unofficial `tsgo-wasm` 7.0.2 (Go's wasm build, 49 MB) and
+the native `typescript@7.0.2` (npm; both from typescript-go 2bd066d8). Medians (min) of 7 interleaved
+runs, wall time and peak RSS; Intel Xeon E-2356G @ 3.20 GHz (6 cores / 12 threads), 62 GB RAM, Linux
+6.1, load average mostly 1.5-3.4:
+
+| | decl | check | full |
+|---|---|---|---|
+| tsc7 native `--singleThreaded` | 1.70 s (1.69), 422 MB | 1.66 s (1.64), 402 MB | 2.73 s (2.57), 539 MB |
+| tsgo-wasm | 12.72 s (12.29), 686 MB | 12.14 s (12.02), 674 MB | 17.29 s (16.53), 866 MB |
+| hxmc wasm32-wasi (21.9 MB, hxmc `tsc-perf`) | 3.49 s (3.42), 792 MB | 3.38 s (3.32), 791 MB | 4.92 s (4.59), 875 MB |
