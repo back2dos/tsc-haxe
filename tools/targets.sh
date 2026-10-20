@@ -8,13 +8,14 @@
 #   cs   B-cs/bin/<M>.dll   $DOTNET B-cs/bin/<M>.dll (hxcs sources in B-cs/src; dotnet build)
 #   py   B-py.py            $PYTHON B-py.py (main() runs in a big-stack thread, see go.PyTarget)
 #   hxmc B-hxmc             native binary (hxmc, Linux x86-64; HXMC_HOME: an hxmc checkout with bin/hxmc built)
+#   hxmc-wasm B-hxmc.wasm   node --stack-size=7000 $HXMC_HOME/hxmc/bootstrap/wasi.mjs B-hxmc.wasm (hxmc, wasm32-wasi)
 #
 # hx_build <target> <main> <base> [haxe args...]   builds (quiet); exit status of the build
 # hx_cmd <target> <main> <base>                    prints the command line that runs the build
 # hx_targets_check <list>                          exits with a message on an unknown target name
 . "$ROOT/tools/env.sh"
 
-HX_ALL_TARGETS="js cpp jvm cs py hxmc"
+HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm"
 
 hx_build() {
 	_t=$1 _m=$2 _b=$3
@@ -36,6 +37,14 @@ hx_build() {
 		HAXE_STD_PATH="$HXMC_HOME/haxe/upstream/std" "$HXMC_HOME/bin/hxmc/hxmc" "$_b-hxmc" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP \
 			-D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize \
 			-main "$_m" -D hxmc.symbols -D hxmc.gc-prefault -D hxmc.shrink-wrap "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
+		;;
+	# hxmc-wasm: the same for wasm32-wasi (go.OsWasi), run under node by hxmc's WASI runner, which
+	# preopens "/" (-D hxmc.symbols: a name section).
+	hxmc-wasm)
+		ulimit -s unlimited 2>/dev/null || :
+		HAXE_STD_PATH="$HXMC_HOME/haxe/upstream/std" "$HXMC_HOME/bin/hxmc/hxmc" "$_b-hxmc.wasm" -cp "$ROOT/src" \
+			--macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize -main "$_m" -D hxmc.target=wasm32-wasi \
+			-D hxmc.symbols "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
 		;;
 	cs)
 		# Haxe writes the C# sources (hxcs: -D no-compilation); the project file and the launcher come
@@ -71,6 +80,7 @@ hx_cmd() {
 	py) echo "$PYTHON $_b-py.py" ;;
 	cs) echo "$DOTNET $_b-cs/bin/${_m##*.}.dll" ;;
 	hxmc) echo "$_b-hxmc" ;;
+	hxmc-wasm) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $HXMC_HOME/hxmc/bootstrap/wasi.mjs $_b-hxmc.wasm" ;;
 	*) echo "false unknown-target-$_t" ;;
 	esac
 }
