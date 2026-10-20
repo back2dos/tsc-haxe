@@ -11,6 +11,7 @@
 #   DOTNET      dotnet (.NET 8 SDK) for the C# target; HAXELIB_CS: the project-local haxelib repo with
 #               hxcs (only for C# builds; `make setup-cs`; the global haxelib repo is never changed)
 #   PYTHON      python3 (3.12) for the Python target
+#   HXMC_HOME   an hxmc checkout (github.com/benmerckx/hxmc) with the tool built (make hxmc) for the hxmc target
 _env_local="${ROOT:?tools/env.sh: set ROOT to the repository root first}/tools/env.local.sh"
 [ -f "$_env_local" ] && . "$_env_local"
 : "${HAXE_HOME:=}"
@@ -19,6 +20,7 @@ _env_local="${ROOT:?tools/env.sh: set ROOT to the repository root first}/tools/e
 : "${JAVA_OPTS:=-Xss1g -XX:+UseParallelGC -Xlog:exceptions=off}"
 : "${DOTNET:=dotnet}"
 : "${PYTHON:=python3}"
+: "${HXMC_HOME:=}"
 : "${HAXELIB_CS:=$ROOT/tools/.haxelib-cs}"
 DOTNET_CLI_TELEMETRY_OPTOUT=1
-export HAXE_HOME NODE JAVA JAVA_OPTS DOTNET PYTHON HAXELIB_CS DOTNET_CLI_TELEMETRY_OPTOUT
+export HAXE_HOME NODE JAVA JAVA_OPTS DOTNET PYTHON HXMC_HOME HAXELIB_CS DOTNET_CLI_TELEMETRY_OPTOUT

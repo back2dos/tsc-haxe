@@ -1603,8 +1603,8 @@ class Checker {
 
 	// cmp.Compare for jsnum.Number (float64): NaN sorts before every other value.
 	static function compareNumbers(x:Float, y:Float):Int {
-		final xNaN = Math.isNaN(x);
-		final yNaN = Math.isNaN(y);
+		final xNaN = std.Math.isNaN(x);
+		final yNaN = std.Math.isNaN(y);
 		if (xNaN) {
 			return yNaN ? 0 : -1;
 		}
