@@ -1708,12 +1708,19 @@ class Checker {
 	static inline final maxSerializationLevel:Int = 2;
 
 	static var nextCheckerID:Int = 0; // PORT: atomic.Uint32 → Int (single-threaded)
+	#if tshx_parallel
+	static final checkerIDs = new haxe.atomic.AtomicInt(0);
+	#end
 
 	public static function NewChecker(program:Program, tracer:Tracer):Pair<Checker, Any /* sync.Mutex */> {
 		program.BindSourceFiles();
 
 		final c = new Checker();
+		#if tshx_parallel
+		c.id = checkerIDs.add(1) + 1; // PORT: hxmc (-D tshx-parallel) — atomic.Uint32.Add
+		#else
 		c.id = ++nextCheckerID;
+		#end
 		c.tracer = tracer;
 		c.program = program;
 		c.compilerOptions = program.Options();

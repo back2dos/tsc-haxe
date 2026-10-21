@@ -545,7 +545,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	public function BindSourceFiles():Void {
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — the files are bound on threads, as in Go
+		final wg:WorkGroup = this.SingleThreaded() ? Core.NewWorkGroup(true) : new ParallelWorkGroup();
+		#else
 		final wg = Core.NewWorkGroup(this.SingleThreaded());
+		#end
 		for (file in this.files) {
 			if (!file.IsBound()) {
 				wg.Queue(function() {

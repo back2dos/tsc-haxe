@@ -90,7 +90,12 @@ class CheckerPool_ implements CheckerPool {
 			return;
 		this.createCheckersOnce = true;
 		final checkerCount = this.checkers.length;
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — the checkers are created on threads, as in Go
+		final wg:WorkGroup = this.program.SingleThreaded() ? Core.NewWorkGroup(true) : new ParallelWorkGroup();
+		#else
 		final wg = Core.NewWorkGroup(this.program.SingleThreaded());
+		#end
 		for (i in 0...checkerCount) {
 			wg.Queue(function() {
 				var tracer:ts.checker.Tracer = null;
