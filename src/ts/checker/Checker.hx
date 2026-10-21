@@ -904,14 +904,24 @@ class KeyHasher {
 		final s = hxmc.rt.Str.make(m + 1);
 		final d = hxmc.rt.Str.chars(s);
 		final b = buf;
+		// PORT: perf — the string's hash as hxmc's StringMap computes it (FNV-1a of the units, 0 → 1), stored in
+		// the string while its units are written: the key's map lookup does not hash it again
+		var x = 0x811C9DC5;
 		var i = 0;
 		while (i + 1 < n) {
-			d.set(i >> 1, b.get(i) | (b.get(i + 1) << 8));
+			final u = b.get(i) | (b.get(i + 1) << 8);
+			d.set(i >> 1, u);
+			x = (x ^ u) * 16777619;
 			i += 2;
 		}
-		if (i < n)
-			d.set(i >> 1, b.get(i));
+		if (i < n) {
+			final u = b.get(i);
+			d.set(i >> 1, u);
+			x = (x ^ u) * 16777619;
+		}
 		d.set(m, n & 1);
+		x = (x ^ (n & 1)) * 16777619;
+		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
 		n = 0;
 		pool.push(this);
 		return s;
