@@ -1735,7 +1735,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 		final newLine = this.Options().NewLine.GetNewLineCharacter();
 		// PORT: sync.Pool of writers → a new writer per file (Go clears a pooled writer before use).
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — the files are emitted on threads, as in Go
+		final wg:WorkGroup = this.SingleThreaded() ? Core.NewWorkGroup(true) : new ParallelWorkGroup();
+		#else
 		final wg = Core.NewWorkGroup(this.SingleThreaded());
+		#end
 		final emitters:Array<Emitter> = [];
 		final sourceFiles = this.getSourceFilesToEmit(options.TargetSourceFile, options.EmitOnly == EmitOnlyForcedDts);
 

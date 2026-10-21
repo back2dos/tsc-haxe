@@ -105,7 +105,11 @@ class OsHxmc {
 		return e;
 	}
 
+	#if tshx_parallel
+	@:hxmc.threadLocal public static var realpathErrno:Int; // PORT: hxmc (-D tshx-parallel) — per thread
+	#else
 	public static var realpathErrno = 0;
+	#end
 
 	public static function realpath(path:String):Null<String> {
 		final p = cstr(path);

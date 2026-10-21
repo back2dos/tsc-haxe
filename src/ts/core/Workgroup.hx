@@ -67,6 +67,7 @@ class ParallelWorkGroup implements WorkGroup {
 	final mutex = new sys.thread.Mutex();
 	var error:Dynamic = null;
 	var failed = false;
+	var stack = "";
 	var done = false;
 
 	public function new() {}
@@ -84,6 +85,7 @@ class ParallelWorkGroup implements WorkGroup {
 				if (!this.failed) {
 					this.failed = true;
 					this.error = e;
+					this.stack = haxe.CallStack.toString(haxe.CallStack.exceptionStack());
 				}
 				this.mutex.release();
 			}
@@ -98,8 +100,11 @@ class ParallelWorkGroup implements WorkGroup {
 				this.finished.wait(0.001);
 		}
 		this.done = true;
-		if (this.failed)
+		if (this.failed) {
+			// (where it was thrown: rethrown here, the stack of the worker is lost)
+			Sys.stderr().writeString("ParallelWorkGroup: " + Std.string(this.error) + this.stack + "\n");
 			throw this.error;
+		}
 	}
 }
 #end
