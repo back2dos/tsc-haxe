@@ -1,6 +1,8 @@
 package go;
 
-#if (target.name == "hxmc" && hxmc.target == "wasm32-wasi")
+#if (target.name == "hxmc" && hxmc.wasm_gc)
+typedef OsHxmc = OsGc;
+#elseif (target.name == "hxmc" && hxmc.target == "wasm32-wasi")
 typedef OsHxmc = OsWasi;
 #elseif (target.name == "hxmc")
 import hxmc.unsafe.LibC;
