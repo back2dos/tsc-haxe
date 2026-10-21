@@ -11,7 +11,8 @@ import haxe.ds.StringMap;
 interface TypeSystemEntity {}
 
 // Symbol
-class Symbol implements TypeSystemEntity {
+// PORT: perf — extends core.LinkHolder (the links of the checker's LinkStores, see there).
+class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	public var Flags:SymbolFlags = 0;
 	public var CheckFlags:CheckFlags = 0; // Non-zero only in transient symbols created by Checker
 	public var Name:String = "";
@@ -23,7 +24,9 @@ class Symbol implements TypeSystemEntity {
 	public var Parent:Symbol = null;
 	public var ExportSymbol:Symbol = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 
 	public function IsExternalModule():Bool {
 		return Flags & SymbolFlagsModule != 0 && Name.length > 0 && StringTools.fastCodeAt(Name, 0) == '"'.code;

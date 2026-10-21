@@ -84,7 +84,7 @@ class EnumLiteralKey {
 	// value is a string or a jsnum.Number (NaN is cached separately by the caller, as in Go).
 	public static function keyOf(c:Checker, enumSymbol:Symbol, value:Any):std.String {
 		final v = Std.isOfType(value, std.String) ? "s" + (value : std.String) : "n" + Checker.numberLiteralKey((value : Float));
-		return Checker.identityKeyOf(c, enumSymbol) + ":" + v;
+		return go.MapKey.i1s(Checker.identityKeyOf(c, enumSymbol), v);
 	}
 
 	public function Key(c:Checker):std.String {
@@ -100,7 +100,7 @@ class EnumRelationKey {
 	public function new() {}
 
 	public static inline function keyOf(sourceId:SymbolId, targetId:SymbolId):std.String {
-		return sourceId + ":" + targetId;
+		return go.MapKey.i2(sourceId, targetId);
 	}
 
 	public function Key():std.String {
@@ -141,7 +141,7 @@ class CachedTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(kind:CachedTypeKind, typeId:TypeId):std.String {
-		return (kind : Int) + ":" + typeId;
+		return go.MapKey.i2((kind : Int), typeId);
 	}
 
 	public function Key():std.String {
@@ -159,7 +159,7 @@ class NarrowedTypeKey {
 	public function new() {}
 
 	public static function keyOf(t:Type, candidate:Type, assumeTrue:Bool, checkDerived:Bool):std.String {
-		return Checker.typeKeyOf(t) + ":" + Checker.typeKeyOf(candidate) + ":" + (assumeTrue ? "1" : "0") + (checkDerived ? "1" : "0");
+		return go.MapKey.i3(Checker.typeKeyOf(t), Checker.typeKeyOf(candidate), (assumeTrue ? 10 : 0) + (checkDerived ? 1 : 0));
 	}
 
 	public function Key():std.String {
@@ -177,7 +177,7 @@ class UnionOfUnionKey {
 	public function new() {}
 
 	public static function keyOf(id1:TypeId, id2:TypeId, r:UnionReduction, a:CacheHashKey):std.String {
-		return id1 + ":" + id2 + ":" + (r : Int) + ":" + a.Key();
+		return go.MapKey.i3s(id1, id2, (r : Int), a.Key());
 	}
 
 	public function Key():std.String {
@@ -193,7 +193,7 @@ class CachedSignatureKey {
 	public function new() {}
 
 	public static function keyOf(sig:Signature, key:CacheHashKey):std.String {
-		return (sig == null ? 0 : sig.id) + ":" + key.Key();
+		return go.MapKey.i1s(sig == null ? 0 : sig.id, key.Key());
 	}
 
 	public function Key():std.String {
@@ -209,7 +209,7 @@ class StringMappingKey {
 	public function new() {}
 
 	public static function keyOf(c:Checker, s:Symbol, t:Type):std.String {
-		return Checker.identityKeyOf(c, s) + ":" + Checker.typeKeyOf(t);
+		return go.MapKey.i2(Checker.identityKeyOf(c, s), Checker.typeKeyOf(t));
 	}
 
 	public function Key(c:Checker):std.String {
@@ -225,7 +225,7 @@ class AssignmentReducedKey {
 	public function new() {}
 
 	public static inline function keyOf(id1:TypeId, id2:TypeId):std.String {
-		return id1 + ":" + id2;
+		return go.MapKey.i2(id1, id2);
 	}
 
 	public function Key():std.String {
@@ -241,7 +241,7 @@ class DiscriminatedContextualTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(nodeId:NodeId, typeId:TypeId):std.String {
-		return nodeId + ":" + typeId;
+		return go.MapKey.i2(nodeId, typeId);
 	}
 
 	public function Key():std.String {
@@ -257,7 +257,7 @@ class InstantiationExpressionKey {
 	public function new() {}
 
 	public static inline function keyOf(nodeId:NodeId, typeId:TypeId):std.String {
-		return nodeId + ":" + typeId;
+		return go.MapKey.i2(nodeId, typeId);
 	}
 
 	public function Key():std.String {
@@ -273,7 +273,7 @@ class SubstitutionTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(baseId:TypeId, constraintId:TypeId):std.String {
-		return baseId + ":" + constraintId;
+		return go.MapKey.i2(baseId, constraintId);
 	}
 
 	public function Key():std.String {
@@ -290,7 +290,7 @@ class ReverseMappedTypeKey {
 	public function new() {}
 
 	public static inline function keyOf(sourceId:TypeId, targetId:TypeId, constraintId:TypeId):std.String {
-		return sourceId + ":" + targetId + ":" + constraintId;
+		return go.MapKey.i3(sourceId, targetId, constraintId);
 	}
 
 	public function Key():std.String {
@@ -306,7 +306,7 @@ class IterationTypesKey {
 	public function new() {}
 
 	public static inline function keyOf(typeId:TypeId, use:IterationUse):std.String {
-		return typeId + ":" + (use : Int);
+		return go.MapKey.i2(typeId, (use : Int));
 	}
 
 	public function Key():std.String {
@@ -324,7 +324,7 @@ class PropertiesTypesKey {
 	public function new() {}
 
 	public static function keyOf(typeId:TypeId, include:TypeFlags, includeOrigin:Bool, unresolvedMembers:Bool):std.String {
-		return typeId + ":" + (include : Int) + ":" + (includeOrigin ? "1" : "0") + (unresolvedMembers ? "1" : "0");
+		return go.MapKey.i3(typeId, (include : Int), (includeOrigin ? 10 : 0) + (unresolvedMembers ? 1 : 0));
 	}
 
 	public function Key():std.String {
@@ -341,7 +341,7 @@ class NonExistentPropertyKey {
 	public function new() {}
 
 	public static function keyOf(c:Checker, propNode:Node, containingType:Type, isUncheckedJS:Bool):std.String {
-		return Checker.identityKeyOf(c, propNode) + ":" + Checker.typeKeyOf(containingType) + ":" + (isUncheckedJS ? "1" : "0");
+		return go.MapKey.i3(Checker.identityKeyOf(c, propNode), Checker.typeKeyOf(containingType), isUncheckedJS ? 1 : 0);
 	}
 
 	public function Key(c:Checker):std.String {
@@ -357,7 +357,7 @@ class FlowLoopKey {
 	public function new() {}
 
 	public static function keyOf(c:Checker, flowNode:FlowNode, refKey:CacheHashKey):std.String {
-		return Checker.identityKeyOf(c, flowNode) + ":" + refKey.Key();
+		return go.MapKey.i1s(Checker.identityKeyOf(c, flowNode), refKey.Key());
 	}
 
 	public function Key(c:Checker):std.String {
@@ -857,6 +857,16 @@ class KeyHasher {
 		buf.set(n++, c);
 	}
 
+	// room for k more bytes (then Put writes them without a test)
+	inline function Reserve(k:Int):Void {
+		if (n + k > buf.length)
+			grow();
+	}
+
+	inline function Put(c:Int):Void {
+		buf.set(n++, c);
+	}
+
 	function grow():Void {
 		final b = haxe.io.Bytes.alloc(buf.length * 2);
 		b.blit(0, buf, 0, n);
@@ -865,6 +875,25 @@ class KeyHasher {
 
 	// The packed bytes; the hasher goes back to the pool.
 	function Sum():std.String {
+		#if (target.name == "hxmc")
+		// PORT: perf — hxmc's strings are 16-bit units that need not be valid UTF-16: two bytes per
+		// unit and a last unit holding n's parity (injective too), no packing and no UTF-8 decoding.
+		final m = (n + 1) >> 1;
+		final s = hxmc.rt.Str.make(m + 1);
+		final d = hxmc.rt.Str.chars(s);
+		final b = buf;
+		var i = 0;
+		while (i + 1 < n) {
+			d.set(i >> 1, b.get(i) | (b.get(i + 1) << 8));
+			i += 2;
+		}
+		if (i < n)
+			d.set(i >> 1, b.get(i));
+		d.set(m, n & 1);
+		n = 0;
+		pool.push(this);
+		return s;
+		#end
 		final m = Std.int((n * 8 + 6) / 7);
 		if (packed == null || packed.length < m)
 			packed = haxe.io.Bytes.alloc(m < 256 ? 256 : m * 2);
@@ -1444,6 +1473,7 @@ class Checker {
 	var flowLoopCache:StringMap<Type> /* key: checker.FlowLoopKey */ = null;
 	var flowLoopStack:Array<FlowLoopInfo> = null;
 	var sharedFlows:Array<SharedFlow> = null;
+	var sharedFlowsLen:Int = 0; // PORT: perf — len(c.sharedFlows); the array keeps its objects past it (see Flow)
 	var antecedentTypes:Array<Type> = null;
 	var flowAnalysisDisabled:Bool = false;
 	var flowInvocationCount:Int = 0;
@@ -1603,8 +1633,8 @@ class Checker {
 
 	// cmp.Compare for jsnum.Number (float64): NaN sorts before every other value.
 	static function compareNumbers(x:Float, y:Float):Int {
-		final xNaN = Math.isNaN(x);
-		final yNaN = Math.isNaN(y);
+		final xNaN = std.Math.isNaN(x);
+		final yNaN = std.Math.isNaN(y);
 		if (xNaN) {
 			return yNaN ? 0 : -1;
 		}
@@ -2292,10 +2322,11 @@ class Checker {
 	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any 32-bit integer type.
 	static function hashWrite32(h:KeyHasher, value:Int):Void {
 		final v = value;
-		h.WriteByte(v & 0xFF);
-		h.WriteByte((v >>> 8) & 0xFF);
-		h.WriteByte((v >>> 16) & 0xFF);
-		h.WriteByte((v >>> 24) & 0xFF);
+		h.Reserve(4); // PORT: perf — one capacity test for the four bytes
+		h.Put(v & 0xFF);
+		h.Put((v >>> 8) & 0xFF);
+		h.Put((v >>> 16) & 0xFF);
+		h.Put((v >>> 24) & 0xFF);
 	}
 
 	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any integer type (Int here).
@@ -2303,14 +2334,15 @@ class Checker {
 		// PORT: the Haxe Int is 32 bits; Go's uint64 conversion sign-extends it.
 		final v = value;
 		final hi = v < 0 ? 0xFF : 0;
-		h.WriteByte(v & 0xFF);
-		h.WriteByte((v >>> 8) & 0xFF);
-		h.WriteByte((v >>> 16) & 0xFF);
-		h.WriteByte((v >>> 24) & 0xFF);
-		h.WriteByte(hi);
-		h.WriteByte(hi);
-		h.WriteByte(hi);
-		h.WriteByte(hi);
+		h.Reserve(8); // PORT: perf — one capacity test for the eight bytes
+		h.Put(v & 0xFF);
+		h.Put((v >>> 8) & 0xFF);
+		h.Put((v >>> 16) & 0xFF);
+		h.Put((v >>> 24) & 0xFF);
+		h.Put(hi);
+		h.Put(hi);
+		h.Put(hi);
+		h.Put(hi);
 	}
 
 	static function getTypeListKey(types:Array<Type>):CacheHashKey {

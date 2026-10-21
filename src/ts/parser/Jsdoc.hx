@@ -118,7 +118,9 @@ class Jsdoc {
 			return null;
 		}
 
-		var saveSourceText = p.sourceText;
+		// PORT: perf — the text and its length (p.sourceText may be a prefix: Parser.setSourceTextPrefix)
+		var saveSourceText = p.sourceTextFull;
+		var saveSourceTextLen = p.sourceTextLen;
 		var saveToken = p.token;
 		var saveContextFlags = p.contextFlags;
 		var saveParsingContexts = p.parsingContexts;
@@ -132,8 +134,9 @@ class Jsdoc {
 		// if there is no \n before start, -1 is one index before the first character in the string
 		var initialIndent = start + 4 - (Parser.lastIndexOfNewLine(p.sourceText, start) + 1);
 		// -2 for trailing `*/`
-		p.sourceText = go.Strings.Prefix(p.sourceText, end - 2); // PORT: perf, no copy (Go slices)
-		p.scanner.SetText(p.sourceText);
+		// PORT: perf — p.sourceText[:end-2] without a copy (Go slices)
+		p.setSourceTextPrefix(p.sourceTextFull, end - 2);
+		p.scanner.SetTextPrefix(p.sourceTextFull, end - 2);
 		// +3 for leading `/**`
 		p.scanner.ResetPos(start + 3);
 		p.setContextFlags(NodeFlagsJSDoc, true);
@@ -146,8 +149,8 @@ class Jsdoc {
 		}
 		p.diagnostics = Parser.truncate(p.diagnostics, saveDiagnosticsLength);
 
-		p.sourceText = saveSourceText;
-		p.scanner.SetText(p.sourceText);
+		p.setSourceTextPrefix(saveSourceText, saveSourceTextLen);
+		p.scanner.SetTextPrefix(saveSourceText, saveSourceTextLen);
 		p.parsingContexts = saveParsingContexts;
 		p.contextFlags = saveContextFlags;
 		p.scanner.Rewind(saveScannerState);

@@ -126,7 +126,7 @@ class RegExpParser {
 	}
 
 	inline function text():String {
-		return scanner.text;
+		return scanner.Text();
 	}
 
 	// Disjunction ::= Alternative ('|' Alternative)*

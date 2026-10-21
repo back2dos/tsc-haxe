@@ -1006,6 +1006,16 @@ class OsNative {
 		} catch (e:Dynamic) {
 			r.err = pyCode(e);
 		}
+		#elseif (target.name == "hxmc")
+		final a = OsHxmc.stat(path, follow);
+		if (a[0] != 0) {
+			r.err = OsHxmc.errname(Std.int(a[0]));
+		} else {
+			r.mode = Std.int(a[1]);
+			r.size = Std.int(a[2]);
+			r.mtimeSec = a[3];
+			r.mtimeNsec = Std.int(a[4]);
+		}
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1128,6 +1138,9 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
+		#elseif (target.name == "hxmc")
+		final e = OsHxmc.mkdir(path, perm);
+		return e == 0 ? null : OsHxmc.errname(e);
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1163,6 +1176,9 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
+		#elseif (target.name == "hxmc")
+		final e = OsHxmc.unlink(path);
+		return e == 0 ? null : OsHxmc.errname(e);
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1200,6 +1216,9 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
+		#elseif (target.name == "hxmc")
+		final e = OsHxmc.rmdir(path);
+		return e == 0 ? null : OsHxmc.errname(e);
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1233,6 +1252,9 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
+		#elseif (target.name == "hxmc")
+		final e = OsHxmc.symlink(target, path);
+		return e == 0 ? null : OsHxmc.errname(e);
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1271,6 +1293,9 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
+		#elseif (target.name == "hxmc")
+		final e = OsHxmc.utimes(path, atime, mtime);
+		return e == 0 ? null : OsHxmc.errname(e);
 		#else
 		throw "go.Os: unsupported target";
 		#end
@@ -1315,6 +1340,13 @@ class OsNative {
 			realpathErr = pyCode(e);
 			return null;
 		}
+		#elseif (target.name == "hxmc")
+		final s = OsHxmc.realpath(path);
+		if (s == null) {
+			realpathErr = OsHxmc.errname(OsHxmc.realpathErrno);
+			return null;
+		}
+		return s;
 		#else
 		throw "go.Os: unsupported target";
 		#end

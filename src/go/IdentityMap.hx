@@ -9,6 +9,8 @@ import haxe.Constraints.IMap;
 //          objects (HXCPP_GC_MOVING is off), and the map holds its keys strongly, so an address
 //          is stable while it is a key. Iteration order never depends on addresses: entries are
 //          kept in insertion order (a deleted key that is set again goes to the end).
+//   hxmc:  haxe.ds.ObjectMap, which is this map there: insertion-ordered, hashed by the key's address
+//          (brought up to date after the collector moves keys), no per-key ids.
 //   JS:    a native ES6 Map (identity keys, insertion order); ObjectMap adds an `__id__` field
 //          to every key object (a hidden-class change) and stores values under sparse integer keys.
 //   other: keys and values in arrays in insertion order (holes for deleted entries, compacted when
@@ -33,6 +35,8 @@ class IdentityMap<K, V> implements IMap<K, V> {
 	var count:Int = 0; // live entries
 	#elseif js
 	var m:js.lib.Map<K, V>;
+	#elseif (target.name == "hxmc")
+	final m = new haxe.ds.ObjectMap<{}, V>();
 	#else
 	// Entries in insertion order; a deleted entry has a null key (a hole).
 	var ks:Array<K> = [];
@@ -51,12 +55,14 @@ class IdentityMap<K, V> implements IMap<K, V> {
 	public inline function size():Int {
 		#if js
 		return m.size;
+		#elseif (target.name == "hxmc")
+		return m.size();
 		#else
 		return count;
 		#end
 	}
 
-	#if !(cpp || js)
+	#if !(cpp || js || target.name == "hxmc")
 	// Removes the holes from ks/vs and renumbers the index.
 	function compact():Void {
 		final nk = new Array<K>(), nv = new Array<V>();
@@ -139,6 +145,8 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		return e < 0 ? null : vs[e];
 		#elseif js
 		return m.get(k);
+		#elseif (target.name == "hxmc")
+		return m.get(cast k);
 		#else
 		final e = idx.get(k);
 		return e < 0 ? null : vs[e];
@@ -150,13 +158,21 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		return find(k) >= 0;
 		#elseif js
 		return m.has(k);
+		#elseif (target.name == "hxmc")
+		return m.exists(cast k);
 		#else
 		return idx.get(k) >= 0;
 		#end
 	}
 
 	public function set(k:K, v:V):Void {
+		#if (target.name == "hxmc")
+		if (k == null)
+			throw "IdentityMap: null key";
+		m.set(cast k, v);
+		#else
 		add(k, v);
+		#end
 	}
 
 	// m[k] = v; returns true when k was not in the map.
@@ -193,6 +209,12 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		final n = m.size;
 		m.set(k, v);
 		return m.size != n;
+		#elseif (target.name == "hxmc")
+		if (k == null)
+			throw "IdentityMap: null key";
+		final n = m.size();
+		m.set(cast k, v);
+		return m.size() != n;
 		#else
 		if (k == null)
 			throw "IdentityMap: null key";
@@ -245,6 +267,8 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		return true;
 		#elseif js
 		return m.delete(k);
+		#elseif (target.name == "hxmc")
+		return m.remove(cast k);
 		#else
 		final e = idx.get(k);
 		if (e < 0)
@@ -280,6 +304,11 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		return a;
 		#elseif js
 		return [for (k in new js.lib.HaxeIterator(m.keys())) k];
+		#elseif (target.name == "hxmc")
+		final a = new Array<K>();
+		for (k in m.keys())
+			a.push(cast k);
+		return a;
 		#else
 		return [for (k in ks) if (k != null) k];
 		#end
@@ -294,6 +323,11 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		return a;
 		#elseif js
 		return [for (v in new js.lib.HaxeIterator(m.values())) v];
+		#elseif (target.name == "hxmc")
+		final a = new Array<V>();
+		for (v in m)
+			a.push(v);
+		return a;
 		#else
 		return [for (i in 0...ks.length) if (ks[i] != null) vs[i]];
 		#end
@@ -321,6 +355,9 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		}
 		#elseif js
 		m.forEach((v, k, _) -> c.m.set(k, v));
+		#elseif (target.name == "hxmc")
+		for (k in m.keys())
+			c.m.set(k, m.get(k));
 		#else
 		for (i in 0...ks.length) {
 			final k = ks[i];
@@ -354,7 +391,7 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		slots = null;
 		shift = 32;
 		used = count = 0;
-		#elseif js
+		#elseif (js || target.name == "hxmc")
 		m.clear();
 		#else
 		ks = [];

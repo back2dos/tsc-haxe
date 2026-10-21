@@ -7,13 +7,14 @@
 #   jvm  B-jvm.jar          $JAVA $JAVA_OPTS -jar B-jvm.jar
 #   cs   B-cs/bin/<M>.dll   $DOTNET B-cs/bin/<M>.dll (hxcs sources in B-cs/src; dotnet build)
 #   py   B-py.py            $PYTHON B-py.py (main() runs in a big-stack thread, see go.PyTarget)
+#   hxmc B-hxmc             native binary (hxmc, Linux x86-64; HXMC_HOME: an hxmc checkout with bin/hxmc built)
 #
 # hx_build <target> <main> <base> [haxe args...]   builds (quiet); exit status of the build
 # hx_cmd <target> <main> <base>                    prints the command line that runs the build
 # hx_targets_check <list>                          exits with a message on an unknown target name
 . "$ROOT/tools/env.sh"
 
-HX_ALL_TARGETS="js cpp jvm cs py"
+HX_ALL_TARGETS="js cpp jvm cs py hxmc"
 
 hx_build() {
 	_t=$1 _m=$2 _b=$3
@@ -24,6 +25,18 @@ hx_build() {
 	jvm) "$ROOT/tools/haxe" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" --jvm "$_b-jvm.jar" ;;
 	# py: std-py/ holds std overrides that keep strings in UTF-16 form (see std-py/python/U16.hx).
 	py) "$ROOT/tools/haxe" -cp "$ROOT/std-py" -cp src -cp test -D analyzer-optimize -main "$_m" "$@" --python "$_b-py.py" ;;
+	# hxmc: tools/haxe's flags with hxmc's tool in place of haxe (its std after src; the upstream std of
+	# its checkout). -D hxmc.symbols: a symbol table for profilers (no change to the code).
+	# -D hxmc.gc-prefault: a helper thread faults in the old space's pages ahead of the minor
+	# collections (as hxmc's own compilers are built; like Go's background GC workers, it runs
+	# beside the single compiler thread: ts6-compiler check -3% wall time). -D hxmc.shrink-wrap:
+	# shadow-stack frames pushed after a function's early exits (check -2%).
+	hxmc)
+		ulimit -s unlimited 2>/dev/null || :
+		HAXE_STD_PATH="$HXMC_HOME/haxe/upstream/std" "$HXMC_HOME/bin/hxmc/hxmc" "$_b-hxmc" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP \
+			-D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize \
+			-main "$_m" -D hxmc.symbols -D hxmc.gc-prefault -D hxmc.shrink-wrap "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
+		;;
 	cs)
 		# Haxe writes the C# sources (hxcs: -D no-compilation); the project file and the launcher come
 		# from hx_cs_project; dotnet build is incremental (no work when no source changed).
@@ -57,6 +70,7 @@ hx_cmd() {
 	jvm) echo "$JAVA $JAVA_OPTS -jar $_b-jvm.jar" ;;
 	py) echo "$PYTHON $_b-py.py" ;;
 	cs) echo "$DOTNET $_b-cs/bin/${_m##*.}.dll" ;;
+	hxmc) echo "$_b-hxmc" ;;
 	*) echo "false unknown-target-$_t" ;;
 	esac
 }

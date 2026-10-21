@@ -553,7 +553,24 @@ class DeclarationTransformer {
 	// result object per visited node).
 	var setupDiagnosticContextResult:Bool = false;
 
-	function setupDiagnosticContext(input:Node):() -> Void {
+	// PORT: perf — Go's cleanup closure (one per node visited) is a stack of the state it restores:
+	// setupDiagnosticContext pushes it, cleanupDiagnosticContext() pops it (every caller runs the
+	// cleanup on each path, last in first out, as the defers).
+	final diagnosticContextDiag:Array<GetSymbolAccessibilityDiagnostic> = [];
+	final diagnosticContextName:Array<Node> = [];
+	final diagnosticContextWithin:Array<Bool> = [];
+	var diagnosticContexts:Int = 0; // (the stack's depth; the arrays keep their length)
+
+	function cleanupDiagnosticContext():Void {
+		final k = --diagnosticContexts;
+		state.getSymbolAccessibilityDiagnostic = diagnosticContextDiag[k];
+		state.errorNameNode = diagnosticContextName[k];
+		suppressNewDiagnosticContexts = diagnosticContextWithin[k];
+		diagnosticContextDiag[k] = null;
+		diagnosticContextName[k] = null;
+	}
+
+	function setupDiagnosticContext(input:Node):Void {
 		final canProdiceDiagnostic = Declarations.canProduceDiagnostics(input);
 		final oldWithinObjectLiteralType = suppressNewDiagnosticContexts;
 		final shouldEnterSuppressNewDiagnosticsContextContext = (input.Kind == KindTypeLiteral || input.Kind == KindMappedType)
@@ -570,11 +587,16 @@ class DeclarationTransformer {
 		}
 
 		setupDiagnosticContextResult = canProdiceDiagnostic;
-		return function():Void {
-			state.getSymbolAccessibilityDiagnostic = oldDiag;
-			state.errorNameNode = oldName;
-			suppressNewDiagnosticContexts = oldWithinObjectLiteralType;
-		};
+		final k = diagnosticContexts++;
+		if (k == diagnosticContextDiag.length) {
+			diagnosticContextDiag.push(oldDiag);
+			diagnosticContextName.push(oldName);
+			diagnosticContextWithin.push(oldWithinObjectLiteralType);
+		} else {
+			diagnosticContextDiag[k] = oldDiag;
+			diagnosticContextName[k] = oldName;
+			diagnosticContextWithin[k] = oldWithinObjectLiteralType;
+		}
 	}
 
 	function visitDeclarationSubtree(input:Node):Node {
@@ -628,7 +650,7 @@ class DeclarationTransformer {
 			enclosingDeclaration = input;
 		}
 
-		final cleanupDiagnosticContext = setupDiagnosticContext(input);
+		setupDiagnosticContext(input);
 		final canProdiceDiagnostic = setupDiagnosticContextResult;
 		// PORT: defer on the success path only (docs/PORTING.md §4).
 
@@ -2385,7 +2407,7 @@ class DeclarationTransformer {
 
 	function visitCJSExportAssignments(expression:Node):Node {
 		if (expression != null) {
-			final cleanupDiagnosticContext = setupDiagnosticContext(expression);
+			setupDiagnosticContext(expression);
 			// PORT: defer on the success path only (docs/PORTING.md §4).
 			switch (Ast.GetAssignmentDeclarationKind(expression)) {
 				case JSDeclarationKindModuleExports:
@@ -2408,7 +2430,7 @@ class DeclarationTransformer {
 
 	function visitNestedExpression(expression:Node):Node {
 		if (expression != null) {
-			final cleanupDiagnosticContext = setupDiagnosticContext(expression);
+			setupDiagnosticContext(expression);
 			// PORT: defer on the success path only (docs/PORTING.md §4).
 			switch (Ast.GetAssignmentDeclarationKind(expression)) {
 				case JSDeclarationKindProperty:
@@ -2511,7 +2533,7 @@ class DeclarationTransformer {
 		}
 
 		final hostId = getExpandoHostId(declaration);
-		final cleanupDiagnosticContext = setupDiagnosticContext(node.AsNode());
+		setupDiagnosticContext(node.AsNode());
 		// PORT: the Go defers (cleanupDiagnosticContext, later the enclosingDeclaration restore) run on the success path at each return (LIFO).
 
 		if (Ast.IsIdentifier(node.Right)) {
@@ -2608,7 +2630,7 @@ class DeclarationTransformer {
 			modifierFlags = modifierFlags ^ ModifierFlagsExport;
 		}
 
-		final cleanupDiagnosticContext = setupDiagnosticContext(declaration);
+		setupDiagnosticContext(declaration);
 		// PORT: defer on the success path only (docs/PORTING.md §4): cleanupDiagnosticContext() at each return.
 
 		final modifiers = Factory().NewModifierList(Ast.CreateModifiersFromModifierFlags(modifierFlags, Factory().NewModifier));
