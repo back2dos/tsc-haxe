@@ -30,13 +30,12 @@ hx_build() {
 	# its checkout). -D hxmc.symbols: a symbol table for profilers (no change to the code).
 	# -D hxmc.gc-prefault: a helper thread faults in the old space's pages ahead of the minor
 	# collections (as hxmc's own compilers are built; like Go's background GC workers, it runs
-	# beside the single compiler thread: ts6-compiler check -3% wall time). -D hxmc.shrink-wrap:
-	# shadow-stack frames pushed after a function's early exits (check -2%).
+	# beside the single compiler thread: ts6-compiler check -3% wall time).
 	hxmc)
 		ulimit -s unlimited 2>/dev/null || :
 		HAXE_STD_PATH="$HXMC_HOME/haxe/upstream/std" "$HXMC_HOME/bin/hxmc/hxmc" "$_b-hxmc" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP \
 			-D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize \
-			-main "$_m" -D hxmc.symbols -D hxmc.gc-prefault -D hxmc.shrink-wrap "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
+			-main "$_m" -D hxmc.symbols -D hxmc.gc-prefault "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
 		;;
 	# hxmc-wasm: the same for wasm32-wasi (go.OsWasi), run under node by hxmc's WASI runner, which
 	# preopens "/" (-D hxmc.symbols: a name section).
