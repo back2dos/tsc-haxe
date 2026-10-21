@@ -173,9 +173,11 @@ EOT
 		fi
 	done
 }
-# fresh <template>: new working copies for all targets
+# fresh <template>: new working copies for all targets, with the template's modification times (-p):
+# copied at the time of the copy, the files get the kernel's coarse clock (a tick of several ms), so
+# which inputs tie differs between the copies, and with it the "newest input" of tsc -b --verbose
 fresh() {
-	for tgt in go $targets; do rm -rf "$out/w-$tgt"; cp -r "$1" "$out/w-$tgt"; done
+	for tgt in go $targets; do rm -rf "$out/w-$tgt"; cp -rp "$1" "$out/w-$tgt"; done
 }
 
 # ts6-compiler: compiled in place (sources under upstream/ are only read), outputs in w-<tgt>

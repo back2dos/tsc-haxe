@@ -11,7 +11,7 @@
 #   DOTNET      dotnet (.NET 8 SDK) for the C# target; HAXELIB_CS: the project-local haxelib repo with
 #               hxcs (only for C# builds; `make setup-cs`; the global haxelib repo is never changed)
 #   PYTHON      python3 (3.12) for the Python target
-#   HXMC_HOME   an hxmc checkout (github.com/benmerckx/hxmc) with the tool built (make hxmc) for the hxmc target
+#   HXMC_HOME   an hxmc checkout (github.com/benmerckx/hxmc) with the tool built (make hxmc) for the hxmc and hxmc-wasm targets
 _env_local="${ROOT:?tools/env.sh: set ROOT to the repository root first}/tools/env.local.sh"
 [ -f "$_env_local" ] && . "$_env_local"
 : "${HAXE_HOME:=}"
