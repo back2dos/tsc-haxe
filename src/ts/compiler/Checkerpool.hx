@@ -119,7 +119,12 @@ class CheckerPool_ implements CheckerPool {
 		this.createCheckers();
 
 		final checkerCount = this.checkers.length;
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — the checkers run on threads, as in Go
+		final wg:WorkGroup = singleThreaded ? Core.NewWorkGroup(true) : new ParallelWorkGroup();
+		#else
 		final wg = Core.NewWorkGroup(singleThreaded);
+		#end
 		for (checkerIdx in 0...checkerCount) {
 			wg.Queue(function() {
 				for (i in 0...files.length) {

@@ -842,6 +842,27 @@ class KeyHasher {
 
 	function new() {}
 
+	#if tshx_parallel
+	// PORT: hxmc (-D tshx-parallel) — a pool and a packing buffer per thread (go.Par.slot)
+	static final pools:Array<Array<KeyHasher>> = [for (_ in 0...go.Par.SLOTS) []];
+	static final packeds:Array<haxe.io.Bytes> = [for (_ in 0...go.Par.SLOTS) null];
+	static var pool(get, never):Array<KeyHasher>;
+	static var packed(get, set):haxe.io.Bytes;
+
+	static inline function get_pool()
+		return pools[go.Par.slot];
+
+	static inline function get_packed()
+		return packeds[go.Par.slot];
+
+	static inline function set_packed(b:haxe.io.Bytes)
+		return packeds[go.Par.slot] = b;
+
+	static function Get():KeyHasher {
+		final pool = pool;
+		return pool.length > 0 ? pool.pop() : new KeyHasher();
+	}
+	#else
 	static var pool:Array<KeyHasher> = null;
 	static var packed:haxe.io.Bytes = null;
 
@@ -850,6 +871,7 @@ class KeyHasher {
 			pool = [];
 		return pool.length > 0 ? pool.pop() : new KeyHasher();
 	}
+	#end
 
 	inline function WriteByte(c:Int):Void {
 		if (n == buf.length)
@@ -2468,7 +2490,11 @@ class Checker {
 
 	// PORT: perf — Go returns (CacheHashKey, bool); the bool (constrained) is left in
 	// getRelationKeyConstrained, read by the caller right after the call (no result object per check).
+	#if tshx_parallel
+	@:hxmc.threadLocal static var getRelationKeyConstrained:Bool; // PORT: hxmc (-D tshx-parallel) — per thread
+	#else
 	static var getRelationKeyConstrained:Bool = false;
+	#end
 
 	static function getRelationKey(source:Type, target:Type, intersectionState:IntersectionState, isIdentity:Bool, ignoreConstraints:Bool):CacheHashKey {
 		if (isIdentity && source.id > target.id) {
