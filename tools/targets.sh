@@ -12,6 +12,7 @@
 #   hxmc-par B-hxmc-par     native binary as hxmc, with -D tshx-parallel (go.Par's threads: TSHX_THREADS, default 4)
 #   tsmm B-tsmm/main.ts      node --stack-size=7000 B-tsmm/main.ts (the program as ts--, written by haxe-in-haxe's tsmm
 #                           generator; tsc 7 checks it at build time; TSMM_HOME: that checkout, default HXMC_HOME)
+#   tsmm-fe B-tsmm-fe.js     the tsmm ts--, compiled back to JS by haxe-in-haxe's ts-- frontend (bin/tsmm/haxe -D tsmm)
 #   tsmm-p B-tsmm-p/main.ts  as tsmm, in the generator's portable mode (a custom target: Haxe's core API through hx.ts)
 #   hxmc-wasmgc B-hxmc-gc.wasm  node --stack-size=7000 $HXMC_HOME/hxmc/bootstrap/wasmgc.mjs B-hxmc-gc.wasm (hxmc,
 #                           -D hxmc.wasm-gc: the engine's collector; go.OsGc)
@@ -21,7 +22,7 @@
 # hx_targets_check <list>                          exits with a message on an unknown target name
 . "$ROOT/tools/env.sh"
 
-HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc tsmm tsmm-p"
+HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc tsmm tsmm-p tsmm-fe"
 
 hx_build() {
 	_t=$1 _m=$2 _b=$3
@@ -73,6 +74,14 @@ hx_build() {
 			--macro "define('nodejs')" -D js-es=6 -cp "$_ts/tsmm/gen" --macro 'tsmm.Gen.use()' -js "$_b-tsmm/out.js" >/dev/null || return 1
 		"${TSC7:-tsc}" -p "$_b-tsmm" >&2
 		;;
+	# tsmm-fe: the ts-- of target tsmm, read back by the ts-- frontend (its .ts files as Haxe modules) and compiled to JS
+	tsmm-fe)
+		_fb=$_b # (hx_build sets _b)
+		hx_build tsmm "$_m" "$_fb-fe" "$@" || return 1
+		_ts=${TSMM_HOME:-$HXMC_HOME}
+		HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe" -D tsmm -cp "$_fb-fe-tsmm" -main TsmmMain -D js-es=6 \
+			-cp "${HXNODEJS:-$ROOT/../hxnodejs}/src" -D hxnodejs --macro "allowPackage('sys')" --macro "define('nodejs')" -js "$_fb-tsmm-fe.js" >/dev/null
+		;;
 	# tsmm-p: the portable mode (--custom-target tsmm: the generic std, go.OsTsmm for the system calls)
 	tsmm-p)
 		_ts=${TSMM_HOME:-$HXMC_HOME}
@@ -120,6 +129,7 @@ hx_cmd() {
 	hxmc-wasmgc) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $HXMC_HOME/hxmc/bootstrap/wasmgc.mjs $_b-hxmc-gc.wasm" ;;
 	tsmm) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $_b-tsmm/main.ts" ;;
 	tsmm-p) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $_b-tsmm-p/main.ts" ;;
+	tsmm-fe) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $_b-tsmm-fe.js" ;;
 	*) echo "false unknown-target-$_t" ;;
 	esac
 }
