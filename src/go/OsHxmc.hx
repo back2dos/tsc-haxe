@@ -1,6 +1,8 @@
 package go;
 
-#if (target.name == "hxmc" && hxmc.wasm_gc)
+#if (target.name == "tsmm")
+typedef OsHxmc = OsTsmm; // PORT: ts-- (portable mode): the native calls of OsTsmm
+#elseif (target.name == "hxmc" && hxmc.wasm_gc)
 typedef OsHxmc = OsGc;
 #elseif (target.name == "hxmc" && hxmc.target == "wasm32-wasi")
 typedef OsHxmc = OsWasi;

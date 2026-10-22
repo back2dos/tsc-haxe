@@ -12,6 +12,7 @@
 #   hxmc-par B-hxmc-par     native binary as hxmc, with -D tshx-parallel (go.Par's threads: TSHX_THREADS, default 4)
 #   tsmm B-tsmm/main.ts      node --stack-size=7000 B-tsmm/main.ts (the program as ts--, written by haxe-in-haxe's tsmm
 #                           generator; tsc 7 checks it at build time; TSMM_HOME: that checkout, default HXMC_HOME)
+#   tsmm-p B-tsmm-p/main.ts  as tsmm, in the generator's portable mode (a custom target: Haxe's core API through hx.ts)
 #   hxmc-wasmgc B-hxmc-gc.wasm  node --stack-size=7000 $HXMC_HOME/hxmc/bootstrap/wasmgc.mjs B-hxmc-gc.wasm (hxmc,
 #                           -D hxmc.wasm-gc: the engine's collector; go.OsGc)
 #
@@ -20,7 +21,7 @@
 # hx_targets_check <list>                          exits with a message on an unknown target name
 . "$ROOT/tools/env.sh"
 
-HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc tsmm"
+HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc tsmm tsmm-p"
 
 hx_build() {
 	_t=$1 _m=$2 _b=$3
@@ -72,6 +73,14 @@ hx_build() {
 			--macro "define('nodejs')" -D js-es=6 -cp "$_ts/tsmm/gen" --macro 'tsmm.Gen.use()' -js "$_b-tsmm/out.js" >/dev/null || return 1
 		"${TSC7:-tsc}" -p "$_b-tsmm" >&2
 		;;
+	# tsmm-p: the portable mode (--custom-target tsmm: the generic std, go.OsTsmm for the system calls)
+	tsmm-p)
+		_ts=${TSMM_HOME:-$HXMC_HOME}
+		rm -rf "$_b-tsmm-p" && mkdir -p "$_b-tsmm-p"
+		HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/port/haxe" -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit -cp src -cp test \
+			-D analyzer-optimize -main "$_m" "$@" -cp "$_ts/tsmm/gen" --macro 'tsmm.Gen.usePortable()' --custom-target "tsmm=$_b-tsmm-p" >/dev/null || return 1
+		"${TSC7:-tsc}" -p "$_b-tsmm-p" >&2
+		;;
 	cs)
 		# Haxe writes the C# sources (hxcs: -D no-compilation); the project file and the launcher come
 		# from hx_cs_project; dotnet build is incremental (no work when no source changed).
@@ -110,6 +119,7 @@ hx_cmd() {
 	hxmc-par) echo "$_b-hxmc-par" ;;
 	hxmc-wasmgc) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $HXMC_HOME/hxmc/bootstrap/wasmgc.mjs $_b-hxmc-gc.wasm" ;;
 	tsmm) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $_b-tsmm/main.ts" ;;
+	tsmm-p) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $_b-tsmm-p/main.ts" ;;
 	*) echo "false unknown-target-$_t" ;;
 	esac
 }

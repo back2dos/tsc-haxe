@@ -1006,7 +1006,7 @@ class OsNative {
 		} catch (e:Dynamic) {
 			r.err = pyCode(e);
 		}
-		#elseif (target.name == "hxmc")
+		#elseif (target.name == "hxmc" || target.name == "tsmm")
 		final a = OsHxmc.stat(path, follow);
 		if (a[0] != 0) {
 			r.err = OsHxmc.errname(Std.int(a[0]));
@@ -1138,7 +1138,7 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
-		#elseif (target.name == "hxmc")
+		#elseif (target.name == "hxmc" || target.name == "tsmm")
 		final e = OsHxmc.mkdir(path, perm);
 		return e == 0 ? null : OsHxmc.errname(e);
 		#else
@@ -1176,7 +1176,7 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
-		#elseif (target.name == "hxmc")
+		#elseif (target.name == "hxmc" || target.name == "tsmm")
 		final e = OsHxmc.unlink(path);
 		return e == 0 ? null : OsHxmc.errname(e);
 		#else
@@ -1216,7 +1216,7 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
-		#elseif (target.name == "hxmc")
+		#elseif (target.name == "hxmc" || target.name == "tsmm")
 		final e = OsHxmc.rmdir(path);
 		return e == 0 ? null : OsHxmc.errname(e);
 		#else
@@ -1252,7 +1252,7 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
-		#elseif (target.name == "hxmc")
+		#elseif (target.name == "hxmc" || target.name == "tsmm")
 		final e = OsHxmc.symlink(target, path);
 		return e == 0 ? null : OsHxmc.errname(e);
 		#else
@@ -1293,7 +1293,7 @@ class OsNative {
 		} catch (e:Dynamic) {
 			return pyCode(e);
 		}
-		#elseif (target.name == "hxmc")
+		#elseif (target.name == "hxmc" || target.name == "tsmm")
 		final e = OsHxmc.utimes(path, atime, mtime);
 		return e == 0 ? null : OsHxmc.errname(e);
 		#else
@@ -1352,7 +1352,7 @@ class OsNative {
 			realpathErr = pyCode(e);
 			return null;
 		}
-		#elseif (target.name == "hxmc")
+		#elseif (target.name == "hxmc" || target.name == "tsmm")
 		final s = OsHxmc.realpath(path);
 		if (s == null) {
 			realpathErr = OsHxmc.errname(OsHxmc.realpathErrno);
