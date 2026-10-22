@@ -47,7 +47,7 @@ final class Time {
 			nsec -= n * billion;
 			if (nsec < 0) {
 				nsec += billion;
-				sec--;
+				sec = sec - 1; // PORT: ts-- (portable mode): Int64's -- modifies `this` and is inlined into the caller
 			}
 		}
 		return new Time(sec, Int64.toInt(nsec));
