@@ -10,6 +10,8 @@
 #   hxmc B-hxmc             native binary (hxmc, Linux x86-64; HXMC_HOME: an hxmc checkout with bin/hxmc built)
 #   hxmc-wasm B-hxmc.wasm   node --stack-size=7000 $HXMC_HOME/hxmc/bootstrap/wasi.mjs B-hxmc.wasm (hxmc, wasm32-wasi)
 #   hxmc-par B-hxmc-par     native binary as hxmc, with -D tshx-parallel (go.Par's threads: TSHX_THREADS, default 4)
+#   tsmm B-tsmm/main.ts      node --stack-size=7000 B-tsmm/main.ts (the program as ts--, written by haxe-in-haxe's tsmm
+#                           generator; tsc 7 checks it at build time; TSMM_HOME: that checkout, default HXMC_HOME)
 #   hxmc-wasmgc B-hxmc-gc.wasm  node --stack-size=7000 $HXMC_HOME/hxmc/bootstrap/wasmgc.mjs B-hxmc-gc.wasm (hxmc,
 #                           -D hxmc.wasm-gc: the engine's collector; go.OsGc)
 #
@@ -18,7 +20,7 @@
 # hx_targets_check <list>                          exits with a message on an unknown target name
 . "$ROOT/tools/env.sh"
 
-HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc"
+HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc tsmm"
 
 hx_build() {
 	_t=$1 _m=$2 _b=$3
@@ -60,6 +62,16 @@ hx_build() {
 			--macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize -main "$_m" -D hxmc.target=wasm32-wasi \
 			-D hxmc.wasm-gc -D hxmc.symbols "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
 		;;
+	# tsmm: haxe-in-haxe's port with the ts-- generator (tsmm/gen) writes the program as ts-- (a strict
+	# TypeScript subset) into B-tsmm/; tsc 7 must accept it; node runs it with its type stripping.
+	tsmm)
+		_ts=${TSMM_HOME:-$HXMC_HOME}
+		rm -rf "$_b-tsmm" && mkdir -p "$_b-tsmm"
+		HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/port/haxe" -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit -cp src -cp test \
+			-D analyzer-optimize -main "$_m" "$@" -cp "${HXNODEJS:-$ROOT/../hxnodejs}/src" -D hxnodejs --macro "allowPackage('sys')" \
+			--macro "define('nodejs')" -D js-es=6 -cp "$_ts/tsmm/gen" --macro 'tsmm.Gen.use()' -js "$_b-tsmm/out.js" >/dev/null || return 1
+		"${TSC7:-tsc}" -p "$_b-tsmm" >&2
+		;;
 	cs)
 		# Haxe writes the C# sources (hxcs: -D no-compilation); the project file and the launcher come
 		# from hx_cs_project; dotnet build is incremental (no work when no source changed).
@@ -97,6 +109,7 @@ hx_cmd() {
 	hxmc-wasm) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $HXMC_HOME/hxmc/bootstrap/wasi.mjs $_b-hxmc.wasm" ;;
 	hxmc-par) echo "$_b-hxmc-par" ;;
 	hxmc-wasmgc) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $HXMC_HOME/hxmc/bootstrap/wasmgc.mjs $_b-hxmc-gc.wasm" ;;
+	tsmm) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $_b-tsmm/main.ts" ;;
 	*) echo "false unknown-target-$_t" ;;
 	esac
 }
