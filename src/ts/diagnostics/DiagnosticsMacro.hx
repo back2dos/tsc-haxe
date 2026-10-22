@@ -13,7 +13,9 @@ class DiagnosticsMacro {
 	public static macro function embedLoc(filename:String):Expr {
 		final path = Context.resolvePath("ts/diagnostics/loc/" + filename);
 		Context.registerModuleDependency(Context.getLocalModule(), path);
-		final name = "diagnostics/loc/" + filename;
+		// PORT: no "-" in the resource name: Haxe 5's JVM target writes it into the jar as is (genjvm, since 402d20167) but
+		// haxe.Resource on the JVM looks it up escaped (Path.escape: "-x45")
+		final name = "diagnostics/loc/" + StringTools.replace(filename, "-", "_");
 		Context.addResource(name, sys.io.File.getBytes(path));
 		return macro $v{name};
 	}
