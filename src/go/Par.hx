@@ -1,6 +1,44 @@
 package go;
 
-#if tshx_parallel
+#if (tshx_parallel && target.name != "hxmc")
+import sys.thread.Mutex;
+
+// PORT: ts-- — go.Par without threads: target tsmm (haxe-in-haxe's ts-- portable mode with -D tsmm-threads, where
+// go.Par is a platform module) and the targets other than hxmc that its frontend compiles the ts-- for. No workers:
+// a work group's RunAndWait runs the queued functions itself, in the order they were queued. The same API as the
+// pool below (the ts-- is checked against this one, and the frontend gives hxmc that one).
+class Par {
+	// 0: the main thread is the only one
+	public static var slot:Int = 0;
+	public static inline final SLOTS = 64;
+
+	public static final onceMutex = new Mutex();
+
+	static final tasks:Array<() -> Void> = [];
+	static var count = 0;
+
+	// the number of workers a pool would have (TSHX_THREADS, else 4): what the program sizes its groups by
+	public static function threads():Int {
+		if (count == 0) {
+			final v = Sys.getEnv("TSHX_THREADS");
+			final n = v == null ? 4 : Std.parseInt(v);
+			count = n == null || n < 1 ? 1 : n >= SLOTS ? SLOTS - 1 : n;
+		}
+		return count;
+	}
+
+	public static function submit(fn:() -> Void):Void {
+		tasks.push(fn);
+	}
+
+	public static function tryRun():Bool {
+		if (tasks.length == 0)
+			return false;
+		tasks.shift()();
+		return true;
+	}
+}
+#elseif tshx_parallel
 import haxe.atomic.AtomicInt;
 import sys.thread.Deque;
 import sys.thread.Mutex;

@@ -18,6 +18,7 @@
 #   tsmm-fe-jvm B-tsmm-fe-jvm.jar  the same to the JVM ($JAVA $JAVA_OPTS -jar; the build runs in TSMM_JVM_DIR,
 #                           default ROOT, where -lib hxjava resolves)
 #   tsmm-fe-hxmc B-tsmm-fe-hxmc  the same to hxmc (native binary; bin/tsmm/haxe-hxmc of TSMM_HOME: make tsmm-hxmc)
+#   tsmm-fe-hxmc-par B-tsmm-fe-hxmc-par  as tsmm-fe-hxmc, with -D tshx-parallel (the threads of hxmc-par)
 #   hxmc-wasmgc B-hxmc-gc.wasm  node --stack-size=7000 $HXMC_HOME/hxmc/bootstrap/wasmgc.mjs B-hxmc-gc.wasm (hxmc,
 #                           -D hxmc.wasm-gc: the engine's collector; go.OsGc)
 #
@@ -26,7 +27,7 @@
 # hx_targets_check <list>                          exits with a message on an unknown target name
 . "$ROOT/tools/env.sh"
 
-HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc tsmm tsmm-p tsmm-fe tsmm-fe-js tsmm-fe-jvm tsmm-fe-hxmc"
+HX_ALL_TARGETS="js cpp jvm cs py hxmc hxmc-wasm hxmc-par hxmc-wasmgc tsmm tsmm-p tsmm-fe tsmm-fe-js tsmm-fe-jvm tsmm-fe-hxmc tsmm-fe-hxmc-par"
 
 hx_build() {
 	_t=$1 _m=$2 _b=$3
@@ -86,16 +87,20 @@ hx_build() {
 		HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe" -D tsmm -cp "$_fb-fe-tsmm" -main TsmmMain -D js-es=6 \
 			-cp "${HXNODEJS:-$ROOT/../hxnodejs}/src" -D hxnodejs --macro "allowPackage('sys')" --macro "define('nodejs')" -js "$_fb-tsmm-fe.js" >/dev/null
 		;;
-	# tsmm-p: the portable mode (--custom-target tsmm: the generic std, go.OsTsmm for the system calls)
+	# tsmm-p: the portable mode (--custom-target tsmm: the generic std, go.OsTsmm for the system calls). The platform
+	# modules (code per target, by #if) are generated for tsmm, and the frontend compiles them from src for its target.
 	tsmm-p)
 		_ts=${TSMM_HOME:-$HXMC_HOME}
 		rm -rf "$_b-tsmm-p" && mkdir -p "$_b-tsmm-p"
 		HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/port/haxe" -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit -cp src -cp test \
-			-D analyzer-optimize -main "$_m" "$@" -cp "$_ts/tsmm/gen" --macro 'tsmm.Gen.usePortable()' --custom-target "tsmm=$_b-tsmm-p" >/dev/null || return 1
+			-D analyzer-optimize -main "$_m" "$@" -cp "$_ts/tsmm/gen" --macro 'tsmm.Gen.usePortable()' \
+			--macro 'tsmm.Gen.platform(["go.GcInit", "go.IdentityMap", "go.MapKey", "go.KeySum", "go.NonASCII", "go.Par"])' \
+			--custom-target "tsmm=$_b-tsmm-p" >/dev/null || return 1
 		"${TSC7:-tsc}" -p "$_b-tsmm-p" >&2
 		;;
 	# tsmm-fe-js/-jvm/-hxmc: the ts-- of target tsmm-p, read back by the ts-- frontend and compiled to that target;
-	# src gives the natives the ts-- names as Haxe paths (go.OsTsmm)
+	# src gives the natives the ts-- names as Haxe paths (go.OsTsmm) and the platform modules; go.GcInit is a root, as in
+	# the other builds
 	tsmm-fe-js | tsmm-fe-jvm | tsmm-fe-hxmc)
 		_fb=$_b _ft=${_t#tsmm-fe-} # (hx_build sets _b and _t)
 		hx_build tsmm-p "$_m" "$_fb-fe" "$@" || return 1
@@ -103,20 +108,32 @@ hx_build() {
 		case $_fb in /*) ;; *) _fb=$ROOT/$_fb ;; esac
 		case $_ft in
 		js)
-			HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe" -D tsmm -cp "$_fb-fe-tsmm-p" -cp "$ROOT/src" -main TsmmMain \
+			HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe" -D tsmm -cp "$_fb-fe-tsmm-p" -cp "$ROOT/src" -main TsmmMain go.GcInit \
 				-D js-es=6 -cp "${HXNODEJS:-$ROOT/../hxnodejs}/src" -D hxnodejs --macro "allowPackage('sys')" --macro "define('nodejs')" \
 				-js "$_fb-tsmm-fe-js.js" >/dev/null
 			;;
 		jvm)
 			(cd "${TSMM_JVM_DIR:-$ROOT}" && HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe" -D tsmm -cp "$_fb-fe-tsmm-p" \
-				-cp "$ROOT/src" -main TsmmMain --jvm "$_fb-tsmm-fe-jvm.jar" >/dev/null)
+				-cp "$ROOT/src" -main TsmmMain go.GcInit --jvm "$_fb-tsmm-fe-jvm.jar" >/dev/null)
 			;;
 		hxmc)
 			ulimit -s unlimited 2>/dev/null || :
-			HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe-hxmc" -D tsmm -cp "$_fb-fe-tsmm-p" -cp "$ROOT/src" -main TsmmMain \
+			HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe-hxmc" -D tsmm -cp "$_fb-fe-tsmm-p" -cp "$ROOT/src" -main TsmmMain go.GcInit \
 				-D hxmc.symbols -D hxmc.gc-prefault -cp "$_ts/bin/hxmc/std" --custom-target "hxmc=$_fb-tsmm-fe-hxmc" >/dev/null
 			;;
 		esac
+		;;
+	# tsmm-fe-hxmc-par: the ts-- of the parallel program (-D tshx-parallel: Haxe's thread classes, except Thread, are
+	# natives, and go.Par runs no threads on node), compiled to hxmc with the define, where go.Par is hxmc-par's pool
+	tsmm-fe-hxmc-par)
+		_fb=$_b # (hx_build sets _b)
+		hx_build tsmm-p "$_m" "$_fb-fepar" -D tshx-parallel "$@" || return 1
+		_ts=${TSMM_HOME:-$HXMC_HOME}
+		case $_fb in /*) ;; *) _fb=$ROOT/$_fb ;; esac
+		ulimit -s unlimited 2>/dev/null || :
+		HAXE_STD_PATH="$_ts/haxe/upstream/std" "$_ts/bin/tsmm/haxe-hxmc" -D tsmm -D tshx-parallel -cp "$_fb-fepar-tsmm-p" -cp "$ROOT/src" \
+			-main TsmmMain go.GcInit -D hxmc.symbols -D hxmc.gc-prefault -cp "$_ts/bin/hxmc/std" \
+			--custom-target "hxmc=$_fb-tsmm-fe-hxmc-par" >/dev/null
 		;;
 	cs)
 		# Haxe writes the C# sources (hxcs: -D no-compilation); the project file and the launcher come
@@ -161,6 +178,7 @@ hx_cmd() {
 	tsmm-fe-js) echo "$NODE --stack-size=7000 ${HX_NODE_OPTS:-} $_b-tsmm-fe-js.js" ;;
 	tsmm-fe-jvm) echo "$JAVA $JAVA_OPTS -jar $_b-tsmm-fe-jvm.jar" ;;
 	tsmm-fe-hxmc) echo "$_b-tsmm-fe-hxmc" ;;
+	tsmm-fe-hxmc-par) echo "$_b-tsmm-fe-hxmc-par" ;;
 	*) echo "false unknown-target-$_t" ;;
 	esac
 }

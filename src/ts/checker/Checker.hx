@@ -843,20 +843,12 @@ class KeyHasher {
 	function new() {}
 
 	#if tshx_parallel
-	// PORT: hxmc (-D tshx-parallel) — a pool and a packing buffer per thread (go.Par.slot)
+	// PORT: hxmc (-D tshx-parallel) — a pool per thread (go.Par.slot); hxmc's KeySum needs no packing buffer
 	static final pools:Array<Array<KeyHasher>> = [for (_ in 0...go.Par.SLOTS) []];
-	static final packeds:Array<haxe.io.Bytes> = [for (_ in 0...go.Par.SLOTS) null];
 	static var pool(get, never):Array<KeyHasher>;
-	static var packed(get, set):haxe.io.Bytes;
 
 	static inline function get_pool()
 		return pools[go.Par.slot];
-
-	static inline function get_packed()
-		return packeds[go.Par.slot];
-
-	static inline function set_packed(b:haxe.io.Bytes)
-		return packeds[go.Par.slot] = b;
 
 	static function Get():KeyHasher {
 		final pool = pool;
@@ -864,7 +856,6 @@ class KeyHasher {
 	}
 	#else
 	static var pool:Array<KeyHasher> = null;
-	static var packed:haxe.io.Bytes = null;
 
 	static function Get():KeyHasher {
 		if (pool == null)
@@ -897,55 +888,10 @@ class KeyHasher {
 
 	// The packed bytes; the hasher goes back to the pool.
 	function Sum():std.String {
-		#if (target.name == "hxmc")
-		// PORT: perf — hxmc's strings are 16-bit units that need not be valid UTF-16: two bytes per
-		// unit and a last unit holding n's parity (injective too), no packing and no UTF-8 decoding.
-		final m = (n + 1) >> 1;
-		final s = hxmc.rt.Str.make(m + 1);
-		final d = hxmc.rt.Str.chars(s);
-		final b = buf;
-		// PORT: perf — the string's hash as hxmc's StringMap computes it (FNV-1a of the units, 0 → 1), stored in
-		// the string while its units are written: the key's map lookup does not hash it again
-		var x = 0x811C9DC5;
-		var i = 0;
-		while (i + 1 < n) {
-			final u = b.get(i) | (b.get(i + 1) << 8);
-			d.set(i >> 1, u);
-			x = (x ^ u) * 16777619;
-			i += 2;
-		}
-		if (i < n) {
-			final u = b.get(i);
-			d.set(i >> 1, u);
-			x = (x ^ u) * 16777619;
-		}
-		d.set(m, n & 1);
-		x = (x ^ (n & 1)) * 16777619;
-		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
+		final s = go.KeySum.sum(buf, n);
 		n = 0;
 		pool.push(this);
 		return s;
-		#end
-		final m = Std.int((n * 8 + 6) / 7);
-		if (packed == null || packed.length < m)
-			packed = haxe.io.Bytes.alloc(m < 256 ? 256 : m * 2);
-		final p = packed;
-		var acc = 0;
-		var bits = 0;
-		var j = 0;
-		for (i in 0...n) {
-			acc = ((acc << 8) | buf.get(i)) & 0x7FFF; // at most 6 pending bits + 8 new ones
-			bits += 8;
-			while (bits >= 7) {
-				bits -= 7;
-				p.set(j++, (acc >> bits) & 0x7F);
-			}
-		}
-		if (bits > 0)
-			p.set(j++, (acc << (7 - bits)) & 0x7F);
-		n = 0;
-		pool.push(this);
-		return Strings.FromASCIIBytes(p, j);
 	}
 }
 
