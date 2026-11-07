@@ -23,9 +23,9 @@ class DiagnosticsMacro {
 		final fields = Context.getBuildFields();
 		final pos = Context.currentPos();
 
-		// Same merge as generate.go: by code, extra messages override.
+		// TypeScript main merged extraDiagnosticMessages.json into diagnosticMessages.json.
 		final byCode = new Map<Int, {key:String, m:Dynamic}>();
-		for (file in ["ts/diagnostics/diagnosticMessages.json", "ts/diagnostics/extraDiagnosticMessages.json"]) {
+		for (file in ["ts/diagnostics/diagnosticMessages.json"]) {
 			final path = Context.resolvePath(file);
 			Context.registerModuleDependency(Context.getLocalModule(), path);
 			final raw:Dynamic = haxe.Json.parse(sys.io.File.getContent(path));

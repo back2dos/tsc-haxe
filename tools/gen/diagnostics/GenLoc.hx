@@ -2,7 +2,7 @@
 // internal/diagnostics/generate.go (generateLocalizations) does.
 //
 // Inputs (read, never edited):
-//   src/ts/diagnostics/diagnosticMessages.json, src/ts/diagnostics/extraDiagnosticMessages.json
+//   src/ts/diagnostics/diagnosticMessages.json
 //     (copies of the upstream files; they give the known keys)
 //   upstream/tsc/_submodules/TypeScript/src/loc/lcl/*/diagnosticMessages/diagnosticMessages.generated.json.lcl
 // Outputs:
@@ -12,6 +12,9 @@
 // The gzip payload (the JSON) is byte-identical to upstream's: keys sorted, only '"', '\' and
 // control characters escaped (internal/json, as in the upstream files). The compressed bytes
 // differ (zlib instead of Go's compress/flate); only the payload is compared.
+//
+// TypeScript main ships loc/<TgtCul>.json.gz itself (internal/diagnostics/loc): those files are
+// copied from upstream-main instead of running this generator.
 //
 // Run from the project root:
 //   haxe -cp tools/gen/diagnostics --run GenLoc
@@ -180,9 +183,9 @@ class GenLoc {
 	}
 
 	static function readKnownKeys():Map<String, Bool> {
-		// Same merge as generate.go: by code, extra messages override.
+		// TypeScript main merged extraDiagnosticMessages.json into diagnosticMessages.json.
 		final byCode = new Map<Int, String>();
-		for (file in ["src/ts/diagnostics/diagnosticMessages.json", "src/ts/diagnostics/extraDiagnosticMessages.json"]) {
+		for (file in ["src/ts/diagnostics/diagnosticMessages.json"]) {
 			final raw:Dynamic = haxe.Json.parse(File.getContent(file));
 			for (key in Reflect.fields(raw))
 				byCode.set(Reflect.field(raw, key).code, key);
