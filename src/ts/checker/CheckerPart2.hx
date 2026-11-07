@@ -574,8 +574,8 @@ class CheckerPart2 {
 			if (Core.len(resolved.signatures) != 0) {
 				final result = c.newObjectType(ObjectFlagsAnonymous, t.symbol);
 				result.objectFlags |= ObjectFlagsMembersResolved;
-				result.AsObjectType().members = resolved.members;
-				result.AsObjectType().properties = resolved.properties;
+				result.AsObjectType().members = resolved.getMembers();
+				result.AsObjectType().properties = resolved.getProperties();
 				return result;
 			}
 		} else if ((t.flags & TypeFlagsIntersection) != 0) {

@@ -3644,7 +3644,7 @@ class CheckerPart4 {
 		links.target = symbol;
 		links.originatingImport = referenceParent;
 		final resolvedModuleType = c.resolveStructuredTypeMembers(moduleType);
-		c.valueSymbolLinks.Get(result).resolvedType = c.newAnonymousType(result, resolvedModuleType.members, null, null, resolvedModuleType.indexInfos);
+		c.valueSymbolLinks.Get(result).resolvedType = c.newAnonymousType(result, resolvedModuleType.getMembers(), null, null, resolvedModuleType.indexInfos);
 		return result;
 	}
 

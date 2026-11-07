@@ -499,7 +499,7 @@ class NodeBuilderImpl {
 			t.objectTypeWithoutAbstractConstructSignatures = t.AsType();
 			return t.AsType();
 		}
-		final typeCopy = this.ch.newAnonymousType(t.symbol, t.members, t.CallSignatures(),
+		final typeCopy = this.ch.newAnonymousType(t.symbol, t.getMembers(), t.CallSignatures(),
 			Core.IfElse(Core.len(constructSignatures) > 0, constructSignatures, ([] : Array<Signature>)), t.indexInfos);
 		t.objectTypeWithoutAbstractConstructSignatures = typeCopy;
 		typeCopy.AsStructuredType().objectTypeWithoutAbstractConstructSignatures = typeCopy;
@@ -2356,7 +2356,7 @@ class NodeBuilderImpl {
 			}
 		}
 
-		final properties = resolvedType.properties;
+		final properties = resolvedType.getProperties();
 		if (Core.len(properties) == 0) {
 			return this.f.NewNodeList(typeElements);
 		}
@@ -2409,7 +2409,7 @@ class NodeBuilderImpl {
 		final resolved = this.ch.resolveStructuredTypeMembers(t);
 		final callSigs = resolved.CallSignatures();
 		final ctorSigs = resolved.ConstructSignatures();
-		if (Core.len(resolved.properties) == 0 && Core.len(resolved.indexInfos) == 0) {
+		if (Core.len(resolved.getProperties()) == 0 && Core.len(resolved.indexInfos) == 0) {
 			if (Core.len(callSigs) == 0 && Core.len(ctorSigs) == 0) {
 				this.ctx.approximateLength += 2;
 				final result = this.f.NewTypeLiteralNode(this.f.NewNodeList([]));
@@ -2439,9 +2439,9 @@ class NodeBuilderImpl {
 			});
 			// count the number of type elements excluding abstract constructors
 			final typeElementCount = Core.len(callSigs) + (Core.len(ctorSigs) - Core.len(abstractSignatures)) + Core.len(resolved.indexInfos)
-				+ Core.IfElse(this.ctx.flags & FlagsWriteClassExpressionAsTypeLiteral != 0, Core.CountWhere(resolved.properties, (p:Symbol) -> {
+				+ Core.IfElse(this.ctx.flags & FlagsWriteClassExpressionAsTypeLiteral != 0, Core.CountWhere(resolved.getProperties(), (p:Symbol) -> {
 					return p.Flags & SymbolFlagsPrototype == 0;
-				}), Core.len(resolved.properties));
+				}), Core.len(resolved.getProperties()));
 			// don't include an empty object literal if there were no other static-side
 			// properties to write, i.e. `abstract class C { }` becomes `abstract new () => {}`
 			// and not `(abstract new () => {}) & {}`
@@ -2829,6 +2829,11 @@ class NodeBuilderImpl {
 	}
 
 	function visitAndTransformType(t:Type, transform:(b:NodeBuilderImpl, t:Type) -> TypeNode):TypeNode {
+		// PORT: from TypeScript main (microsoft/typescript-go#63969)
+		if (this.checkTruncationLength()) {
+			return this.createElidedInformationPlaceholder();
+		}
+
 		final typeId = t.id;
 		final isConstructorObject = t.objectFlags & ObjectFlagsAnonymous != 0 && t.symbol != null && t.symbol.Flags & SymbolFlagsClass != 0;
 		// PORT: struct key CompositeSymbolIdentity encoded as "<isConstructorNode 0/1>:<symbolId>:<nodeId>"; null = Go nil *id.

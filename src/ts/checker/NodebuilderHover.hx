@@ -272,7 +272,7 @@ class NodebuilderHover {
 			}
 		}
 		// Properties, filtering inherited
-		final filteredProps = b.filterInheritedProperties(interfaceType, baseTypes, resolved.properties);
+		final filteredProps = b.filterInheritedProperties(interfaceType, baseTypes, resolved.getProperties());
 		members = b.serializePropertiesWithTruncation(filteredProps, members);
 
 		// Heritage clauses

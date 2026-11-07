@@ -1000,8 +1000,87 @@ class StructuredType extends ConstrainedType {
 		return signatures.slice(callSignatureCount);
 	}
 
-	public function Properties():Array<Symbol> {
+	// PORT: from TypeScript main (microsoft/typescript-go#64915, lazy member resolution): the members of a class or
+	// interface type and of its references are a shared MemberLayout (the uninstantiated symbols, by name) plus
+	// the type's LazyState; each member is instantiated when first read (getPropertyAt)
+	function getMember(name:std.String):Symbol {
+		if (members != null) {
+			return members.get(name);
+		}
+		final lazy = getLazyState();
+		if (lazy == null) {
+			return null;
+		}
+		final index:Null<Int> = lazy.layout.index.get(name);
+		if (index == null) {
+			return null;
+		}
+		return getPropertyAt(index);
+	}
+
+	function getMembers():SymbolTable {
+		if (members == null) {
+			final properties = getProperties();
+			if (Core.len(properties) != 0) {
+				members = new SymbolTable();
+				for (member in properties) {
+					members.set(member.Name, member);
+				}
+			}
+		}
+		return members;
+	}
+
+	function getPropertyAt(index:Int):Symbol {
+		final lazy = getLazyState();
+		if (lazy == null) {
+			return properties[index];
+		}
+		if (properties == null) {
+			properties = [for (_ in 0...lazy.layout.symbols.length) null];
+		}
+		var member = properties[index];
+		if (member == null) {
+			final symbol = lazy.layout.symbols[index];
+			final baseIndex = lazy.layout.baseIndices[index];
+			if (baseIndex < 0) {
+				member = (cast this : Type).checker.instantiateSymbol(symbol, lazy.mapper);
+			} else {
+				member = (cast this : Type).checker.getPropertyOfType(lazy.baseTypes[baseIndex], symbol.Name);
+			}
+			properties[index] = member;
+		}
+		return member;
+	}
+
+	function getProperties():Array<Symbol> {
+		final lazy = getLazyState();
+		if (lazy != null && !lazy.propertiesResolved) {
+			for (i in 0...lazy.layout.symbols.length) {
+				getPropertyAt(i);
+			}
+			lazy.propertiesResolved = true;
+		}
 		return properties;
+	}
+
+	function hasProperties():Bool {
+		if (Core.len(properties) != 0) {
+			return true;
+		}
+		final lazy = getLazyState();
+		if (lazy == null) {
+			return false;
+		}
+		return lazy.layout.symbols.length != 0;
+	}
+
+	inline function getLazyState():Null<LazyState> {
+		return (cast this : Type).objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsReference) != 0 ? (cast this : TypeReference).lazy : null;
+	}
+
+	public function Properties():Array<Symbol> {
+		return getProperties();
 	}
 }
 
@@ -1021,11 +1100,34 @@ class ObjectType extends StructuredType {
 class TypeReference extends ObjectType {
 	var node:Node = null; // TypeReferenceNode | ArrayTypeNode | TupleTypeNode when deferred, else nil
 	var resolvedTypeArguments:Array<Type> = null;
+	var lazy:LazyState = null; // Resolved member layout and instantiation state
 
 	public function new() {
 		super();
 	}
 
+}
+
+@:allow(ts.checker)
+class LazyState {
+	var layout:MemberLayout = null;
+	var mapper:TypeMapper = null;
+	var baseTypes:Array<Type> = null;
+	var propertiesResolved:Bool = false;
+
+	public function new() {}
+}
+
+// PORT: Go's MemberLayout.members (an insertion-ordered SymbolTable with Find and SymbolAt) → the symbols in order
+// and their indices by name
+@:allow(ts.checker)
+class MemberLayout {
+	var id:Int = 0; // Unique identifier for the member layout
+	var symbols:Array<Symbol> = null; // the members (uninstantiated symbols) in order: the layout properties
+	var index:StringMap<Int> = null; // their indices by name
+	var baseIndices:Array<Int> = null; // Indices of base types for each member (-1 if locally declared)
+
+	public function new() {}
 }
 
 @:allow(ts.checker)

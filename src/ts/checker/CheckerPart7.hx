@@ -2946,7 +2946,7 @@ class CheckerPart7 {
 	}
 
 	static function isEmptyResolvedType(c:Checker, t:StructuredType):Bool {
-		return t.AsType() != c.anyFunctionType && Core.len(t.properties) == 0 && Core.len(t.signatures) == 0 && Core.len(t.indexInfos) == 0;
+		return t.AsType() != c.anyFunctionType && !t.hasProperties() && Core.len(t.signatures) == 0 && Core.len(t.indexInfos) == 0;
 	}
 
 	static function isEmptyObjectType(c:Checker, t:Type):Bool {
@@ -3130,7 +3130,7 @@ class CheckerPart7 {
 	}
 
 	static function getLiteralTypeFromProperties(c:Checker, t:Type, include:TypeFlags, includeOrigin:Bool):Type {
-		final key = PropertiesTypesKey.keyOf(t.id, include, includeOrigin, (t.objectFlags & ObjectFlagsUnresolvedMembers) != 0);
+		final key = PropertiesTypesKey.keyOf(t.id, include, includeOrigin, false); // PORT: main has no unresolved-members flag (#64915)
 		if (c.propertiesTypes.exists(key)) {
 			return c.propertiesTypes.get(key);
 		}
@@ -3138,7 +3138,7 @@ class CheckerPart7 {
 		if (includeOrigin && (t.objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsReference)) != 0 || t.alias != null) {
 			origin = c.newIndexType(t, IndexFlagsNone);
 		}
-		final props = c.getPropertiesOfType(t);
+		final props = c.getLayoutPropertiesOfType(t); // PORT: layout properties (#64915)
 		final indexInfos = c.getIndexInfosOfType(t);
 		final types:Array<Type> = [];
 		for (prop in rangeOf(props)) {
@@ -3552,7 +3552,7 @@ class CheckerPart7 {
 						return c.undefinedType;
 					} else if (indexType.flags & (TypeFlagsNumber | TypeFlagsString) != 0) {
 						final types:Array<Type> = [];
-						for (prop in rangeOf(objectType.AsStructuredType().properties)) {
+						for (prop in rangeOf(objectType.AsStructuredType().getProperties())) {
 							types.push(c.getTypeOfSymbol(prop));
 						}
 						types.push(c.undefinedType);
@@ -3783,7 +3783,7 @@ class CheckerPart7 {
 	}
 
 	static function isStringIndexSignatureOnlyTypeWorker(c:Checker, t:Type):Bool {
-		return t.flags & TypeFlagsObject != 0 && !c.isGenericMappedType(t) && Core.len(c.getPropertiesOfType(t)) == 0 && Core.len(c.getIndexInfosOfType(t)) == 1
+		return t.flags & TypeFlagsObject != 0 && t.objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsReference) == 0 && !c.isGenericMappedType(t) && Core.len(c.getLayoutPropertiesOfType(t)) == 0 && Core.len(c.getIndexInfosOfType(t)) == 1
 			&& c.getIndexInfoOfType(t, c.stringType) != null
 			|| t.flags & TypeFlagsUnionOrIntersection != 0 && Core.Every(t.Types(), c.isStringIndexSignatureOnlyType);
 	}

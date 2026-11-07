@@ -2803,7 +2803,7 @@ class CheckerPart3 {
 					if (!Core.Same(callSignatures, resolved.CallSignatures()) || !Core.Same(constructSignatures, resolved.ConstructSignatures())) {
 						final result = c.newObjectType(ObjectFlagsAnonymous | (Checker.ObjectFlagsInstantiationExpressionType : ObjectFlags),
 							c.newSymbol(SymbolFlagsNone, Ast.InternalSymbolNameInstantiationExpression));
-						c.setStructuredTypeMembers(result, resolved.members, callSignatures, constructSignatures, resolved.indexInfos);
+						c.setStructuredTypeMembers(result, resolved.getMembers(), callSignatures, constructSignatures, resolved.indexInfos);
 						result.AsInstantiationExpressionType().node = node;
 						return result;
 					}

@@ -139,7 +139,7 @@ class Services {
 		if ((reducedType.flags & TypeFlagsStructuredType) == 0) {
 			return;
 		}
-		final members = c.resolveStructuredTypeMembers(reducedType).members;
+		final members = c.resolveStructuredTypeMembers(reducedType).getMembers();
 		if (members != null) {
 			for (name => symbol in members) {
 				if (c.isNamedMember(symbol, name)) {

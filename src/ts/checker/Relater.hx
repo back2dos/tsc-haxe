@@ -844,8 +844,8 @@ class Relater {
 	static function isWeakType(c:Checker, t:Type):Bool {
 		if (t.flags & TypeFlagsObject != 0) {
 			final resolved = c.resolveStructuredTypeMembers(t);
-			return Core.len(resolved.signatures) == 0 && Core.len(resolved.indexInfos) == 0 && Core.len(resolved.properties) > 0
-				&& Core.Every(resolved.properties, p -> p.Flags & SymbolFlagsOptional != 0);
+			return Core.len(resolved.signatures) == 0 && Core.len(resolved.indexInfos) == 0 && Core.len(c.getLayoutPropertiesOfType(t)) > 0
+				&& Core.Every(c.getLayoutPropertiesOfType(t), p -> p.Flags & SymbolFlagsOptional != 0); // PORT: layout properties (#64915)
 		}
 		if (t.flags & TypeFlagsSubstitution != 0) {
 			return c.isWeakType(t.AsSubstitutionType().baseType);
@@ -1094,15 +1094,21 @@ class Relater {
 	}
 
 	static function getUnmatchedPropertiesWorker(c:Checker, source:Type, target:Type, requireOptionalProperties:Bool, matchDiscriminantProperties:Bool, propsOut:Array<Symbol>):Symbol {
-		final properties = c.getPropertiesOfType(target);
+		// PORT: from TypeScript main (microsoft/typescript-go#64915): the layout properties, a property of the target
+		// instantiated only when it is reported or its type is compared
+		final properties = c.getLayoutPropertiesOfType(target);
 		if (properties != null) {
-			for (targetProp in properties) {
+			for (layoutProp in properties) {
+				var targetProp = layoutProp;
 				// TODO: remove this when we support static private identifier fields and find other solutions to get privateNamesAndStaticFields test to pass
 				if (Checker.isStaticPrivateIdentifierProperty(targetProp)) {
 					continue;
 				}
 				if (requireOptionalProperties || targetProp.Flags & SymbolFlagsOptional == 0 && targetProp.CheckFlags & CheckFlagsPartial == 0) {
 					final sourceProp = c.getPropertyOfType(source, targetProp.Name);
+					if (sourceProp == null || matchDiscriminantProperties) {
+						targetProp = c.getPropertyOfType(target, targetProp.Name);
+					}
 					if (sourceProp == null) {
 						if (propsOut == null) {
 							return targetProp;

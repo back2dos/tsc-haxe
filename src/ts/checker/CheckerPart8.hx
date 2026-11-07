@@ -2507,7 +2507,7 @@ class CheckerPart8 {
 				}
 				return false;
 			});
-			final discriminantMembers = Core.Filter(c.getPropertiesOfType(contextualType), function(s:Symbol):Bool {
+			final discriminantMembers = Core.Filter(c.getLayoutPropertiesOfType(contextualType), function(s:Symbol):Bool { // PORT: layout properties (#64915)
 				return (s.Flags & SymbolFlagsOptional) != 0 && symbolTableGet(node.Symbol().Members, s.Name) == null && c.isDiscriminantProperty(contextualType, s.Name);
 			});
 			final discriminator = new ObjectLiteralDiscriminator();
@@ -2901,7 +2901,7 @@ class CheckerPart8 {
 		// We do a quick check for a "bind" property before performing the more expensive subtype
 		// check. This gives us a quicker out in the common case where an object type is not a function.
 		final resolved = c.resolveStructuredTypeMembers(t);
-		return Core.len(resolved.signatures) != 0 || (symbolTableGet(resolved.members, "bind") != null && c.isTypeSubtypeOf(t, c.globalFunctionType));
+		return Core.len(resolved.signatures) != 0 || (resolved.getMember("bind") != null && c.isTypeSubtypeOf(t, c.globalFunctionType));
 	}
 
 	static function getTypeWithFacts(c:Checker, t:Type, include:TypeFacts):Type {
@@ -3403,7 +3403,7 @@ class CheckerPart8 {
 				// member should more exactly be the kind of (declarationless) symbol we want.
 				// (See #44364 and #45031 for relevant implementation PRs)
 				if (metaProp.KeywordToken == KindImportKeyword && node.Text() == "meta") {
-					return symbolTableGet(c.getGlobalImportMetaExpressionType().AsObjectType().members, "meta");
+					return c.getGlobalImportMetaExpressionType().AsObjectType().getMember("meta");
 				}
 				// no other meta properties are valid syntax, thus no others should have symbols
 				return null;

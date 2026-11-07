@@ -1415,6 +1415,11 @@ class Checker {
 	var reverseMappedCache:StringMap<Type> /* key: checker.ReverseMappedTypeKey */ = null;
 	var reverseHomomorphicMappedCache:StringMap<Type> /* key: checker.ReverseMappedTypeKey */ = null;
 	var iterationTypesCache:StringMap<IterationTypes> /* key: checker.IterationTypesKey */ = null;
+	// PORT: from TypeScript main (microsoft/typescript-go#64915, #65059): member layouts and the class or interface types
+	// whose members are being resolved
+	var memberLayoutCache:StringMap<MemberLayout> /* key: checker.CacheHashKey */ = new StringMap();
+	var memberLayoutCount:Int = 0;
+	var resolvingObjectTypeStack:Array<ResolvingObjectType> = [];
 	var markerTypes:Set<Type> = new Set<Type>();
 	var undefinedSymbol:Symbol = null;
 	var argumentsSymbol:Symbol = null;
@@ -6749,4 +6754,19 @@ class TypeFlagNamesStruct {
 	public var name:std.String = "";
 
 	public function new() {}
+}
+
+// PORT: from TypeScript main (microsoft/typescript-go#65059)
+@:allow(ts.checker)
+class ResolvingObjectType {
+	var t:Type; // Type being resolved
+	var mapper:TypeMapper; // Instantiation mapper
+	var baseTypes:Array<Type>; // Instantiated base types
+	var resolvedMembers:SymbolTable = null; // Members resolved by getDeclaredPropertyOfResolvingType
+
+	public function new(t:Type, mapper:TypeMapper, baseTypes:Array<Type>) {
+		this.t = t;
+		this.mapper = mapper;
+		this.baseTypes = baseTypes;
+	}
 }

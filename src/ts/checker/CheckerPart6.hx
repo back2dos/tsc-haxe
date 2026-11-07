@@ -665,7 +665,7 @@ class CheckerPart6 {
 			if (baseConstructorIndexInfo != null) {
 				indexInfos = appendOne(indexInfos, baseConstructorIndexInfo);
 			}
-			if ((symbol.Flags & SymbolFlagsEnum) != 0 && ((c.getDeclaredTypeOfSymbol(symbol).flags & TypeFlagsEnum) != 0 || Core.Some(d.properties, function(prop:Symbol):Bool {
+			if ((symbol.Flags & SymbolFlagsEnum) != 0 && ((c.getDeclaredTypeOfSymbol(symbol).flags & TypeFlagsEnum) != 0 || Core.Some(d.getProperties(), function(prop:Symbol):Bool {
 				return (c.getTypeOfSymbol(prop).flags & TypeFlagsNumberLike) != 0;
 			}))) {
 				indexInfos = appendOne(indexInfos, c.enumNumberIndexInfo);
@@ -719,11 +719,12 @@ class CheckerPart6 {
 	}
 
 	static function instantiateSymbol(c:Checker, symbol:Symbol, m:TypeMapper):Symbol {
-		if (symbol == null) {
-			return null;
+		// PORT: from TypeScript main (microsoft/typescript-go#64915): no mapper, the symbol itself
+		if (symbol == null || m == null) {
+			return symbol;
 		}
 		final links = c.valueSymbolLinks.Get(symbol);
-		if (m != null && m.MapsThisOnly() && Checker.isThisless(symbol)) {
+		if (m.MapsThisOnly() && Checker.isThisless(symbol)) {
 			return symbol;
 		}
 		// If the type of the symbol is already resolved, and if that type could not possibly
@@ -1344,7 +1345,7 @@ class CheckerPart6 {
 	static function getPropertyOfObjectType(c:Checker, t:Type, name:std.String):Symbol {
 		if ((t.flags & TypeFlagsObject) != 0) {
 			final resolved = c.resolveStructuredTypeMembers(t);
-			final symbol = symbolTableGet(resolved.members, name);
+			final symbol = resolved.getMember(name);
 			if (symbol != null && c.symbolIsValue(symbol)) {
 				return symbol;
 			}
@@ -1805,9 +1806,8 @@ class CheckerPart6 {
 		} else if ((t.flags & TypeFlagsIntersection) != 0) {
 			if ((t.objectFlags & ObjectFlagsIsNeverIntersectionComputed) == 0) {
 				t.objectFlags |= ObjectFlagsIsNeverIntersectionComputed;
-				if (Core.Some(c.getPropertiesOfUnionOrIntersectionType(t), function(prop:Symbol):Bool {
-					return c.isNeverReducedProperty(prop);
-				})) {
+				// PORT: from TypeScript main (microsoft/typescript-go#64481, #64499)
+				if (!c.isMappingOfSameObjectType(t.Types()) && c.somePropertyReducesToNever(t)) {
 					t.objectFlags |= ObjectFlagsIsNeverIntersection;
 				}
 			}
@@ -1816,6 +1816,52 @@ class CheckerPart6 {
 			}
 		}
 		return t;
+	}
+
+	static function isMappingOfSameObjectType(c:Checker, types:haxe.ds.Vector<Type>):Bool {
+		if (types.length != 0 && (types[0].objectFlags & ObjectFlagsMapped) != 0) {
+			final firstType = c.getModifiersTypeFromMappedType(types[0]);
+			if ((firstType.flags & TypeFlagsObject) != 0) {
+				for (i in 1...types.length) {
+					final t = types[i];
+					if ((t.objectFlags & ObjectFlagsMapped) == 0 || c.getModifiersTypeFromMappedType(t) != firstType) {
+						return false;
+					}
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static function somePropertyReducesToNever(c:Checker, t:Type):Bool {
+		// Collect declaration counts for each property across all constituent types of the intersection.
+		// PORT: Go's temporary property counts (an ordered table) → the names in order and their counts
+		final names:Array<std.String> = [];
+		final counts = new StringMap<Int>();
+		final types = t.Types();
+		for (i in 0...types.length) {
+			for (prop in rangeOf(c.getLayoutPropertiesOfType(types[i]))) {
+				final n:Null<Int> = counts.get(prop.Name);
+				if (n == null) {
+					names.push(prop.Name);
+					counts.set(prop.Name, 1);
+				} else {
+					counts.set(prop.Name, n + 1);
+				}
+			}
+		}
+		// Check if any property appears in more than one constituent type and reduces to 'never'.
+		// Go in the order the properties were found so the combined properties are created in the same order every time.
+		for (name in names) {
+			if (counts.get(name) > 1) {
+				final prop = c.getPropertyOfUnionOrIntersectionType(t, name, true /*skipObjectFunctionPropertyAugment*/);
+				if (prop != null && c.isNeverReducedProperty(prop)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	static function getReducedUnionType(c:Checker, unionType:Type):Type {

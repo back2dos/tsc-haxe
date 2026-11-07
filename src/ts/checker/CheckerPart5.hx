@@ -2579,7 +2579,7 @@ class CheckerPart5 {
 
 	static function getPropertiesOfObjectType(c:Checker, t:Type):Array<Symbol> {
 		if ((t.flags & TypeFlagsObject) != 0) {
-			return c.resolveStructuredTypeMembers(t).properties;
+			return c.resolveStructuredTypeMembers(t).getProperties();
 		}
 		return null;
 	}
@@ -2626,8 +2626,14 @@ class CheckerPart5 {
 	static function getPropertyOfTypeEx(c:Checker, t:Type, name:std.String, skipObjectFunctionPropertyAugment:Bool, includeTypeOnlyMembers:Bool):Symbol {
 		t = c.getReducedApparentType(t);
 		if ((t.flags & TypeFlagsObject) != 0) {
+			if ((t.objectFlags & ObjectFlagsMembersResolved) == 0 && c.resolvingObjectTypeStack.length != 0) {
+				final symbol = c.getDeclaredPropertyOfResolvingType(t, name);
+				if (symbol != null) {
+					return symbol;
+				}
+			}
 			final resolved = c.resolveStructuredTypeMembers(t);
-			var symbol = symbolTableGet(resolved.members, name);
+			var symbol = resolved.getMember(name);
 			if (symbol != null) {
 				if (!includeTypeOnlyMembers && t.symbol != null && (t.symbol.Flags & SymbolFlagsValueModule) != 0) {
 					final typeOnlyExportStarMap = c.moduleSymbolLinks.Get(t.symbol).typeOnlyExportStarMap;
@@ -2812,10 +2818,8 @@ class CheckerPart5 {
 	static function resolveStructuredTypeMembersSlow(c:Checker, t:Type):StructuredType {
 		if ((t.objectFlags & ObjectFlagsMembersResolved) == 0) {
 			if ((t.flags & TypeFlagsObject) != 0) {
-				if ((t.objectFlags & ObjectFlagsReference) != 0) {
-					c.resolveTypeReferenceMembers(t);
-				} else if ((t.objectFlags & ObjectFlagsClassOrInterface) != 0) {
-					c.resolveClassOrInterfaceMembers(t);
+				if ((t.objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsReference)) != 0) {
+					c.resolveObjectTypeMembers(t);
 				} else if ((t.objectFlags & ObjectFlagsReverseMapped) != 0) {
 					c.resolveReverseMappedTypeMembers(t);
 				} else if ((t.objectFlags & ObjectFlagsAnonymous) != 0) {
@@ -2836,56 +2840,50 @@ class CheckerPart5 {
 		return t.AsStructuredType();
 	}
 
-	static function resolveClassOrInterfaceMembers(c:Checker, t:Type):Void {
-		c.resolveObjectTypeMembers(t, t, null, null);
-	}
-
-	static function resolveTypeReferenceMembers(c:Checker, t:Type):Void {
-		final source = t.Target();
-		final typeParameters = source.AsInterfaceType().allTypeParameters;
-		final typeArguments = c.getTypeArguments(t);
-		var paddedTypeArguments = typeArguments;
-		if (Core.len(typeArguments) == Core.len(typeParameters) - 1) {
-			paddedTypeArguments = Core.Concatenate(typeArguments, [t]);
-		}
-		c.resolveObjectTypeMembers(t, source, typeParameters, paddedTypeArguments);
-	}
-
-	static function resolveObjectTypeMembers(c:Checker, t:Type, source:Type, typeParameters:Array<Type>, typeArguments:Array<Type>):Void {
+	// PORT: from TypeScript main (microsoft/typescript-go#64915, #65059): class and interface types and their references
+	// resolve their signatures and index infos now and their members lazily, through a MemberLayout shared by the
+	// references of one target (with the same base types) and the type's LazyState
+	static function resolveObjectTypeMembers(c:Checker, t:Type):Void {
 		var mapper:TypeMapper = null;
-		var members:SymbolTable = null;
+		var typeParameters:Array<Type> = null;
+		var typeArguments:Array<Type> = null;
 		var callSignatures:Array<Signature> = null;
 		var constructSignatures:Array<Signature> = null;
 		var indexInfos:Array<IndexInfo> = null;
-		var instantiated = false;
+		final source = Checker.getTargetType(t);
+		if ((t.objectFlags & ObjectFlagsReference) != 0) {
+			typeParameters = source.AsInterfaceType().allTypeParameters;
+			typeArguments = c.getTypeArguments(t);
+			if (Core.len(typeArguments) == Core.len(typeParameters) - 1) {
+				typeArguments = Core.Concatenate(typeArguments, [t]);
+			}
+		}
 		final resolved = c.resolveDeclaredMembers(source);
 		if (Slices.Equal(typeParameters, typeArguments)) {
-			members = resolved.declaredMembers;
 			callSignatures = resolved.declaredCallSignatures;
 			constructSignatures = resolved.declaredConstructSignatures;
 			indexInfos = resolved.declaredIndexInfos;
 		} else {
-			instantiated = true;
 			mapper = Checker.newTypeMapper(typeParameters, typeArguments);
-			members = c.instantiateSymbolTable(resolved.declaredMembers, mapper);
 			callSignatures = c.instantiateSignatures(resolved.declaredCallSignatures, mapper);
 			constructSignatures = c.instantiateSignatures(resolved.declaredConstructSignatures, mapper);
 			indexInfos = c.instantiateIndexInfos(resolved.declaredIndexInfos, mapper);
 		}
 		final baseTypes = c.getBaseTypes(source);
-		if (Core.len(baseTypes) != 0) {
-			if (!instantiated) {
-				members = members == null ? null : members.copy();
-			}
-			c.setStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
-			final thisArgument = Core.LastOrNil(typeArguments);
-			t.objectFlags |= ObjectFlagsUnresolvedMembers;
-			for (baseType in baseTypes) {
-				var instantiatedBaseType = baseType;
-				if (thisArgument != null) {
-					instantiatedBaseType = c.getTypeWithThisArgument(c.instantiateType(baseType, mapper), thisArgument, false /*needsApparentType*/);
-				}
-				members = c.addInheritedMembers(members, c.getPropertiesOfType(instantiatedBaseType));
+		var instantiatedBaseTypes = baseTypes;
+		final thisArgument = Core.LastOrNil(typeArguments);
+		if (Core.len(baseTypes) != 0 && thisArgument != null) {
+			instantiatedBaseTypes = [
+				for (baseType in baseTypes)
+					c.getTypeWithThisArgument(c.instantiateType(baseType, mapper), thisArgument, false /*needsApparentType*/)
+			];
+		}
+		final resolving = new ResolvingObjectType(t, mapper, instantiatedBaseTypes);
+		c.resolvingObjectTypeStack.push(resolving);
+		// Member layout must be computed before inherited signatures, which may circularly depend on it
+		final layout = c.getMemberLayout(t, instantiatedBaseTypes);
+		if (instantiatedBaseTypes != null) {
+			for (instantiatedBaseType in instantiatedBaseTypes) {
 				callSignatures = Core.Concatenate(callSignatures, c.getSignaturesOfType(instantiatedBaseType, SignatureKindCall));
 				constructSignatures = Core.Concatenate(constructSignatures, c.getSignaturesOfType(instantiatedBaseType, SignatureKindConstruct));
 				var inheritedIndexInfos:Array<IndexInfo> = null;
@@ -2899,9 +2897,172 @@ class CheckerPart5 {
 					return Checker.findIndexInfo(current, info.keyType) == null;
 				}));
 			}
-			t.objectFlags &= ~ObjectFlagsUnresolvedMembers;
 		}
-		c.setStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
+		c.setStructuredTypeMembers(t, null, callSignatures, constructSignatures, indexInfos);
+		final lazyState = new LazyState();
+		lazyState.layout = layout;
+		lazyState.mapper = mapper;
+		lazyState.baseTypes = instantiatedBaseTypes;
+		t.AsTypeReference().lazy = lazyState;
+		c.propagateResolvedDeclaredMembers();
+		c.resolvingObjectTypeStack.pop();
+	}
+
+	static function propagateResolvedDeclaredMembers(c:Checker):Void {
+		final r = c.resolvingObjectTypeStack[c.resolvingObjectTypeStack.length - 1];
+		final s = r.t.AsTypeReference();
+		if (r.resolvedMembers != null) {
+			for (symbol in r.resolvedMembers) {
+				final index:Null<Int> = s.lazy.layout.index.get(symbol.Name);
+				if (index != null) {
+					if (s.properties == null) {
+						s.properties = [for (_ in 0...s.lazy.layout.symbols.length) null];
+					}
+					s.properties[index] = symbol;
+				}
+			}
+		}
+		r.resolvedMembers = null;
+	}
+
+	// We allow accessing declared members of a class or interface while building its member layout. This
+	// means that base classes of a class or interface can access members declared in the class or interface
+	// during its resolution without causing a circularity error. Members resolved by this function are
+	// eventually propagated into the resolved members of the class or interface.
+	static function getDeclaredPropertyOfResolvingType(c:Checker, t:Type, name:std.String):Symbol {
+		var i = c.resolvingObjectTypeStack.length - 1;
+		while (i >= 0) {
+			final r = c.resolvingObjectTypeStack[i];
+			if (r.t == t) {
+				var resolved = symbolTableGet(r.resolvedMembers, name);
+				if (resolved == null) {
+					final symbol = symbolTableGet(c.resolveDeclaredMembers(Checker.getTargetType(t)).declaredMembers, name);
+					if (symbol != null && c.isNamedMember(symbol, name)) {
+						resolved = c.instantiateSymbol(symbol, r.mapper);
+					} else if (r.baseTypes != null) {
+						for (baseType in r.baseTypes) {
+							final symbol = c.getPropertyOfTypeEx(baseType, name, true, false);
+							if (symbol != null && !Checker.isStaticPrivateIdentifierProperty(symbol)) {
+								resolved = symbol;
+								break;
+							}
+						}
+					}
+					if (resolved != null) {
+						if (r.resolvedMembers == null) {
+							r.resolvedMembers = new SymbolTable();
+						}
+						r.resolvedMembers.set(name, resolved);
+					}
+				}
+				return resolved;
+			}
+			i--;
+		}
+		return null;
+	}
+
+	static function getMemberLayout(c:Checker, t:Type, baseTypes:Array<Type>):MemberLayout {
+		if ((t.objectFlags & ObjectFlagsReference) == 0) {
+			return c.createMemberLayout(t, baseTypes);
+		}
+		final source = Checker.getTargetType(t);
+		final key = c.getMemberLayoutKey(source, baseTypes).Key();
+		var layout = c.memberLayoutCache.get(key);
+		if (layout == null) {
+			layout = c.createMemberLayout(source, baseTypes);
+			c.memberLayoutCache.set(key, layout);
+		}
+		return layout;
+	}
+
+	static function getMemberLayoutKey(c:Checker, t:Type, baseTypes:Array<Type>):CacheHashKey {
+		final b = new KeyBuilder();
+		b.writeType(t);
+		// Late binding may add new declared members, so include the declared member count in the key
+		b.writeInt(symbolTableLen(t.AsInterfaceType().declaredMembers));
+		b.writeInt(Core.len(baseTypes));
+		if (baseTypes != null) {
+			for (baseType in baseTypes) {
+				if ((baseType.objectFlags & ObjectFlagsReference) != 0) {
+					c.resolveStructuredTypeMembers(baseType);
+					b.writeByte('+'.code);
+					b.writeInt(baseType.AsTypeReference().lazy.layout.id);
+				} else {
+					b.writeByte('-'.code);
+					b.writeType(baseType);
+				}
+			}
+		}
+		return b.hash();
+	}
+
+	static function createMemberLayout(c:Checker, t:Type, baseTypes:Array<Type>):MemberLayout {
+		final symbols:Array<Symbol> = [];
+		final index = new StringMap<Int>();
+		final baseIndices:Array<Int> = [];
+		inline function addMember(symbol:Symbol, baseIndex:Int) {
+			if (!index.exists(symbol.Name)) {
+				index.set(symbol.Name, symbols.length);
+				symbols.push(symbol);
+				baseIndices.push(baseIndex);
+			}
+		}
+		// Add declared members
+		final declaredMembers = t.AsInterfaceType().declaredMembers;
+		if (declaredMembers != null) {
+			for (id => symbol in declaredMembers) {
+				if (c.isNamedMember(symbol, id)) {
+					addMember(symbol, -1);
+				}
+			}
+		}
+		// Add inherited members
+		if (baseTypes != null) {
+			for (baseIndex in 0...baseTypes.length) {
+				final baseType = baseTypes[baseIndex];
+				if ((baseType.objectFlags & (ObjectFlagsReference | ObjectFlagsClassOrInterface)) != 0) {
+					c.resolveStructuredTypeMembers(baseType);
+					for (symbol in baseType.AsTypeReference().lazy.layout.symbols) {
+						if (!Checker.isStaticPrivateIdentifierProperty(symbol)) {
+							addMember(symbol, baseIndex);
+						}
+					}
+				} else {
+					for (symbol in rangeOf(c.getPropertiesOfType(baseType))) {
+						if (!Checker.isStaticPrivateIdentifierProperty(symbol)) {
+							addMember(symbol, baseIndex);
+						}
+					}
+				}
+			}
+		}
+		final layout = new MemberLayout();
+		layout.id = c.memberLayoutCount++;
+		layout.symbols = symbols;
+		layout.index = index;
+		layout.baseIndices = baseIndices;
+		return layout;
+	}
+
+	// For classes and interfaces, the layout properties of the type are uninstantiated symbols from
+	// the shared member layout. When operations only process the declaration, flags, and/or name
+	// of members (and not their type), using the layout properties helps defer instantiation of
+	// the members. For example, `keyof T` can be computed entirely from layout properties.
+	static function getLayoutPropertiesOfType(c:Checker, t:Type):Array<Symbol> {
+		t = c.getReducedApparentType(t);
+		final lazy = c.getLazyStateOfType(t);
+		if (lazy == null) {
+			return c.getPropertiesOfType(t);
+		}
+		return lazy.layout.symbols;
+	}
+
+	static function getLazyStateOfType(c:Checker, t:Type):LazyState {
+		if ((t.flags & TypeFlagsObject) != 0) {
+			return c.resolveStructuredTypeMembers(t).getLazyState();
+		}
+		return null;
 	}
 
 	static function getBaseTypes(c:Checker, t:Type):Array<Type> {
@@ -3090,7 +3251,7 @@ class CheckerPart5 {
 	static function getSingleSignature(c:Checker, t:Type, kind:SignatureKind, allowMembers:Bool):Signature {
 		if ((t.flags & TypeFlagsObject) != 0) {
 			final resolved = c.resolveStructuredTypeMembers(t);
-			if (allowMembers || Core.len(resolved.properties) == 0 && Core.len(resolved.indexInfos) == 0) {
+			if (allowMembers || !resolved.hasProperties() && Core.len(resolved.indexInfos) == 0) {
 				if (kind == SignatureKindCall && Core.len(resolved.CallSignatures()) == 1 && Core.len(resolved.ConstructSignatures()) == 0) {
 					return resolved.CallSignatures()[0];
 				}
