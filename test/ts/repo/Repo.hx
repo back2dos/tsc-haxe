@@ -6,8 +6,11 @@ package ts.repo;
 class Repo {
 	static var rootPath_:Null<String> = null;
 
+	// PORT: the checkout is upstream/ (tsgo 7.0.2), or another one named by TSHX_UPSTREAM (the checker gate's oracle:
+	// upstream-main/, TypeScript main, see tools/gate/checker.sh)
 	public static function SetProjectRoot(projectRoot:String):Void {
-		rootPath_ = ts.tspath.Tspath.NormalizePath(projectRoot + "/upstream/tsc");
+		final dir = Sys.getEnv("TSHX_UPSTREAM");
+		rootPath_ = ts.tspath.Tspath.NormalizePath(projectRoot + "/" + (dir == null || dir == "" ? "upstream" : dir) + "/tsc");
 	}
 
 	public static function RootPath():String {

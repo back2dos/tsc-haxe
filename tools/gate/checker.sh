@@ -6,6 +6,7 @@
 # .errors.txt, .types, .symbols, .js (incl. .d.ts output and DtsFileErrors), .js.map, .sourcemap.txt and
 # .trace.json baselines with upstream/tsc/testdata/baselines/reference/submodule.
 #
+# The oracle: TypeScript main (upstream-main/), or tsgo 7.0.2 with TSHX_ORACLE=702 (upstream/).
 # Usage:
 #   tools/gate/checker.sh [--no-build] [--targets LIST | --js-only | --cpp-only] [--jobs N] [--sample N] [gate args...]
 #       full run on JS and cpp (default; --targets js,cpp,jvm,cs,py, see tools/targets.sh);
@@ -48,6 +49,8 @@ done
 if [ $casemode = 1 ]; then targets="js"; fi
 
 main=ts.harness.CheckerGate
+# the oracle: TypeScript main's corpus and baselines (upstream-main/, make upstream-main); TSHX_ORACLE=702: tsgo 7.0.2's (upstream/)
+case "${TSHX_ORACLE:-main}" in 702) export TSHX_UPSTREAM=upstream ;; *) export TSHX_UPSTREAM=upstream-main; [ -d upstream-main ] || make upstream-main ;; esac
 # Parallel JVMs: a bounded heap and few GC threads each (16 JVMs with default heaps and 32 GC threads
 # each were killed by the OOM killer and spent most of their time in the kernel).
 HX_NODE_OPTS=--max-old-space-size=8000

@@ -68,10 +68,12 @@ while [ $# -gt 0 ]; do
 done
 want() { case " $projects " in *" $1 "*) return 0 ;; esac; return 1; }
 main=ts.cmd.Tsgo
+# the reference: tsgo of TypeScript main (.ref/tsgo-main, make ref-main); TSHX_ORACLE=702: tsgo 7.0.2 (.ref/tsgo, make ref)
+case "${TSHX_ORACLE:-main}" in 702) ref=.ref/tsgo ;; *) ref=.ref/tsgo-main ;; esac
 if [ $build = 1 ]; then
 	echo "building Haxe tsc ($targets) ..."
 	for t in $targets; do hx_build $t $main "$out/tsgo"; done
-	[ -x .ref/tsgo ] || make ref
+	[ -x "$ref" ] || make "$(basename "$ref" | sed 's/tsgo/ref/')"
 fi
 
 # deps <set> <upstream lock dir> <package>...: npm ci of the lock subset into $out/deps/<set>-nm
@@ -146,7 +148,7 @@ step() {
 		w="$out/w-$tgt"
 		(cd "$w" && eval "$prep")
 		case $tgt in
-			go)  cmd="$root/.ref/tsgo"; post=--singleThreaded ;;
+			go)  cmd="$root/$ref"; post=--singleThreaded ;;
 			*)   cmd=$(hx_cmd $tgt $main "$root/$out/tsgo"); post= ;;
 		esac
 		rc=0

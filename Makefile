@@ -1,11 +1,13 @@
 PIN       := 1e4744d68260a7cb91b62b12edc3f6a2187faaf1
 TS_PIN    := 4d4f005c8541e0255a9d8791205fdce326e462bc
+# the oracle: TypeScript main (upstream-main/, .ref/tsgo-main)
+MAIN_PIN  := f7973164a5f079a2d8b88d0fdb39347222549124
 GO        := GOTOOLCHAIN=go1.26.9 go
 HAXE      := tools/haxe
 # Toolchains (HAXE_HOME, JAVA, DOTNET, PYTHON, ...): tools/env.sh (defaults from PATH, overrides in tools/env.local.sh); build/run per target: tools/targets.sh.
 TARGETS   := ROOT=$(CURDIR); . tools/targets.sh
 
-.PHONY: test test-js test-cpp test-jvm test-cs test-py upstream ref
+.PHONY: test test-js test-cpp test-jvm test-cs test-py upstream ref upstream-main ref-main
 
 test: test-js test-cpp
 
@@ -34,6 +36,15 @@ upstream:
 		cd upstream/tsc/_submodules/TypeScript && git init -q && \
 		git remote add origin https://github.com/microsoft/TypeScript.git && \
 		git fetch -q --depth 1 origin $(TS_PIN) && git checkout -q FETCH_HEAD )
+
+# Reference checkout of TypeScript main at MAIN_PIN (the gates' oracle; ignored by git).
+upstream-main:
+	test -d upstream-main || ( git init -q upstream-main && git -C upstream-main remote add origin https://github.com/microsoft/TypeScript.git && \
+		git -C upstream-main fetch -q --depth 1 origin $(MAIN_PIN) && git -C upstream-main checkout -q FETCH_HEAD )
+	test "$$(git -C upstream-main rev-parse HEAD)" = "$(MAIN_PIN)"
+
+ref-main: upstream-main
+	cd upstream-main/tsc && GOTOOLCHAIN=auto go build -o ../../.ref/tsgo-main ./cmd/tsc
 
 # Reference tsgo binary built from the pin.
 ref: upstream

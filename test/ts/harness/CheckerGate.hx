@@ -81,15 +81,26 @@ class CheckerGate {
 		var fileIndex = 0;
 		final t0 = haxe.Timer.stamp();
 
+		// TypeScript main keeps the corpus and its baselines in testdata (tests/cases/<suite>, baselines/reference/<suite>);
+		// 7.0.2 in its TypeScript submodule (baselines/reference/submodule/<suite>)
+		final submodule = !sys.FileSystem.exists(ts.repo.Repo.TestDataPath() + "/tests/cases/compiler");
+		// main's cases that the port cannot run yet (tools/gate/checker-main-pending.txt: crash, hang, runaway memory)
+		final pending = new Map<String, Bool>();
+		if (!submodule && sys.FileSystem.exists("tools/gate/checker-main-pending.txt"))
+			for (line in sys.io.File.getContent("tools/gate/checker-main-pending.txt").split("\n")) {
+				final name = StringTools.trim(line).split(" ")[0];
+				if (name != "" && !StringTools.startsWith(name, "#"))
+					pending.set(name, true);
+			}
 		final runners = [
-			Testrunner.NewCompilerBaselineRunner(TestTypeRegression, true),
-			Testrunner.NewCompilerBaselineRunner(TestTypeConformance, true)
+			Testrunner.NewCompilerBaselineRunner(TestTypeRegression, submodule),
+			Testrunner.NewCompilerBaselineRunner(TestTypeConformance, submodule)
 		];
 		for (runner in runners) {
 			final suite = runner.TestSuitName();
 			for (filename in runner.EnumerateTestFiles()) {
 				final base = ts.tspath.Tspath.GetBaseFileName(filename);
-				if (Testrunner.skippedTests.indexOf(base) >= 0)
+				if (Testrunner.skippedTests.indexOf(base) >= 0 || pending.exists(base))
 					continue;
 				if (cases.length > 0 && !caseMatches(cases, base))
 					continue;

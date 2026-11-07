@@ -1,4 +1,5 @@
 /upstream/
+/upstream-main/
 /.ref/
 /bin/
 /tools/.haxelib-cs/
