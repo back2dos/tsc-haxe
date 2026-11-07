@@ -2689,7 +2689,9 @@ class CheckerPart5 {
 	}
 
 	static function getSignaturesOfStructuredType(c:Checker, t:Type, kind:SignatureKind):Array<Signature> {
-		if ((t.flags & TypeFlagsStructuredType) == 0) {
+		// PORT: perf — from TypeScript main (microsoft/typescript-go#64873): mapped and reverse mapped types have no
+		// signatures; their members are not resolved to find none
+		if ((t.flags & TypeFlagsStructuredType) == 0 || (t.objectFlags & (ObjectFlagsMapped | ObjectFlagsReverseMapped)) != 0) {
 			return null;
 		}
 		final resolved = c.resolveStructuredTypeMembers(t);
@@ -3287,14 +3289,31 @@ class CheckerPart5 {
 
 	// TODO: GH#18217 If `checkBase` is undefined, we should not call this because this will always return false.
 	static function hasBaseType(c:Checker, t:Type, checkBase:Type):Bool {
+		// PORT: perf — from TypeScript main (microsoft/typescript-go#64737):
+		// Paths through base types only branch at types with several base types and at
+		// intersections. Searching each of those once keeps shared base types from making
+		// the search exponential, and single inheritance allocates nothing.
+		var visited:Null<haxe.ds.ObjectMap<Type, Bool>> = null;
+		function addIfAbsent(t:Type):Bool {
+			if (visited == null)
+				visited = new haxe.ds.ObjectMap();
+			if (visited.exists(t))
+				return false;
+			visited.set(t, true);
+			return true;
+		}
 		var check:(Type) -> Bool = null;
 		check = function(t:Type):Bool {
 			if ((t.objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsReference)) != 0) {
 				final target = Checker.getTargetType(t);
-				return target == checkBase || Core.Some(c.getBaseTypes(target), check);
+				if (target == checkBase) {
+					return true;
+				}
+				final baseTypes = c.getBaseTypes(target);
+				return (Core.len(baseTypes) < 2 || addIfAbsent(target)) && Core.Some(baseTypes, check);
 			}
 			if ((t.flags & TypeFlagsIntersection) != 0) {
-				return Core.Some(t.Types(), check);
+				return addIfAbsent(t) && Core.Some(t.Types(), check);
 			}
 			return false;
 		};
