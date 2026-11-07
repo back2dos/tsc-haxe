@@ -1224,7 +1224,7 @@ class Relater {
 		return new Pair(keyPropertyName, mapByKeyProperty);
 	}
 
-	static function getKeyPropertyCandidateName(c:Checker, types:Array<Type>):std.String {
+	static function getKeyPropertyCandidateName(c:Checker, types:haxe.ds.Vector<Type>):std.String {
 		for (t in types) {
 			if (t.flags & (TypeFlagsObject | TypeFlagsInstantiableNonPrimitive) != 0) {
 				final props = c.getPropertiesOfType(t);
@@ -1244,7 +1244,7 @@ class Relater {
 	// types of the property by that name in each constituent type. No map is returned if some key property
 	// has a non-literal type or if less than 10 or less than 50% of the constituents have a unique key.
 	// Entries with duplicate keys have unknownType as the value.
-	static function mapTypesByKeyProperty(c:Checker, types:Array<Type>, keyPropertyName:std.String):IdentityMap<Type, Type> {
+	static function mapTypesByKeyProperty(c:Checker, types:haxe.ds.Vector<Type>, keyPropertyName:std.String):IdentityMap<Type, Type> {
 		final typesByKey = new IdentityMap<Type, Type>();
 		var count = 0;
 		for (t in types) {
@@ -2375,7 +2375,7 @@ class Relater {
 		return TernaryFalse;
 	}
 
-	static function getEffectiveConstraintOfIntersection(c:Checker, types:Array<Type>, targetIsUnion:Bool):Type {
+	static function getEffectiveConstraintOfIntersection(c:Checker, types:haxe.ds.Vector<Type>, targetIsUnion:Bool):Type {
 		var constraints:Array<Type> = null;
 		var hasDisjointDomainType = false;
 		for (t in types) {
@@ -2807,7 +2807,7 @@ class Relater {
 			return false;
 		}
 		var reducedTarget = target;
-		var checkTypes:Array<Type> = null;
+		var checkTypes:haxe.ds.Vector<Type> = null;
 		if (target.flags & TypeFlagsUnion != 0) {
 			reducedTarget = c.findMatchingDiscriminantType(source, target, isRelatedToSimple);
 			if (reducedTarget == null) {
@@ -2887,7 +2887,7 @@ class Relater {
 		return false;
 	}
 
-	static function getTypeOfPropertyInTypes(c:Checker, types:Array<Type>, name:std.String):Type {
+	static function getTypeOfPropertyInTypes(c:Checker, types:haxe.ds.Vector<Type>, name:std.String):Type {
 		var propTypes:Array<Type> = null;
 		for (t in types) {
 			if (propTypes == null) {
@@ -3064,7 +3064,7 @@ class Relater {
 		// We strip `undefined` from the target if the `source` trivially doesn't contain it for our correspondence-checking fastpath
 		// since `undefined` is frequently added by optionality and would otherwise spoil a potentially useful correspondence
 		final strippedTarget = getUndefinedStrippedTargetIfNeeded(source, target);
-		var strippedTypes:Array<Type> = null;
+		var strippedTypes:haxe.ds.Vector<Type> = null;
 		if (strippedTarget.flags & TypeFlagsUnion != 0) {
 			strippedTypes = strippedTarget.Types();
 		}
@@ -3363,11 +3363,11 @@ class Relater {
 			// For example, if `T extends 1 | 2` and `U extends 2 | 3` and we compare `T & U` to `T & U & (1 | 2 | 3)`
 			if (result == TernaryFalse
 				&& (source.flags & TypeFlagsIntersection != 0 || source.flags & TypeFlagsTypeParameter != 0 && target.flags & TypeFlagsUnion != 0)) {
-				var sourceTypes:Array<Type>;
+				var sourceTypes:haxe.ds.Vector<Type>;
 				if (source.flags & TypeFlagsIntersection != 0) {
 					sourceTypes = source.Types();
 				} else {
-					sourceTypes = [source];
+					sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
 				}
 				final constraint = c.getEffectiveConstraintOfIntersection(sourceTypes, target.flags & TypeFlagsUnion != 0);
 				if (constraint != null && Checker.everyType(constraint, c -> c != source)) {
@@ -4206,7 +4206,7 @@ class Relater {
 			}
 		}
 		// Compute the set of types for each discriminant property.
-		final sourceDiscriminantTypes:Array<Array<Type>> = [for (_ in 0...sourcePropertiesFiltered.length) null];
+		final sourceDiscriminantTypes:Array<haxe.ds.Vector<Type>> = [for (_ in 0...sourcePropertiesFiltered.length) null];
 		final excludedProperties = new Set<std.String>();
 		for (i in 0...sourcePropertiesFiltered.length) {
 			final sourceProperty = sourcePropertiesFiltered[i];

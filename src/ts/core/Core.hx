@@ -27,8 +27,153 @@ import haxe.ds.StringMap;
 @:allow(ts.core)
 class Core {
 	// PORT: len() of a possibly-nil slice (PORTING.md §3).
-	public static inline function len<T>(s:Null<Array<T>>):Int {
+	public static extern inline overload function len<T>(s:Null<Array<T>>):Int {
 		return s == null ? 0 : s.length;
+	}
+
+	// ---- PORT: perf — the helpers over haxe.ds.Vector (an immutable list: one object, no header, the
+	// empty vector a shared constant: no null). Same results as the Array versions; Filter and SameMap
+	// return the same vector when nothing changes (Same compares identity).
+
+	public static extern inline overload function len<T>(s:haxe.ds.Vector<T>):Int {
+		return s == null ? 0 : s.length;
+	}
+
+	public static extern inline overload function Same<T>(s1:haxe.ds.Vector<T>, s2:haxe.ds.Vector<T>):Bool {
+		return len(s1) == len(s2) ? (len(s1) == 0 || s1 == s2) : false;
+	}
+
+	public static extern inline overload function Some<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Bool {
+		var found = false;
+		final n = len(slice);
+		var i = 0;
+		while (i < n) {
+			if (f(slice[i])) {
+				found = true;
+				break;
+			}
+			i++;
+		}
+		return found;
+	}
+
+	public static extern inline overload function Every<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Bool {
+		var all = true;
+		final n = len(slice);
+		var i = 0;
+		while (i < n) {
+			if (!f(slice[i])) {
+				all = false;
+				break;
+			}
+			i++;
+		}
+		return all;
+	}
+
+	public static extern inline overload function Find<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool, ?zero:T):T {
+		var result = zero;
+		final n = len(slice);
+		var i = 0;
+		while (i < n) {
+			final value = slice[i];
+			if (f(value)) {
+				result = value;
+				break;
+			}
+			i++;
+		}
+		return result;
+	}
+
+	public static extern inline overload function FindIndex<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Int {
+		var result = -1;
+		final n = len(slice);
+		var i = 0;
+		while (i < n) {
+			if (f(slice[i])) {
+				result = i;
+				break;
+			}
+			i++;
+		}
+		return result;
+	}
+
+	public static extern inline overload function FindLastIndex<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Int {
+		var i = len(slice) - 1;
+		while (i >= 0 && !f(slice[i]))
+			i--;
+		return i;
+	}
+
+	public static extern inline overload function FirstOrNil<T>(slice:haxe.ds.Vector<T>, ?zero:T):T {
+		return len(slice) != 0 ? slice[0] : zero;
+	}
+
+	public static extern inline overload function LastOrNil<T>(slice:haxe.ds.Vector<T>, ?zero:T):T {
+		return len(slice) != 0 ? slice[slice.length - 1] : zero;
+	}
+
+	public static extern inline overload function ElementOrNil<T>(slice:haxe.ds.Vector<T>, index:Int, ?zero:T):T {
+		return index < len(slice) ? slice[index] : zero;
+	}
+
+	// a new Array (Go's Map makes a new slice)
+	public static extern inline overload function Map<T, U>(slice:haxe.ds.Vector<T>, f:(T) -> U):Null<Array<U>> {
+		var result:Null<Array<U>> = null;
+		if (slice != null) {
+			final r = new Array<U>();
+			r.resize(slice.length);
+			for (i in 0...slice.length) {
+				r[i] = f(slice[i]);
+			}
+			result = r;
+		}
+		return result;
+	}
+
+	public static extern inline overload function Filter<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):haxe.ds.Vector<T> {
+		var result = slice;
+		final n = len(slice);
+		var i = 0;
+		while (i < n && f(slice[i]))
+			i++;
+		if (i < n) {
+			final r = [for (k in 0...i) slice[k]];
+			var k = i + 1;
+			while (k < n) {
+				final value = slice[k];
+				if (f(value)) {
+					r.push(value);
+				}
+				k++;
+			}
+			result = haxe.ds.Vector.fromArrayCopy(r);
+		}
+		return result;
+	}
+
+	public static extern inline overload function SameMap<T>(slice:haxe.ds.Vector<T>, f:(T) -> T):haxe.ds.Vector<T>
+		return sameMapVec(slice, f);
+
+	static function sameMapVec<T>(slice:haxe.ds.Vector<T>, f:(T) -> T):haxe.ds.Vector<T> {
+		final n = len(slice);
+		for (i in 0...n) {
+			final value = slice[i];
+			final mapped = f(value);
+			if (mapped != value) {
+				final result = new haxe.ds.Vector<T>(n);
+				for (k in 0...i)
+					result[k] = slice[k];
+				result[i] = mapped;
+				for (j in i + 1...n) {
+					result[j] = f(slice[j]);
+				}
+				return result;
+			}
+		}
+		return slice;
 	}
 
 	// PORT: `v == *new(T)` for a comparable T (see header).
@@ -322,7 +467,7 @@ class Core {
 	// site with a lambda literal the lambda is inlined too (no closure allocation, no by-value calls),
 	// and the body is typed with the caller's element type (on hxcpp a non-inline generic function
 	// takes the array as a cpp.VirtualArray and boxes the elements as Dynamic).
-	public static inline function Filter<T>(slice:Null<Array<T>>, f:(T) -> Bool):Null<Array<T>> {
+	public static extern inline overload function Filter<T>(slice:Null<Array<T>>, f:(T) -> Bool):Null<Array<T>> {
 		var result = slice;
 		if (slice != null) {
 			final n = slice.length;
@@ -367,7 +512,7 @@ class Core {
 		return slice;
 	}
 
-	public static inline function Map<T, U>(slice:Null<Array<T>>, f:(T) -> U):Null<Array<U>> {
+	public static extern inline overload function Map<T, U>(slice:Null<Array<T>>, f:(T) -> U):Null<Array<U>> {
 		var result:Null<Array<U>> = null;
 		if (slice != null) {
 			final r = new Array<U>();
@@ -409,7 +554,20 @@ class Core {
 		return result;
 	}
 
-	public static function MapNonNil<T, U>(slice:Null<Array<T>>, f:(T) -> U):Null<Array<U>> {
+	public static extern inline overload function MapNonNil<T, U>(slice:haxe.ds.Vector<T>, f:(T) -> U):Null<Array<U>> {
+		var result:Null<Array<U>> = null;
+		for (i in 0...len(slice)) {
+			final mapped = f(slice[i]);
+			if (!isZero(mapped)) {
+				if (result == null)
+					result = [];
+				result.push(mapped);
+			}
+		}
+		return result;
+	}
+
+	public static extern inline overload function MapNonNil<T, U>(slice:Null<Array<T>>, f:(T) -> U):Null<Array<U>> {
 		var result:Null<Array<U>> = null;
 		if (slice != null) {
 			for (value in slice) {
@@ -457,7 +615,10 @@ class Core {
 		return result;
 	}
 
-	public static function SameMap<T>(slice:Null<Array<T>>, f:(T) -> T):Null<Array<T>> {
+	public static extern inline overload function SameMap<T>(slice:Null<Array<T>>, f:(T) -> T):Null<Array<T>>
+		return sameMapArr(slice, f);
+
+	static function sameMapArr<T>(slice:Null<Array<T>>, f:(T) -> T):Null<Array<T>> {
 		if (slice == null)
 			return null;
 		for (i in 0...slice.length) {
@@ -503,11 +664,11 @@ class Core {
 	// Haxe arrays cannot share storage, so "same" is array identity.
 	// Must stay `inline`: on hxcpp a generic function sees arrays as cpp.VirtualArray wrappers,
 	// and a non-inline `s1 == s2` compares wrappers (false for the same array). Tested on cpp.
-	public static inline function Same<T>(s1:Null<Array<T>>, s2:Null<Array<T>>):Bool {
+	public static extern inline overload function Same<T>(s1:Null<Array<T>>, s2:Null<Array<T>>):Bool {
 		return len(s1) == len(s2) ? (len(s1) == 0 || s1 == s2) : false;
 	}
 
-	public static inline function Some<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
+	public static extern inline overload function Some<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
 		var found = false;
 		if (slice != null) {
 			final n = slice.length;
@@ -523,7 +684,7 @@ class Core {
 		return found;
 	}
 
-	public static inline function Every<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
+	public static extern inline overload function Every<T>(slice:Null<Array<T>>, f:(T) -> Bool):Bool {
 		var all = true;
 		if (slice != null) {
 			final n = slice.length;
@@ -551,7 +712,7 @@ class Core {
 		};
 	}
 
-	public static inline function Find<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T {
+	public static extern inline overload function Find<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T {
 		var result = zero;
 		if (slice != null) {
 			final n = slice.length;
@@ -580,7 +741,7 @@ class Core {
 		return zero;
 	}
 
-	public static inline function FindIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
+	public static extern inline overload function FindIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
 		var result = -1;
 		if (slice != null) {
 			final n = slice.length;
@@ -596,22 +757,22 @@ class Core {
 		return result;
 	}
 
-	public static inline function FindLastIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int { // PORT: perf (inline)
+	public static extern inline overload function FindLastIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int { // PORT: perf (inline)
 		var i = len(slice) - 1;
 		while (i >= 0 && !f(slice[i]))
 			i--;
 		return i;
 	}
 
-	public static inline function FirstOrNil<T>(slice:Null<Array<T>>, ?zero:T):T {
+	public static extern inline overload function FirstOrNil<T>(slice:Null<Array<T>>, ?zero:T):T {
 		return len(slice) != 0 ? slice[0] : zero;
 	}
 
-	public static inline function LastOrNil<T>(slice:Null<Array<T>>, ?zero:T):T {
+	public static extern inline overload function LastOrNil<T>(slice:Null<Array<T>>, ?zero:T):T {
 		return len(slice) != 0 ? slice[slice.length - 1] : zero;
 	}
 
-	public static inline function ElementOrNil<T>(slice:Null<Array<T>>, index:Int, ?zero:T):T {
+	public static extern inline overload function ElementOrNil<T>(slice:Null<Array<T>>, index:Int, ?zero:T):T {
 		// PORT: Go panics for a negative index; Haxe returns null/zero for slice[-1] on JS, so it is left as is.
 		return index < len(slice) ? slice[index] : zero;
 	}
@@ -697,7 +858,15 @@ class Core {
 		return concat3(s1 == null ? null : s1.slice(0, start), items.toArray(), s1 == null ? null : s1.slice(end));
 	}
 
-	public static function CountWhere<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
+	public static extern inline overload function CountWhere<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Int {
+		var count = 0;
+		for (i in 0...len(slice))
+			if (f(slice[i]))
+				count++;
+		return count;
+	}
+
+	public static extern inline overload function CountWhere<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
 		var count = 0;
 		if (slice != null) {
 			for (value in slice) {

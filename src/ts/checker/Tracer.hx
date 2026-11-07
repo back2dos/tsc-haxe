@@ -56,14 +56,14 @@ class TracedTypeAdapter implements TracedType {
 		if ((t.flags & TypeFlagsUnion) == 0) {
 			return null;
 		}
-		return Checker.wrapTypes(t.AsUnionType().types);
+		return Checker.wrapTypes(t.AsUnionType().types.toArray()); // (tracing)
 	}
 
 	public function IntersectionTypes():Array<TracedType> {
 		if ((t.flags & TypeFlagsIntersection) == 0) {
 			return null;
 		}
-		return Checker.wrapTypes(t.AsIntersectionType().types);
+		return Checker.wrapTypes(t.AsIntersectionType().types.toArray()); // (tracing)
 	}
 
 	public function IndexType():TracedType {

@@ -683,7 +683,7 @@ class IterationTypesResolver {
 class WideningContext {
 	var parent:WideningContext = null; // Parent context
 	var propertyName:std.String = ""; // Name of property in parent
-	var siblings:Array<Type> = null; // Types of siblings
+	var siblings:haxe.ds.Vector<Type> = null; // Types of siblings
 	var resolvedProperties:Array<Symbol> = null; // Properties occurring in sibling object literals
 	var childContexts:StringMap<WideningContext> = null;
 	var widenedTypes:IdentityMap<Type, Type> = null;
@@ -1083,13 +1083,26 @@ abstract KeyBuilder(KeyHasher) {
 		Checker.hashWrite32(this, t.id);
 	}
 
-	function writeTypes(types:Array<Type>):Void {
+	extern inline overload function writeTypes(types:Array<Type>):Void
+		writeTypesA(types);
+
+	extern inline overload function writeTypes(types:haxe.ds.Vector<Type>):Void
+		writeTypesV(types);
+
+	function writeTypesA(types:Array<Type>):Void {
 		writeInt(Core.len(types));
 		if (types != null) {
 			for (t in types) {
 				writeType(t);
 			}
 		}
+	}
+
+	function writeTypesV(types:haxe.ds.Vector<Type>):Void {
+		final n = Core.len(types);
+		writeInt(n);
+		for (i in 0...n)
+			writeType(types[i]);
 	}
 
 	function writeAlias(alias:TypeAlias):Void {
@@ -2462,7 +2475,13 @@ class Checker {
 		#end
 	}
 
-	static function getTypeListKey(types:Array<Type>):CacheHashKey {
+	static extern inline overload function getTypeListKey(types:Array<Type>):CacheHashKey {
+		final b = new KeyBuilder();
+		b.writeTypes(types);
+		return b.hash();
+	}
+
+	static extern inline overload function getTypeListKey(types:haxe.ds.Vector<Type>):CacheHashKey {
 		final b = new KeyBuilder();
 		b.writeTypes(types);
 		return b.hash();
@@ -2474,7 +2493,36 @@ class Checker {
 		return b.hash();
 	}
 
-	static function getUnionKey(types:Array<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
+	static extern inline overload function getUnionKey(types:Array<Type>, origin:Type, alias:TypeAlias):CacheHashKey
+		return getUnionKeyA(types, origin, alias);
+
+	static extern inline overload function getUnionKey(types:haxe.ds.Vector<Type>, origin:Type, alias:TypeAlias):CacheHashKey
+		return getUnionKeyV(types, origin, alias);
+
+	static function getUnionKeyA(types:Array<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
+		final b = new KeyBuilder();
+		if (origin == null) {
+			b.writeTypes(types);
+		} else if (origin.flags & TypeFlagsUnion != 0) {
+			b.writeByte('|'.code);
+			b.writeTypes(origin.Types());
+		} else if (origin.flags & TypeFlagsIntersection != 0) {
+			b.writeByte('&'.code);
+			b.writeTypes(origin.Types());
+		} else if (origin.flags & TypeFlagsIndex != 0) {
+			// origin type id alone is insufficient, as `keyof x` may resolve to multiple WIP values while `x` is still resolving
+			b.writeByte('#'.code);
+			b.writeType(origin);
+			b.writeByte('|'.code);
+			b.writeTypes(types);
+		} else {
+			throw "Unhandled case in getUnionKey";
+		}
+		b.writeAlias(alias);
+		return b.hash();
+	}
+
+	static function getUnionKeyV(types:haxe.ds.Vector<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
 		final b = new KeyBuilder();
 		if (origin == null) {
 			b.writeTypes(types);
@@ -2970,7 +3018,23 @@ class Checker {
 		return getConstituentCountOfTypes(t.Types());
 	}
 
-	static function getConstituentCountOfTypes(types:Array<Type>):Int {
+	static extern inline overload function getConstituentCountOfTypes(types:Array<Type>):Int
+		return getConstituentCountOfTypesA(types);
+
+	static extern inline overload function getConstituentCountOfTypes(types:haxe.ds.Vector<Type>):Int
+		return getConstituentCountOfTypesV(types);
+
+	static function getConstituentCountOfTypesA(types:Array<Type>):Int {
+		var n = 0;
+		if (types != null) {
+			for (t in types) {
+				n += getConstituentCount(t);
+			}
+		}
+		return n;
+	}
+
+	static function getConstituentCountOfTypesV(types:haxe.ds.Vector<Type>):Int {
 		var n = 0;
 		if (types != null) {
 			for (t in types) {
@@ -3005,7 +3069,17 @@ class Checker {
 		return f(t);
 	}
 
-	static function containsType(types:Array<Type>, t:Type):Bool {
+	static extern inline overload function containsType(types:haxe.ds.Vector<Type>, t:Type):Bool
+		return containsTypeV(types, t);
+
+	static function containsTypeV(types:haxe.ds.Vector<Type>, t:Type):Bool {
+		return Slices.BinarySearchFuncInline(types, t, (a, b) -> CompareTypes(a, b)) /* PORT: perf */.ok;
+	}
+
+	static extern inline overload function containsType(types:Array<Type>, t:Type):Bool
+		return containsTypeA(types, t);
+
+	static function containsTypeA(types:Array<Type>, t:Type):Bool {
 		return Slices.BinarySearchFuncInline(types, t, (a, b) -> CompareTypes(a, b)) /* PORT: perf */.ok;
 	}
 
@@ -3402,7 +3476,7 @@ class Checker {
 
 	// --- inference.go ---
 
-	static function getSingleTypeVariableFromIntersectionTypes(n:InferenceState, types:Array<Type>):Type {
+	static function getSingleTypeVariableFromIntersectionTypes(n:InferenceState, types:haxe.ds.Vector<Type>):Type {
 		var typeVariable:Type = null;
 		if (types != null) {
 			for (t in types) {
@@ -5666,7 +5740,26 @@ class Checker {
 		return Strings.Compare(n1.Name().Text(), n2.Name().Text());
 	}
 
-	static function compareTypeLists(s1:Array<Type>, s2:Array<Type>):Int {
+	static extern inline overload function compareTypeLists(s1:haxe.ds.Vector<Type>, s2:haxe.ds.Vector<Type>):Int
+		return compareTypeVectors(s1, s2);
+
+	static function compareTypeVectors(s1:haxe.ds.Vector<Type>, s2:haxe.ds.Vector<Type>):Int {
+		if (Core.len(s1) != Core.len(s2)) {
+			return Core.len(s1) - Core.len(s2);
+		}
+		for (i in 0...Core.len(s1)) {
+			final c = CompareTypes(s1[i], s2[i]);
+			if (c != 0) {
+				return c;
+			}
+		}
+		return 0;
+	}
+
+	static extern inline overload function compareTypeLists(s1:Array<Type>, s2:Array<Type>):Int
+		return compareTypeArrays(s1, s2);
+
+	static function compareTypeArrays(s1:Array<Type>, s2:Array<Type>):Int {
 		if (Core.len(s1) != Core.len(s2)) {
 			return Core.len(s1) - Core.len(s2);
 		}

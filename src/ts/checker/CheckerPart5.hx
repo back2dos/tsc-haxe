@@ -2189,7 +2189,7 @@ class CheckerPart5 {
 		return context.resolvedProperties;
 	}
 
-	static function getSiblingsOfContext(c:Checker, context:WideningContext):Array<Type> {
+	static function getSiblingsOfContext(c:Checker, context:WideningContext):haxe.ds.Vector<Type> {
 		if (context.siblings == null) {
 			final siblings:Array<Type> = [];
 			for (t in rangeOf(c.getSiblingsOfContext(context.parent))) {
@@ -2202,7 +2202,7 @@ class CheckerPart5 {
 					}
 				}
 			}
-			context.siblings = siblings;
+			context.siblings = haxe.ds.Vector.fromArrayCopy(siblings);
 		}
 		return context.siblings;
 	}
@@ -3810,8 +3810,12 @@ class CheckerPart5 {
 		return sig.resolvedReturnType;
 	}
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
 		return a != null ? a : [];
+	}
+
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 	
 	// PORT: Go map lookup `table[name]` on a possibly-nil ast.SymbolTable (nil map reads as empty).

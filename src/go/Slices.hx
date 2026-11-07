@@ -22,7 +22,18 @@ class Slices {
 	// PORT: perf — Contains, ContainsFunc and IndexFunc are `inline` (single exit): typed with the
 	// caller's element type (a generic hxcpp function boxes Int elements and takes a VirtualArray), and
 	// a lambda literal argument is inlined.
-	public static inline function Contains<E>(s:Null<Array<E>>, v:E):Bool {
+	public static extern inline overload function Contains<E>(s:haxe.ds.Vector<E>, v:E):Bool {
+		var found = false;
+		if (s != null)
+			for (i in 0...s.length)
+				if (s[i] == v) {
+					found = true;
+					break;
+				}
+		return found;
+	}
+
+	public static extern inline overload function Contains<E>(s:Null<Array<E>>, v:E):Bool {
 		var found = false;
 		if (s != null) {
 			final n = s.length;
@@ -50,7 +61,24 @@ class Slices {
 	}
 
 	// slices.Equal: same length and elements equal with ==. A nil and an empty slice are equal.
-	public static function Equal<E>(s1:Null<Array<E>>, s2:Null<Array<E>>):Bool {
+	public static extern inline overload function Equal<E>(s1:haxe.ds.Vector<E>, s2:haxe.ds.Vector<E>):Bool
+		return equalV(s1, s2);
+
+	static function equalV<E>(s1:haxe.ds.Vector<E>, s2:haxe.ds.Vector<E>):Bool {
+		final len1 = s1 == null ? 0 : s1.length;
+		final len2 = s2 == null ? 0 : s2.length;
+		if (len1 != len2)
+			return false;
+		for (i in 0...len1)
+			if (s1[i] != s2[i])
+				return false;
+		return true;
+	}
+
+	public static extern inline overload function Equal<E>(s1:Null<Array<E>>, s2:Null<Array<E>>):Bool
+		return equalA(s1, s2);
+
+	static function equalA<E>(s1:Null<Array<E>>, s2:Null<Array<E>>):Bool {
 		final len1 = s1 == null ? 0 : s1.length;
 		final len2 = s2 == null ? 0 : s2.length;
 		if (len1 != len2)
@@ -82,7 +110,21 @@ class Slices {
 
 	// slices.BinarySearchFunc for hot call sites. PORT: perf — inline, so a lambda literal `cmp` is
 	// inlined too: no function value call, which on hxcpp boxes every Int result outside -1..255.
-	public static inline function BinarySearchFuncInline<E, T>(x:Null<Array<E>>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
+	public static extern inline overload function BinarySearchFuncInline<E, T>(x:haxe.ds.Vector<E>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
+		final n = x == null ? 0 : x.length;
+		var i = 0, j = n;
+		while (i < j) {
+			final h = (i + j) >>> 1;
+			if (cmp(x[h], target) < 0) {
+				i = h + 1;
+			} else {
+				j = h;
+			}
+		}
+		return new go.Tuple.ValueOk<Int>(i, i < n && cmp(x[i], target) == 0);
+	}
+
+	public static extern inline overload function BinarySearchFuncInline<E, T>(x:Null<Array<E>>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
 		final n = x == null ? 0 : x.length;
 		var i = 0, j = n;
 		while (i < j) {

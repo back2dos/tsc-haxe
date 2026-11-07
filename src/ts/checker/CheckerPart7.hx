@@ -1210,7 +1210,18 @@ class CheckerPart7 {
 	// It is only necessary to do so if a constituent type might be the undefined type, the null type, the type
 	// of an object literal or a non-inferrable type. This is because there are operations in the type checker
 	// that care about the presence of such types at arbitrary depth in a containing type.
-	static function getPropagatingFlagsOfTypes(c:Checker, types:Array<Type>, excludeKinds:TypeFlags):ObjectFlags {
+	static extern inline overload function getPropagatingFlagsOfTypes(c:Checker, types:haxe.ds.Vector<Type>, excludeKinds:TypeFlags):ObjectFlags {
+		var result:ObjectFlags = ObjectFlagsNone;
+		for (i in 0...Core.len(types)) {
+			final t = types[i];
+			if (t.flags & excludeKinds == 0) {
+				result |= t.objectFlags;
+			}
+		}
+		return result & ObjectFlagsPropagatingFlags;
+	}
+
+	static extern inline overload function getPropagatingFlagsOfTypes(c:Checker, types:Array<Type>, excludeKinds:TypeFlags):ObjectFlags {
 		var result:ObjectFlags = ObjectFlagsNone;
 		if (types != null) {
 			for (t in types) {
@@ -1222,7 +1233,13 @@ class CheckerPart7 {
 		return result & ObjectFlagsPropagatingFlags;
 	}
 
-	static function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type {
+	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type
+		return c.newUnionTypeV(objectFlags, haxe.ds.Vector.fromArrayCopy(types)); // PORT: perf — a Vector (one copy per new type)
+
+	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:haxe.ds.Vector<Type>):Type
+		return c.newUnionTypeV(objectFlags, types);
+
+	static function newUnionTypeV(c:Checker, objectFlags:ObjectFlags, types:haxe.ds.Vector<Type>):Type {
 		final data = new UnionType();
 		data.types = types;
 		return c.newType(TypeFlagsUnion, objectFlags, data);
@@ -1230,7 +1247,7 @@ class CheckerPart7 {
 
 	static function newIntersectionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type {
 		final data = new IntersectionType();
-		data.types = types;
+		data.types = haxe.ds.Vector.fromArrayCopy(types); // PORT: perf — a Vector (one copy per new type)
 		return c.newType(TypeFlagsIntersection, objectFlags, data);
 	}
 
@@ -1603,7 +1620,13 @@ class CheckerPart7 {
 		return c.getIntersectionType(types);
 	}
 
-	static function getUnionType(c:Checker, types:Array<Type>):Type {
+	static extern inline overload function getUnionType(c:Checker, types:haxe.ds.Vector<Type>):Type
+		return c.getUnionTypeExV(types, UnionReductionLiteral, null /*alias*/, null /*origin*/);
+
+	static extern inline overload function getUnionType(c:Checker, types:Array<Type>):Type
+		return c.getUnionTypeA(types);
+
+	static function getUnionTypeA(c:Checker, types:Array<Type>):Type {
 		return c.getUnionTypeEx(types, UnionReductionLiteral, null /*alias*/, null /*origin*/);
 	}
 
@@ -1614,7 +1637,13 @@ class CheckerPart7 {
 	// expression constructs such as array literals and the || and ?: operators). Named types can
 	// circularly reference themselves and therefore cannot be subtype reduced during their declaration.
 	// For example, "type Item = string | (() => Item" is a named type that circularly references itself.
-	static function getUnionTypeEx(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+	static extern inline overload function getUnionTypeEx(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+		return c.getUnionTypeExV(types, unionReduction, alias, origin);
+
+	static extern inline overload function getUnionTypeEx(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+		return c.getUnionTypeExA(types, unionReduction, alias, origin);
+
+	static function getUnionTypeExA(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
 		if (Core.len(types) == 0) {
 			return c.neverType;
 		}
@@ -1641,7 +1670,128 @@ class CheckerPart7 {
 		return c.getUnionTypeWorker(types, unionReduction, alias, origin);
 	}
 
-	static function getUnionTypeWorker(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+	static function getUnionTypeExV(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+		if (Core.len(types) == 0) {
+			return c.neverType;
+		}
+		if (types.length == 1) {
+			return types[0];
+		}
+		// We optimize for the common case of unioning a union type with some other type (such as `undefined`).
+		if (types.length == 2 && origin == null && (types[0].flags & TypeFlagsUnion != 0 || types[1].flags & TypeFlagsUnion != 0)) {
+			var id1 = types[0].id;
+			var id2 = types[1].id;
+			if (id1 > id2) {
+				final tmp = id1;
+				id1 = id2;
+				id2 = tmp;
+			}
+			final key = UnionOfUnionKey.keyOf(id1, id2, unionReduction, Checker.getAliasKey(alias));
+			var t = c.unionOfUnionTypes.get(key);
+			if (t == null) {
+				t = c.getUnionTypeWorker(types, unionReduction, alias, null /*origin*/);
+				c.unionOfUnionTypes.set(key, t);
+			}
+			return t;
+		}
+		return c.getUnionTypeWorker(types, unionReduction, alias, origin);
+	}
+
+	static extern inline overload function getUnionTypeWorker(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+		return c.getUnionTypeWorkerA(types, unionReduction, alias, origin);
+
+	static extern inline overload function getUnionTypeWorker(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+		return c.getUnionTypeWorkerV(types, unionReduction, alias, origin);
+
+	static function getUnionTypeWorkerA(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+		var typeSet = c.addTypesToUnion([], 0, types);
+		final includes = c.addTypesToUnionIncludes; // PORT: perf (second result of addTypesToUnion)
+		if (unionReduction != UnionReductionNone) {
+			if (includes & TypeFlagsAnyOrUnknown != 0) {
+				if (includes & TypeFlagsAny != 0) {
+					if (includes & TypeFlagsIncludesWildcard != 0) {
+						return c.wildcardType;
+					} else if (includes & TypeFlagsIncludesError != 0) {
+						return c.errorType;
+					}
+					return c.anyType;
+				}
+				return c.unknownType;
+			}
+			if (includes & TypeFlagsUndefined != 0) {
+				// If type set contains both undefinedType and missingType, remove missingType
+				if (typeSet.length >= 2 && typeSet[0] == c.undefinedType && typeSet[1] == c.missingType) {
+					typeSet.splice(1, 1);
+				}
+			}
+			if (includes & (TypeFlagsEnum | TypeFlagsLiteral | TypeFlagsUniqueESSymbol | TypeFlagsTemplateLiteral | TypeFlagsStringMapping) != 0
+				|| includes & TypeFlagsVoid != 0 && includes & TypeFlagsUndefined != 0) {
+				typeSet = c.removeRedundantLiteralTypes(typeSet, includes, (unionReduction : Int) & (UnionReductionSubtype : Int) != 0);
+			}
+			if (includes & TypeFlagsStringLiteral != 0 && includes & (TypeFlagsTemplateLiteral | TypeFlagsStringMapping) != 0) {
+				typeSet = c.removeStringLiteralsMatchedByTemplateLiterals(typeSet);
+			}
+			if (includes & TypeFlagsIncludesConstrainedTypeVariable != 0) {
+				typeSet = c.removeConstrainedTypeVariables(typeSet);
+			}
+			if (unionReduction == UnionReductionSubtype) {
+				typeSet = c.removeSubtypes(typeSet, includes & TypeFlagsObject != 0);
+				if (typeSet == null) {
+					return c.errorType;
+				}
+			}
+			if (Core.len(typeSet) == 0) {
+				if (includes & TypeFlagsNull != 0) {
+					if (includes & TypeFlagsIncludesNonWideningType != 0) {
+						return c.nullType;
+					}
+					return c.nullWideningType;
+				} else if (includes & TypeFlagsUndefined != 0) {
+					if (includes & TypeFlagsIncludesNonWideningType != 0) {
+						return c.undefinedType;
+					}
+					return c.undefinedWideningType;
+				}
+				return c.neverType;
+			}
+		}
+		if (origin == null && includes & TypeFlagsUnion != 0) {
+			final namedUnions = c.addNamedUnions(null, types);
+			var reducedTypes:Array<Type> = null;
+			for (t in typeSet) {
+				if (!Core.Some(namedUnions, (u:Type) -> Checker.containsType(u.Types(), t))) {
+					if (reducedTypes == null) {
+						reducedTypes = [];
+					}
+					reducedTypes.push(t);
+				}
+			}
+			if (alias == null && Core.len(namedUnions) == 1 && Core.len(reducedTypes) == 0) {
+				return namedUnions[0];
+			}
+			// We create a denormalized origin type only when the union was created from one or more named unions
+			// (unions with alias symbols or origins) and when there is no overlap between those named unions.
+			var namedTypesCount = 0;
+			if (namedUnions != null) {
+				for (u in namedUnions) {
+					namedTypesCount += Core.len(u.Types());
+				}
+			}
+			if (namedTypesCount + Core.len(reducedTypes) == typeSet.length) {
+				if (namedUnions != null) {
+					for (t in namedUnions) {
+						reducedTypes = Checker.insertType(reducedTypes, t).value;
+					}
+				}
+				origin = c.newUnionType(ObjectFlagsNone, reducedTypes);
+			}
+		}
+		final objectFlags:ObjectFlags = Core.IfElse(includes & TypeFlagsNotPrimitiveUnion != 0, ObjectFlagsNone, ObjectFlagsPrimitiveUnion)
+			| Core.IfElse(includes & TypeFlagsIntersection != 0, ObjectFlagsContainsIntersections, ObjectFlagsNone);
+		return c.getUnionTypeFromSortedList(typeSet, objectFlags, alias, origin);
+	}
+
+	static function getUnionTypeWorkerV(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
 		var typeSet = c.addTypesToUnion([], 0, types);
 		final includes = c.addTypesToUnionIncludes; // PORT: perf (second result of addTypesToUnion)
 		if (unionReduction != UnionReductionNone) {
@@ -1730,7 +1880,35 @@ class CheckerPart7 {
 	}
 
 	// This function assumes the constituent type list is sorted and deduplicated.
-	static function getUnionTypeFromSortedList(c:Checker, types:Array<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
+	// PORT: perf — a fresh Array (copied into the new type's Vector on a miss) or a type's Vector (stored as it is)
+	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:Array<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
+		return c.getUnionTypeFromSortedListA(types, precomputedObjectFlags, alias, origin);
+
+	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:haxe.ds.Vector<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
+		return c.getUnionTypeFromSortedListV(types, precomputedObjectFlags, alias, origin);
+
+	static function getUnionTypeFromSortedListA(c:Checker, types:Array<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
+		if (Core.len(types) == 0) {
+			return c.neverType;
+		}
+		if (types.length == 1) {
+			return types[0];
+		}
+		final key = Checker.getUnionKey(types, origin, alias).Key();
+		var t = c.unionTypes.get(key);
+		if (t == null) {
+			t = c.newUnionType(precomputedObjectFlags | c.getPropagatingFlagsOfTypes(types, TypeFlagsNullable), types);
+			t.AsUnionType().origin = origin;
+			t.alias = alias;
+			if (types.length == 2 && types[0].flags & TypeFlagsBooleanLiteral != 0 && types[1].flags & TypeFlagsBooleanLiteral != 0) {
+				t.flags |= TypeFlagsBoolean;
+			}
+			c.unionTypes.set(key, t);
+		}
+		return t;
+	}
+
+	static function getUnionTypeFromSortedListV(c:Checker, types:haxe.ds.Vector<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
 		if (Core.len(types) == 0) {
 			return c.neverType;
 		}
@@ -1770,7 +1948,50 @@ class CheckerPart7 {
 	// PORT: perf — TypeScript 7.1's construction (microsoft/typescript-go#4687): the constituents are collected, then
 	// sorted by CompareTypes and deduplicated, in place of a binary-search insertion per constituent. The sort merges
 	// the sorted runs the input already has (a nested union's types are one), as tsrs does.
-	static function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type> {
+	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type>
+		return c.addTypesToUnionA(typeSet, includes, sourceTypes);
+
+	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Array<Type>
+		return c.addTypesToUnionV(typeSet, includes, sourceTypes);
+
+	static function addTypesToUnionA(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type> {
+		var lastType:Type = null;
+		if (sourceTypes != null) {
+			for (t in sourceTypes) {
+				if (t != lastType) {
+					if (t.flags & TypeFlagsUnion != 0) {
+						final u = t.AsUnionType();
+						if (t.alias != null || u.origin != null) {
+							includes |= TypeFlagsUnion;
+						}
+						for (s in u.types)
+							includes = c.addTypeToUnion(typeSet, includes, s);
+					} else {
+						includes = c.addTypeToUnion(typeSet, includes, t);
+					}
+					lastType = t;
+				}
+			}
+		}
+		if (typeSet.length >= 2) {
+			sortTypesByRuns(typeSet);
+			// Deduplicate types
+			var unique = 1;
+			for (k in 1...typeSet.length) {
+				final t = typeSet[k];
+				if (t != typeSet[unique - 1]) {
+					typeSet[unique] = t;
+					unique++;
+				}
+			}
+			if (unique < typeSet.length)
+				typeSet.resize(unique);
+		}
+		c.addTypesToUnionIncludes = includes;
+		return typeSet;
+	}
+
+	static function addTypesToUnionV(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Array<Type> {
 		var lastType:Type = null;
 		if (sourceTypes != null) {
 			for (t in sourceTypes) {
@@ -1889,7 +2110,29 @@ class CheckerPart7 {
 		return includes;
 	}
 
-	static function addNamedUnions(c:Checker, namedUnions:Array<Type>, types:Array<Type>):Array<Type> {
+	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Array<Type>, types:Array<Type>):Array<Type>
+		return c.addNamedUnionsA(namedUnions, types);
+
+	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Array<Type>, types:haxe.ds.Vector<Type>):Array<Type>
+		return c.addNamedUnionsV(namedUnions, types);
+
+	static function addNamedUnionsA(c:Checker, namedUnions:Array<Type>, types:Array<Type>):Array<Type> {
+		if (types != null) {
+			for (t in types) {
+				if (t.flags & TypeFlagsUnion != 0) {
+					final u = t.AsUnionType();
+					if (t.alias != null || u.origin != null && u.origin.flags & TypeFlagsUnion == 0) {
+						namedUnions = Core.AppendIfUnique(namedUnions, t);
+					} else if (u.origin != null && u.origin.flags & TypeFlagsUnion != 0) {
+						namedUnions = c.addNamedUnions(namedUnions, u.origin.Types());
+					}
+				}
+			}
+		}
+		return namedUnions;
+	}
+
+	static function addNamedUnionsV(c:Checker, namedUnions:Array<Type>, types:haxe.ds.Vector<Type>):Array<Type> {
 		if (types != null) {
 			for (t in types) {
 				if (t.flags & TypeFlagsUnion != 0) {
@@ -2112,14 +2355,191 @@ class CheckerPart7 {
 	// a type alias of the form "type List<T> = T & { next: List<T> }" cannot be reduced during its declaration.
 	// Also, unlike union types, the order of the constituent types is preserved in order that overload resolution
 	// for intersections of types with signatures can be deterministic.
-	static function getIntersectionType(c:Checker, types:Array<Type>):Type {
+	static extern inline overload function getIntersectionType(c:Checker, types:haxe.ds.Vector<Type>):Type
+		return c.getIntersectionTypeExV(types, IntersectionFlagsNone, null /*alias*/);
+
+	static extern inline overload function getIntersectionType(c:Checker, types:Array<Type>):Type
+		return c.getIntersectionTypeA(types);
+
+	static function getIntersectionTypeA(c:Checker, types:Array<Type>):Type {
 		return c.getIntersectionTypeEx(types, IntersectionFlagsNone, null /*alias*/);
 	}
 
-	static function getIntersectionTypeEx(c:Checker, types:Array<Type>, flags:IntersectionFlags, alias:TypeAlias):Type {
+	static extern inline overload function getIntersectionTypeEx(c:Checker, types:haxe.ds.Vector<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
+		return c.getIntersectionTypeExV(types, flags, alias);
+
+	static extern inline overload function getIntersectionTypeEx(c:Checker, types:Array<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
+		return c.getIntersectionTypeExA(types, flags, alias);
+
+	static function getIntersectionTypeExA(c:Checker, types:Array<Type>, flags:IntersectionFlags, alias:TypeAlias):Type {
 		final orderedTypes = new OrderedSet<Type>();
 		orderedTypes.values = [];
 		final includes = c.addTypesToIntersection(orderedTypes, 0, types);
+		var typeSet = orderedTypes.values;
+		var objectFlags:ObjectFlags = ObjectFlagsNone;
+		// An intersection type is considered empty if it contains
+		// the type never, or
+		// more than one unit type or,
+		// an object type and a nullable type (null or undefined), or
+		// a string-like type and a type known to be non-string-like, or
+		// a number-like type and a type known to be non-number-like, or
+		// a symbol-like type and a type known to be non-symbol-like, or
+		// a void-like type and a type known to be non-void-like, or
+		// a non-primitive type and a type known to be primitive.
+		if ((includes & TypeFlagsNever) != 0) {
+			if (Slices.Contains(typeSet, c.silentNeverType)) {
+				return c.silentNeverType;
+			}
+			return c.neverType;
+		}
+		if (c.strictNullChecks && (includes & TypeFlagsNullable) != 0 && (includes & (TypeFlagsObject | TypeFlagsNonPrimitive | TypeFlagsIncludesEmptyObject)) != 0
+			|| (includes & TypeFlagsNonPrimitive) != 0 && (includes & (TypeFlagsDisjointDomains & ~TypeFlagsNonPrimitive)) != 0
+			|| (includes & TypeFlagsStringLike) != 0 && (includes & (TypeFlagsDisjointDomains & ~TypeFlagsStringLike)) != 0
+			|| (includes & TypeFlagsNumberLike) != 0 && (includes & (TypeFlagsDisjointDomains & ~TypeFlagsNumberLike)) != 0
+			|| (includes & TypeFlagsBigIntLike) != 0 && (includes & (TypeFlagsDisjointDomains & ~TypeFlagsBigIntLike)) != 0
+			|| (includes & TypeFlagsESSymbolLike) != 0 && (includes & (TypeFlagsDisjointDomains & ~TypeFlagsESSymbolLike)) != 0
+			|| (includes & TypeFlagsVoidLike) != 0 && (includes & (TypeFlagsDisjointDomains & ~TypeFlagsVoidLike)) != 0) {
+			return c.neverType;
+		}
+		if ((includes & (TypeFlagsTemplateLiteral | TypeFlagsStringMapping)) != 0 && (includes & TypeFlagsStringLiteral) != 0) {
+			final r = c.extractRedundantTemplateLiterals(typeSet);
+			typeSet = r.value;
+			if (r.ok) {
+				return c.neverType;
+			}
+		}
+		if ((includes & TypeFlagsAny) != 0) {
+			if ((includes & TypeFlagsIncludesWildcard) != 0) {
+				return c.wildcardType;
+			} else if ((includes & TypeFlagsIncludesError) != 0) {
+				return c.errorType;
+			}
+			return c.anyType;
+		}
+		if (!c.strictNullChecks && (includes & TypeFlagsNullable) != 0) {
+			if ((includes & TypeFlagsIncludesEmptyObject) != 0) {
+				return c.neverType;
+			} else if ((includes & TypeFlagsUndefined) != 0) {
+				return c.undefinedType;
+			}
+			return c.nullType;
+		}
+		if ((includes & TypeFlagsString) != 0 && (includes & (TypeFlagsStringLiteral | TypeFlagsTemplateLiteral | TypeFlagsStringMapping)) != 0
+			|| (includes & TypeFlagsNumber) != 0 && (includes & TypeFlagsNumberLiteral) != 0
+			|| (includes & TypeFlagsBigInt) != 0 && (includes & TypeFlagsBigIntLiteral) != 0
+			|| (includes & TypeFlagsESSymbol) != 0 && (includes & TypeFlagsUniqueESSymbol) != 0
+			|| (includes & TypeFlagsVoid) != 0 && (includes & TypeFlagsUndefined) != 0
+			|| (includes & TypeFlagsIncludesEmptyObject) != 0 && (includes & TypeFlagsDefinitelyNonNullable) != 0) {
+			if ((flags & IntersectionFlagsNoSupertypeReduction) == 0) {
+				typeSet = c.removeRedundantSupertypes(typeSet, includes);
+			}
+		}
+		if ((includes & TypeFlagsIncludesMissingType) != 0) {
+			typeSet[Slices.Index(typeSet, c.undefinedType)] = c.missingType;
+		}
+		if (Core.len(typeSet) == 0) {
+			return c.unknownType;
+		}
+		if (typeSet.length == 1) {
+			return typeSet[0];
+		}
+		if (typeSet.length == 2 && (flags & IntersectionFlagsNoConstraintReduction) == 0) {
+			var typeVarIndex = 0;
+			if ((typeSet[0].flags & TypeFlagsTypeVariable) == 0) {
+				typeVarIndex = 1;
+			}
+			final typeVariable = typeSet[typeVarIndex];
+			final primitiveType = typeSet[1 - typeVarIndex];
+			if ((typeVariable.flags & TypeFlagsTypeVariable) != 0
+				&& ((primitiveType.flags & (TypeFlagsPrimitive | TypeFlagsNonPrimitive)) != 0 && !c.isGenericStringLikeType(primitiveType)
+					|| (includes & TypeFlagsIncludesEmptyObject) != 0)) {
+				// We have an intersection T & P or P & T, where T is a type variable and P is a primitive type, the object type, or {}.
+				final constraint = c.getBaseConstraintOfType(typeVariable);
+				// Check that T's constraint is similarly composed of primitive types, the object type, or {}.
+				if (constraint != null && Checker.everyType(constraint, c.isPrimitiveOrObjectOrEmptyType)) {
+					// If T's constraint is a subtype of P, simply return T. For example, given `T extends "a" | "b"`,
+					// the intersection `T & string` reduces to just T.
+					if (c.isTypeStrictSubtypeOf(constraint, primitiveType)) {
+						return typeVariable;
+					}
+					if (!((constraint.flags & TypeFlagsUnion) != 0 && Checker.someType(constraint, (n:Type) -> c.isTypeStrictSubtypeOf(n, primitiveType)))) {
+						// No constituent of T's constraint is a subtype of P. If P is also not a subtype of T's constraint,
+						// then the constraint and P are unrelated, and the intersection reduces to never. For example, given
+						// `T extends "a" | "b"`, the intersection `T & number` reduces to never.
+						if (!c.isTypeStrictSubtypeOf(primitiveType, constraint)) {
+							return c.neverType;
+						}
+					}
+					// Some constituent of T's constraint is a subtype of P, or P is a subtype of T's constraint. Thus,
+					// the intersection further constrains the type variable. For example, given `T extends string | number`,
+					// the intersection `T & "a"` is marked as a constrained type variable. Likewise, given `T extends "a" | 1`,
+					// the intersection `T & number` is marked as a constrained type variable.
+					objectFlags = ObjectFlagsIsConstrainedTypeVariable;
+				}
+			}
+		}
+		final key = Checker.getIntersectionKey(typeSet, flags, alias).Key();
+		var result = c.intersectionTypes.get(key);
+		if (result == null) {
+			if ((includes & TypeFlagsUnion) != 0) {
+				final r = c.intersectUnionsOfPrimitiveTypes(typeSet);
+				typeSet = r.value;
+				final reduced = r.ok;
+				if (reduced) {
+					// When the intersection creates a reduced set (which might mean that *all* union types have
+					// disappeared), we restart the operation to get a new set of combined flags. Once we have
+					// reduced we'll never reduce again, so this occurs at most once.
+					result = c.getIntersectionTypeEx(typeSet, flags, alias);
+				} else if (Core.Every(typeSet, Checker.isUnionWithUndefined)) {
+					var containedUndefinedType = c.undefinedType;
+					if (Core.Some(typeSet, c.containsMissingType)) {
+						containedUndefinedType = c.missingType;
+					}
+					c.filterTypes(typeSet, Checker.isNotUndefinedType);
+					result = c.getUnionTypeEx([c.getIntersectionTypeEx(typeSet, flags, null /*alias*/), containedUndefinedType], UnionReductionLiteral, alias, null /*origin*/);
+				} else if (Core.Every(typeSet, Checker.isUnionWithNull)) {
+					c.filterTypes(typeSet, Checker.isNotNullType);
+					result = c.getUnionTypeEx([c.getIntersectionTypeEx(typeSet, flags, null /*alias*/), c.nullType], UnionReductionLiteral, alias, null /*origin*/);
+				} else if (typeSet.length >= 3 && Core.len(types) > 2) {
+					// When we have three or more constituents, more than two inputs (to head off infinite reexpansion), some of which are unions, we employ a "divide and conquer" strategy
+					// where A & B & C & D is processed as (A & B) & (C & D). Since intersections of unions often produce far smaller
+					// unions of intersections than the full cartesian product (due to some intersections becoming `never`), this can
+					// dramatically reduce the overall work.
+					final middle = Std.int(typeSet.length / 2);
+					result = c.getIntersectionTypeEx([
+						c.getIntersectionTypeEx(typeSet.slice(0, middle), flags, null /*alias*/),
+						c.getIntersectionTypeEx(typeSet.slice(middle), flags, null /*alias*/),
+					], flags, alias);
+				} else {
+					// We are attempting to construct a type of the form X & (A | B) & (C | D). Transform this into a type of
+					// the form X & A & C | X & A & D | X & B & C | X & B & D. If the estimated size of the resulting union type
+					// exceeds 100000 constituents, report an error.
+					if (!c.checkCrossProductUnion(typeSet)) {
+						return c.errorType;
+					}
+					final constituents = c.getCrossProductIntersections(typeSet, flags);
+					// We attach a denormalized origin type when at least one constituent of the cross-product union is an
+					// intersection (i.e. when the intersection didn't just reduce one or more unions to smaller unions) and
+					// the denormalized origin has fewer constituents than the union itself.
+					var origin:Type = null;
+					if (Core.Some(constituents, Checker.isIntersectionType) && Checker.getConstituentCountOfTypes(constituents) > Checker.getConstituentCountOfTypes(typeSet)) {
+						origin = c.newIntersectionType(ObjectFlagsNone, typeSet);
+					}
+					result = c.getUnionTypeEx(constituents, UnionReductionLiteral, alias, origin);
+				}
+			} else {
+				result = c.newIntersectionType(objectFlags | c.getPropagatingFlagsOfTypes(types, TypeFlagsNullable /*excludeKinds*/), typeSet);
+				result.alias = alias;
+			}
+			c.intersectionTypes.set(key, result);
+		}
+		return result;
+	}
+
+	static function getIntersectionTypeExV(c:Checker, types:haxe.ds.Vector<Type>, flags:IntersectionFlags, alias:TypeAlias):Type {
+		final orderedTypes = new OrderedSet<Type>();
+		orderedTypes.values = [];
+		final includes = c.addTypesToIntersectionV(orderedTypes, 0, types);
 		var typeSet = orderedTypes.values;
 		var objectFlags:ObjectFlags = ObjectFlagsNone;
 		// An intersection type is considered empty if it contains
@@ -2292,10 +2712,18 @@ class CheckerPart7 {
 		return includes;
 	}
 
+	// PORT: perf — of an intersection's types (a Vector)
+	static function addTypesToIntersectionV(c:Checker, typeSet:OrderedSet<Type>, includes:TypeFlags, types:haxe.ds.Vector<Type>):TypeFlags {
+		for (i in 0...Core.len(types)) {
+			includes = c.addTypeToIntersection(typeSet, includes, c.getRegularTypeOfLiteralType(types[i]));
+		}
+		return includes;
+	}
+
 	static function addTypeToIntersection(c:Checker, typeSet:OrderedSet<Type>, includes:TypeFlags, t:Type):TypeFlags {
 		final flags = t.flags;
 		if ((flags & TypeFlagsIntersection) != 0) {
-			return c.addTypesToIntersection(typeSet, includes, t.Types());
+			return c.addTypesToIntersectionV(typeSet, includes, t.Types());
 		}
 		if (c.IsEmptyAnonymousObjectType(t)) {
 			if ((includes & TypeFlagsIncludesEmptyObject) == 0) {
@@ -2611,7 +3039,9 @@ class CheckerPart7 {
 				return types[1 - i];
 			}
 			// Remove the target type from the slice (a copy: the union's list is shared).
-			final filtered = types.slice(0, i).concat(types.slice(i + 1));
+			final filtered = new haxe.ds.Vector<Type>(types.length - 1);
+			haxe.ds.Vector.blit(types, 0, filtered, 0, i);
+			haxe.ds.Vector.blit(types, i + 1, filtered, i, types.length - i - 1);
 			return c.getUnionTypeFromSortedList(filtered, t.AsUnionType().objectFlags & (ObjectFlagsPrimitiveUnion | ObjectFlagsContainsIntersections), null /*alias*/, null /*origin*/);
 		}
 		return t;
@@ -3243,7 +3673,7 @@ class CheckerPart7 {
 	}
 
 	static function getSuggestedTypeForNonexistentStringLiteralType(c:Checker, source:Type, target:Type):Type {
-		final candidates = Core.FilterSeq(target.Types(), (t:Type) -> t.flags & TypeFlagsStringLiteral != 0);
+		final candidates = Core.FilterSeq(target.Types().toArray(), (t:Type) -> t.flags & TypeFlagsStringLiteral != 0);
 		return Core.GetSpellingSuggestion(Checker.getStringLiteralValue(source), candidates, Checker.getStringLiteralValue, Checker.CompareTypes);
 	}
 
@@ -3798,7 +4228,7 @@ class CheckerPart7 {
 		return false;
 	}
 
-	static function computeIsUniformUnionType(c:Checker, types:Array<Type>):Bool {
+	static function computeIsUniformUnionType(c:Checker, types:haxe.ds.Vector<Type>):Bool {
 		var enumSymbol:Symbol = null;
 		var hasStringOrNumberLiteral = false;
 		for (t in rangeOf(types)) {
@@ -4060,8 +4490,12 @@ class CheckerPart7 {
 	// --- private helpers (P7) ---
 
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
 		return a != null ? a : [];
+	}
+
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go map lookup `table[name]` on a possibly-nil ast.SymbolTable (nil map reads as empty).
@@ -4117,7 +4551,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: Go `core.Some(types, c.isNoInferTargetType)` as a loop (no bound-method allocation).
-	static function someNoInferTargetType(c:Checker, types:Array<Type>):Bool {
+	static function someNoInferTargetType(c:Checker, types:haxe.ds.Vector<Type>):Bool {
 		if (types != null) {
 			for (t in types) {
 				if (c.isNoInferTargetType(t)) {
@@ -4129,7 +4563,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: Go `core.Some(types, c.IsEmptyAnonymousObjectType)` as a loop (no bound-method allocation).
-	static function someEmptyAnonymousObjectType(c:Checker, types:Array<Type>):Bool {
+	static function someEmptyAnonymousObjectType(c:Checker, types:haxe.ds.Vector<Type>):Bool {
 		if (types != null) {
 			for (t in types) {
 				if (c.IsEmptyAnonymousObjectType(t)) {

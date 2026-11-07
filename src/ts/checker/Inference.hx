@@ -152,11 +152,11 @@ class Inference {
 			return;
 		}
 		if ((target.flags & TypeFlagsUnion) != 0) {
-			var sourceTypes:Array<Type>;
+			var sourceTypes:haxe.ds.Vector<Type>;
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sourceTypes = source.Types();
 			} else {
-				sourceTypes = [source];
+				sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
 			}
 			// First, infer between identically matching source and target constituents and remove the
 			// matching types.
@@ -187,11 +187,11 @@ class Inference {
 			// infer { extra: any } for T. But when inferring to 'string[] & Iterable<T>' we want to keep the
 			// string[] on the source side and infer string for T.
 			if ((source.flags & TypeFlagsUnion) == 0) {
-				var sourceTypes:Array<Type>;
+				var sourceTypes:haxe.ds.Vector<Type>;
 				if ((source.flags & TypeFlagsIntersection) != 0) {
 					sourceTypes = source.Types();
 				} else {
-					sourceTypes = [source];
+					sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
 				}
 				// Infer between identically matching source and target constituents and remove the matching types.
 				final matched = c.inferFromMatchingTypes(n, sourceTypes, target.Types(), fn_isTypeIdenticalTo);
@@ -466,8 +466,8 @@ class Inference {
 		n.inferencePriority = minPriority(n.inferencePriority, saveInferencePriority);
 	}
 
-	static function inferFromMatchingTypes(c:Checker, n:InferenceState, sources:Array<Type>, targets:Array<Type>,
-			matches:(c:Checker, s:Type, t:Type) -> Bool):Pair<Array<Type>, Array<Type>> {
+	static function inferFromMatchingTypes(c:Checker, n:InferenceState, sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>,
+			matches:(c:Checker, s:Type, t:Type) -> Bool):Pair<haxe.ds.Vector<Type>, haxe.ds.Vector<Type>> {
 		var matchedSources:Array<Type> = null;
 		var matchedTargets:Array<Type> = null;
 		if (targets != null) {
@@ -492,15 +492,15 @@ class Inference {
 		return new Pair(sources, targets);
 	}
 
-	static function inferToMultipleTypes(c:Checker, n:InferenceState, source:Type, targets:Array<Type>, targetFlags:TypeFlags):Void {
+	static function inferToMultipleTypes(c:Checker, n:InferenceState, source:Type, targets:haxe.ds.Vector<Type>, targetFlags:TypeFlags):Void {
 		var typeVariableCount = 0;
 		if ((targetFlags & TypeFlagsUnion) != 0) {
 			var nakedTypeVariable:Type = null;
-			var sources:Array<Type>;
+			var sources:haxe.ds.Vector<Type>;
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sources = source.Types();
 			} else {
-				sources = [source];
+				sources = haxe.ds.Vector.fromArrayCopy([source]);
 			}
 			final matched = [for (_ in 0...sources.length) false];
 			var inferenceCircularity = false;
@@ -580,7 +580,7 @@ class Inference {
 		}
 	}
 
-	static function inferToMultipleTypesWithPriority(c:Checker, n:InferenceState, source:Type, targets:Array<Type>, targetFlags:TypeFlags, newPriority:InferencePriority):Void {
+	static function inferToMultipleTypesWithPriority(c:Checker, n:InferenceState, source:Type, targets:haxe.ds.Vector<Type>, targetFlags:TypeFlags, newPriority:InferencePriority):Void {
 		final savePriority = n.priority;
 		n.priority |= newPriority;
 		c.inferToMultipleTypes(n, source, targets, targetFlags);
@@ -594,7 +594,7 @@ class Inference {
 			c.inferFromTypes(n, c.getTrueTypeFromConditionalType(source), c.getTrueTypeFromConditionalType(target));
 			c.inferFromTypes(n, c.getFalseTypeFromConditionalType(source), c.getFalseTypeFromConditionalType(target));
 		} else {
-			final targetTypes = [c.getTrueTypeFromConditionalType(target), c.getFalseTypeFromConditionalType(target)];
+			final targetTypes = haxe.ds.Vector.fromArrayCopy([c.getTrueTypeFromConditionalType(target), c.getFalseTypeFromConditionalType(target)]);
 			c.inferToMultipleTypesWithPriority(n, source, targetTypes, target.flags, Core.IfElse(n.contravariant, InferencePriorityContravariantConditional, 0));
 		}
 	}
@@ -1688,7 +1688,8 @@ class Inference {
 		if (types != null) {
 			for (t in types) {
 				if ((t.flags & TypeFlagsUnion) != 0) {
-					flags |= c.getCombinedTypeFlags(t.Types());
+					for (u in t.Types()) // PORT: perf — a union's types are not unions: its flags (getCombinedTypeFlags of them)
+						flags |= u.flags;
 				} else {
 					flags |= t.flags;
 				}

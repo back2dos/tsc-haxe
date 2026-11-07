@@ -3175,7 +3175,7 @@ class NodeBuilderImpl {
 				if (t.flags & TypeFlagsUnion != 0) {
 					types = this.ch.formatUnionTypes(t.AsUnionType().types, expandingEnum);
 				} else {
-					types = t.AsIntersectionType().types;
+					types = t.AsIntersectionType().types.toArray(); // PORT: perf — a copy (mapToTypeNodes takes Arrays: printing only)
 				}
 				if (Core.len(types) == 1) {
 					return this.typeToTypeNode(types[0]);

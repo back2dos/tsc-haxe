@@ -1437,7 +1437,7 @@ class CheckerPart4 {
 		if (left == c.emptyObjectType) {
 			indexInfos = c.getIndexInfosOfType(right);
 		} else {
-			indexInfos = c.getUnionIndexInfos([left, right]);
+			indexInfos = c.getUnionIndexInfos(haxe.ds.Vector.fromArrayCopy([left, right]));
 		}
 		for (rightProp in rangeOf(c.getPropertiesOfType(right))) {
 			if ((Checker.getDeclarationModifierFlagsFromSymbol(rightProp) & (ModifierFlagsPrivate | ModifierFlagsProtected)) != 0) {
@@ -1502,7 +1502,7 @@ class CheckerPart4 {
 			|| (s.flags & TypeFlagsUnionOrIntersection) != 0 && Core.Every(s.Types(), t -> c.isValidSpreadType(t));
 	}
 
-	static function getUnionIndexInfos(c:Checker, types:Array<Type>):Array<IndexInfo> {
+	static function getUnionIndexInfos(c:Checker, types:haxe.ds.Vector<Type>):Array<IndexInfo> {
 		final sourceInfos = c.getIndexInfosOfType(types[0]);
 		var result:Array<IndexInfo> = null;
 		for (info in rangeOf(sourceInfos)) {
@@ -3984,8 +3984,12 @@ class CheckerPart4 {
 	// --- private helpers (P4) ---
 
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
 		return a != null ? a : [];
+	}
+
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.

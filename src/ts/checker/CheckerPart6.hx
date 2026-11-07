@@ -1290,7 +1290,7 @@ class CheckerPart6 {
 		return indexInfos;
 	}
 
-	static function findMixins(c:Checker, types:Array<Type>):Pair<Array<Bool>, Int> {
+	static function findMixins(c:Checker, types:haxe.ds.Vector<Type>):Pair<Array<Bool>, Int> {
 		final mixinFlags = Core.Map(types, function(t:Type):Bool {
 			return c.isMixinConstructorType(t);
 		});
@@ -1316,7 +1316,7 @@ class CheckerPart6 {
 		return new Pair(mixinFlags, mixinCount);
 	}
 
-	static function includeMixinType(c:Checker, t:Type, types:Array<Type>, mixinFlags:Array<Bool>, index:Int):Type {
+	static function includeMixinType(c:Checker, t:Type, types:haxe.ds.Vector<Type>, mixinFlags:Array<Bool>, index:Int):Type {
 		var mixedTypes:Array<Type> = null;
 		for (i in 0...Core.len(types)) {
 			if (i == index) {
@@ -2761,8 +2761,31 @@ class CheckerPart6 {
 		return result;
 	}
 
-	static function instantiateTypes(c:Checker, types:Array<Type>, m:TypeMapper):Array<Type> {
+	static extern inline overload function instantiateTypes(c:Checker, types:Array<Type>, m:TypeMapper):Array<Type> {
 		return Checker.instantiateList(c, types, m, instantiateTypeFn);
+	}
+
+	// PORT: perf — a type's Vector: the same Vector when nothing changes
+	static extern inline overload function instantiateTypes(c:Checker, types:haxe.ds.Vector<Type>, m:TypeMapper):haxe.ds.Vector<Type> {
+		return c.instantiateTypeVector(types, m);
+	}
+
+	static function instantiateTypeVector(c:Checker, values:haxe.ds.Vector<Type>, m:TypeMapper):haxe.ds.Vector<Type> {
+		final n = Core.len(values);
+		for (i in 0...n) {
+			final value = values[i];
+			final mapped = c.instantiateType(value, m);
+			if (mapped != value) {
+				final result = new haxe.ds.Vector<Type>(n);
+				for (k in 0...i)
+					result[k] = values[k];
+				result[i] = mapped;
+				for (j in (i + 1)...n)
+					result[j] = c.instantiateType(values[j], m);
+				return result;
+			}
+		}
+		return values;
 	}
 
 	static function instantiateSymbols(c:Checker, symbols:Array<Symbol>, m:TypeMapper):Array<Symbol> {
@@ -3896,8 +3919,12 @@ class CheckerPart6 {
 	// --- private helpers (P6) ---
 
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
 		return a != null ? a : [];
+	}
+
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go map lookup `table[name]` on a possibly-nil ast.SymbolTable (nil map reads as empty).

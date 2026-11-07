@@ -242,21 +242,21 @@ class CompilerTest {
 				c.UnionTypes()(function(union:ts.checker.Types.Type):Bool {
 					final types = union.Types();
 
-					final reversed = Slices.Clone(types);
+					final reversed = types.toArray();
 					Slices.Reverse(reversed);
 					Slices.SortFunc(reversed, Checker.CompareTypes);
-					if (!Slices.Equal(reversed, types)) {
+					if (!Slices.Equal(reversed, types.toArray())) {
 						t.Fatal("compareTypes does not sort union types consistently");
 					}
 
-					final shuffled = Slices.Clone(types);
+					final shuffled = types.toArray();
 					for (k in 0...10) {
 						if (shuffled.length > 1) {
 							final first = shuffled.shift();
 							shuffled.insert((k * 7 + 3) % shuffled.length, first);
 						}
 						Slices.SortFunc(shuffled, Checker.CompareTypes);
-						if (!Slices.Equal(shuffled, types)) {
+						if (!Slices.Equal(shuffled, types.toArray())) {
 							t.Fatal("compareTypes does not sort union types consistently");
 						}
 					}

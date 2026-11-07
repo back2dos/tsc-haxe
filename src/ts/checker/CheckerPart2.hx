@@ -4189,8 +4189,12 @@ class CheckerPart2 {
 	}
 
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
 		return a != null ? a : [];
+	}
+
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.

@@ -772,13 +772,15 @@ class Type implements TypeSystemEntity {
 		return Std.downcast(this, UnionOrIntersectionType);
 	}
 
-	public function Distributed():Array<Type> {
+	public function Distributed():haxe.ds.Vector<Type> {
 		if ((flags & TypeFlagsUnion) != 0) {
 			return AsUnionType().types;
 		} else if ((flags & TypeFlagsNever) != 0) {
-			return null;
+			return new haxe.ds.Vector<Type>(0);
 		}
-		return [this];
+		final v = new haxe.ds.Vector<Type>(1);
+		v[0] = this;
+		return v;
 	}
 
 	public function Target():Type {
@@ -808,15 +810,15 @@ class Type implements TypeSystemEntity {
 	}
 
 	// PORT: perf — inline (no virtual call): a union's or intersection's types (its flags say its class)
-	public inline function Types():Array<Type> {
+	public inline function Types():haxe.ds.Vector<Type> {
 		return (flags & TypeFlagsUnionOrIntersection) != 0 ? (cast this : UnionOrIntersectionType).types : TypesSlow();
 	}
 
-	function TypesSlow():Array<Type> {
+	function TypesSlow():haxe.ds.Vector<Type> {
 		if ((flags & TypeFlagsUnionOrIntersection) != 0) {
 			return AsUnionOrIntersectionType().types;
 		} else if ((flags & TypeFlagsTemplateLiteral) != 0) {
-			return AsTemplateLiteralType().types;
+			return haxe.ds.Vector.fromArrayCopy(AsTemplateLiteralType().types); // PORT: perf (a copy: template literal types are rare here)
 		}
 		throw "Unhandled case in Type.Types";
 	}
@@ -1182,7 +1184,7 @@ class EvolvingArrayType extends ObjectType {
 
 @:allow(ts.checker)
 class UnionOrIntersectionType extends StructuredType {
-	var types:Array<Type> = null;
+	var types:haxe.ds.Vector<Type> = null;
 	var propertyCache:SymbolTable = null;
 	var propertyCacheWithoutFunctionPropertyAugment:SymbolTable = null;
 	var resolvedProperties:Array<Symbol> = null;
