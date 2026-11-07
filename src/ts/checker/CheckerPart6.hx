@@ -2097,16 +2097,34 @@ class CheckerPart6 {
 			return c.errorType;
 		}
 		final index = c.findActiveMapper(m);
+		// PORT: perf — from TypeScript 7.1 (microsoft/TypeScript#64871): a newly pushed mapper has an empty cache,
+		// and the result is not cached below, so there is no lookup; without an alias the key is the type id
+		// (an IntMap here, no hashing of a key).
+		var cache:ActiveMapperCache = null;
+		var key:std.String = null;
 		if (index == -1) {
 			c.pushActiveMapper(m);
-		}
-		final b = new KeyBuilder();
-		b.writeType(t);
-		b.writeAlias(alias);
-		final key = b.hash().Key();
-		final cache = c.activeTypeMappersCaches[index != -1 ? index : c.activeTypeMappersCaches.length - 1];
-		if (cache.exists(key)) {
-			return cache.get(key);
+		} else {
+			cache = c.activeTypeMappersCaches[index];
+			if (cache == null) {
+				cache = new ActiveMapperCache();
+				c.activeTypeMappersCaches[index] = cache;
+			}
+			if (alias == null) {
+				final cached = cache.byId.get(t.id);
+				if (cached != null) {
+					return cached;
+				}
+			} else {
+				final b = new KeyBuilder();
+				b.writeType(t);
+				b.writeAlias(alias);
+				key = b.hash().Key();
+				final cached = cache.byKey.get(key);
+				if (cached != null) {
+					return cached;
+				}
+			}
 		}
 		c.TotalInstantiationCount++;
 		c.instantiationCount++;
@@ -2114,8 +2132,10 @@ class CheckerPart6 {
 		final result = c.instantiateTypeWorker(t, m, alias);
 		if (index == -1) {
 			c.popActiveMapper();
+		} else if (alias == null) {
+			cache.byId.set(t.id, result);
 		} else {
-			cache.set(key, result);
+			cache.byKey.set(key, result);
 		}
 		c.instantiationDepth--;
 		return result;
@@ -2132,7 +2152,7 @@ class CheckerPart6 {
 		if (c.activeTypeMappersCaches == null) {
 			c.activeTypeMappersCaches = [];
 		}
-		c.activeTypeMappersCaches.push(new StringMap<Type>());
+		c.activeTypeMappersCaches.push(null); // PORT: perf — made when a result is first cached
 	}
 
 	static function popActiveMapper(c:Checker):Void {
@@ -2149,7 +2169,10 @@ class CheckerPart6 {
 
 	static function clearActiveMapperCaches(c:Checker):Void {
 		for (cache in rangeOf(c.activeTypeMappersCaches)) {
-			cache.clear();
+			if (cache != null) {
+				cache.byId.clear();
+				cache.byKey.clear();
+			}
 		}
 	}
 
@@ -2326,10 +2349,11 @@ class CheckerPart6 {
 		// We are instantiating an anonymous type that has one or more type parameters in scope. Apply the
 		// mapper to the type parameters to produce the effective list of type arguments, and compute the
 		// instantiation cache key from the type IDs of the type arguments.
-		final combinedMapper = c.combineTypeMappers(t.Mapper(), m);
+		// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4798): no composite mapper is made
+		final m1 = t.Mapper();
 		final typeArguments:Array<Type> = [];
 		for (i in 0...typeParameters.length) {
-			typeArguments.push(combinedMapper.Map(typeParameters[i]));
+			typeArguments.push(c.mapTypeWithCompositeMapper(typeParameters[i], m1, m));
 		}
 		var newAlias = alias;
 		if (newAlias == null) {
@@ -3962,4 +3986,14 @@ class CheckerPart6 {
 	static final instantiateSymbolFn:(c:Checker, value:Symbol, m:TypeMapper) -> Symbol = (c:Checker, value:Symbol, m:TypeMapper) -> instantiateSymbol(c, value, m);
 	static final instantiateSignatureFn:(c:Checker, value:Signature, m:TypeMapper) -> Signature = (c:Checker, value:Signature, m:TypeMapper) -> instantiateSignature(c, value, m);
 	static final instantiateIndexInfoFn:(c:Checker, value:IndexInfo, m:TypeMapper) -> IndexInfo = (c:Checker, value:IndexInfo, m:TypeMapper) -> instantiateIndexInfo(c, value, m);
+}
+
+// PORT: perf — an active mapper's cache (TypeScript 7.1's clearableMap, microsoft/TypeScript#64871): results keyed
+// by type id (no alias) or by the hashed key (with an alias)
+@:allow(ts.checker)
+class ActiveMapperCache {
+	final byId = new haxe.ds.IntMap<Type>();
+	final byKey = new haxe.ds.StringMap<Type>();
+
+	public function new() {}
 }

@@ -2577,6 +2577,10 @@ class Flow {
 		if ((source.flags & TypeFlagsUnion) == 0) {
 			return c.isTypeAssignableTo(source, target);
 		}
+		// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4711): quick exit when the source union contains the target type
+		if (Checker.containsType(source.Types(), target)) {
+			return true;
+		}
 		for (t in source.AsUnionType().types) {
 			if (c.isTypeAssignableTo(t, target)) {
 				return true;

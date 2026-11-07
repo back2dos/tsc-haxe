@@ -245,6 +245,18 @@ class Mapper {
 		return m2;
 	}
 
+	// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4798): what combineTypeMappers(m1, m2).Map(t) gives
+	static function mapTypeWithCompositeMapper(c:Checker, t:Type, m1:TypeMapper, m2:TypeMapper):Type {
+		if (m1 == null) {
+			return m2.Map(t);
+		}
+		final t1 = m1.Map(t);
+		if (t1 != t) {
+			return c.instantiateType(t1, m2);
+		}
+		return m2.Map(t);
+	}
+
 	// Maps forward-references to later types parameters to the empty object type.
 	// This is used during inference when instantiating type parameter defaults.
 	static function newBackreferenceMapper(c:Checker, context:InferenceContext, index:Int):TypeMapper {

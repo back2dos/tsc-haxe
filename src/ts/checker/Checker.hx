@@ -1660,7 +1660,7 @@ class Checker {
 	var ctx:Context = null;
 	var packagesMap:StringMap<Bool> = null;
 	var activeMappers:Array<TypeMapper> = null;
-	var activeTypeMappersCaches:Array<StringMap<Type> /* key: checker.CacheHashKey */> = null;
+	var activeTypeMappersCaches:Array<ts.checker.CheckerPart6.ActiveMapperCache> = null; // PORT: perf (see ActiveMapperCache)
 	var ambientModulesOnce:Any /* sync.Once */ = null /* PORT: Go zero struct */;
 	var ambientModules:Array<Symbol> = null;
 	var withinUnreachableCode:Bool = false;
