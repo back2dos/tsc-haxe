@@ -487,7 +487,13 @@ class CheckerPart5 {
 		return links.writeType;
 	}
 
-	static function getTypeOfVariableOrParameterOrProperty(c:Checker, symbol:Symbol):Type {
+	// PORT: perf — inline fast path (the type resolved already), the rest out of line
+	static inline function getTypeOfVariableOrParameterOrProperty(c:Checker, symbol:Symbol):Type {
+		final t = c.valueSymbolLinks.Get(symbol).resolvedType;
+		return t != null ? t : c.getTypeOfVariableOrParameterOrPropertySlow(symbol);
+	}
+
+	static function getTypeOfVariableOrParameterOrPropertySlow(c:Checker, symbol:Symbol):Type {
 		final links = c.valueSymbolLinks.Get(symbol);
 		if (links.resolvedType == null) {
 			final t = c.getTypeOfVariableOrParameterOrPropertyWorker(symbol);
@@ -2794,7 +2800,12 @@ class CheckerPart5 {
 				&& (source == c.numericStringType || (source.flags & TypeFlagsStringLiteral) != 0 && Checker.isNumericLiteralName(Checker.getStringLiteralValue(source)));
 	}
 
-	static function resolveStructuredTypeMembers(c:Checker, t:Type):StructuredType {
+	// PORT: perf — inline fast path (members resolved), the rest out of line
+	static inline function resolveStructuredTypeMembers(c:Checker, t:Type):StructuredType {
+		return t.objectFlags & ObjectFlagsMembersResolved != 0 ? t.AsStructuredType() : c.resolveStructuredTypeMembersSlow(t);
+	}
+
+	static function resolveStructuredTypeMembersSlow(c:Checker, t:Type):StructuredType {
 		if ((t.objectFlags & ObjectFlagsMembersResolved) == 0) {
 			if ((t.flags & TypeFlagsObject) != 0) {
 				if ((t.objectFlags & ObjectFlagsReference) != 0) {

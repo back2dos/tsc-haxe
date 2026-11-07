@@ -1896,7 +1896,13 @@ class CheckerPart4 {
 		}
 	}
 
-	static function getResolvedSymbol(c:Checker, node:Node):Symbol {
+	// PORT: perf — inline fast path (resolved already), the rest out of line
+	static inline function getResolvedSymbol(c:Checker, node:Node):Symbol {
+		final s = c.symbolNodeLinks.Get(node).resolvedSymbol;
+		return s != null ? s : c.getResolvedSymbolSlow(node);
+	}
+
+	static function getResolvedSymbolSlow(c:Checker, node:Node):Symbol {
 		final links = c.symbolNodeLinks.Get(node);
 		if (links.resolvedSymbol == null) {
 			var symbol:Symbol = null;

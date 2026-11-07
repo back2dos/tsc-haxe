@@ -1774,7 +1774,12 @@ class CheckerPart6 {
 	 * For all other types, it is simply the type itself. Discriminant properties are considered mutually exclusive when
 	 * no constituent property has type 'never', but the intersection of the constituent property types is 'never'.
 	 */
-	static function getReducedType(c:Checker, t:Type):Type {
+	// PORT: perf — inline fast path (neither a union nor an intersection), the rest out of line
+	static inline function getReducedType(c:Checker, t:Type):Type {
+		return t.flags & (TypeFlagsUnion | TypeFlagsIntersection) == 0 ? t : c.getReducedTypeSlow(t);
+	}
+
+	static function getReducedTypeSlow(c:Checker, t:Type):Type {
 		if ((t.flags & TypeFlagsUnion) != 0) {
 			if ((t.objectFlags & ObjectFlagsContainsIntersections) != 0) {
 				final cachedReducedType = t.AsUnionType().resolvedReducedType;

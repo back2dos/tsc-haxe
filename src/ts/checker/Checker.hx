@@ -2623,13 +2623,18 @@ class Checker {
 		return b.hash();
 	}
 
-	static function isTypeReferenceWithGenericArguments(t:Type):Bool {
-		return isNonDeferredTypeReference(t) && Core.Some(t.checker.getTypeArguments(t), (t:Type) -> {
+	// PORT: perf — inline fast path (not a non-deferred type reference), the type arguments out of line
+	static inline function isTypeReferenceWithGenericArguments(t:Type):Bool {
+		return isNonDeferredTypeReference(t) && isTypeReferenceWithGenericArgumentsSlow(t);
+	}
+
+	static function isTypeReferenceWithGenericArgumentsSlow(t:Type):Bool {
+		return Core.Some(t.checker.getTypeArguments(t), (t:Type) -> {
 			return t.flags & TypeFlagsTypeParameter != 0 || isTypeReferenceWithGenericArguments(t);
 		});
 	}
 
-	static function isNonDeferredTypeReference(t:Type):Bool {
+	static inline function isNonDeferredTypeReference(t:Type):Bool {
 		return t.objectFlags & ObjectFlagsReference != 0 && t.AsTypeReference().node == null;
 	}
 

@@ -736,28 +736,40 @@ class Type implements TypeSystemEntity {
 		return cast data;
 	}
 
-	public function AsConstrainedType():ConstrainedType {
-		return data.AsConstrainedType();
+	// PORT: perf — inline: what every TypeData's AsConstrainedType returns (the data when it is a ConstrainedType, else null),
+	// a type test in place of an interface call
+	public inline function AsConstrainedType():ConstrainedType {
+		return Std.downcast(this, ConstrainedType);
 	}
 
-	public function AsStructuredType():StructuredType {
-		return data.AsStructuredType();
+	// PORT: perf — inline: what every TypeData's AsStructuredType returns (the data when it is a StructuredType, else null),
+	// a type test in place of an interface call
+	public inline function AsStructuredType():StructuredType {
+		return Std.downcast(this, StructuredType);
 	}
 
-	public function AsObjectType():ObjectType {
-		return data.AsObjectType();
+	// PORT: perf — inline: what every TypeData's AsObjectType returns (the data when it is a ObjectType, else null),
+	// a type test in place of an interface call
+	public inline function AsObjectType():ObjectType {
+		return Std.downcast(this, ObjectType);
 	}
 
-	public function AsTypeReference():TypeReference {
-		return data.AsTypeReference();
+	// PORT: perf — inline: what every TypeData's AsTypeReference returns (the data when it is a TypeReference, else null),
+	// a type test in place of an interface call
+	public inline function AsTypeReference():TypeReference {
+		return Std.downcast(this, TypeReference);
 	}
 
-	public function AsInterfaceType():InterfaceType {
-		return data.AsInterfaceType();
+	// PORT: perf — inline: what every TypeData's AsInterfaceType returns (the data when it is a InterfaceType, else null),
+	// a type test in place of an interface call
+	public inline function AsInterfaceType():InterfaceType {
+		return Std.downcast(this, InterfaceType);
 	}
 
-	public function AsUnionOrIntersectionType():UnionOrIntersectionType {
-		return data.AsUnionOrIntersectionType();
+	// PORT: perf — inline: what every TypeData's AsUnionOrIntersectionType returns (the data when it is a UnionOrIntersectionType, else null),
+	// a type test in place of an interface call
+	public inline function AsUnionOrIntersectionType():UnionOrIntersectionType {
+		return Std.downcast(this, UnionOrIntersectionType);
 	}
 
 	public function Distributed():Array<Type> {
@@ -874,13 +886,7 @@ class Type implements TypeSystemEntity {
 }
 
 interface TypeData {
-	function AsConstrainedType():ConstrainedType;
-	function AsInterfaceType():InterfaceType;
-	function AsObjectType():ObjectType;
-	function AsStructuredType():StructuredType;
 	function AsType():Type;
-	function AsTypeReference():TypeReference;
-	function AsUnionOrIntersectionType():UnionOrIntersectionType;
 }
 
 class TypeBase extends Type implements TypeData {
@@ -892,29 +898,11 @@ class TypeBase extends Type implements TypeData {
 		return this;
 	}
 
-	public override function AsConstrainedType():ConstrainedType {
-		return null;
-	}
 
-	public override function AsStructuredType():StructuredType {
-		return null;
-	}
 
-	public override function AsObjectType():ObjectType {
-		return null;
-	}
 
-	public override function AsTypeReference():TypeReference {
-		return null;
-	}
 
-	public override function AsInterfaceType():InterfaceType {
-		return null;
-	}
 
-	public override function AsUnionOrIntersectionType():UnionOrIntersectionType {
-		return null;
-	}
 }
 
 @:allow(ts.checker)
@@ -974,9 +962,6 @@ class ConstrainedType extends TypeBase {
 		super();
 	}
 
-	public override function AsConstrainedType():ConstrainedType {
-		return this;
-	}
 }
 
 @:allow(ts.checker)
@@ -992,9 +977,6 @@ class StructuredType extends ConstrainedType {
 		super();
 	}
 
-	public override function AsStructuredType():StructuredType {
-		return this;
-	}
 
 	public function CallSignatures():Array<Signature> {
 		// PORT: slices.Clip of a subslice → a copy; nil[:0] stays nil.
@@ -1026,9 +1008,6 @@ class ObjectType extends StructuredType {
 		super();
 	}
 
-	public override function AsObjectType():ObjectType {
-		return this;
-	}
 }
 
 @:allow(ts.checker)
@@ -1040,9 +1019,6 @@ class TypeReference extends ObjectType {
 		super();
 	}
 
-	public override function AsTypeReference():TypeReference {
-		return this;
-	}
 }
 
 @:allow(ts.checker)
@@ -1063,9 +1039,6 @@ class InterfaceType extends TypeReference {
 		super();
 	}
 
-	public override function AsInterfaceType():InterfaceType {
-		return this;
-	}
 
 	public function OuterTypeParameters():Array<Type> {
 		if (Core.len(allTypeParameters) == 0) {
@@ -1213,9 +1186,6 @@ class UnionOrIntersectionType extends StructuredType {
 		super();
 	}
 
-	public override function AsUnionOrIntersectionType():UnionOrIntersectionType {
-		return this;
-	}
 
 	public override function Types():Array<Type> {
 		return types;

@@ -3585,7 +3585,12 @@ class CheckerPart7 {
 
 	// Return true if type might be of the given kind. A union or intersection type might be of a given
 	// kind if at least one constituent type is of the given kind.
-	static function maybeTypeOfKind(c:Checker, t:Type, kind:TypeFlags):Bool {
+	// PORT: perf — inline fast path (the type's own flags), the constituents out of line
+	static inline function maybeTypeOfKind(c:Checker, t:Type, kind:TypeFlags):Bool {
+		return t.flags & kind != 0 || t.flags & TypeFlagsUnionOrIntersection != 0 && c.maybeTypeOfKindSlow(t, kind);
+	}
+
+	static function maybeTypeOfKindSlow(c:Checker, t:Type, kind:TypeFlags):Bool {
 		if (t.flags & kind != 0) {
 			return true;
 		}
@@ -3758,7 +3763,13 @@ class CheckerPart7 {
 		return names;
 	}
 
-	static function isUnknownLikeUnionType(c:Checker, t:Type):Bool {
+	// PORT: perf — inline fast path (not a union, or computed), the rest out of line
+	static inline function isUnknownLikeUnionType(c:Checker, t:Type):Bool {
+		return c.strictNullChecks && t.flags & TypeFlagsUnion != 0
+			&& (t.objectFlags & ObjectFlagsIsUnknownLikeUnionComputed != 0 ? t.objectFlags & ObjectFlagsIsUnknownLikeUnion != 0 : c.isUnknownLikeUnionTypeSlow(t));
+	}
+
+	static function isUnknownLikeUnionTypeSlow(c:Checker, t:Type):Bool {
 		if (c.strictNullChecks && t.flags & TypeFlagsUnion != 0) {
 			if (t.objectFlags & ObjectFlagsIsUnknownLikeUnionComputed == 0) {
 				t.objectFlags |= ObjectFlagsIsUnknownLikeUnionComputed;
