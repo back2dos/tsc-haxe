@@ -873,6 +873,70 @@ class KeyHasher {
 	}
 	#end
 
+	#if (target.name == "hxmc")
+	// PORT: perf — on hxmc the hasher is what Go's is: a 128-bit hash of the written bytes (Go's CacheHashKey is
+	// xxh3's), two 64-bit lanes mixed as the values are written, with no buffer. Each write is mixed with its
+	// width (a byte, 4 bytes, 8 bytes), so equal mixed streams are equal byte streams. Sum() makes the key string
+	// of the 128 bits (8 two-byte units), with its StringMap hash stored.
+	var h1:hxmc.I64 = 0;
+	var h2:hxmc.I64 = 0;
+
+	static final K1:hxmc.I64 = k64(0x9E3779B9, 0x7F4A7C15);
+	static final K2:hxmc.I64 = k64(0xC2B2AE3D, 0x27D4EB4F);
+	static final K3:hxmc.I64 = k64(0x165667B1, 0x9E3779F9);
+	static final M1:hxmc.I64 = k64(0xFF51AFD7, 0xED558CCD);
+	static final M2:hxmc.I64 = k64(0xC4CEB9FE, 0x1A85EC53);
+
+	static function k64(hi:Int, lo:Int):hxmc.I64
+		return ((hi : hxmc.I64) << 32) | (((lo : hxmc.I64) << 32) >>> 32);
+
+	inline function mix(v:hxmc.I64):Void {
+		final a = (h1 ^ v) * K1;
+		h1 = (a << 31) | (a >>> 33);
+		final b = (h2 + v) * K2;
+		h2 = b ^ (b >>> 29);
+	}
+
+	inline function WriteByte(c:Int):Void {
+		mix(((1 : hxmc.I64) << 40) | (c & 0xFF));
+	}
+
+	inline function Write32(v:Int):Void {
+		mix(((2 : hxmc.I64) << 40) | (((v : hxmc.I64) << 32) >>> 32));
+	}
+
+	inline function Write64(v:Int):Void {
+		mix(((3 : hxmc.I64) << 40) | (((v : hxmc.I64) << 32) >>> 32));
+	}
+
+	static inline function fmix(k:hxmc.I64):hxmc.I64 {
+		k = (k ^ (k >>> 33)) * M1;
+		k = (k ^ (k >>> 33)) * M2;
+		return k ^ (k >>> 33);
+	}
+
+	function Sum():std.String {
+		final a = fmix(h1 + K3), b = fmix(h2 ^ (a * K1));
+		final s = hxmc.rt.Str.make2(8);
+		final d = hxmc.rt.Str.chars2(s);
+		var x = 0x811C9DC5;
+		for (i in 0...4) {
+			final u = ((a >>> (16 * i)) & 0xFFFF).toInt();
+			d.set(i, u);
+			x = (x ^ u) * 16777619;
+		}
+		for (i in 0...4) {
+			final u = ((b >>> (16 * i)) & 0xFFFF).toInt();
+			d.set(4 + i, u);
+			x = (x ^ u) * 16777619;
+		}
+		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
+		h1 = 0;
+		h2 = 0;
+		pool.push(this);
+		return s;
+	}
+	#else
 	inline function WriteByte(c:Int):Void {
 		if (n == buf.length)
 			grow();
@@ -947,6 +1011,7 @@ class KeyHasher {
 		pool.push(this);
 		return Strings.FromASCIIBytes(p, j);
 	}
+	#end
 }
 
 @:allow(ts.checker)
@@ -2360,16 +2425,23 @@ class Checker {
 
 	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any 32-bit integer type.
 	static function hashWrite32(h:KeyHasher, value:Int):Void {
+		#if (target.name == "hxmc")
+		h.Write32(value); // PORT: perf (KeyHasher on hxmc)
+		#else
 		final v = value;
 		h.Reserve(4); // PORT: perf — one capacity test for the four bytes
 		h.Put(v & 0xFF);
 		h.Put((v >>> 8) & 0xFF);
 		h.Put((v >>> 16) & 0xFF);
 		h.Put((v >>> 24) & 0xFF);
+		#end
 	}
 
 	// PORT: h is the keyBuilder's KeyHasher (see CacheHashKey); T is any integer type (Int here).
 	static function hashWrite64(h:KeyHasher, value:Int):Void {
+		#if (target.name == "hxmc")
+		h.Write64(value); // PORT: perf (KeyHasher on hxmc)
+		#else
 		// PORT: the Haxe Int is 32 bits; Go's uint64 conversion sign-extends it.
 		final v = value;
 		final hi = v < 0 ? 0xFF : 0;
@@ -2382,6 +2454,7 @@ class Checker {
 		h.Put(hi);
 		h.Put(hi);
 		h.Put(hi);
+		#end
 	}
 
 	static function getTypeListKey(types:Array<Type>):CacheHashKey {
