@@ -179,7 +179,9 @@ class Harnessutil {
 	static function testLibFolderMap():Map<String, MapFile> {
 		if (testLibFolderMapValue == null) {
 			final testfs = new Map<String, MapFile>();
-			final libDir = Repo.TypeScriptSubmodulePath() + "/tests/lib";
+			// PORT: TypeScript main reads <testdata>/tests/lib; 7.0.2 <submodule>/tests/lib
+			final mainLibDir = Repo.TestDataPath() + "/tests/lib";
+			final libDir = sys.FileSystem.exists(mainLibDir) ? mainLibDir : Repo.TypeScriptSubmodulePath() + "/tests/lib";
 			function walk(dir:String, rel:String) {
 				final names = sys.FileSystem.readDirectory(dir);
 				names.sort(go.Strings.Compare);
