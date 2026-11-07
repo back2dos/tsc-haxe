@@ -147,3 +147,41 @@ whole seconds (`sys.FileSystem.stat`), so inputs written in the same second tie 
 newest input ..." can name another file; for the same reason an input changed in the second its output was
 written could be taken as up to date. Go's are nanoseconds: an exact mtime needs a host call with
 `mtimeNs` in hxmc's `wasmgc.mjs`.
+
+## TypeScript 7.1 ports and tsrs comparison (branch tshx-rs, hxmc branch tshx-opt)
+
+hxmc: [benmerckx/hxmc `tshx-opt`](https://github.com/benmerckx/hxmc) (from main 1bbbd80c: compact strings;
+`Gc.setOldLimit` again, `-D hxmc.inline`, FrameMerge, a barrier pre-test). ts6-compiler, `--singleThreaded`,
+medians of 5 interleaved runs, Xeon E-2356G; every hxmc output identical to Go's (checker gate 14,915
+configurations: 0 fail; real-project gate: every project, mode and step identical). tsgo 7.1-beta and main built
+from source with Go 1.27.3, tsrs 0.23.0 (oxc-project/tsrs fc38431) built from source:
+
+| | decl | check | full | check instructions |
+|---|---|---|---|---|
+| tsgo 7.0.2 | 1.71 s, 429 MB | 1.63 s, 409 MB | 2.55 s, 553 MB | 17.8 G |
+| tsgo 7.1-beta | 1.42 s, 357 MB | 1.21 s, 252 MB | 2.28 s, 467 MB | |
+| tsgo main (2026-11-06) | 1.23 s, 269 MB | 1.08 s, 231 MB | 2.05 s, 370 MB | 8.4 G |
+| tsrs 0.23.0 | 0.77 s, 151 MB | 0.64 s, 147 MB | 1.31 s, 200 MB | 5.1 G |
+| hxmc, start (tshx-opt on hxmc main) | 1.75 s, 289 MB | 1.69 s, 287 MB | 2.53 s, 392 MB | 16.7 G |
+| hxmc, tshx-rs | 1.41 s, 292 MB | 1.36 s, 291 MB | 2.11 s, 396 MB | 11.5 G |
+
+Where Go's 7.0.2 -> main gain is: Go runtime work (GC scan, map access) from 7.8 G to 2.2 G instructions (denser
+layouts: hxmc's GC was already at main's level, 1.1 G), compiled code 8.9 G -> 6.1 G (algorithmic: the ports below).
+
+Ported from 7.1 (exact, gated): uniform-union narrowing (#4781), isTypeSubsetOfUnion scan (#64964), compareNodes
+same parent (#64551), union construction by sort (#4687), isMatchingReference (#64868, #65045), merged symbols in a
+link store (#64869), active-mapper cache keys (#64871), composite mapper (#4798), typeMaybeAssignableTo (#4711),
+arrow line terminator without the line map (#4787). From tsrs: name resolution skips pass-through ancestors.
+hxmc-side: KeyHasher a 128-bit hash (Go's CacheHashKey) without a buffer; FrameMerge (inlined copies' shadow-stack
+frames in the caller's: -4%); larger inlining limits (-D hxmc.inline=48,128,6,120,4: -5% instructions);
+inline fast paths (Node.Text, LinkStore.Get, FindAncestor...); RecursionId and OrElse without runtime type tests.
+Fixed: GetScannerForSourceFile left textLen 0 (a hang on fileWithNextLine3.ts, wrong related-information spans).
+
+Not kept: dense paged link stores (Go main's, tsrs's): on hxmc neutral (a type parameter's elements are read
+through the runtime unless @:generic; an old page written with young values is rescanned whole: no card marking).
+
+What remains between hxmc and tsrs (check: 11.5 G against 5.1 G instructions; both ~32% retiring, ~45% front-end
+bound: wall time follows instructions): not the GC (a 1 GB nursery, no collection at all: the same wall time; the
+copying collector's locality pays for its 1 G instructions); calls (190 M against tsrs's 85 M; callee-saved
+push/pop ~10% of instructions, the shadow-stack frames ~3%); parsing (2.2 G against 0.75 G: AST promotion 21%,
+string conversions ~19% of it); and tsrs's per-function implementation (same calls as Go, flatter code).
