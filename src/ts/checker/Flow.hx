@@ -2838,7 +2838,7 @@ class Flow {
 		if ((links.flags & NodeCheckFlagsAssignmentsMarked) == 0) {
 			links.flags |= NodeCheckFlagsAssignmentsMarked;
 			if (!c.hasParentWithAssignmentsMarked(parent)) {
-				c.markNodeAssignments(parent);
+				c.markNodeAssignmentsWorker(parent);
 			}
 		}
 	}

@@ -5420,7 +5420,7 @@ class Checker {
 			// Only distinguished by type IDs, handled below.
 		} else if (t1.flags & TypeFlagsObject != 0) {
 			// Order unnamed or identically named object types by symbol.
-			c = t1.checker.compareSymbols(t1.symbol, t2.symbol);
+			c = Utilities.compareSymbolsWorker(t1.checker, t1.symbol, t2.symbol);
 			if (c != 0) {
 				return c;
 			}
@@ -5499,7 +5499,7 @@ class Checker {
 			}
 		} else if (t1.flags & (TypeFlagsEnum | TypeFlagsEnumLiteral | TypeFlagsUniqueESSymbol) != 0) {
 			// Enum members are ordered by their symbol (and thus their declaration order).
-			c = t1.checker.compareSymbols(t1.symbol, t2.symbol);
+			c = Utilities.compareSymbolsWorker(t1.checker, t1.symbol, t2.symbol);
 			if (c != 0) {
 				return c;
 			}
@@ -5525,7 +5525,7 @@ class Checker {
 				return -1;
 			}
 		} else if (t1.flags & TypeFlagsTypeParameter != 0) {
-			c = t1.checker.compareSymbols(t1.symbol, t2.symbol);
+			c = Utilities.compareSymbolsWorker(t1.checker, t1.symbol, t2.symbol);
 			if (c != 0) {
 				return c;
 			}

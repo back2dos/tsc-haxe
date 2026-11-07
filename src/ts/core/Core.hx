@@ -1032,6 +1032,17 @@ class Core {
 		for (i in 0...previous.length) {
 			previous[i] = i;
 		}
+		// PORT: perf — the lowercased runes once (not per cell); min of finite non-negative values without
+		// math.Min's NaN and signed-zero cases
+		final lower1 = buffers.lower1, lower2 = buffers.lower2;
+		lower1.resize(s1.length);
+		lower2.resize(s2.length);
+		for (k in 0...s1.length)
+			lower1[k] = Unicode.ToLower(s1[k]);
+		for (k in 0...s2.length)
+			lower2[k] = Unicode.ToLower(s2[k]);
+		inline function fmin(a:Float, b:Float):Float
+			return a < b ? a : b;
 		for (i in 1...s1.length + 1) {
 			final c1 = s1[i - 1];
 			final minJ = max(Std.int(Math.Ceil(i - maxValue)), 1);
@@ -1043,7 +1054,7 @@ class Core {
 			}
 			for (j in minJ...maxJ + 1) {
 				var substitutionDistance:Float, dist:Float;
-				if (Unicode.ToLower(s1[i - 1]) == Unicode.ToLower(s2[j - 1])) {
+				if (lower1[i - 1] == lower2[j - 1]) {
 					substitutionDistance = previous[j - 1] + 0.1;
 				} else {
 					substitutionDistance = previous[j - 1] + 2;
@@ -1051,10 +1062,10 @@ class Core {
 				if (c1 == s2[j - 1]) {
 					dist = previous[j - 1];
 				} else {
-					dist = Math.Min(previous[j] + 1, Math.Min(current[j - 1] + 1, substitutionDistance));
+					dist = fmin(previous[j] + 1, fmin(current[j - 1] + 1, substitutionDistance));
 				}
 				current[j] = dist;
-				colMin = Math.Min(colMin, dist);
+				colMin = fmin(colMin, dist);
 			}
 			for (j in maxJ + 1...s2.length + 1) {
 				current[j] = big;
@@ -1448,6 +1459,8 @@ typedef UTF16Offset = Int;
 class LevenshteinBuffers {
 	public var previous:Array<Float> = [];
 	public var current:Array<Float> = [];
+	public var lower1:Array<Int> = []; // PORT: perf (levenshteinWithMax)
+	public var lower2:Array<Int> = [];
 
 	public function new() {}
 }

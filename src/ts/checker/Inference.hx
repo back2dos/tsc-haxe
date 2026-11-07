@@ -116,7 +116,7 @@ class Inference {
 	}
 
 	static function inferFromTypes(c:Checker, n:InferenceState, source:Type, target:Type):Void {
-		if (!c.couldContainTypeVariables(target) || c.isNoInferType(target)) {
+		if (!c.couldContainTypeVariablesWorker(target) || c.isNoInferType(target)) {
 			return;
 		}
 		if (source == c.wildcardType || source == c.blockedStringType) {
@@ -961,7 +961,7 @@ class Inference {
 			}
 		}
 		final targetReturnType = c.getReturnTypeOfSignature(target);
-		if (c.couldContainTypeVariables(targetReturnType)) {
+		if (c.couldContainTypeVariablesWorker(targetReturnType)) {
 			callback(c.getReturnTypeOfSignature(source), targetReturnType);
 		}
 	}

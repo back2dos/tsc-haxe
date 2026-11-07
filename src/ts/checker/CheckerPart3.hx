@@ -1433,7 +1433,7 @@ class CheckerPart3 {
 			final contextualType = c.getContextualType(node, Core.IfElse(skipBindingPatterns, ContextFlagsSkipBindingPatterns, ContextFlagsNone));
 			if (contextualType != null) {
 				final inferenceTargetType = c.getReturnTypeOfSignature(signature);
-				if (c.couldContainTypeVariables(inferenceTargetType)) {
+				if (c.couldContainTypeVariablesWorker(inferenceTargetType)) {
 					final outerContext = c.getInferenceContext(node);
 					final isFromBindingPattern = !skipBindingPatterns && c.getContextualType(node, ContextFlagsSkipBindingPatterns) != contextualType;
 					// A return type inference from a binding pattern can be used in instantiating the contextual
@@ -1510,7 +1510,7 @@ class CheckerPart3 {
 			}
 		}
 		final thisType = c.getThisTypeOfSignature(signature);
-		if (thisType != null && c.couldContainTypeVariables(thisType)) {
+		if (thisType != null && c.couldContainTypeVariablesWorker(thisType)) {
 			final thisArgumentNode = c.getThisArgumentOfCall(node);
 			c.inferTypes(context.inferences, c.getThisArgumentType(thisArgumentNode), thisType, InferencePriorityNone, false);
 		}
@@ -1518,13 +1518,13 @@ class CheckerPart3 {
 			final arg = args[i];
 			if (arg.Kind != KindOmittedExpression) {
 				final paramType = c.getTypeAtPosition(signature, i);
-				if (c.couldContainTypeVariables(paramType)) {
+				if (c.couldContainTypeVariablesWorker(paramType)) {
 					final argType = c.checkExpressionWithContextualType(arg, paramType, context, checkMode);
 					c.inferTypes(context.inferences, argType, paramType, InferencePriorityNone, false);
 				}
 			}
 		}
-		if (restType != null && c.couldContainTypeVariables(restType)) {
+		if (restType != null && c.couldContainTypeVariablesWorker(restType)) {
 			final spreadType = c.getSpreadArgumentType(args, argCount, Core.len(args), restType, context, checkMode);
 			c.inferTypes(context.inferences, spreadType, restType, InferencePriorityNone, false);
 		}
@@ -2195,7 +2195,7 @@ class CheckerPart3 {
 			if (node.Type() == null && !Ast.HasContextSensitiveParameters(node)) {
 				// Return plain anyFunctionType if there is no possibility we'll make inferences from the return type
 				final contextualSignature = c.getContextualSignature(node);
-				if (contextualSignature != null && c.couldContainTypeVariables(c.getReturnTypeOfSignature(contextualSignature))) {
+				if (contextualSignature != null && c.couldContainTypeVariablesWorker(c.getReturnTypeOfSignature(contextualSignature))) {
 					if (c.contextFreeTypes.exists(node)) {
 						return c.contextFreeTypes.get(node);
 					}

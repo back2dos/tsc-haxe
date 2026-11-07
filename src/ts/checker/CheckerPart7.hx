@@ -2912,7 +2912,7 @@ class CheckerPart7 {
 		objectType = c.getReducedType(objectType);
 		// If the object type has a string index signature and no other members we know that the result will
 		// always be the type of that index signature and we can simplify accordingly.
-		if (c.isStringIndexSignatureOnlyType(objectType) && (indexType.flags & TypeFlagsNullable) == 0 && c.isTypeAssignableToKind(indexType, TypeFlagsString | TypeFlagsNumber)) {
+		if (c.isStringIndexSignatureOnlyTypeWorker(objectType) && (indexType.flags & TypeFlagsNullable) == 0 && c.isTypeAssignableToKind(indexType, TypeFlagsString | TypeFlagsNumber)) {
 			indexType = c.stringType;
 		}
 		// In noUncheckedIndexedAccess mode, indexed access operations that occur in an expression in a read position and resolve to

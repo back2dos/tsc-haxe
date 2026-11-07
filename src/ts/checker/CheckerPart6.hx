@@ -725,12 +725,12 @@ class CheckerPart6 {
 		}
 		// If the type of the symbol is already resolved, and if that type could not possibly
 		// be affected by instantiation, simply return the symbol itself.
-		if (links.resolvedType != null && !c.couldContainTypeVariables(links.resolvedType)) {
+		if (links.resolvedType != null && !c.couldContainTypeVariablesWorker(links.resolvedType)) {
 			if ((symbol.Flags & SymbolFlagsSetAccessor) == 0) {
 				return symbol;
 			}
 			// If we're a setter, check writeType.
-			if (links.writeType != null && !c.couldContainTypeVariables(links.writeType)) {
+			if (links.writeType != null && !c.couldContainTypeVariablesWorker(links.writeType)) {
 				return symbol;
 			}
 		}
@@ -2083,7 +2083,7 @@ class CheckerPart6 {
 		// Check for type variables in the alias, so things like `type Brand<T> = number & {}` can potentially be copied with new alias type args, despite them being unreferenced.
 		// This is the behavior most people using aliases expect, and prevents the cache from leaking type parameters outside their scope of validity.
 		// tests/cases/compiler/declarationEmitArrowFunctionNoRenaming.ts contains an example of this, which previously only worked in strada via some input node reuse logic instead.
-		if (t == null || m == null || !(c.couldContainTypeVariables(t) || (t.alias != null && Core.len(t.alias.typeArguments) > 0 && Core.Some(t.alias.typeArguments, c.couldContainTypeVariables)))) {
+		if (t == null || m == null || !(c.couldContainTypeVariablesWorker(t) || (t.alias != null && Core.len(t.alias.typeArguments) > 0 && Core.Some(t.alias.typeArguments, c.couldContainTypeVariables)))) {
 			return t;
 		}
 		if (c.instantiationDepth == 100 || c.instantiationCount >= 5000000) {

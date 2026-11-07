@@ -807,7 +807,12 @@ class Type implements TypeSystemEntity {
 		throw "Unhandled case in Type.Mapper";
 	}
 
-	public function Types():Array<Type> {
+	// PORT: perf — inline (no virtual call): a union's or intersection's types (its flags say its class)
+	public inline function Types():Array<Type> {
+		return (flags & TypeFlagsUnionOrIntersection) != 0 ? (cast this : UnionOrIntersectionType).types : TypesSlow();
+	}
+
+	function TypesSlow():Array<Type> {
 		if ((flags & TypeFlagsUnionOrIntersection) != 0) {
 			return AsUnionOrIntersectionType().types;
 		} else if ((flags & TypeFlagsTemplateLiteral) != 0) {
@@ -1187,9 +1192,6 @@ class UnionOrIntersectionType extends StructuredType {
 	}
 
 
-	public override function Types():Array<Type> {
-		return types;
-	}
 }
 
 @:allow(ts.checker)
@@ -1289,9 +1291,6 @@ class TemplateLiteralType extends ConstrainedType {
 		return texts;
 	}
 
-	public override function Types():Array<Type> {
-		return types;
-	}
 }
 
 @:allow(ts.checker)

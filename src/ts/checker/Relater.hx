@@ -1525,7 +1525,7 @@ class Relater {
 
 	static function isSignatureAssignableTo(c:Checker, source:Signature, target:Signature, ignoreReturnTypes:Bool):Bool {
 		return c.compareSignaturesRelated(source, target, ignoreReturnTypes ? SignatureCheckModeIgnoreReturnTypes : SignatureCheckModeNone, false /*reportErrors*/,
-			null /*errorReporter*/, (s, t, reportErrors) -> c.compareTypesAssignable(s, t, reportErrors), null /*reportUnreliableMarkers*/) != TernaryFalse;
+			null /*errorReporter*/, (s, t, reportErrors) -> c.compareTypesAssignableWorker(s, t, reportErrors), null /*reportUnreliableMarkers*/) != TernaryFalse;
 	}
 
 	static function compareSignaturesRelated(c:Checker, source:Signature, target:Signature, checkMode:SignatureCheckMode, reportErrors:Bool, errorReporter:ErrorReporter, compareTypes:TypeComparer, reportUnreliableMarkers:TypeMapper):Ternary {

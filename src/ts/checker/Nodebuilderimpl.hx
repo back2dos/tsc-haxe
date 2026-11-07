@@ -1079,7 +1079,7 @@ class NodeBuilderImpl {
 			// A is relative, B is non-relative: prefer B
 			return 1;
 		}
-		return this.ch.compareSymbols(a.sym, b.sym); // must sort symbols for stable ordering
+		return Utilities.compareSymbolsWorker(this.ch, a.sym, b.sym); // must sort symbols for stable ordering
 	}
 
 	function getSpecifierForModuleSymbol(symbol:Symbol, overrideImportMode:ResolutionMode):std.String {

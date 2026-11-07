@@ -335,6 +335,6 @@ class Exports {
 	}
 
 	public static function CompareSymbols(c:Checker, s1:Symbol, s2:Symbol):Int {
-		return c.compareSymbols(s1, s2);
+		return Utilities.compareSymbolsWorker(c, s1, s2);
 	}
 }

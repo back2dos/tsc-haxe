@@ -630,7 +630,7 @@ class Symbolaccessibility {
 
 		var idx = 0;
 		while (idx < Core.len(a)) {
-			final comparison = c.compareSymbols(a[idx], b[idx]);
+			final comparison = Utilities.compareSymbolsWorker(c, a[idx], b[idx]);
 			if (comparison != 0) {
 				return comparison;
 			}
