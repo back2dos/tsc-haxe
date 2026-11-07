@@ -10366,7 +10366,12 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		return null;
 	}
 
-	public function Text():String {
+	// PORT: perf — an identifier's text inline (the most frequent case), the other kinds in TextSlow
+	public inline function Text():String {
+		return this.Kind == KindIdentifier ? abstract.AsIdentifier().Text : TextSlow();
+	}
+
+	function TextSlow():String {
 		switch (this.Kind) {
 			case KindIdentifier:
 				return abstract.AsIdentifier().Text;

@@ -1821,7 +1821,8 @@ class CheckerPart7 {
 		if (runs == null)
 			return;
 		runs.push(n);
-		var src = types, dst = [for (_ in 0...n) (null : Type)];
+		var src = types, dst:Array<Type> = [];
+		dst.resize(n);
 		var bounds = [0].concat(runs); // run i is [bounds[i], bounds[i + 1])
 		while (bounds.length > 2) {
 			final next = [0];
@@ -4090,7 +4091,7 @@ class CheckerPart7 {
 	static function containsRecursionId(stack:Array<RecursionId>, identity:RecursionId):Bool {
 		if (stack != null) {
 			for (id in stack) {
-				if (id.value == identity.value) {
+				if (RecursionId.same(id, identity)) {
 					return true;
 				}
 			}

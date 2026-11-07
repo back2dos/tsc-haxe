@@ -57,6 +57,15 @@ class NameResolver {
 
 	public function new() {}
 
+	static final passThrough:haxe.ds.Vector<Bool> = {
+		final v = new haxe.ds.Vector<Bool>(KindCount);
+		for (k in 0...v.length)
+			v[k] = false;
+		for (k in [KindIdentifier, KindQualifiedName, KindCallExpression, KindNewExpression, KindPropertyAccessExpression, KindElementAccessExpression, KindExpressionStatement, KindReturnStatement, KindIfStatement, KindSwitchStatement, KindCaseClause, KindDefaultClause, KindWhileStatement, KindDoStatement, KindTryStatement, KindThrowStatement, KindLabeledStatement, KindModuleBlock, KindVariableDeclaration, KindVariableDeclarationList, KindVariableStatement, KindObjectLiteralExpression, KindPropertyAssignment, KindShorthandPropertyAssignment, KindSpreadAssignment, KindArrayLiteralExpression, KindBinaryExpression, KindParenthesizedExpression, KindConditionalExpression, KindPrefixUnaryExpression, KindPostfixUnaryExpression, KindTypeOfExpression, KindVoidExpression, KindDeleteExpression, KindAwaitExpression, KindYieldExpression, KindSpreadElement, KindSatisfiesExpression, KindNonNullExpression, KindTemplateExpression, KindTemplateSpan, KindTaggedTemplateExpression, KindJsxElement, KindJsxSelfClosingElement, KindJsxOpeningElement, KindJsxAttributes, KindJsxAttribute, KindJsxExpression, KindJsxFragment, KindTypeReference, KindPropertySignature, KindTypeLiteral, KindUnionType, KindIntersectionType, KindArrayType, KindIndexedAccessType, KindParenthesizedType, KindTupleType, KindTypeOperator, KindTypePredicate, KindTypeParameter, KindHeritageClause, KindEnumMember])
+			v[k] = true;
+		v;
+	};
+
 	public function Resolve(location:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message, isUse:Bool, excludeGlobals:Bool):Symbol {
 		var result:Symbol = null;
 		var lastLocation:Node = null;
@@ -70,6 +79,15 @@ class NameResolver {
 		// PORT: label — `break loop` is a Haxe `break` (it leaves the loop, also from inside a
 		// switch); a Go `break` that only leaves the switch is restructured with if/else.
 		while (location != null) {
+			// PORT: perf — from tsrs (oxc-project/tsrs, nameresolver.rs is_pass_through_scope_kind): the kinds of the
+			// ancestors a name is most often resolved through, for which this loop does nothing but move to the
+			// parent (no locals, no case of the switch, never a deferred context or a self-reference location, not a
+			// const assertion)
+			if (passThrough[location.Kind]) {
+				lastLocation = location;
+				location = location.Parent;
+				continue;
+			}
 			if (nameIsConst && Ast.IsConstAssertion(location)) {
 				// `const` in an `as const` has no symbol, but issues no error because there is no *actual* lookup of the type
 				// (it refers to the constant type of the expression instead)

@@ -94,11 +94,25 @@ class ErrorOutputContainer {
 typedef ErrorReporter = (message:Message, ...args:Any) -> Void;
 
 // PORT: Go compares RecursionId values (`==` on a struct holding an `any`); in Haxe compare the `value` fields.
+// PORT: perf — an abstract over the value (no object per identity). Every value is a reference (a node, a
+// symbol, a type), so Go's `==` on the `any` is the reference comparison (same; no Dynamic equality).
 @:allow(ts.checker)
-class RecursionId {
-	var value:Any = null;
+abstract RecursionId(Dynamic) {
+	public var value(get, never):Any;
 
-	public function new() {}
+	inline function get_value():Any
+		return this;
+
+	public inline function new(value:Any)
+		this = value;
+
+	public static inline function same(a:RecursionId, b:RecursionId):Bool {
+		#if (target.name == "hxmc")
+		return hxmc.rt.Repr.same(a.value, b.value);
+		#else
+		return a.value == b.value;
+		#end
+	}
 }
 
 @:allow(ts.checker)
@@ -955,7 +969,7 @@ class Relater {
 			return false;
 		}
 		// PORT: Go `==` on RecursionId compares the contained `any` values
-		return Checker.getRecursionIdentity(t).value == identity.value;
+		return RecursionId.same(Checker.getRecursionIdentity(t), identity);
 	}
 
 	static function getBestMatchingType(c:Checker, source:Type, target:Type, isRelatedTo:(source:Type, target:Type) -> Ternary):Type {

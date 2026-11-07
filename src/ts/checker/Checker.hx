@@ -4536,10 +4536,8 @@ class Checker {
 	// --- relater.go ---
 
 	// This function exists to constrain the types of values that can be used as recursion IDs.
-	static function asRecursionId<T>(value:T):RecursionId {
-		final r = new RecursionId();
-		r.value = value;
-		return r;
+	static inline function asRecursionId<T>(value:T):RecursionId {
+		return new RecursionId(value);
 	}
 
 	static function createDiagnosticChainFromErrorChain(chain:ErrorChain, errorNode:Node, relatedInfo:Array<Diagnostic>):Diagnostic {
