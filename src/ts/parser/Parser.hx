@@ -551,7 +551,7 @@ class Parser {
 		return result;
 	}
 
-	function mark():ParserState {
+	inline function mark():ParserState { // PORT: perf — inline: escape analysis keeps a state that does not escape in locals
 		final state = new ParserState();
 		state.scannerState = scanner.Mark();
 		state.contextFlags = contextFlags;
@@ -564,7 +564,7 @@ class Parser {
 		return state;
 	}
 
-	function rewind(state:ParserState):Void {
+	inline function rewind(state:ParserState):Void {
 		scanner.Rewind(state.scannerState);
 		token = scanner.Token();
 		contextFlags = state.contextFlags;
@@ -576,7 +576,7 @@ class Parser {
 		hasParseError = state.hasParseError;
 	}
 
-	function lookAhead(callback:(p:Parser) -> Bool):Bool {
+	inline function lookAhead(callback:(p:Parser) -> Bool):Bool {
 		var state = mark();
 		var result = callback(this);
 		rewind(state);

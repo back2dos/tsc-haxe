@@ -1425,7 +1425,7 @@ class Relater {
 			final saveResolutionStart = c.resolutionStart;
 			if (!c.inVarianceComputation) {
 				c.inVarianceComputation = true;
-				c.resolutionStart = Core.len(c.typeResolutions);
+				c.resolutionStart = c.typeResolutionCount;
 			}
 			links.variances = [];
 			final variances:Array<VarianceFlags> = [for (_ in 0...Core.len(typeParameters)) VarianceFlagsInvariant];

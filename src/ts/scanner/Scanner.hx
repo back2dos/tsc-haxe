@@ -351,7 +351,7 @@ class Scanner {
 		return commentDirectives;
 	}
 
-	public function Mark():ScannerState {
+	public inline function Mark():ScannerState {
 		final r = new ScannerState();
 		r.pos = pos;
 		r.fullStartPos = fullStartPos;
@@ -364,7 +364,7 @@ class Scanner {
 		return r;
 	}
 
-	public function Rewind(state:ScannerState):Void {
+	public inline function Rewind(state:ScannerState):Void {
 		setScannerState(state);
 	}
 

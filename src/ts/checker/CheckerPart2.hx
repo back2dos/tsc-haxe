@@ -3870,7 +3870,7 @@ class CheckerPart2 {
 
 	static function getOuterInferenceTypeParameters(c:Checker):Array<Type> {
 		var result:Array<Type> = null;
-		for (i in 0...Core.len(c.inferenceContextInfos)) {
+		for (i in 0...c.inferenceContextInfoCount) {
 			final context = c.inferenceContextInfos[i].context;
 			if (context != null) {
 				for (info in rangeOf(context.inferences)) {

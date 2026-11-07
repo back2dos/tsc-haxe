@@ -2471,19 +2471,22 @@ class CheckerPart5 {
 		final resolutionCycleStartIndex = c.findResolutionCycleStartIndex(target, propertyName);
 		if (resolutionCycleStartIndex >= 0) {
 			// A cycle was found
-			for (i in resolutionCycleStartIndex...c.typeResolutions.length) {
+			for (i in resolutionCycleStartIndex...c.typeResolutionCount) {
 				c.typeResolutions[i].result = false;
 			}
 			return false;
 		}
-		final r = new TypeResolution();
-		r.target = target;
-		r.propertyName = propertyName;
-		r.result = true;
+		// PORT: perf — the stack's entries are reused (typeResolutionCount: its depth; Go's slice of values)
 		if (c.typeResolutions == null) {
 			c.typeResolutions = [];
 		}
-		c.typeResolutions.push(r);
+		if (c.typeResolutionCount == c.typeResolutions.length) {
+			c.typeResolutions.push(new TypeResolution());
+		}
+		final r = c.typeResolutions[c.typeResolutionCount++];
+		r.target = target;
+		r.propertyName = propertyName;
+		r.result = true;
 		return true;
 	}
 
@@ -2492,15 +2495,14 @@ class CheckerPart5 {
 	 * be true if no circularities were detected, or false if a circularity was found.
 	 */
 	static function popTypeResolution(c:Checker):Bool {
-		final lastIndex = c.typeResolutions.length - 1;
-		final result = c.typeResolutions[lastIndex].result;
+		final r = c.typeResolutions[--c.typeResolutionCount];
 		// Clear the last entry to avoid memory leaks
-		c.typeResolutions.pop();
-		return result;
+		r.target = null;
+		return r.result;
 	}
 
 	static function findResolutionCycleStartIndex(c:Checker, target:TypeSystemEntity, propertyName:TypeSystemPropertyName):Int {
-		var i = Core.len(c.typeResolutions) - 1;
+		var i = c.typeResolutionCount - 1;
 		while (i >= c.resolutionStart) {
 			final resolution = c.typeResolutions[i];
 			if (c.typeResolutionHasProperty(resolution)) {

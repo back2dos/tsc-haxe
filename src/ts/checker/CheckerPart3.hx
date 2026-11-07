@@ -440,7 +440,7 @@ class CheckerPart3 {
 			// through resolution of the containing function call. By resetting the resolution stack we'll
 			// retry the symbol type resolution with the resolvingSignature marker in place to suppress
 			// the contextual type circularity.
-			c.resolutionStart = Core.len(c.typeResolutions);
+			c.resolutionStart = c.typeResolutionCount;
 		}
 		links.resolvedSignature = c.resolvingSignature;
 		var result = c.resolveSignature(node, candidatesOutArray, checkMode);

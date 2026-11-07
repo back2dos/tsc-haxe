@@ -2612,23 +2612,28 @@ class CheckerPart8 {
 	}
 
 	static function pushContextualType(c:Checker, node:Node, t:Type, isCache:Bool):Void {
-		final info = new ContextualInfo();
-		info.node = node;
-		info.t = t;
-		info.isCache = isCache;
+		// PORT: perf — the stack's entries are reused (contextualInfoCount: its depth; Go's slice of values)
 		if (c.contextualInfos == null) {
 			c.contextualInfos = [];
 		}
-		c.contextualInfos.push(info);
+		if (c.contextualInfoCount == c.contextualInfos.length) {
+			c.contextualInfos.push(new ContextualInfo());
+		}
+		final info = c.contextualInfos[c.contextualInfoCount++];
+		info.node = node;
+		info.t = t;
+		info.isCache = isCache;
 	}
 
 	static function popContextualType(c:Checker):Void {
-		// PORT: Go clears the last element and reslices; pop() does both.
-		c.contextualInfos.pop();
+		// PORT: Go clears the last element and reslices
+		final info = c.contextualInfos[--c.contextualInfoCount];
+		info.node = null;
+		info.t = null;
 	}
 
 	static function findContextualNode(c:Checker, node:Node, includeCaches:Bool):Int {
-		for (i in 0...Core.len(c.contextualInfos)) {
+		for (i in 0...c.contextualInfoCount) {
 			final info = c.contextualInfos[i];
 			if (node == info.node && (includeCaches || !info.isCache)) {
 				return i;
@@ -2699,22 +2704,27 @@ class CheckerPart8 {
 	}
 
 	static function pushInferenceContext(c:Checker, node:Node, context:InferenceContext):Void {
-		final info = new InferenceContextInfo();
-		info.node = node;
-		info.context = context;
+		// PORT: perf — the stack's entries are reused (inferenceContextInfoCount: its depth; Go's slice of values)
 		if (c.inferenceContextInfos == null) {
 			c.inferenceContextInfos = [];
 		}
-		c.inferenceContextInfos.push(info);
+		if (c.inferenceContextInfoCount == c.inferenceContextInfos.length) {
+			c.inferenceContextInfos.push(new InferenceContextInfo());
+		}
+		final info = c.inferenceContextInfos[c.inferenceContextInfoCount++];
+		info.node = node;
+		info.context = context;
 	}
 
 	static function popInferenceContext(c:Checker):Void {
-		// PORT: Go clears the last element and reslices; pop() does both.
-		c.inferenceContextInfos.pop();
+		// PORT: Go clears the last element and reslices
+		final info = c.inferenceContextInfos[--c.inferenceContextInfoCount];
+		info.node = null;
+		info.context = null;
 	}
 
 	static function getInferenceContext(c:Checker, node:Node):InferenceContext {
-		var i = Core.len(c.inferenceContextInfos) - 1;
+		var i = c.inferenceContextInfoCount - 1;
 		while (i >= 0) {
 			if (Checker.isNodeDescendantOf(node, c.inferenceContextInfos[i].node)) {
 				return c.inferenceContextInfos[i].context;

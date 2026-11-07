@@ -1576,6 +1576,7 @@ class Checker {
 	var zeroBigIntType:Type = null;
 	var typeofType:Type = null;
 	var typeResolutions:Array<TypeResolution> = null;
+	var typeResolutionCount = 0; // PORT: perf (the stack's depth; its entries are reused)
 	var resolutionStart:Int = 0;
 	var inVarianceComputation:Bool = false;
 	var apparentArgumentCount:Null<Int> /* PORT: pointer */ = null;
@@ -1599,7 +1600,9 @@ class Checker {
 	var flowNodePostSuper:IdentityMap<FlowNode, Bool> = null;
 	var renamedBindingElementsInTypes:Array<Node> = null;
 	var contextualInfos:Array<ContextualInfo> = null;
+	var contextualInfoCount = 0; // PORT: perf (the stack's depth; its entries are reused)
 	var inferenceContextInfos:Array<InferenceContextInfo> = null;
+	var inferenceContextInfoCount = 0; // PORT: perf (the stack's depth; its entries are reused)
 	var awaitedTypeStack:Array<Type> = null;
 	var reverseMappedSourceStack:Array<Type> = null;
 	var reverseMappedTargetStack:Array<Type> = null;
