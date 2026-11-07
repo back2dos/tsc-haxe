@@ -903,29 +903,16 @@ class Declarations {
 	}
 
 	static function canProduceDiagnostics(node:Node):Bool {
-		return Ast.IsVariableDeclaration(node) ||
-			Ast.IsPropertyDeclaration(node) ||
-			Ast.IsPropertySignatureDeclaration(node) ||
-			Ast.IsBindingElement(node) ||
-			Ast.IsSetAccessorDeclaration(node) ||
-			Ast.IsGetAccessorDeclaration(node) ||
-			Ast.IsConstructSignatureDeclaration(node) ||
-			Ast.IsCallSignatureDeclaration(node) ||
-			Ast.IsMethodDeclaration(node) ||
-			Ast.IsMethodSignatureDeclaration(node) ||
-			Ast.IsFunctionDeclaration(node) ||
-			Ast.IsParameterDeclaration(node) ||
-			Ast.IsTypeParameterDeclaration(node) ||
-			Ast.IsExpressionWithTypeArguments(node) ||
-			Ast.IsImportEqualsDeclaration(node) ||
-			Ast.IsTypeAliasDeclaration(node) ||
-			Ast.IsJSTypeAliasDeclaration(node) ||
-			Ast.IsConstructorDeclaration(node) ||
-			Ast.IsIndexSignatureDeclaration(node) ||
-			Ast.IsPropertyAccessExpression(node) ||
-			Ast.IsElementAccessExpression(node) ||
-			Ast.IsBinaryExpression(node) ||
-			Ast.IsCallExpression(node); // || // !!! TODO: JSDoc support
+		// PORT: perf — Go's chain of ast.IsX(node) (each a Kind comparison) as one switch on the kind
+		return switch node.Kind {
+			case KindVariableDeclaration | KindPropertyDeclaration | KindPropertySignature | KindBindingElement | KindSetAccessor | KindGetAccessor
+				| KindConstructSignature | KindCallSignature | KindMethodDeclaration | KindMethodSignature | KindFunctionDeclaration | KindParameter
+				| KindTypeParameter | KindExpressionWithTypeArguments | KindImportEqualsDeclaration | KindTypeAliasDeclaration
+				| KindJSTypeAliasDeclaration | KindConstructor | KindIndexSignature | KindPropertyAccessExpression | KindElementAccessExpression
+				| KindBinaryExpression | KindCallExpression: true;
+			case _: false;
+		}
+		// || // !!! TODO: JSDoc support
 		/* ast.IsJSDocTypeAlias(node); */
 	}
 

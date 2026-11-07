@@ -333,7 +333,10 @@ class DeclarationTransformer {
 		cjsExportAssignmentName = null;
 		cjsExportMembers = null;
 		// PORT: defer on the success path only (docs/PORTING.md §4).
-		cjsExportAssignmentVisitor.VisitNode(node.AsNode()); // collect nested module.exports= assignments
+		// PORT: perf — the walk finds module.exports= assignments only in a file with a CommonJSModuleIndicator
+		// (visitCJSExportAssignments; its diagnostic contexts are set up and left again): skipped without one
+		if (node.CommonJSModuleIndicator != null)
+			cjsExportAssignmentVisitor.VisitNode(node.AsNode()); // collect nested module.exports= assignments
 		expressionVisitor.VisitNode(node.AsNode()); // collect expando members (requires any export assignment be located in advance)
 		var combinedStatements:StatementList;
 		final statements = Visitor().VisitNodes(node.Statements);
@@ -557,6 +560,7 @@ class DeclarationTransformer {
 	// setupDiagnosticContext pushes it, cleanupDiagnosticContext() pops it (every caller runs the
 	// cleanup on each path, last in first out, as the defers).
 	final diagnosticContextDiag:Array<GetSymbolAccessibilityDiagnostic> = [];
+	final diagnosticContextNode:Array<Node> = [];
 	final diagnosticContextName:Array<Node> = [];
 	final diagnosticContextWithin:Array<Bool> = [];
 	var diagnosticContexts:Int = 0; // (the stack's depth; the arrays keep their length)
@@ -564,6 +568,8 @@ class DeclarationTransformer {
 	function cleanupDiagnosticContext():Void {
 		final k = --diagnosticContexts;
 		state.getSymbolAccessibilityDiagnostic = diagnosticContextDiag[k];
+		state.diagnosticNode = diagnosticContextNode[k];
+		diagnosticContextNode[k] = null;
 		state.errorNameNode = diagnosticContextName[k];
 		suppressNewDiagnosticContexts = diagnosticContextWithin[k];
 		diagnosticContextDiag[k] = null;
@@ -577,8 +583,12 @@ class DeclarationTransformer {
 			&& !(input.Parent.Kind == KindTypeAliasDeclaration || input.Parent.Kind == KindJSTypeAliasDeclaration);
 
 		final oldDiag = state.getSymbolAccessibilityDiagnostic;
+		final oldDiagNode = state.diagnosticNode;
 		if (canProdiceDiagnostic && !suppressNewDiagnosticContexts) {
-			state.getSymbolAccessibilityDiagnostic = Declarations.createGetSymbolAccessibilityDiagnosticForNode(input);
+			// PORT: perf — Go creates the closure here, for every node walked; it is made when first called
+			// (SymbolTrackerSharedState.diagnosticNode: createGetSymbolAccessibilityDiagnosticForNode depends on the node alone)
+			state.getSymbolAccessibilityDiagnostic = null;
+			state.diagnosticNode = input;
 		}
 		final oldName = state.errorNameNode;
 
@@ -589,10 +599,12 @@ class DeclarationTransformer {
 		setupDiagnosticContextResult = canProdiceDiagnostic;
 		final k = diagnosticContexts++;
 		if (k == diagnosticContextDiag.length) {
+			diagnosticContextNode.push(oldDiagNode);
 			diagnosticContextDiag.push(oldDiag);
 			diagnosticContextName.push(oldName);
 			diagnosticContextWithin.push(oldWithinObjectLiteralType);
 		} else {
+			diagnosticContextNode[k] = oldDiagNode;
 			diagnosticContextDiag[k] = oldDiag;
 			diagnosticContextName[k] = oldName;
 			diagnosticContextWithin[k] = oldWithinObjectLiteralType;

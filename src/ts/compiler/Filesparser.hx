@@ -253,6 +253,13 @@ class FilesParser {
 	function start(loader:FileLoader, tasks:Array<ParseTask>, depth:Int):Void {
 		if (tasks == null)
 			return;
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — Go starts a goroutine per task, so the largest file's parse starts
+		// at once; go.Par runs its queue in order on a fixed set of threads: queued largest file first (sizes
+		// from the file system; the program's files are ordered independently of when they were parsed)
+		final queued:Array<() -> Void> = [];
+		final sizes:Array<Float> = [];
+		#end
 		for (i in 0...tasks.length) {
 			final task = tasks[i];
 			task.path = loader.toPath(task.normalizedFilePath);
@@ -321,7 +328,13 @@ class FilesParser {
 					}
 				}
 			};
+			#if tshx_parallel
+			final info = tasks.length > 1 ? loader.opts.Host.FS().Stat(task.normalizedFilePath) : null;
+			sizes.push(info != null ? info.Size() : 0);
+			queued.push(function() {
+			#else
 			this.wg.Queue(function() {
+			#end
 				#if tshx_parallel
 				data.mu.acquire(); // PORT: hxmc (-D tshx-parallel) — data.mu.Lock(); defer data.mu.Unlock()
 				#end
@@ -338,6 +351,12 @@ class FilesParser {
 				#end
 			});
 		}
+		#if tshx_parallel
+		final order = [for (i in 0...queued.length) i];
+		order.sort((a, b) -> sizes[a] != sizes[b] ? (sizes[b] > sizes[a] ? 1 : -1) : a - b);
+		for (i in order)
+			this.wg.Queue(queued[i]);
+		#end
 	}
 
 	function getProcessedFiles(loader:FileLoader):ProcessedFiles {

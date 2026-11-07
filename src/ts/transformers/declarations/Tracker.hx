@@ -209,6 +209,8 @@ class SymbolTrackerImpl implements ts.nodebuilder.Types.SymbolTracker { // PORT:
 			// The checker should issue errors on unresolvable names, skip the declaration emit error for using a private/unreachable name for those
 		} else if (symbolAccessibilityResult.Accessibility != SymbolAccessibilityNotResolved) {
 			// Report error
+			if (state.getSymbolAccessibilityDiagnostic == null) // PORT: perf — made when first called (DeclarationTransformer.setupDiagnosticContext)
+				state.getSymbolAccessibilityDiagnostic = Declarations.createGetSymbolAccessibilityDiagnosticForNode(state.diagnosticNode);
 			final errorInfo = state.getSymbolAccessibilityDiagnostic(symbolAccessibilityResult);
 			if (errorInfo != null) {
 				final info = errorInfo; // PORT: Go copies the struct (*errorInfo); it is only read here
@@ -233,6 +235,7 @@ class SymbolTrackerSharedState {
 	var lateMarkedStatements:Array<Node> = null;
 	var diagnostics:Array<Diagnostic> = null;
 	var getSymbolAccessibilityDiagnostic:GetSymbolAccessibilityDiagnostic = null;
+	var diagnosticNode:Node = null; // PORT: perf — the node getSymbolAccessibilityDiagnostic is made for while it is null
 	var errorNameNode:Node = null;
 	var isolatedDeclarations:Bool = false;
 	var stripInternal:Bool = false;
