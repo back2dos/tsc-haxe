@@ -405,10 +405,19 @@ class Stringutil {
 		final n = s.length;
 		final p = hxmc.rt.Str.unitsAddr(s);
 		var i = 0;
-		while (i + 4 <= n) {
-			if ((hxmc.unsafe.Mem.getI32(p, 2 * i) | hxmc.unsafe.Mem.getI32(p, 2 * i + 4)) & 0xFF80FF80 != 0)
-				break;
-			i += 4;
+		// PORT: perf — compact strings: a one-byte string has a byte per unit (a byte >= 0x80 is a unit >= 0x80)
+		if (hxmc.rt.Str.isOne(s)) {
+			while (i + 8 <= n) {
+				if ((hxmc.unsafe.Mem.getI32(p, i) | hxmc.unsafe.Mem.getI32(p, i + 4)) & 0x80808080 != 0)
+					return true;
+				i += 8;
+			}
+		} else {
+			while (i + 4 <= n) {
+				if ((hxmc.unsafe.Mem.getI32(p, 2 * i) | hxmc.unsafe.Mem.getI32(p, 2 * i + 4)) & 0xFF80FF80 != 0)
+					break;
+				i += 4;
+			}
 		}
 		for (j in i...n) {
 			if (StringTools.fastCodeAt(s, j) >= Utf16.RuneSelf) {

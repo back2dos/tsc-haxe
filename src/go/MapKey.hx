@@ -13,16 +13,16 @@ class MapKey {
 	}
 
 	public static function i2(a:Int, b:Int):String {
-		final s = hxmc.rt.Str.make(4);
-		final d = hxmc.rt.Str.chars(s);
+		final s = hxmc.rt.Str.make2(4);
+		final d = hxmc.rt.Str.chars2(s);
 		int(d, 0, a);
 		int(d, 2, b);
 		return s;
 	}
 
 	public static function i3(a:Int, b:Int, c:Int):String {
-		final s = hxmc.rt.Str.make(6);
-		final d = hxmc.rt.Str.chars(s);
+		final s = hxmc.rt.Str.make2(6);
+		final d = hxmc.rt.Str.chars2(s);
 		int(d, 0, a);
 		int(d, 2, b);
 		int(d, 4, c);
@@ -30,8 +30,8 @@ class MapKey {
 	}
 
 	public static function i4(a:Int, b:Int, c:Int, e:Int):String {
-		final s = hxmc.rt.Str.make(8);
-		final d = hxmc.rt.Str.chars(s);
+		final s = hxmc.rt.Str.make2(8);
+		final d = hxmc.rt.Str.chars2(s);
 		int(d, 0, a);
 		int(d, 2, b);
 		int(d, 4, c);
@@ -41,8 +41,8 @@ class MapKey {
 
 	public static function i1s(a:Int, t:String):String {
 		final n = t.length;
-		final s = hxmc.rt.Str.make(2 + n);
-		final d = hxmc.rt.Str.chars(s);
+		final s = hxmc.rt.Str.make2(2 + n);
+		final d = hxmc.rt.Str.chars2(s);
 		int(d, 0, a);
 		for (i in 0...n)
 			d.set(2 + i, StringTools.fastCodeAt(t, i));
@@ -51,8 +51,8 @@ class MapKey {
 
 	public static function i3s(a:Int, b:Int, c:Int, t:String):String {
 		final n = t.length;
-		final s = hxmc.rt.Str.make(6 + n);
-		final d = hxmc.rt.Str.chars(s);
+		final s = hxmc.rt.Str.make2(6 + n);
+		final d = hxmc.rt.Str.chars2(s);
 		int(d, 0, a);
 		int(d, 2, b);
 		int(d, 4, c);
