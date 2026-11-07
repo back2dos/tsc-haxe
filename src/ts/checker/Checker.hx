@@ -901,8 +901,8 @@ class KeyHasher {
 		// PORT: perf — hxmc's strings are 16-bit units that need not be valid UTF-16: two bytes per
 		// unit and a last unit holding n's parity (injective too), no packing and no UTF-8 decoding.
 		final m = (n + 1) >> 1;
-		final s = hxmc.rt.Str.make(m + 1);
-		final d = hxmc.rt.Str.chars(s);
+		final s = hxmc.rt.Str.make2(m + 1);
+		final d = hxmc.rt.Str.chars2(s);
 		final b = buf;
 		// PORT: perf — the string's hash as hxmc's StringMap computes it (FNV-1a of the units, 0 → 1), stored in
 		// the string while its units are written: the key's map lookup does not hash it again
