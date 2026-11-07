@@ -707,6 +707,9 @@ class CheckerPart6 {
 			return null;
 		}
 		final result = new SymbolTable();
+		#if (target.name == "hxmc")
+		result.reserve(symbolTableLen(symbols)); // PORT: perf — Go 7.1's preallocated instantiated symbol table (#64306)
+		#end
 		for (id => symbol in symbols) {
 			if (c.isNamedMember(symbol, id)) {
 				result.set(id, c.instantiateSymbol(symbol, m));

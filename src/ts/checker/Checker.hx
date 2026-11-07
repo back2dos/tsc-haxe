@@ -5468,6 +5468,9 @@ class Checker {
 			return null;
 		}
 		final result = new SymbolTable();
+		#if (target.name == "hxmc")
+		result.reserve(symbols.length); // PORT: perf — Go's make(ast.SymbolTable, len(symbols))
+		#end
 		for (symbol in symbols) {
 			result.set(symbol.Name, symbol);
 		}
