@@ -4990,6 +4990,11 @@ class Checker {
 
 	public static inline final ObjectFlagsIsUnknownLikeUnion:Int = 134217728; // Union of null, undefined, and empty object type
 
+	// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781)
+	public static inline final ObjectFlagsIsUniformEnumComputed:Int = 268435456; // IsUniformEnum flag has been computed
+
+	public static inline final ObjectFlagsIsUniformEnum:Int = 536870912; // Union contains uniform literal types
+
 	// Flags that require TypeFlags.Intersection
 	public static inline final ObjectFlagsIsNeverIntersectionComputed:Int = 33554432; // IsNeverLike flag has been computed
 

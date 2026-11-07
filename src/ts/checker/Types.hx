@@ -600,6 +600,9 @@ enum abstract ObjectFlags(Int) from Int to Int {
 	var ObjectFlagsContainsIntersections = 1 << 25; // Union contains intersections
 	var ObjectFlagsIsUnknownLikeUnionComputed = 1 << 26; // IsUnknownLikeUnion flag has been computed
 	var ObjectFlagsIsUnknownLikeUnion = 1 << 27; // Union of null, undefined, and empty object type
+	// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781)
+	var ObjectFlagsIsUniformEnumComputed = 1 << 28; // IsUniformEnum flag has been computed
+	var ObjectFlagsIsUniformEnum = 1 << 29; // Union contains uniform literal types
 	// Flags that require TypeFlags.Intersection
 	var ObjectFlagsIsNeverIntersectionComputed = 1 << 25; // IsNeverLike flag has been computed
 	var ObjectFlagsIsNeverIntersection = 1 << 26; // Intersection reduces to never

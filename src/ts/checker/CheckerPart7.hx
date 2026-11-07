@@ -2377,30 +2377,36 @@ class CheckerPart7 {
 	// primitive type, and missingType is matched by undefinedType (and vice versa).
 	static function eachUnionContains(c:Checker, unionTypes:Array<Type>, t:Type):Bool {
 		for (u in rangeOf(unionTypes)) {
-			final types = u.Types();
-			if (!Checker.containsType(types, t)) {
-				if (t == c.missingType) {
-					return Checker.containsType(types, c.undefinedType);
-				}
-				if (t == c.undefinedType) {
-					return Checker.containsType(types, c.missingType);
-				}
-				var primitive:Type = null;
-				if ((t.flags & TypeFlagsStringLiteral) != 0) {
-					primitive = c.stringType;
-				} else if ((t.flags & (TypeFlagsEnum | TypeFlagsNumberLiteral)) != 0) {
-					primitive = c.numberType;
-				} else if ((t.flags & TypeFlagsBigIntLiteral) != 0) {
-					primitive = c.bigintType;
-				} else if ((t.flags & TypeFlagsUniqueESSymbol) != 0) {
-					primitive = c.esSymbolType;
-				}
-				if (primitive == null || !Checker.containsType(types, primitive)) {
-					return false;
-				}
+			if (!c.unionContainsType(u, t, true /*matchSymbol*/)) {
+				return false;
 			}
 		}
 		return true;
+	}
+
+	// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781)
+	static function unionContainsType(c:Checker, union:Type, t:Type, matchSymbol:Bool):Bool {
+		final types = union.Types();
+		if (Checker.containsType(types, t)) {
+			return true;
+		}
+		if (t == c.missingType) {
+			return Checker.containsType(types, c.undefinedType);
+		}
+		if (t == c.undefinedType) {
+			return Checker.containsType(types, c.missingType);
+		}
+		var primitive:Type = null;
+		if ((t.flags & TypeFlagsStringLiteral) != 0) {
+			primitive = c.stringType;
+		} else if ((t.flags & (TypeFlagsEnum | TypeFlagsNumberLiteral)) != 0) {
+			primitive = c.numberType;
+		} else if ((t.flags & TypeFlagsBigIntLiteral) != 0) {
+			primitive = c.bigintType;
+		} else if ((t.flags & TypeFlagsUniqueESSymbol) != 0 && matchSymbol) {
+			primitive = c.esSymbolType;
+		}
+		return primitive != null && Checker.containsType(types, primitive);
 	}
 
 	static function getCrossProductIntersections(c:Checker, types:Array<Type>, flags:IntersectionFlags):Array<Type> {
@@ -2524,7 +2530,29 @@ class CheckerPart7 {
 	}
 
 	static function removeType(c:Checker, t:Type, targetType:Type):Type {
-		return c.filterType(t, (t:Type) -> t != targetType);
+		// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781): a binary search in place of the filter
+		if (t.flags & TypeFlagsUnion == 0) {
+			if (t == targetType) {
+				return c.neverType;
+			}
+			return t;
+		}
+		final origin = t.AsUnionType().origin;
+		if (origin != null && origin.flags & TypeFlagsUnion != 0 && Checker.containsType(origin.Types(), targetType)) {
+			return c.filterType(t, (t:Type) -> t != targetType);
+		}
+		final types = t.Types();
+		final r = Slices.BinarySearchFuncInline(types, targetType, (a, b) -> Checker.CompareTypes(a, b));
+		if (r.ok) {
+			final i = r.value;
+			if (types.length == 2) {
+				return types[1 - i];
+			}
+			// Remove the target type from the slice (a copy: the union's list is shared).
+			final filtered = types.slice(0, i).concat(types.slice(i + 1));
+			return c.getUnionTypeFromSortedList(filtered, t.AsUnionType().objectFlags & (ObjectFlagsPrimitiveUnion | ObjectFlagsContainsIntersections), null /*alias*/, null /*origin*/);
+		}
+		return t;
 	}
 
 	static function isErrorType(c:Checker, t:Type):Bool {
@@ -3681,6 +3709,44 @@ class CheckerPart7 {
 			return t.objectFlags & ObjectFlagsIsUnknownLikeUnion != 0;
 		}
 		return false;
+	}
+
+	// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781)
+	// Return true the given type is a primitive union type where no two literal type constituents are
+	// comparable. Specifically, that means (a) the union doesn't contain literals from different enum
+	// types, and (b) the union doesn't contain both enum literals and string or number literals.
+	static function isUniformUnionType(c:Checker, t:Type):Bool {
+		if (t.objectFlags & ObjectFlagsPrimitiveUnion != 0) {
+			if (t.objectFlags & ObjectFlagsIsUniformEnumComputed == 0) {
+				t.objectFlags |= ObjectFlagsIsUniformEnumComputed | (c.computeIsUniformUnionType(t.Types()) ? ObjectFlagsIsUniformEnum : ObjectFlagsNone);
+			}
+			return t.objectFlags & ObjectFlagsIsUniformEnum != 0;
+		}
+		return false;
+	}
+
+	static function computeIsUniformUnionType(c:Checker, types:Array<Type>):Bool {
+		var enumSymbol:Symbol = null;
+		var hasStringOrNumberLiteral = false;
+		for (t in rangeOf(types)) {
+			if (t.flags & TypeFlagsEnumLike != 0) {
+				if (hasStringOrNumberLiteral) {
+					return false;
+				}
+				final parent = c.getParentOfSymbol(t.symbol);
+				if (enumSymbol == null) {
+					enumSymbol = parent;
+				} else if (enumSymbol != parent) {
+					return false;
+				}
+			} else if (t.flags & TypeFlagsStringOrNumberLiteral != 0) {
+				if (enumSymbol != null) {
+					return false;
+				}
+				hasStringOrNumberLiteral = true;
+			}
+		}
+		return true;
 	}
 
 	static function containsUndefinedType(c:Checker, t:Type):Bool {

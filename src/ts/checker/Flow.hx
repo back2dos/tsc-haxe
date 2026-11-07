@@ -678,12 +678,26 @@ class Flow {
 					return c.nonPrimitiveType;
 				}
 			}
+			// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781)
+			if (!doubleEquals && valueType.flags & TypeFlagsPrimitive != 0 && c.isUniformUnionType(t)) {
+				final regularType = c.getRegularTypeOfLiteralType(valueType);
+				if (c.unionContainsType(t, regularType, false /*matchSymbol*/)) {
+					return regularType;
+				}
+			}
 			final filteredType = c.filterType(t, function(t:Type):Bool {
 				return c.areTypesComparable(t, valueType) || doubleEquals && Checker.isCoercibleUnderDoubleEquals(t, valueType);
 			});
 			return c.replacePrimitivesWithLiterals(filteredType, valueType);
 		}
 		if (Checker.isUnitType(valueType)) {
+			// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781)
+			if (c.isUniformUnionType(t)) {
+				final filteredType = c.removeType(t, c.getRegularTypeOfLiteralType(valueType));
+				if (filteredType != t) {
+					return filteredType;
+				}
+			}
 			return c.filterType(t, function(t:Type):Bool {
 				return !(c.isUnitLikeType(t) && c.areTypesComparable(t, valueType));
 			});
@@ -1201,12 +1215,21 @@ class Flow {
 			return c.getUnionType(groundClauseTypes == null ? clauseTypes : groundClauseTypes);
 		}
 		final discriminantType = c.getUnionType(clauseTypes);
-		var caseType:Type;
+		var caseType:Type = null;
 		if ((discriminantType.flags & TypeFlagsNever) != 0) {
 			caseType = c.neverType;
 		} else {
-			final filtered = c.filterType(t, t -> c.areTypesComparable(discriminantType, t));
-			caseType = c.replacePrimitivesWithLiterals(filtered, discriminantType);
+			// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4781)
+			if (discriminantType.flags & TypeFlagsPrimitive != 0 && c.isUniformUnionType(t)) {
+				final regularType = c.getRegularTypeOfLiteralType(discriminantType);
+				if (c.unionContainsType(t, regularType, false /*matchSymbol*/)) {
+					caseType = regularType;
+				}
+			}
+			if (caseType == null) {
+				final filtered = c.filterType(t, t -> c.areTypesComparable(discriminantType, t));
+				caseType = c.replacePrimitivesWithLiterals(filtered, discriminantType);
+			}
 		}
 		if (!hasDefaultClause) {
 			return caseType;
