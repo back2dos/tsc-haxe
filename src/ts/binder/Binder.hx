@@ -2681,6 +2681,8 @@ class Binder {
 	function addDeclarationToSymbol(symbol:Symbol, node:Node, symbolFlags:SymbolFlags):Void {
 		symbol.Flags |= symbolFlags;
 		node.DeclarationData().Symbol = symbol;
+		if (node.Kind == KindBinaryExpression && file != null)
+			file.tshxBinaryExpressionSymbols = true; // PORT: perf (DeclarationTransformer.transformSourceFile)
 		if (symbol.Declarations == null) {
 			symbol.Declarations = newSingleDeclaration(node);
 		} else {

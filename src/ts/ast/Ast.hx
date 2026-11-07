@@ -3604,7 +3604,20 @@ class Ast {
 		return node != null && isFunctionLikeDeclarationKind(node.Kind);
 	}
 
-	public static function IsFunctionLikeKind(kind:Kind):Bool {
+	// PORT: perf — IsFunctionLikeKind looks the kind up in a table filled from Go's switch (isFunctionLikeKindSwitch)
+	static final functionLikeKinds:haxe.ds.Vector<Bool> = {
+		final v = new haxe.ds.Vector<Bool>(KindCount);
+		for (k in 0...KindCount)
+			v[k] = isFunctionLikeKindSwitch(cast k);
+		v;
+	}
+
+	public static inline function IsFunctionLikeKind(kind:Kind):Bool {
+		final k:Int = cast kind;
+		return k >= 0 && k < KindCount ? functionLikeKinds[k] : isFunctionLikeKindSwitch(kind);
+	}
+
+	static function isFunctionLikeKindSwitch(kind:Kind):Bool {
 		switch (kind) {
 			case KindMethodSignature | KindCallSignature | KindJSDocSignature | KindConstructSignature | KindIndexSignature | KindFunctionType |
 				KindConstructorType:
@@ -12415,6 +12428,9 @@ class TokenCacheKey {
 @:allow(ts.ast)
 class SourceFile extends NodeDefault implements DeclarationBase implements LocalsContainerBase implements CompositeBase implements SourceFileLike {
 	@:isVar public var Symbol(get, set):Symbol = null;
+	// PORT: perf — the binder declared a symbol on a binary expression of this file (an expando or this-property
+	// assignment): what DeclarationTransformer.transformSourceFile's expression walk looks for
+	public var tshxBinaryExpressionSymbols:Bool = false;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
 	@:isVar public var facts(get, set):Int = 0;

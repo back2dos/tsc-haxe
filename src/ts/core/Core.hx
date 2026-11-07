@@ -1109,7 +1109,7 @@ class Core {
 				if (candidateLen < 3 && !Strings.EqualFold(candidateName, name)) {
 					continue;
 				}
-				final distance = levenshteinWithMax(buffers, runeName, runes(candidateName), bestDistance);
+				final distance = levenshteinWithMax(buffers, runeName, runesInto(buffers.runes2, candidateName), bestDistance); // PORT: perf — buffer reused
 				if (distance < 0) {
 					continue;
 				}
@@ -1131,6 +1131,18 @@ class Core {
 
 	public static function GetSpellingSuggestionForStrings(name:String, candidates:Iterator<String>):String {
 		return GetSpellingSuggestion(name, candidates, Identity, Strings.Compare, "");
+	}
+
+	// runes(s) into `into` (emptied first)
+	static function runesInto(into:Array<Int>, s:String):Array<Int> {
+		into.resize(0);
+		var i = 0;
+		while (i < s.length) {
+			final r = Utf16.DecodeRuneInString(s, i);
+			into.push(r);
+			i += Utf16.RuneLen(r);
+		}
+		return into;
 	}
 
 	// PORT: Go []rune(s) on a UTF-16 string.
@@ -1190,6 +1202,11 @@ class Core {
 	}
 
 	static function levenshteinWithMax(buffers:LevenshteinBuffers, s1:Array<Int>, s2:Array<Int>, maxValue:Float):Float {
+		// PORT: perf — (from tsrs) each insertion or deletion costs 1, so the distance is at least the lengths'
+		// difference: past maxValue the result is -1 without the table (the banded table's cells are never
+		// below the distance either)
+		if (std.Math.abs(s1.length - s2.length) > maxValue)
+			return -1;
 		final bufferSize = s2.length + 1;
 		buffers.previous.resize(bufferSize);
 		buffers.current.resize(bufferSize);
@@ -1630,6 +1647,7 @@ class LevenshteinBuffers {
 	public var current:Array<Float> = [];
 	public var lower1:Array<Int> = []; // PORT: perf (levenshteinWithMax)
 	public var lower2:Array<Int> = [];
+	public var runes2:Array<Int> = []; // PORT: perf (GetSpellingSuggestion: a candidate's runes)
 
 	public function new() {}
 }

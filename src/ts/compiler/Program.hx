@@ -1829,7 +1829,36 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.GetSourceFileByPath(path);
 	}
 
+	// PORT: perf — (from tsrs) the result by file name: the program's files are fixed once it is built, and
+	// toPath normalizes a resolved name (with `..` segments) on every call. Checkers call it on threads (a lock).
+	final sourceFileForResolvedModule:StringMap<SourceFile> = new StringMap();
+	#if tshx_parallel
+	final sourceFileForResolvedModuleMutex = new sys.thread.Mutex();
+	#end
+
 	public function GetSourceFileForResolvedModule(fileName:std.String):SourceFile {
+		#if tshx_parallel
+		sourceFileForResolvedModuleMutex.acquire();
+		#end
+		final cached = sourceFileForResolvedModule.get(fileName);
+		final known = cached != null || sourceFileForResolvedModule.exists(fileName);
+		#if tshx_parallel
+		sourceFileForResolvedModuleMutex.release();
+		#end
+		if (known)
+			return cached;
+		final file = getSourceFileForResolvedModuleWorker(fileName);
+		#if tshx_parallel
+		sourceFileForResolvedModuleMutex.acquire();
+		#end
+		sourceFileForResolvedModule.set(fileName, file);
+		#if tshx_parallel
+		sourceFileForResolvedModuleMutex.release();
+		#end
+		return file;
+	}
+
+	function getSourceFileForResolvedModuleWorker(fileName:std.String):SourceFile {
 		final file = this.GetSourceFile(fileName);
 		if (file == null) {
 			final filename = this.GetParseFileRedirect(fileName);

@@ -341,7 +341,17 @@ class Relater {
 		return false;
 	}
 
-	static function isSimpleTypeRelatedTo(c:Checker, source:Type, target:Type, relation:Relation, errorReporter:ErrorReporter):Bool {
+	// PORT: perf — (from tsrs) split: when neither type has a flag outside objects, unions, intersections and the
+	// instantiable kinds, every test of isSimpleTypeRelatedToSlow fails (each needs another flag on one side)
+	// but the last, the unknown-like union target; that is answered inline
+	static inline function isSimpleTypeRelatedTo(c:Checker, source:Type, target:Type, relation:Relation, errorReporter:ErrorReporter):Bool {
+		return (source.flags | target.flags) & ~(TypeFlagsObject | TypeFlagsUnion | TypeFlagsIntersection | TypeFlagsTypeParameter | TypeFlagsIndex
+			| TypeFlagsIndexedAccess | TypeFlagsConditional | TypeFlagsSubstitution) == 0 ? target.flags & TypeFlagsUnion != 0
+			&& (relation == c.assignableRelation || relation == c.comparableRelation) && c.isUnknownLikeUnionType(target) : c.isSimpleTypeRelatedToSlow(source,
+				target, relation, errorReporter);
+	}
+
+	static function isSimpleTypeRelatedToSlow(c:Checker, source:Type, target:Type, relation:Relation, errorReporter:ErrorReporter):Bool {
 		final s = source.flags;
 		final t = target.flags;
 		if (t & TypeFlagsAny != 0 || s & TypeFlagsNever != 0 || source == c.wildcardType) {

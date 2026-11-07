@@ -155,6 +155,31 @@ class Scanner {
 		"of" => KindOfKeyword,
 	];
 
+	// PORT: perf — (from tsrs) GetIdentifierToken's keywords by a perfect hash of the first two units, the last
+	// and the length (one string comparison per identifier instead of a map lookup); kwTable null when two
+	// keywords collide (then the map, as before)
+	static final kwKinds:haxe.ds.Vector<Kind> = new haxe.ds.Vector<Kind>(256);
+	static final kwTable:Null<haxe.ds.Vector<String>> = {
+		final t = new haxe.ds.Vector<String>(256);
+		var ok = true;
+		for (k in textToKeyword.keys()) {
+			if (k.length < 2 || k.length > 12)
+				continue;
+			final h = kwHash(k);
+			if (t[h] != null)
+				ok = false;
+			t[h] = k;
+			kwKinds[h] = textToKeyword.get(k);
+		}
+		ok ? t : null;
+	}
+
+	static inline function kwHash(str:String):Int {
+		final key = StringTools.fastCodeAt(str, 0) | (StringTools.fastCodeAt(str, 1) << 8) | ((StringTools.fastCodeAt(str, str.length - 1) & 0xFF) << 16)
+			| (str.length << 24);
+		return (key * 0xae8526c7) >>> 24;
+	}
+
 	static final textToToken:StringMap<Kind> = (function() {
 		final m:StringMap<Kind> = [
 			"{" => KindOpenBraceToken,
@@ -2424,6 +2449,15 @@ class Scanner {
 
 	public static function GetIdentifierToken(str:String):Kind {
 		if (str.length >= 2 && str.length <= 12 && StringTools.fastCodeAt(str, 0) >= 'a'.code && StringTools.fastCodeAt(str, 0) <= 'z'.code) {
+			final t = kwTable;
+			if (t != null) {
+				final h = kwHash(str);
+				final k = t[h];
+				if (k == null || k != str)
+					return KindIdentifier;
+				final keyword = kwKinds[h];
+				return keyword != KindUnknown ? keyword : KindIdentifier;
+			}
 			final keyword = textToKeyword.get(str);
 			if (keyword != null && keyword != KindUnknown) {
 				return keyword;

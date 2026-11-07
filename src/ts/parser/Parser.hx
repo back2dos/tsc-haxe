@@ -134,6 +134,11 @@ class Parser {
 		return v;
 	}
 
+	// PORT: perf — match(p.sourceText, pos, s) without making the prefix (a copy of the file in a JSDoc comment)
+	function matchSourceText(pos:Int, s:String):Bool {
+		return sourceTextLen - pos >= s.length && match(sourceTextFull, pos, s);
+	}
+
 	// p.sourceText = text[:n]
 	function setSourceTextPrefix(text:String, n:Int):Void {
 		sourceTextFull = text;

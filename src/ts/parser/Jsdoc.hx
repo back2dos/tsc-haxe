@@ -859,7 +859,7 @@ class Jsdoc {
 	}
 
 	static function parseSeeTag(p:Parser, start:Int, tagName:IdentifierNode, indent:Int, indentText:String):Node {
-		var hasNameReference = p.isIdentifier() && !Parser.match(p.sourceText, p.scanner.TokenEnd(), "://") ||
+		var hasNameReference = p.isIdentifier() && !p.matchSourceText(p.scanner.TokenEnd(), "://") ||
 			p.token == KindOpenBraceToken && p.lookAhead(Parser.fn_nextTokenIsIdentifierOrKeyword);
 		var nameExpression:Node = null;
 		if (hasNameReference) {

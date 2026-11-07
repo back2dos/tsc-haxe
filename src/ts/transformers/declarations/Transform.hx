@@ -337,7 +337,10 @@ class DeclarationTransformer {
 		// (visitCJSExportAssignments; its diagnostic contexts are set up and left again): skipped without one
 		if (node.CommonJSModuleIndicator != null)
 			cjsExportAssignmentVisitor.VisitNode(node.AsNode()); // collect nested module.exports= assignments
-		expressionVisitor.VisitNode(node.AsNode()); // collect expando members (requires any export assignment be located in advance)
+		// PORT: perf — the walk acts on a binary expression with a symbol (expando assignments: transformExpandoAssignment
+		// returns without one) or, with a CommonJSModuleIndicator, on exports assignments: skipped in a file with neither
+		if (node.CommonJSModuleIndicator != null || node.tshxBinaryExpressionSymbols)
+			expressionVisitor.VisitNode(node.AsNode()); // collect expando members (requires any export assignment be located in advance)
 		var combinedStatements:StatementList;
 		final statements = Visitor().VisitNodes(node.Statements);
 		combinedStatements = transformAndReplaceLatePaintedStatements(statements);

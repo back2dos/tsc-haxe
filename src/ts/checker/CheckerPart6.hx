@@ -1686,7 +1686,16 @@ class CheckerPart6 {
 	 * boolean, and symbol primitive types, return the corresponding object types. Otherwise return the
 	 * type itself.
 	 */
-	static function getApparentType(c:Checker, t:Type):Type {
+	// PORT: perf — split: an inline test for the types that are their own apparent type (most calls), then
+	// the function (the flags none of getApparentTypeSlow's branches test; ObjectFlagsReference only acts on
+	// an instantiable type's constraint)
+	static inline function getApparentType(c:Checker, t:Type):Type {
+		return (t.flags & (TypeFlagsInstantiable | TypeFlagsIntersection | TypeFlagsStringLike | TypeFlagsNumberLike | TypeFlagsBigIntLike
+			| TypeFlagsBooleanLike | TypeFlagsESSymbolLike | TypeFlagsNonPrimitive | TypeFlagsIndex | TypeFlagsUnknown)) == 0
+			&& (t.objectFlags & ObjectFlagsMapped) == 0 ? t : c.getApparentTypeSlow(t);
+	}
+
+	static function getApparentTypeSlow(c:Checker, t:Type):Type {
 		final originalType = t;
 		if ((t.flags & TypeFlagsInstantiable) != 0) {
 			t = c.getBaseConstraintOfType(t);
