@@ -20,7 +20,15 @@ class LinkStore<K, V> {
 		this.arena = new Arena<V>(factory);
 	}
 
-	public function Get(key:K):V {
+	// PORT: perf — inline: the key's first entry (most often this store's: the last one to add a link to the key)
+	public inline function Get(key:K):V {
+		final h:LinkHolder = cast key;
+		final e = h.links;
+		final self:LinkStore<Dynamic, Dynamic> = cast this;
+		return e != null && e.store == self ? cast e.value : getSlow(key);
+	}
+
+	function getSlow(key:K):V {
 		final h:LinkHolder = cast key;
 		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
