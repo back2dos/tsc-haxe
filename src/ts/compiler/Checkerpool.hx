@@ -104,7 +104,6 @@ class CheckerPool_ implements CheckerPool {
 				}
 				final r = Checker.NewChecker(this.program, tracer);
 				this.checkers[i] = r.a;
-				#if tshx_parallel
 				this.locks[i] = r.b;
 			});
 		}
