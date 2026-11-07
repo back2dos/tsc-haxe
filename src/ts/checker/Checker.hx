@@ -2651,6 +2651,14 @@ class Checker {
 			source = target;
 			target = tmp;
 		}
+		#if (target.name == "hxmc")
+		// PORT: perf — (from tsrs) the key of two types by id (Go hashes 's', the ids and the intersection state):
+		// their six 16-bit units, no hasher (KeyHasher.Sum's keys are eight units: never equal to these)
+		if (!(isTypeReferenceWithGenericArguments(source) && isTypeReferenceWithGenericArguments(target))) {
+			getRelationKeyConstrained = false;
+			return new CacheHashKey(idsKey(source.id, target.id, intersectionState));
+		}
+		#end
 		final b = new KeyBuilder();
 		var constrained = false;
 		if (isTypeReferenceWithGenericArguments(source) && isTypeReferenceWithGenericArguments(target)) {
@@ -2665,6 +2673,27 @@ class Checker {
 		getRelationKeyConstrained = constrained;
 		return b.hash();
 	}
+
+	#if (target.name == "hxmc")
+	// three 32-bit values as a six-unit string, with its StringMap hash stored (as KeyHasher.Sum)
+	static function idsKey(a:Int, b:Int, c:Int):std.String {
+		final s = hxmc.rt.Str.make2(6);
+		final d = hxmc.rt.Str.chars2(s);
+		var x = 0x811C9DC5;
+		inline function put(i:Int, u:Int) {
+			d.set(i, u);
+			x = (x ^ u) * 16777619;
+		}
+		put(0, a & 0xFFFF);
+		put(1, a >>> 16);
+		put(2, b & 0xFFFF);
+		put(3, b >>> 16);
+		put(4, c & 0xFFFF);
+		put(5, c >>> 16);
+		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
+		return s;
+	}
+	#end
 
 	static function getNodeListKey(nodes:Array<Node>):CacheHashKey {
 		final b = new KeyBuilder();

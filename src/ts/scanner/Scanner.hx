@@ -603,6 +603,14 @@ class Scanner {
 	// first byte where pred is false.
 	// PORT: inline; with -D analyzer-optimize Haxe inlines the lambda literal at each call site
 	// (no function value per call), like Go's compiler does.
+	// the ASCII units an identifier continues with (a-z, A-Z, 0-9, _ and $), by unit
+	static final asciiIdentifierPart:haxe.ds.Vector<Bool> = {
+		final v = new haxe.ds.Vector<Bool>(128);
+		for (b in 0...128)
+			v[b] = (b >= 'a'.code && b <= 'z'.code) || (b >= 'A'.code && b <= 'Z'.code) || (b >= '0'.code && b <= '9'.code) || b == '_'.code || b == '$'.code;
+		v;
+	}
+
 	inline function scanASCIIWhile(pred:Int->Bool):Void {
 		final text = this.text;
 		final end = this.end;
@@ -1717,8 +1725,7 @@ class Scanner {
 		// Fast path for simple ASCII identifiers
 		if (Stringutil.IsASCIILetter(ch) || ch == '_'.code || ch == '$'.code) {
 			pos++;
-			scanASCIIWhile(b -> (b >= 'a'.code && b <= 'z'.code) || (b >= 'A'.code && b <= 'Z'.code) || (b >= '0'.code && b <= '9'.code) || b == '_'.code
-				|| b == '$'.code);
+			scanASCIIWhile(b -> asciiIdentifierPart[b]); // PORT: perf — (from tsrs) a table of Go's predicate
 			ch = char();
 			if (ch < Utf16.RuneSelf && ch != '\\'.code) {
 				tokenValue = text.substring(start, pos);
