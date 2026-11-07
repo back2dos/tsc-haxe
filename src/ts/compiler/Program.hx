@@ -1758,12 +1758,22 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			final sizes:Array<Int> = [];
 			#end
 			for (sourceFile in sourceFiles) {
+				#if tshx_parallel
+				// PORT: hxmc (-D tshx-parallel) — a file's .js and its .d.ts are written by two tasks (Go: one goroutine
+				// per file), so that the largest file's two outputs are printed at the same time; the two emitters
+				// stay next to each other in input order (same results)
+				final parts = options.EmitOnly == EmitAll ? [1, 2] : [0];
+				#else
+				final parts = [0];
+				#end
+				for (part in parts) {
 				final emitter = new Emitter();
 				emitter.writer = null;
 				emitter.sourceFile = sourceFile;
 				emitter.emitOnly = options.EmitOnly;
 				emitter.writeFile = options.WriteFile;
 				emitter.tr = this.opts.Tracing;
+				emitter.part = part;
 				emitters.push(emitter);
 				#if tshx_parallel
 				sizes.push(sourceFile.Text().length);
@@ -1793,6 +1803,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 					}
 					hostDone();
 				});
+				}
 			}
 			#if tshx_parallel
 			final order = [for (i in 0...queue.length) i];

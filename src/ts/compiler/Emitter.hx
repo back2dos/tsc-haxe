@@ -20,6 +20,7 @@ class Emitter {
 	var emitResult:EmitResult = new EmitResult();
 	var writeFile:(fileName:std.String, text:std.String, data:WriteFileData) -> Null<Error> = null;
 	var tr:Tracing = null;
+	var part:Int = 0; // PORT: hxmc (-D tshx-parallel) — 0: both outputs, 1: the .js only, 2: the .d.ts only
 
 	public function new() {}
 
@@ -31,8 +32,10 @@ class Emitter {
 			done = this.tr.Push(PhaseEmit, "emit", args, true);
 		}
 		try {
-			this.emitJSFile(this.sourceFile, this.paths.JsFilePath(), this.paths.SourceMapFilePath());
-			this.emitDeclarationFile(this.sourceFile, this.paths.DeclarationFilePath(), this.paths.DeclarationMapPath());
+			if (this.part != 2)
+				this.emitJSFile(this.sourceFile, this.paths.JsFilePath(), this.paths.SourceMapFilePath());
+			if (this.part != 1)
+				this.emitDeclarationFile(this.sourceFile, this.paths.DeclarationFilePath(), this.paths.DeclarationMapPath());
 			this.emitResult.Diagnostics = this.emitterDiagnostics.GetDiagnostics();
 		} catch (e:Dynamic) {
 			if (done != null)
