@@ -2908,10 +2908,49 @@ class Relater {
 
 	static function isTypeSubsetOfUnion(c:Checker, source:Type, target:Type):Bool {
 		if (source.flags & TypeFlagsUnion != 0) {
-			for (t in source.Types()) {
-				if (!Checker.containsType(target.Types(), t)) {
+			// PORT: perf — from TypeScript 7.1 (microsoft/TypeScript#64964): the target's constituents are scanned
+			// from where the previous source type was found (both sorted by CompareTypes); the rest of the target
+			// is [lo, n).
+			final sourceTypes = source.Types(), targetTypes = target.Types();
+			final m = sourceTypes.length, n = targetTypes.length;
+			if (m > n) {
+				return false;
+			}
+			var lo = 0;
+			// Scan by identity unless a few source types are looked for in a large target. A CompareTypes call costs
+			// roughly 8 pointer comparisons, so there a binary search is cheaper than walking the target.
+			var bitsLen = 0;
+			while (n >>> bitsLen != 0)
+				bitsLen++;
+			if (m * bitsLen * 8 >= n) {
+				for (t in sourceTypes) {
+					var i = lo;
+					while (i < n && targetTypes[i] != t)
+						i++;
+					if (i == n) {
+						return false;
+					}
+					lo = i + 1;
+				}
+				return true;
+			}
+			for (t in sourceTypes) {
+				var l = lo, h = n, found = false;
+				while (l < h) {
+					final mid = (l + h) >>> 1;
+					final d = Checker.CompareTypes(targetTypes[mid], t);
+					if (d < 0) {
+						l = mid + 1;
+					} else {
+						h = mid;
+						if (d == 0)
+							found = true;
+					}
+				}
+				if (!found) {
 					return false;
 				}
+				lo = l + 1;
 			}
 			return true;
 		}

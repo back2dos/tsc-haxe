@@ -135,6 +135,10 @@ class Utilities {
 		if (n2 == null) {
 			return -1;
 		}
+		// PORT: perf — from TypeScript 7.1 (microsoft/TypeScript#64551)
+		if (n1.Parent != null && n1.Parent == n2.Parent) {
+			return n1.Pos() - n2.Pos();
+		}
 		final s1 = Ast.GetSourceFileOfNode(n1);
 		final s2 = Ast.GetSourceFileOfNode(n2);
 		if (s1 != s2) {
