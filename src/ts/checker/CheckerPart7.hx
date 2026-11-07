@@ -1766,32 +1766,101 @@ class CheckerPart7 {
 	}
 
 	// PORT: perf — Go returns (typeSet, includes); includes is left in c.addTypesToUnionIncludes, read by the caller right
-	// after the call (no Pair per type). The same for addTypeToUnion.
-	static function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, types:Array<Type>):Array<Type> {
+	// after the call (no Pair per type).
+	// PORT: perf — TypeScript 7.1's construction (microsoft/typescript-go#4687): the constituents are collected, then
+	// sorted by CompareTypes and deduplicated, in place of a binary-search insertion per constituent. The sort merges
+	// the sorted runs the input already has (a nested union's types are one), as tsrs does.
+	static function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type> {
 		var lastType:Type = null;
-		if (types != null) {
-			for (t in types) {
+		if (sourceTypes != null) {
+			for (t in sourceTypes) {
 				if (t != lastType) {
 					if (t.flags & TypeFlagsUnion != 0) {
 						final u = t.AsUnionType();
 						if (t.alias != null || u.origin != null) {
 							includes |= TypeFlagsUnion;
 						}
-						typeSet = c.addTypesToUnion(typeSet, includes, u.types);
-						includes = c.addTypesToUnionIncludes;
+						for (s in u.types)
+							includes = c.addTypeToUnion(typeSet, includes, s);
 					} else {
-						typeSet = c.addTypeToUnion(typeSet, includes, t);
-						includes = c.addTypesToUnionIncludes;
+						includes = c.addTypeToUnion(typeSet, includes, t);
 					}
 					lastType = t;
 				}
 			}
 		}
+		if (typeSet.length >= 2) {
+			sortTypesByRuns(typeSet);
+			// Deduplicate types
+			var unique = 1;
+			for (k in 1...typeSet.length) {
+				final t = typeSet[k];
+				if (t != typeSet[unique - 1]) {
+					typeSet[unique] = t;
+					unique++;
+				}
+			}
+			if (unique < typeSet.length)
+				typeSet.resize(unique);
+		}
 		c.addTypesToUnionIncludes = includes;
 		return typeSet;
 	}
 
-	static function addTypeToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t:Type):Array<Type> {
+	// a stable sort by CompareTypes that merges the ascending runs of `types` (natural merge sort)
+	static function sortTypesByRuns(types:Array<Type>):Void {
+		final n = types.length;
+		var runs:Array<Int> = null; // run starts after 0
+		for (k in 1...n) {
+			if (Checker.CompareTypes(types[k - 1], types[k]) > 0) {
+				if (runs == null)
+					runs = [];
+				runs.push(k);
+			}
+		}
+		if (runs == null)
+			return;
+		runs.push(n);
+		var src = types, dst = [for (_ in 0...n) (null : Type)];
+		var bounds = [0].concat(runs); // run i is [bounds[i], bounds[i + 1])
+		while (bounds.length > 2) {
+			final next = [0];
+			var r = 0;
+			while (r + 2 < bounds.length) {
+				final lo = bounds[r], mid = bounds[r + 1], hi = bounds[r + 2];
+				var a = lo, b = mid, o = lo;
+				while (a < mid && b < hi) {
+					if (Checker.CompareTypes(src[b], src[a]) < 0) {
+						dst[o++] = src[b++];
+					} else {
+						dst[o++] = src[a++];
+					}
+				}
+				while (a < mid)
+					dst[o++] = src[a++];
+				while (b < hi)
+					dst[o++] = src[b++];
+				next.push(hi);
+				r += 2;
+			}
+			if (r + 1 < bounds.length) {
+				// an odd run left over: copied as it is
+				for (k in bounds[r]...bounds[r + 1])
+					dst[k] = src[k];
+				next.push(bounds[r + 1]);
+			}
+			bounds = next;
+			final tmp = src;
+			src = dst;
+			dst = tmp;
+		}
+		if (src != types) {
+			for (k in 0...n)
+				types[k] = src[k];
+		}
+	}
+
+	static function addTypeToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t:Type):TypeFlags {
 		final flags = t.flags;
 		// We ignore 'never' types in unions
 		if (flags & TypeFlagsNever == 0) {
@@ -1813,18 +1882,10 @@ class CheckerPart7 {
 					includes |= TypeFlagsIncludesNonWideningType;
 				}
 			} else {
-				final r = Slices.BinarySearchFuncInline(typeSet, t, (a, b) -> Checker.CompareTypes(a, b)) /* PORT: perf */;
-				if (!r.ok) {
-					// PORT: slices.Insert into the typeSet this union build owns (in place).
-					if (typeSet == null) {
-						typeSet = [];
-					}
-					typeSet.insert(r.value, t);
-				}
+				typeSet.push(t);
 			}
 		}
-		c.addTypesToUnionIncludes = includes;
-		return typeSet;
+		return includes;
 	}
 
 	static function addNamedUnions(c:Checker, namedUnions:Array<Type>, types:Array<Type>):Array<Type> {
