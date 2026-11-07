@@ -3949,14 +3949,12 @@ class Ast {
 	}
 
 	// Walks up the parents of a node to find the ancestor that matches the callback
-	public static function FindAncestor(node:Node, callback:(Node) -> Bool):Node {
-		while (node != null) {
-			if (callback(node)) {
-				return node;
-			}
-			node = node.Parent;
-		}
-		return null;
+	// PORT: perf — inline: a lambda literal is inlined into the loop (no call per ancestor)
+	public static inline function FindAncestor(node:Node, callback:(Node) -> Bool):Node {
+		var n = node;
+		while (n != null && !callback(n))
+			n = n.Parent;
+		return n;
 	}
 
 	// Walks up the parents of a node to find the ancestor that matches the kind
@@ -3978,18 +3976,21 @@ class Ast {
 	}
 
 	// Walks up the parents of a node to find the ancestor that matches the callback
-	public static function FindAncestorOrQuit(node:Node, callback:(Node) -> FindAncestorResult):Node {
-		while (node != null) {
-			switch (callback(node)) {
-				case FindAncestorQuit:
-					return null;
-				case FindAncestorTrue:
-					return node;
-				default:
+	// PORT: perf — inline: a lambda literal is inlined into the loop
+	public static inline function FindAncestorOrQuit(node:Node, callback:(Node) -> FindAncestorResult):Node {
+		var n = node;
+		var r:Node = null;
+		while (n != null) {
+			final k = callback(n);
+			if (k == FindAncestorQuit)
+				break;
+			if (k == FindAncestorTrue) {
+				r = n;
+				break;
 			}
-			node = node.Parent;
+			n = n.Parent;
 		}
-		return null;
+		return r;
 	}
 
 	public static function IsNodeDescendantOf(node:Node, ancestor:Node):Bool {

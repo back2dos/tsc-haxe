@@ -746,9 +746,16 @@ class Grammarchecks {
 		}
 
 		final equalsGreaterThanToken = arrowFunc.EqualsGreaterThanToken;
-		final startLine = Scanner.GetECMALineOfPosition(file, equalsGreaterThanToken.Pos());
-		final endLine = Scanner.GetECMALineOfPosition(file, equalsGreaterThanToken.End());
-		return startLine != endLine && c.grammarErrorOnNode(equalsGreaterThanToken, Diagnostics.Line_terminator_not_permitted_before_arrow);
+		// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4787): a line break in the token's text, without the line map
+		final text = file.Text();
+		var lineBreak = false;
+		for (i in equalsGreaterThanToken.Pos()...equalsGreaterThanToken.End()) {
+			if (Stringutil.IsLineBreak(StringTools.fastCodeAt(text, i))) {
+				lineBreak = true;
+				break;
+			}
+		}
+		return lineBreak && c.grammarErrorOnNode(equalsGreaterThanToken, Diagnostics.Line_terminator_not_permitted_before_arrow);
 	}
 
 	static function checkGrammarIndexSignatureParameters(c:Checker, node:IndexSignatureDeclaration):Bool {

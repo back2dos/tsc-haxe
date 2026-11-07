@@ -596,16 +596,11 @@ class Core {
 		return result;
 	}
 
-	public static function FindLastIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int {
+	public static inline function FindLastIndex<T>(slice:Null<Array<T>>, f:(T) -> Bool):Int { // PORT: perf (inline)
 		var i = len(slice) - 1;
-		while (i >= 0) {
-			final value = slice[i];
-			if (f(value)) {
-				return i;
-			}
+		while (i >= 0 && !f(slice[i]))
 			i--;
-		}
-		return -1;
+		return i;
 	}
 
 	public static inline function FirstOrNil<T>(slice:Null<Array<T>>, ?zero:T):T {

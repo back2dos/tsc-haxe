@@ -2980,18 +2980,12 @@ class Checker {
 		}
 	}
 
-	static function someType(t:Type, f:(Type) -> Bool):Bool {
-		if (t.flags & TypeFlagsUnion != 0) {
-			return Core.Some(t.Types(), f);
-		}
-		return f(t);
+	static inline function someType(t:Type, f:(Type) -> Bool):Bool { // PORT: perf (inline: the lambda inlined)
+		return t.flags & TypeFlagsUnion != 0 ? Core.Some(t.Types(), f) : f(t);
 	}
 
-	static function everyType(t:Type, f:(Type) -> Bool):Bool {
-		if (t.flags & TypeFlagsUnion != 0) {
-			return Core.Every(t.Types(), f);
-		}
-		return f(t);
+	static inline function everyType(t:Type, f:(Type) -> Bool):Bool { // PORT: perf (inline: the lambda inlined)
+		return t.flags & TypeFlagsUnion != 0 ? Core.Every(t.Types(), f) : f(t);
 	}
 
 	static function everyContainedType(t:Type, f:(Type) -> Bool):Bool {

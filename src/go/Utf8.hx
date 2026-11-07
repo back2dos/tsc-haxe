@@ -44,6 +44,19 @@ class Utf8 {
 	public static function BytesToString(b:Bytes, pos:Int, len:Int):String {
 		final end = pos + len;
 		var i = pos;
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		// PORT: perf — ASCII eight bytes at a time (a source file is mostly ASCII); all ASCII: the runtime's decoder
+		{
+			final p = hxmc.unsafe.Mem.addr(b.getData());
+			while (i + 8 <= end && (hxmc.unsafe.Mem.getI32(p, i) | hxmc.unsafe.Mem.getI32(p, i + 4)) & 0x80808080 == 0)
+				i += 8;
+			if (i + 8 > end)
+				while (i < end && b.get(i) < 0x80)
+					i++;
+			if (i == end)
+				return b.getString(pos, len, UTF8);
+		}
+		#end
 		var valid = true;
 		while (i < end) {
 			final c = b.get(i);
