@@ -125,7 +125,12 @@ class Utilities {
 		return Ast.GetSymbolId(s1) - Ast.GetSymbolId(s2);
 	}
 
-	static function compareNodes(c:Checker, n1:Node, n2:Node):Int {
+	// PORT: perf — inline fast path (the same node, or nodes of one parent), the rest out of line
+	static inline function compareNodes(c:Checker, n1:Node, n2:Node):Int {
+		return n1 == n2 ? 0 : n1 != null && n2 != null && n1.Parent != null && n1.Parent == n2.Parent ? n1.Pos() - n2.Pos() : c.compareNodesSlow(n1, n2);
+	}
+
+	static function compareNodesSlow(c:Checker, n1:Node, n2:Node):Int {
 		if (n1 == n2) {
 			return 0;
 		}

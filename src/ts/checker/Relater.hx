@@ -5170,7 +5170,13 @@ class Relater {
 			&& (c.isTypeParameterPossiblyReferenced(root.checkType, root.node.TrueType) || c.isTypeParameterPossiblyReferenced(root.checkType, root.node.FalseType));
 	}
 
-	function traceUnionsOrIntersectionsTooLarge(source:Type, target:Type):Void {
+	// PORT: perf — inline fast path (no tracer), the rest out of line
+	inline function traceUnionsOrIntersectionsTooLarge(source:Type, target:Type):Void {
+		if (c.tracer != null)
+			traceUnionsOrIntersectionsTooLargeSlow(source, target);
+	}
+
+	function traceUnionsOrIntersectionsTooLargeSlow(source:Type, target:Type):Void {
 		final tr = c.tracer;
 		if (tr == null) {
 			return;

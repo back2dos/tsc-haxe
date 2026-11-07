@@ -938,7 +938,12 @@ class CheckerPart7 {
 		return Checker.isTupleType(t) && (t.TargetTupleType().combinedFlags & ElementFlagsVariadic) != 0;
 	}
 
-	static function isGenericMappedType(c:Checker, t:Type):Bool {
+	// PORT: perf — inline fast path (not a mapped type), the rest out of line
+	static inline function isGenericMappedType(c:Checker, t:Type):Bool {
+		return t.objectFlags & ObjectFlagsMapped != 0 && c.isGenericMappedTypeSlow(t);
+	}
+
+	static function isGenericMappedTypeSlow(c:Checker, t:Type):Bool {
 		if ((t.objectFlags & ObjectFlagsMapped) != 0) {
 			final constraint = c.getConstraintTypeFromMappedType(t);
 			if (c.isGenericIndexType(constraint)) {
@@ -4263,7 +4268,14 @@ class CheckerPart7 {
 		return t.flags & TypeFlagsStructuredType != 0 && Core.len(c.resolveStructuredTypeMembers(t).signatures) != 0;
 	}
 
-	static function getNormalizedType(c:Checker, t:Type, writing:Bool):Type {
+	// PORT: perf — inline fast path (a type that no case of the loop changes: not a literal, a type reference, a
+	// union or intersection, a substitution or simplifiable), the rest out of line
+	static inline function getNormalizedType(c:Checker, t:Type, writing:Bool):Type {
+		return t.objectFlags & ObjectFlagsReference == 0
+			&& t.flags & (TypeFlagsLiteral | TypeFlagsUnionOrIntersection | TypeFlagsSubstitution | TypeFlagsSimplifiable) == 0 ? t : c.getNormalizedTypeSlow(t, writing);
+	}
+
+	static function getNormalizedTypeSlow(c:Checker, t:Type, writing:Bool):Type {
 		while (true) {
 			var n:Type = null;
 			if (Checker.isFreshLiteralType(t)) {

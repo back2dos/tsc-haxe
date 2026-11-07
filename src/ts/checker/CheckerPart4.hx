@@ -2372,7 +2372,12 @@ class CheckerPart4 {
 		return null;
 	}
 
-	static function getLateBoundSymbol(c:Checker, symbol:Symbol):Symbol {
+	// PORT: perf — inline fast path (not a computed class member), the rest out of line
+	static inline function getLateBoundSymbol(c:Checker, symbol:Symbol):Symbol {
+		return symbol.Flags & SymbolFlagsClassMember == 0 || symbol.Name != Ast.InternalSymbolNameComputed ? symbol : c.getLateBoundSymbolSlow(symbol);
+	}
+
+	static function getLateBoundSymbolSlow(c:Checker, symbol:Symbol):Symbol {
 		if ((symbol.Flags & SymbolFlagsClassMember) == 0 || symbol.Name != Ast.InternalSymbolNameComputed) {
 			return symbol;
 		}

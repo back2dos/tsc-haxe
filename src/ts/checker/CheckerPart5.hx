@@ -3757,7 +3757,13 @@ class CheckerPart5 {
 		return c.isTypeAssignableTo(t, c.stringNumberSymbolType);
 	}
 
-	static function getReturnTypeOfSignature(c:Checker, sig:Signature):Type {
+	// PORT: perf — inline fast path (resolved already), the rest out of line
+	static inline function getReturnTypeOfSignature(c:Checker, sig:Signature):Type {
+		final t = sig.resolvedReturnType;
+		return t != null ? t : c.getReturnTypeOfSignatureSlow(sig);
+	}
+
+	static function getReturnTypeOfSignatureSlow(c:Checker, sig:Signature):Type {
 		if (sig.resolvedReturnType != null) {
 			return sig.resolvedReturnType;
 		}

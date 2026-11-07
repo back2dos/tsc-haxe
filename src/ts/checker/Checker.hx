@@ -3164,19 +3164,24 @@ class Checker {
 		return "x";
 	}
 
+	// PORT: perf — the ancestor walk without a function per step: only a node whose parent is an export
+	// assignment or an export specifier can match
 	static function isExportOrExportExpression(location:Node):Bool {
-		return Ast.FindAncestor(location, (n:Node) -> {
+		var n = location;
+		while (n != null) {
 			final parent = n.Parent;
 			if (parent != null) {
 				if (Ast.IsAnyExportAssignment(parent)) {
-					return parent.Expression() == n && Ast.IsEntityNameExpression(n);
-				}
-				if (Ast.IsExportSpecifier(parent)) {
-					return parent.AsExportSpecifier().Name() == n || parent.PropertyName() == n;
+					if (parent.Expression() == n && Ast.IsEntityNameExpression(n))
+						return true;
+				} else if (Ast.IsExportSpecifier(parent)) {
+					if (parent.AsExportSpecifier().Name() == n || parent.PropertyName() == n)
+						return true;
 				}
 			}
-			return false;
-		}) != null;
+			n = parent;
+		}
+		return false;
 	}
 
 	static function shouldMarkIdentifierAliasReferenced(node:IdentifierNode):Bool {

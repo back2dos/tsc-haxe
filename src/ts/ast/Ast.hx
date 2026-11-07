@@ -4528,7 +4528,12 @@ class Ast {
 		return null;
 	}
 
-	public static function GetAssignmentDeclarationKind(node:Node):JSDeclarationKind {
+	// PORT: perf — inline fast path (neither a binary nor a call expression), the rest out of line
+	public static inline function GetAssignmentDeclarationKind(node:Node):JSDeclarationKind {
+		return node.Kind != KindBinaryExpression && node.Kind != KindCallExpression ? JSDeclarationKindNone : GetAssignmentDeclarationKindSlow(node);
+	}
+
+	public static function GetAssignmentDeclarationKindSlow(node:Node):JSDeclarationKind {
 		switch (node.Kind) {
 			case KindBinaryExpression:
 				final bin = node.AsBinaryExpression();

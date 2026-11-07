@@ -3792,7 +3792,12 @@ class CheckerPart2 {
 		}
 	}
 
-	static function instantiateTypeWithSingleGenericCallSignature(c:Checker, node:Node, t:Type, checkMode:CheckMode):Type {
+	// PORT: perf — inline fast path (not inferential), the rest out of line
+	static inline function instantiateTypeWithSingleGenericCallSignature(c:Checker, node:Node, t:Type, checkMode:CheckMode):Type {
+		return checkMode & (CheckModeInferential | CheckModeSkipGenericFunctions) == 0 ? t : c.instantiateTypeWithSingleGenericCallSignatureSlow(node, t, checkMode);
+	}
+
+	static function instantiateTypeWithSingleGenericCallSignatureSlow(c:Checker, node:Node, t:Type, checkMode:CheckMode):Type {
 		if ((checkMode & (CheckModeInferential | CheckModeSkipGenericFunctions)) == 0) {
 			return t;
 		}

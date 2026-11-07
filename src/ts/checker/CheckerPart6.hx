@@ -1856,7 +1856,13 @@ class CheckerPart6 {
 		return (prop.Flags & SymbolFlagsOptional) == 0 && (prop.CheckFlags & (CheckFlagsNonUniformAndLiteral | CheckFlagsHasNeverType)) == CheckFlagsNonUniformAndLiteral && (c.getTypeOfSymbol(prop).flags & TypeFlagsNever) != 0;
 	}
 
-	static function getTypeArguments(c:Checker, t:Type):Array<Type> {
+	// PORT: perf — inline fast path (resolved already), the rest out of line
+	static inline function getTypeArguments(c:Checker, t:Type):Array<Type> {
+		final a = t.AsTypeReference().resolvedTypeArguments;
+		return a != null ? a : c.getTypeArgumentsSlow(t);
+	}
+
+	static function getTypeArgumentsSlow(c:Checker, t:Type):Array<Type> {
 		final d = t.AsTypeReference();
 		if (d.resolvedTypeArguments == null) {
 			final n = d.target.AsInterfaceType();
@@ -2184,7 +2190,13 @@ class CheckerPart6 {
 	// Return true if the given type could possibly reference a type parameter for which
 	// we perform type inference (i.e. a type parameter of a generic function). We cache
 	// results for union and intersection types for performance reasons.
-	static function couldContainTypeVariablesWorker(c:Checker, t:Type):Bool {
+	// PORT: perf — inline fast path (not structured or instantiable, or computed), the rest out of line
+	static inline function couldContainTypeVariablesWorker(c:Checker, t:Type):Bool {
+		return t.flags & TypeFlagsStructuredOrInstantiable != 0
+			&& (t.objectFlags & ObjectFlagsCouldContainTypeVariablesComputed != 0 ? t.objectFlags & ObjectFlagsCouldContainTypeVariables != 0 : c.couldContainTypeVariablesWorkerSlow(t));
+	}
+
+	static function couldContainTypeVariablesWorkerSlow(c:Checker, t:Type):Bool {
 		if ((t.flags & TypeFlagsStructuredOrInstantiable) == 0) {
 			return false;
 		}

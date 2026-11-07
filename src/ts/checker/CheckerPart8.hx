@@ -3267,7 +3267,12 @@ class CheckerPart8 {
 			(Ast.IsElementAccessExpression(parent) && parent.Expression() == node && !(Checker.someType(t, t -> c.isGenericTypeWithoutNullableConstraint(t)) && c.isGenericIndexType(c.getTypeOfExpression(parent.AsElementAccessExpression().ArgumentExpression))));
 	}
 
-	static function isGenericTypeWithUnionConstraint(c:Checker, t:Type):Bool {
+	// PORT: perf — inline fast path (neither an intersection nor instantiable), the rest out of line
+	static inline function isGenericTypeWithUnionConstraint(c:Checker, t:Type):Bool {
+		return t.flags & (TypeFlagsIntersection | TypeFlagsInstantiable) != 0 && c.isGenericTypeWithUnionConstraintSlow(t);
+	}
+
+	static function isGenericTypeWithUnionConstraintSlow(c:Checker, t:Type):Bool {
 		if ((t.flags & TypeFlagsIntersection) != 0) {
 			return Core.Some(t.AsIntersectionType().types, t -> c.isGenericTypeWithUnionConstraint(t));
 		}
