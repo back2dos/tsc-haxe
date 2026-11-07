@@ -116,9 +116,71 @@ class CheckerPool_ implements CheckerPool {
 
 		this.fileAssociations = new IdentityMap();
 		final files = this.program.processedFiles.files;
-		for (i in 0...files.length) {
-			this.fileAssociations.set(files[i], this.checkers[i % checkerCount]);
+		// PORT: perf — TypeScript 7.1's assignment of files to checkers by balanced import affinity
+		// (microsoft/typescript-go#4313) in place of i % checkerCount: which checker checks a file, not what
+		// is checked (output identical at any checker count, gated)
+		final associations = [for (_ in 0...files.length) 0];
+		if (checkerCount > 1) {
+			final baseWeights = [for (_ in 0...files.length) 0];
+			final importCounts = [for (_ in 0...files.length) 0];
+			final isDeclarationFile = [for (_ in 0...files.length) false];
+			var totalBaseWeight = 0;
+			var declarationBaseWeight = 0;
+			for (i in 0...files.length) {
+				final file = files[i];
+				final baseWeight = CheckerAssociation.baseWeight(file.NodeCount, go.Utf8.ByteLen(file.Text()));
+				totalBaseWeight += baseWeight;
+				if (file.IsDeclarationFile)
+					declarationBaseWeight += baseWeight;
+				baseWeights[i] = baseWeight;
+				importCounts[i] = Core.len(file.Imports());
+				isDeclarationFile[i] = file.IsDeclarationFile;
+			}
+			final policy = CheckerAssociation.policy(totalBaseWeight, declarationBaseWeight, checkerCount);
+			if (policy.sourceFileWeightMultiplier != 1) {
+				// Apply this before import normalization. The policy intentionally
+				// increases both source-file work and the normalized import unit.
+				for (i in 0...files.length)
+					if (!isDeclarationFile[i])
+						baseWeights[i] *= policy.sourceFileWeightMultiplier;
+			}
+			final fileWeights = CheckerAssociation.weights(baseWeights, importCounts);
+			final adjacentFiles = this.getImportAdjacency(files);
+			final fileOrder = CheckerAssociation.order(fileWeights, isDeclarationFile, policy.prioritizeSourceFiles);
+			final a = CheckerAssociation.associationsInOrder(fileWeights, adjacentFiles, fileOrder, checkerCount, policy.balancePenaltyMultiplier);
+			for (i in 0...files.length)
+				associations[i] = a[i];
 		}
+		for (i in 0...files.length) {
+			this.fileAssociations.set(files[i], this.checkers[associations[i]]);
+		}
+	}
+
+	// getImportAdjacency returns an undirected import graph represented by file
+	// index. A directed import from A to B makes both files adjacent because either
+	// file can benefit from sharing checker caches with the other.
+	function getImportAdjacency(files:Array<SourceFile>):Array<Array<Int>> {
+		final fileIndices = new IdentityMap<SourceFile, Int>();
+		for (i in 0...files.length)
+			fileIndices.set(files[i], i);
+		final adjacentFiles:Array<Array<Int>> = [for (_ in 0...files.length) []];
+		for (fileIndex in 0...files.length) {
+			final file = files[fileIndex];
+			final resolvedModules = @:privateAccess this.program.resolvedModules.get(file.Path());
+			if (resolvedModules == null)
+				continue;
+			for (resolved in resolvedModules) {
+				if (resolved == null || !resolved.IsResolved())
+					continue;
+				final importedFile = this.program.GetSourceFileForResolvedModule(resolved.ResolvedFileName);
+				final importedIndex = importedFile == null ? null : fileIndices.get(importedFile);
+				if (importedIndex == null || importedIndex == fileIndex)
+					continue;
+				adjacentFiles[fileIndex].push(importedIndex);
+				adjacentFiles[importedIndex].push(fileIndex);
+			}
+		}
+		return adjacentFiles;
 	}
 
 	// Runs `cb` for each checker in the pool concurrently, locking and unlocking checker mutexes as it goes,
@@ -184,5 +246,137 @@ class CheckerPool_ implements CheckerPool {
 			});
 		}
 		wg.RunAndWait();
+	}
+}
+
+// PORT: TypeScript 7.1's checker association (microsoft/typescript-go#4313, compiler/checkerpool.go), with Go's
+// comments:
+/*
+Checker association is a balanced graph-partitioning problem:
+
+  - A vertex is a source file.
+  - An undirected edge connects two files for each resolved, in-program import
+    entry between them. Multiple entries may connect the same pair and therefore
+    strengthen their affinity. Self-imports and unresolved or external targets do
+    not create edges.
+  - A partition is a checker with its own symbol, type, and instantiation caches.
+
+Putting related files on the same checker reduces duplicated cache construction,
+but concentrating too many roots on one checker increases the parallel critical
+path. We use weighted FENNEL to trade off those objectives:
+
+  affinity(partition) - alpha * incrementalLoadPenalty(partition)
+
+(Tsourakakis et al., "FENNEL: Streaming Graph Partitioning for Massive Scale Graphs", WSDM 2014.) The constants
+are Go's empirical operating points (swept over VS Code, TypeScript, MUI docs, XState and Bluesky at 2, 4 and 8
+checkers).
+*/
+class CheckerAssociation {
+	static inline final TextWeightDivisor = 100;
+	static inline final SourceFileWeightMultiplier = 4;
+	static inline final BalancePenaltyMultiplier = 16;
+	static inline final PrioritizedSourcePenalty = 12;
+	static inline final StrongBalanceMinCheckerCount = 4;
+
+	public static function policy(totalWeight:Int, declarationWeight:Int, checkerCount:Int):{prioritizeSourceFiles:Bool, sourceFileWeightMultiplier:Int, balancePenaltyMultiplier:Int} {
+		if (declarationWeight * checkerCount * 2 <= totalWeight) // shouldPrioritizeSourceFiles
+			return {prioritizeSourceFiles: true, sourceFileWeightMultiplier: 1, balancePenaltyMultiplier: PrioritizedSourcePenalty};
+		if (checkerCount >= StrongBalanceMinCheckerCount)
+			return {prioritizeSourceFiles: false, sourceFileWeightMultiplier: SourceFileWeightMultiplier, balancePenaltyMultiplier: BalancePenaltyMultiplier};
+		return {prioritizeSourceFiles: false, sourceFileWeightMultiplier: 1, balancePenaltyMultiplier: 1};
+	}
+
+	public static function baseWeight(nodeCount:Int, textLength:Int):Int {
+		final w = nodeCount + Std.int(textLength / TextWeightDivisor);
+		return w > 1 ? w : 1;
+	}
+
+	// getCheckerAssociationWeights: local syntax work plus normalized syntactic import fanout
+	public static function weights(baseWeights:Array<Int>, importCounts:Array<Int>):Array<Int> {
+		var totalBaseWeight = 0, totalImports = 0;
+		for (i in 0...baseWeights.length) {
+			totalBaseWeight += baseWeights[i];
+			totalImports += importCounts[i];
+		}
+		var importWeight = 0;
+		if (totalImports > 0) {
+			importWeight = Std.int(totalBaseWeight / totalImports);
+			if (importWeight < 1)
+				importWeight = 1;
+		}
+		return [for (i in 0...baseWeights.length) baseWeights[i] + importCounts[i] * importWeight];
+	}
+
+	// getCheckerAssociationOrder: source files before declarations, each by descending weight (null: program order)
+	public static function order(fileWeights:Array<Int>, isDeclarationFile:Array<Bool>, prioritizeSourceFiles:Bool):Null<Array<Int>> {
+		if (!prioritizeSourceFiles)
+			return null;
+		final fileOrder = [for (i in 0...fileWeights.length) i];
+		fileOrder.sort((left, right) -> {
+			if (isDeclarationFile[left] != isDeclarationFile[right])
+				return isDeclarationFile[left] ? 1 : -1;
+			if (fileWeights[left] != fileWeights[right])
+				return fileWeights[left] > fileWeights[right] ? -1 : 1;
+			return left < right ? -1 : (left > right ? 1 : 0);
+		});
+		return fileOrder;
+	}
+
+	// getCheckerAssociationsInOrder: weighted FENNEL with gamma = 3/2; the preferred maximum checker weight is the
+	// larger of the largest file and roughly 101% of average; ties deterministic
+	public static function associationsInOrder(fileWeights:Array<Int>, adjacentFiles:Array<Array<Int>>, fileOrder:Null<Array<Int>>, checkerCount:Int,
+			penaltyMultiplier:Int):Array<Int> {
+		final n = fileWeights.length;
+		if (n == 0)
+			return [];
+		var totalWeight = 0, maxFileWeight = 0, edgeCount = 0;
+		for (i in 0...n) {
+			totalWeight += fileWeights[i];
+			if (fileWeights[i] > maxFileWeight)
+				maxFileWeight = fileWeights[i];
+			edgeCount += adjacentFiles[i].length;
+		}
+		final associations = [for (_ in 0...n) -1];
+		final checkerWeights = [for (_ in 0...checkerCount) 0];
+		final averageCheckerWeight = Std.int((totalWeight + checkerCount - 1) / checkerCount);
+		final cap = averageCheckerWeight + Std.int(averageCheckerWeight / 100);
+		final maxCheckerWeight = maxFileWeight > cap ? maxFileWeight : cap;
+		final totalWeightFloat:Float = totalWeight;
+		final alpha = penaltyMultiplier * Std.int(edgeCount / 2) * Math.sqrt(checkerCount) / (totalWeightFloat * Math.sqrt(totalWeightFloat));
+		final neighborCounts = [for (_ in 0...checkerCount) 0];
+		for (position in 0...n) {
+			final fileIndex = fileOrder != null ? fileOrder[position] : position;
+			for (k in 0...checkerCount)
+				neighborCounts[k] = 0;
+			for (adjacentFile in adjacentFiles[fileIndex]) {
+				final checkerIndex = associations[adjacentFile];
+				if (checkerIndex >= 0)
+					neighborCounts[checkerIndex]++;
+			}
+			var bestChecker = -1;
+			var bestScore = Math.NEGATIVE_INFINITY;
+			for (checkerIndex in 0...checkerCount) {
+				final checkerWeight = checkerWeights[checkerIndex];
+				if (checkerWeight + fileWeights[fileIndex] > maxCheckerWeight)
+					continue;
+				final oldWeight:Float = checkerWeight;
+				final newWeight:Float = checkerWeight + fileWeights[fileIndex];
+				final penalty = alpha * (newWeight * Math.sqrt(newWeight) - oldWeight * Math.sqrt(oldWeight));
+				final score = neighborCounts[checkerIndex] - penalty;
+				if (score > bestScore || score == bestScore && (bestChecker < 0 || checkerWeight < checkerWeights[bestChecker])) {
+					bestChecker = checkerIndex;
+					bestScore = score;
+				}
+			}
+			if (bestChecker < 0) {
+				bestChecker = 0;
+				for (checkerIndex in 1...checkerCount)
+					if (checkerWeights[checkerIndex] < checkerWeights[bestChecker])
+						bestChecker = checkerIndex;
+			}
+			associations[fileIndex] = bestChecker;
+			checkerWeights[bestChecker] += fileWeights[fileIndex];
+		}
+		return associations;
 	}
 }

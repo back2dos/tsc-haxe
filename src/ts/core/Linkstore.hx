@@ -41,9 +41,18 @@ class LinkStore<K, V> {
 		#if tshx_parallel
 		// PORT: hxmc (-D tshx-parallel) — the key's list is shared by the stores of all checkers: the
 		// entry is complete before it is published, readers need no lock (entries never change)
+		#if (target.name == "hxmc")
+		// PORT: perf — no lock: the entry is prepended by a compare-and-swap of the key's list head (each
+		// checker's store is used by one thread at a time; a failed swap means another checker prepended)
+		final e = new LinkEntry(self, value, null);
+		do
+			e.next = h.links
+		while (!casLinks(h, e.next, e));
+		#else
 		insertMutex.acquire();
 		h.links = new LinkEntry(self, value, h.links);
 		insertMutex.release();
+		#end
 		#else
 		h.links = new LinkEntry(self, value, h.links);
 		#end
@@ -61,6 +70,19 @@ class LinkStore<K, V> {
 		}
 		return false;
 	}
+
+	#if (tshx_parallel && target.name == "hxmc")
+	// h.links from expected to e, atomically (and remembered when e is young and h is not: the write barrier)
+	@:hxmc.unsafe static function casLinks(h:LinkHolder, expected:LinkEntry, e:LinkEntry):Bool {
+		final p = hxmc.unsafe.Mem.addr(h).add(hxmc.unsafe.Struct.fieldOffset(h, "links"));
+		final ei = hxmc.unsafe.Mem.addr(expected).toI64();
+		final o = hxmc.unsafe.Atomic.cas64(p, ei, hxmc.unsafe.Mem.addr(e).toI64());
+		if (o != ei)
+			return false;
+		hxmc.rt.C.Leaf.rt_barrier_range(h, p, 1);
+		return true;
+	}
+	#end
 
 	public function TryGet(key:K):Null<V> {
 		final h:LinkHolder = cast key;
@@ -85,7 +107,7 @@ class LinkHolder {
 class LinkEntry {
 	public final store:LinkStore<Dynamic, Dynamic>;
 	public final value:Dynamic;
-	public final next:LinkEntry;
+	public var next:LinkEntry; // (set before the entry is published)
 
 	public function new(store:LinkStore<Dynamic, Dynamic>, value:Dynamic, next:LinkEntry) {
 		this.store = store;
