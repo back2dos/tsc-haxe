@@ -3811,7 +3811,7 @@ class CheckerPart5 {
 	}
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
 	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a != null ? a : [];
+		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
 	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {

@@ -110,6 +110,9 @@ class Slices {
 
 	// slices.BinarySearchFunc for hot call sites. PORT: perf — inline, so a lambda literal `cmp` is
 	// inlined too: no function value call, which on hxcpp boxes every Int result outside -1..255.
+	// PORT: perf — the empty Array rangeOf returns for nil (shared: never written; its users only iterate)
+	public static final EMPTY_ARRAY:Array<Dynamic> = [];
+
 	public static extern inline overload function BinarySearchFuncInline<E, T>(x:haxe.ds.Vector<E>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
 		final n = x == null ? 0 : x.length;
 		var i = 0, j = n;
