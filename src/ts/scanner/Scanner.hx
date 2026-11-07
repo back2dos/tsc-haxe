@@ -2759,6 +2759,7 @@ class Scanner {
 	public static function GetScannerForSourceFile(sourceFile:SourceFile, pos:Int):Scanner {
 		final s = NewScanner();
 		s.text = sourceFile.Text();
+		s.textLen = s.text.length;
 		s.pos = pos;
 		s.end = s.text.length;
 		s.languageVariant = sourceFile.LanguageVariant;
