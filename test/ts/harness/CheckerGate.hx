@@ -41,6 +41,7 @@ class CheckerGate {
 		var filter:Null<String> = null;
 		var limit = -1;
 		var shard = 0, shards = 1;
+		final trace = Sys.getEnv("TSHX_GATE_TRACE") != null; // each test file on stderr before it runs
 		final args = Sys.args();
 		var i = 0;
 		while (i < args.length) {
@@ -99,6 +100,8 @@ class CheckerGate {
 				if (fileIndex++ % shards != shard)
 					continue;
 				fileCount++;
+				if (trace)
+					Sys.stderr().writeString(filename + "\n");
 
 				final root = new T("");
 				try {
