@@ -2033,6 +2033,9 @@ class Checker {
 		c.initializeClosures();
 		c.initializeIterationResolvers();
 		c.initializeChecker();
+		#if tshx_parallel
+		c.mu = new sys.thread.Mutex(); // PORT: hxmc (-D tshx-parallel) — the checker's mutex, locked by its pool and its EmitResolver
+		#end
 		return new Pair<Checker, Any>(c, c.mu);
 	}
 

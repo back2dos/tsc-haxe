@@ -24,7 +24,7 @@ class CheckerPool_ implements CheckerPool {
 
 	var createCheckersOnce:Bool = false; // PORT: sync.Once → flag
 	var checkers:Array<Checker> = null;
-	var locks:Array<Any> = null; // PORT: []*sync.Mutex → opaque values, never locked
+	var locks:Array<Any> = null; // PORT: []*sync.Mutex → the checkers' mutexes (sys.thread.Mutex with -D tshx-parallel, else null and never locked)
 	var fileAssociations:IdentityMap<SourceFile, Checker> = null;
 
 	public function new() {}
@@ -105,10 +105,7 @@ class CheckerPool_ implements CheckerPool {
 				final r = Checker.NewChecker(this.program, tracer);
 				this.checkers[i] = r.a;
 				#if tshx_parallel
-				this.locks[i] = new sys.thread.Mutex(); // PORT: hxmc (-D tshx-parallel) — the checker's mutex
-				#else
 				this.locks[i] = r.b;
-				#end
 			});
 		}
 

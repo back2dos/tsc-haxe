@@ -38,20 +38,511 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 
 	public function new() {}
 
+	// PORT: hxmc (-D tshx-parallel) — r.checkerMu.Lock(); defer r.checkerMu.Unlock() in these methods: the
+	// emitters of the files of one checker run in parallel and take turns in its queries (Go 7.0.2)
+	public function CreateLateBoundIndexSignatures(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = CreateLateBoundIndexSignatures__locked(emitContext, container, enclosingDeclaration, flags, internalFlags, tracker);
+		m.release();
+		return r;
+		#else
+		return CreateLateBoundIndexSignatures__locked(emitContext, container, enclosingDeclaration, flags, internalFlags, tracker);
+		#end
+	}
+
+	public function CreateLiteralConstValue(emitContext:EmitContext, node:Node, tracker:SymbolTracker):Node {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = CreateLiteralConstValue__locked(emitContext, node, tracker);
+		m.release();
+		return r;
+		#else
+		return CreateLiteralConstValue__locked(emitContext, node, tracker);
+		#end
+	}
+
+	public function CreateReturnTypeOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = CreateReturnTypeOfSignatureDeclaration__locked(emitContext, signatureDeclaration, enclosingDeclaration, flags, internalFlags, tracker);
+		m.release();
+		return r;
+		#else
+		return CreateReturnTypeOfSignatureDeclaration__locked(emitContext, signatureDeclaration, enclosingDeclaration, flags, internalFlags, tracker);
+		#end
+	}
+
+	public function CreateTypeOfDeclaration(emitContext:EmitContext, declaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = CreateTypeOfDeclaration__locked(emitContext, declaration, enclosingDeclaration, flags, internalFlags, tracker);
+		m.release();
+		return r;
+		#else
+		return CreateTypeOfDeclaration__locked(emitContext, declaration, enclosingDeclaration, flags, internalFlags, tracker);
+		#end
+	}
+
+	public function CreateTypeOfExpression(emitContext:EmitContext, expression:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = CreateTypeOfExpression__locked(emitContext, expression, enclosingDeclaration, flags, internalFlags, tracker);
+		m.release();
+		return r;
+		#else
+		return CreateTypeOfExpression__locked(emitContext, expression, enclosingDeclaration, flags, internalFlags, tracker);
+		#end
+	}
+
+	public function CreateTypeParametersOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = CreateTypeParametersOfSignatureDeclaration__locked(emitContext, signatureDeclaration, enclosingDeclaration, flags, internalFlags, tracker);
+		m.release();
+		return r;
+		#else
+		return CreateTypeParametersOfSignatureDeclaration__locked(emitContext, signatureDeclaration, enclosingDeclaration, flags, internalFlags, tracker);
+		#end
+	}
+
+	public function GetConstantValue(node:Node):Any {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetConstantValue__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetConstantValue__locked(node);
+		#end
+	}
+
+	public function GetEffectiveDeclarationFlags(node:Node, flags:ModifierFlags):ModifierFlags {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetEffectiveDeclarationFlags__locked(node, flags);
+		m.release();
+		return r;
+		#else
+		return GetEffectiveDeclarationFlags__locked(node, flags);
+		#end
+	}
+
+	public function GetElementAccessExpressionName(expression:ElementAccessExpression):std.String {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetElementAccessExpressionName__locked(expression);
+		m.release();
+		return r;
+		#else
+		return GetElementAccessExpressionName__locked(expression);
+		#end
+	}
+
+	public function GetEnumMemberValue(node:Node):Result {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetEnumMemberValue__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetEnumMemberValue__locked(node);
+		#end
+	}
+
+	public function GetExternalModuleFileFromDeclaration(declaration:Node):SourceFile {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetExternalModuleFileFromDeclaration__locked(declaration);
+		m.release();
+		return r;
+		#else
+		return GetExternalModuleFileFromDeclaration__locked(declaration);
+		#end
+	}
+
 	public function GetJsxFactoryEntity(location:Node):Node {
-		// PORT: single-threaded — checkerMu.Lock/Unlock dropped throughout this file.
-		return checker.getJsxFactoryEntity(location);
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetJsxFactoryEntity__locked(location);
+		m.release();
+		return r;
+		#else
+		return GetJsxFactoryEntity__locked(location);
+		#end
 	}
 
 	public function GetJsxFragmentFactoryEntity(location:Node):Node {
-		return checker.getJsxFragmentFactoryEntity(location);
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetJsxFragmentFactoryEntity__locked(location);
+		m.release();
+		return r;
+		#else
+		return GetJsxFragmentFactoryEntity__locked(location);
+		#end
 	}
 
-	public function IsOptionalParameter(node:Node):Bool {
-		return isOptionalParameter(node);
+	public function GetPropertiesOfContainerFunction(node:Node):Array<Symbol> {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetPropertiesOfContainerFunction__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetPropertiesOfContainerFunction__locked(node);
+		#end
+	}
+
+	public function GetReferencedExportContainer(node:IdentifierNode, prefixLocals:Bool):Node {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetReferencedExportContainer__locked(node, prefixLocals);
+		m.release();
+		return r;
+		#else
+		return GetReferencedExportContainer__locked(node, prefixLocals);
+		#end
+	}
+
+	public function GetReferencedImportDeclaration(node:IdentifierNode):Declaration {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetReferencedImportDeclaration__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetReferencedImportDeclaration__locked(node);
+		#end
+	}
+
+	public function GetReferencedMemberValueDeclaration(node:Node):Declaration {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetReferencedMemberValueDeclaration__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetReferencedMemberValueDeclaration__locked(node);
+		#end
+	}
+
+	public function GetReferencedValueDeclaration(node:IdentifierNode):Declaration {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetReferencedValueDeclaration__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetReferencedValueDeclaration__locked(node);
+		#end
+	}
+
+	public function GetReferencedValueDeclarations(node:IdentifierNode):Array<Declaration> {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetReferencedValueDeclarations__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetReferencedValueDeclarations__locked(node);
+		#end
+	}
+
+	public function GetResolutionModeOverride(node:Node):ResolutionMode {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetResolutionModeOverride__locked(node);
+		m.release();
+		return r;
+		#else
+		return GetResolutionModeOverride__locked(node);
+		#end
+	}
+
+	public function GetTypeReferenceSerializationKind(typeName:Node, location:Node):TypeReferenceSerializationKind {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = GetTypeReferenceSerializationKind__locked(typeName, location);
+		m.release();
+		return r;
+		#else
+		return GetTypeReferenceSerializationKind__locked(typeName, location);
+		#end
+	}
+
+	public function IsDeclarationVisible(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsDeclarationVisible__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsDeclarationVisible__locked(node);
+		#end
+	}
+
+	public function IsDefinitelyReferenceToGlobalSymbolObject(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsDefinitelyReferenceToGlobalSymbolObject__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsDefinitelyReferenceToGlobalSymbolObject__locked(node);
+		#end
+	}
+
+	public function IsEntityNameVisible(entityName:Node, enclosingDeclaration:Node):SymbolAccessibilityResult {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsEntityNameVisible__locked(entityName, enclosingDeclaration);
+		m.release();
+		return r;
+		#else
+		return IsEntityNameVisible__locked(entityName, enclosingDeclaration);
+		#end
+	}
+
+	public function IsExpandoFunctionDeclaration(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsExpandoFunctionDeclaration__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsExpandoFunctionDeclaration__locked(node);
+		#end
+	}
+
+	public function IsImplementationOfOverload(node:SignatureDeclaration):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsImplementationOfOverload__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsImplementationOfOverload__locked(node);
+		#end
+	}
+
+	public function IsImportRequiredByAugmentation(decl:ImportDeclaration):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsImportRequiredByAugmentation__locked(decl);
+		m.release();
+		return r;
+		#else
+		return IsImportRequiredByAugmentation__locked(decl);
+		#end
 	}
 
 	public function IsLateBound(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsLateBound__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsLateBound__locked(node);
+		#end
+	}
+
+	public function IsLiteralConstDeclaration(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsLiteralConstDeclaration__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsLiteralConstDeclaration__locked(node);
+		#end
+	}
+
+	public function IsNameResolvable(location:Node, name:std.String):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsNameResolvable__locked(location, name);
+		m.release();
+		return r;
+		#else
+		return IsNameResolvable__locked(location, name);
+		#end
+	}
+
+	public function IsOptionalParameter(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsOptionalParameter__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsOptionalParameter__locked(node);
+		#end
+	}
+
+	public function IsReferencedAliasDeclaration(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsReferencedAliasDeclaration__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsReferencedAliasDeclaration__locked(node);
+		#end
+	}
+
+	public function IsSymbolAccessible(symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags, shouldComputeAliasToMarkVisible:Bool):SymbolAccessibilityResult {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsSymbolAccessible__locked(symbol, enclosingDeclaration, meaning, shouldComputeAliasToMarkVisible);
+		m.release();
+		return r;
+		#else
+		return IsSymbolAccessible__locked(symbol, enclosingDeclaration, meaning, shouldComputeAliasToMarkVisible);
+		#end
+	}
+
+	public function IsThisPropertyAssignmentDeclarationRedundant(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsThisPropertyAssignmentDeclarationRedundant__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsThisPropertyAssignmentDeclarationRedundant__locked(node);
+		#end
+	}
+
+	public function IsTopLevelValueImportEqualsWithEntityName(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsTopLevelValueImportEqualsWithEntityName__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsTopLevelValueImportEqualsWithEntityName__locked(node);
+		#end
+	}
+
+	public function IsValueAliasDeclaration(node:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = IsValueAliasDeclaration__locked(node);
+		m.release();
+		return r;
+		#else
+		return IsValueAliasDeclaration__locked(node);
+		#end
+	}
+
+	public function MarkLinkedReferencesRecursively(file:SourceFile):Void {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		MarkLinkedReferencesRecursively__locked(file);
+		m.release();
+		#else
+		MarkLinkedReferencesRecursively__locked(file);
+		#end
+	}
+
+	public function PrecalculateDeclarationEmitVisibility(file:SourceFile):Void {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		PrecalculateDeclarationEmitVisibility__locked(file);
+		m.release();
+		#else
+		PrecalculateDeclarationEmitVisibility__locked(file);
+		#end
+	}
+
+	public function RequiresAddingImplicitUndefined(declaration:Node, symbol:Symbol, enclosingDeclaration:Node):Bool {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = RequiresAddingImplicitUndefined__locked(declaration, symbol, enclosingDeclaration);
+		m.release();
+		return r;
+		#else
+		return RequiresAddingImplicitUndefined__locked(declaration, symbol, enclosingDeclaration);
+		#end
+	}
+
+	public function SetReferencedImportDeclaration(node:IdentifierNode, ref:Declaration):Void {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		SetReferencedImportDeclaration__locked(node, ref);
+		m.release();
+		#else
+		SetReferencedImportDeclaration__locked(node, ref);
+		#end
+	}
+
+	public function TryJSTypeNodeToTypeNode(emitContext:EmitContext, typeNode:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+		#if tshx_parallel
+		final m:sys.thread.Mutex = cast checkerMu;
+		m.acquire();
+		final r = TryJSTypeNodeToTypeNode__locked(emitContext, typeNode, enclosingDeclaration, flags, internalFlags, tracker);
+		m.release();
+		return r;
+		#else
+		return TryJSTypeNodeToTypeNode__locked(emitContext, typeNode, enclosingDeclaration, flags, internalFlags, tracker);
+		#end
+	}
+
+
+	function GetJsxFactoryEntity__locked(location:Node):Node {
+		return checker.getJsxFactoryEntity(location);
+	}
+
+	function GetJsxFragmentFactoryEntity__locked(location:Node):Node {
+		return checker.getJsxFragmentFactoryEntity(location);
+	}
+
+	function IsOptionalParameter__locked(node:Node):Bool {
+		return isOptionalParameter(node);
+	}
+
+	function IsLateBound__locked(node:Node):Bool {
 		// TODO: Require an emitContext to construct an EmitResolver, remove all emitContext arguments
 		// node = r.emitContext.ParseNode(node)
 		if (node == null) {
@@ -67,7 +558,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return (symbol.CheckFlags & CheckFlagsLate) != 0;
 	}
 
-	public function GetEnumMemberValue(node:Node):Result {
+	function GetEnumMemberValue__locked(node:Node):Result {
 		// node = r.emitContext.ParseNode(node)
 		if (!Ast.IsParseTreeNode(node)) {
 			return Evaluator.NewResult(null, false, false, false);
@@ -80,7 +571,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return checker.enumMemberLinks.Get(node).value;
 	}
 
-	public function IsDeclarationVisible(node:Node):Bool {
+	function IsDeclarationVisible__locked(node:Node):Bool {
 		// Only lock on external API func to prevent deadlocks
 		return isDeclarationVisible(node);
 	}
@@ -181,7 +672,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		}
 	}
 
-	public function PrecalculateDeclarationEmitVisibility(file:SourceFile):Void {
+	function PrecalculateDeclarationEmitVisibility__locked(file:SourceFile):Void {
 		if (declarationFileLinks.Get(file.AsNode()).aliasesMarked) {
 			return;
 		}
@@ -248,7 +739,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		}
 	}
 
-	public function IsEntityNameVisible(entityName:Node, enclosingDeclaration:Node):SymbolAccessibilityResult {
+	function IsEntityNameVisible__locked(entityName:Node, enclosingDeclaration:Node):SymbolAccessibilityResult {
 		return isEntityNameVisible(entityName, enclosingDeclaration, true);
 	}
 
@@ -371,7 +862,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return result;
 	}
 
-	public function IsImplementationOfOverload(node:SignatureDeclaration):Bool {
+	function IsImplementationOfOverload__locked(node:SignatureDeclaration):Bool {
 		// node = r.emitContext.ParseNode(node)
 		if (!Ast.IsParseTreeNode(node)) {
 			return false;
@@ -406,7 +897,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return false;
 	}
 
-	public function IsImportRequiredByAugmentation(decl:ImportDeclaration):Bool {
+	function IsImportRequiredByAugmentation__locked(decl:ImportDeclaration):Bool {
 		// node = r.emitContext.ParseNode(node)
 		if (!Ast.IsParseTreeNode(decl.AsNode())) {
 			return false;
@@ -442,7 +933,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return false;
 	}
 
-	public function IsDefinitelyReferenceToGlobalSymbolObject(node:Node):Bool {
+	function IsDefinitelyReferenceToGlobalSymbolObject__locked(node:Node):Bool {
 		if (!Ast.IsPropertyAccessExpression(node)
 			|| !Ast.IsIdentifier(node.Name())
 			|| (!Ast.IsPropertyAccessExpression(node.Expression()) && !Ast.IsIdentifier(node.Expression()))) {
@@ -463,7 +954,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return checker.getResolvedSymbol(node.Expression().Expression()) == checker.globalThisSymbol;
 	}
 
-	public function RequiresAddingImplicitUndefined(declaration:Node, symbol:Symbol, enclosingDeclaration:Node):Bool {
+	function RequiresAddingImplicitUndefined__locked(declaration:Node, symbol:Symbol, enclosingDeclaration:Node):Bool {
 		if (!Ast.IsParseTreeNode(declaration)) {
 			return false;
 		}
@@ -537,7 +1028,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return checker.isOptionalParameter(node);
 	}
 
-	public function IsLiteralConstDeclaration(node:Node):Bool {
+	function IsLiteralConstDeclaration__locked(node:Node):Bool {
 		// node = r.emitContext.ParseNode(node)
 		if (!Ast.IsParseTreeNode(node)) {
 			return false;
@@ -565,7 +1056,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return false;
 	}
 
-	public function IsExpandoFunctionDeclaration(node:Node):Bool {
+	function IsExpandoFunctionDeclaration__locked(node:Node):Bool {
 		return IsExpandoFunctionDeclarationUnsafe(node);
 	}
 
@@ -573,7 +1064,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return checker.IsSymbolAccessible(symbol, enclosingDeclaration, meaning, shouldComputeAliasToMarkVisible);
 	}
 
-	public function IsSymbolAccessible(symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags, shouldComputeAliasToMarkVisible:Bool):SymbolAccessibilityResult {
+	function IsSymbolAccessible__locked(symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags, shouldComputeAliasToMarkVisible:Bool):SymbolAccessibilityResult {
 		// TODO: Split into locking and non-locking API methods - only current usage is the symbol tracker, which is non-locking,
 		// as all tracker calls happen within a CreateX call below, which already holds a lock
 		// r.checkerMu.Lock()
@@ -581,7 +1072,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return isSymbolAccessible(symbol, enclosingDeclaration, meaning, shouldComputeAliasToMarkVisible);
 	}
 
-	public function IsReferencedAliasDeclaration(node:Node):Bool {
+	function IsReferencedAliasDeclaration__locked(node:Node):Bool {
 		final c = checker;
 		if (!c.canCollectSymbolAliasAccessibilityData || !Ast.IsParseTreeNode(node)) {
 			return true;
@@ -605,7 +1096,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return false;
 	}
 
-	public function IsValueAliasDeclaration(node:Node):Bool {
+	function IsValueAliasDeclaration__locked(node:Node):Bool {
 		final c = checker;
 		if (!c.canCollectSymbolAliasAccessibilityData || !Ast.IsParseTreeNode(node)) {
 			return true;
@@ -665,7 +1156,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 			&& (c.compilerOptions.ShouldPreserveConstEnums() || !Checker.isConstEnumOrConstEnumOnlyModule(target));
 	}
 
-	public function IsTopLevelValueImportEqualsWithEntityName(node:Node):Bool {
+	function IsTopLevelValueImportEqualsWithEntityName__locked(node:Node):Bool {
 		final c = checker;
 		if (!c.canCollectSymbolAliasAccessibilityData) {
 			return true;
@@ -682,7 +1173,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return isAliasResolvedToValue(c.getSymbolOfDeclaration(node), false /*excludeTypeOnlyValues*/);
 	}
 
-	public function MarkLinkedReferencesRecursively(file:SourceFile):Void {
+	function MarkLinkedReferencesRecursively__locked(file:SourceFile):Void {
 		if (!Ast.IsParseTreeNode(file.AsNode())) {
 			return;
 		}
@@ -704,7 +1195,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		}
 	}
 
-	public function GetExternalModuleFileFromDeclaration(declaration:Node):SourceFile {
+	function GetExternalModuleFileFromDeclaration__locked(declaration:Node):SourceFile {
 		if (!Ast.IsParseTreeNode(declaration)) {
 			return null;
 		}
@@ -729,7 +1220,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return referenceResolver;
 	}
 
-	public function GetReferencedExportContainer(node:IdentifierNode, prefixLocals:Bool):Node {
+	function GetReferencedExportContainer__locked(node:IdentifierNode, prefixLocals:Bool):Node {
 		if (!Ast.IsParseTreeNode(node)) {
 			return null;
 		}
@@ -737,11 +1228,11 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return getReferenceResolver().GetReferencedExportContainer(node, prefixLocals);
 	}
 
-	public function SetReferencedImportDeclaration(node:IdentifierNode, ref:Declaration):Void {
+	function SetReferencedImportDeclaration__locked(node:IdentifierNode, ref:Declaration):Void {
 		jsxLinks.Get(node).importRef = ref;
 	}
 
-	public function GetReferencedImportDeclaration(node:IdentifierNode):Declaration {
+	function GetReferencedImportDeclaration__locked(node:IdentifierNode):Declaration {
 		if (!Ast.IsParseTreeNode(node)) {
 			return jsxLinks.Get(node).importRef;
 		}
@@ -753,7 +1244,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return null;
 	}
 
-	public function GetReferencedValueDeclaration(node:IdentifierNode):Declaration {
+	function GetReferencedValueDeclaration__locked(node:IdentifierNode):Declaration {
 		if (!Ast.IsParseTreeNode(node)) {
 			return null;
 		}
@@ -765,7 +1256,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return getReferenceResolver().GetReferencedValueDeclaration(node);
 	}
 
-	public function GetReferencedValueDeclarations(node:IdentifierNode):Array<Declaration> {
+	function GetReferencedValueDeclarations__locked(node:IdentifierNode):Array<Declaration> {
 		if (!Ast.IsParseTreeNode(node)) {
 			return null;
 		}
@@ -774,13 +1265,13 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 	}
 
 	// IsNameResolvable returns `true` if the given `name` resolves to any symbol at `location`
-	public function IsNameResolvable(location:Node, name:std.String):Bool {
+	function IsNameResolvable__locked(location:Node, name:std.String):Bool {
 		final symbol = checker.resolveName(location, name, SymbolFlagsValue | SymbolFlagsType | SymbolFlagsNamespace, null /*nameNotFoundMessage*/, false /*isUse*/,
 			false /*excludeGlobals*/);
 		return symbol != null;
 	}
 
-	public function GetElementAccessExpressionName(expression:ElementAccessExpression):std.String {
+	function GetElementAccessExpressionName__locked(expression:ElementAccessExpression):std.String {
 		if (!Ast.IsParseTreeNode(expression.AsNode())) {
 			return "";
 		}
@@ -788,7 +1279,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return getReferenceResolver().GetElementAccessExpressionName(expression);
 	}
 
-	public function GetReferencedMemberValueDeclaration(node:Node):Declaration {
+	function GetReferencedMemberValueDeclaration__locked(node:Node):Declaration {
 		if (!Ast.IsParseTreeNode(node)) {
 			return null;
 		}
@@ -796,7 +1287,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return getReferenceResolver().GetReferencedMemberValueDeclaration(node);
 	}
 
-	public function CreateReturnTypeOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+	function CreateReturnTypeOfSignatureDeclaration__locked(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
 		final original = emitContext.ParseNode(signatureDeclaration);
 		if (original == null) {
 			return emitContext.Factory.NewKeywordTypeNode(KindAnyKeyword);
@@ -806,7 +1297,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return requestNodeBuilder.SerializeReturnTypeForSignature(original, enclosingDeclaration, flags, internalFlags, tracker);
 	}
 
-	public function CreateTypeParametersOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	function CreateTypeParametersOfSignatureDeclaration__locked(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
 		final original = emitContext.ParseNode(signatureDeclaration);
 		if (original == null) {
 			return null;
@@ -816,7 +1307,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return requestNodeBuilder.SerializeTypeParametersForSignature(original, enclosingDeclaration, flags, internalFlags, tracker);
 	}
 
-	public function CreateTypeOfDeclaration(emitContext:EmitContext, declaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+	function CreateTypeOfDeclaration__locked(emitContext:EmitContext, declaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
 		final original = emitContext.ParseNode(declaration);
 		if (original == null) {
 			return emitContext.Factory.NewKeywordTypeNode(KindAnyKeyword);
@@ -828,7 +1319,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return requestNodeBuilder.SerializeTypeForDeclaration(declaration, symbol, enclosingDeclaration, flags | FlagsMultilineObjectLiterals, internalFlags, tracker);
 	}
 
-	public function CreateLiteralConstValue(emitContext:EmitContext, node:Node, tracker:SymbolTracker):Node {
+	function CreateLiteralConstValue__locked(emitContext:EmitContext, node:Node, tracker:SymbolTracker):Node {
 		node = emitContext.ParseNode(node);
 		final t = checker.getTypeOfSymbol(checker.getSymbolOfDeclaration(node));
 		if (t == null) {
@@ -884,7 +1375,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		throw "unhandled literal const value kind";
 	}
 
-	public function CreateTypeOfExpression(emitContext:EmitContext, expression:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+	function CreateTypeOfExpression__locked(emitContext:EmitContext, expression:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
 		expression = emitContext.ParseNode(expression);
 		if (expression == null) {
 			return emitContext.Factory.NewKeywordTypeNode(KindAnyKeyword);
@@ -894,7 +1385,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return requestNodeBuilder.SerializeTypeForExpression(expression, enclosingDeclaration, flags | FlagsMultilineObjectLiterals, internalFlags, tracker);
 	}
 
-	public function CreateLateBoundIndexSignatures(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	function CreateLateBoundIndexSignatures__locked(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
 		container = emitContext.ParseNode(container);
 
 		final sym = container.Symbol();
@@ -993,22 +1484,22 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return result;
 	}
 
-	public function GetEffectiveDeclarationFlags(node:Node, flags:ModifierFlags):ModifierFlags {
+	function GetEffectiveDeclarationFlags__locked(node:Node, flags:ModifierFlags):ModifierFlags {
 		// node = emitContext.ParseNode(node)
 		return checker.GetEffectiveDeclarationFlags(node, flags);
 	}
 
-	public function GetResolutionModeOverride(node:Node):ResolutionMode {
+	function GetResolutionModeOverride__locked(node:Node):ResolutionMode {
 		// node = emitContext.ParseNode(node)
 		return checker.GetResolutionModeOverride(node.AsImportAttributes(), false);
 	}
 
-	public function GetConstantValue(node:Node):Any {
+	function GetConstantValue__locked(node:Node):Any {
 		// node = emitContext.ParseNode(node)
 		return checker.GetConstantValue(node);
 	}
 
-	public function GetTypeReferenceSerializationKind(typeName:Node, location:Node):TypeReferenceSerializationKind {
+	function GetTypeReferenceSerializationKind__locked(typeName:Node, location:Node):TypeReferenceSerializationKind {
 		// typeName = emitContext.ParseNode(typeName)
 		// location = emitContext.ParseNode(location)
 		if (typeName == null || location == null) {
@@ -1097,7 +1588,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		}
 	}
 
-	public function GetPropertiesOfContainerFunction(node:Node):Array<Symbol> {
+	function GetPropertiesOfContainerFunction__locked(node:Node):Array<Symbol> {
 		// This is explicitly _not locked_ because it is only called via error reporters invoked via node builder calls
 		// to the symbol tracker already within locked contexts.
 		// r.checkerMu.Lock()
@@ -1112,7 +1603,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return checker.getPropertiesOfType(checker.getTypeOfSymbol(s));
 	}
 
-	public function TryJSTypeNodeToTypeNode(emitContext:EmitContext, typeNode:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
+	function TryJSTypeNodeToTypeNode__locked(emitContext:EmitContext, typeNode:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {
 		typeNode = emitContext.ParseNode(typeNode);
 
 		final requestNodeBuilder = Checker.NewNodeBuilder(checker, emitContext); // TODO: cache per-context
@@ -1130,7 +1621,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 	//
 	// Only `extends` base types are considered. Members coming from `implements` clauses are not
 	// inherited, so the class must redeclare them, and they are always emitted.
-	public function IsThisPropertyAssignmentDeclarationRedundant(node:Node):Bool {
+	function IsThisPropertyAssignmentDeclarationRedundant__locked(node:Node):Bool {
 		if (node == null) {
 			return false;
 		}
