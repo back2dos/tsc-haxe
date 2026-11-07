@@ -1750,6 +1750,13 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		final sourceFiles = this.getSourceFilesToEmit(options.TargetSourceFile, options.EmitOnly == EmitOnlyForcedDts);
 
 		if (sourceFiles != null) {
+			#if tshx_parallel
+			// PORT: hxmc (-D tshx-parallel) — Go starts a goroutine per file, so the largest file starts at once;
+			// go.Par runs the queue in order on a fixed set of threads: queued largest first, so the largest
+			// file's emit does not start last (emitters stays in input order: same results)
+			final queue:Array<() -> Void> = [];
+			final sizes:Array<Int> = [];
+			#end
 			for (sourceFile in sourceFiles) {
 				final emitter = new Emitter();
 				emitter.writer = null;
@@ -1758,7 +1765,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 				emitter.writeFile = options.WriteFile;
 				emitter.tr = this.opts.Tracing;
 				emitters.push(emitter);
+				#if tshx_parallel
+				sizes.push(sourceFile.Text().length);
+				queue.push(function() {
+				#else
 				wg.Queue(function() {
+				#end
 					final h = Compiler.newEmitHost(ctx, this, sourceFile);
 					final host = h.a, hostDone = h.b;
 					try {
@@ -1782,6 +1794,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 					hostDone();
 				});
 			}
+			#if tshx_parallel
+			final order = [for (i in 0...queue.length) i];
+			order.sort((a, b) -> sizes[a] != sizes[b] ? sizes[b] - sizes[a] : a - b);
+			for (i in order)
+				wg.Queue(queue[i]);
+			#end
 		}
 
 		// wait for emit to complete
