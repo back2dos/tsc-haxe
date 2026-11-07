@@ -245,7 +245,19 @@ class CheckerPool_ implements CheckerPool {
 				#end
 			});
 		}
+		#if (tshx_parallel && hxmc.gc_suspend)
+		// PORT: hxmc (-D tshx-parallel, -D hxmc.gc-suspend) — no minor collection while the checkers run on threads
+		// (each would stop all of them; what they allocate mostly lives on): the nursery grows instead, up to
+		// TSHX_GC_SUSPEND_MB (1024; 0: collections as usual)
+		final suspendMB = singleThreaded ? 0 : (Sys.getEnv("TSHX_GC_SUSPEND_MB") != null ? Std.parseInt(Sys.getEnv("TSHX_GC_SUSPEND_MB")) : 1024);
+		if (suspendMB > 0)
+			hxmc.rt.Gc.suspendMinor(suspendMB);
 		wg.RunAndWait();
+		if (suspendMB > 0)
+			hxmc.rt.Gc.resumeMinor();
+		#else
+		wg.RunAndWait();
+		#end
 	}
 }
 
