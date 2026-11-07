@@ -837,12 +837,20 @@ abstract CacheHashKey(Null<std.String>) {
 // builder that is dropped without hash() just leaves its hasher to the GC.
 @:allow(ts.checker)
 class KeyHasher {
+	#if (target.name != "hxmc")
 	var buf:haxe.io.Bytes = haxe.io.Bytes.alloc(64);
 	var n:Int = 0;
+	#end
 
 	function new() {}
 
-	#if tshx_parallel
+	#if (target.name == "hxmc")
+	// PORT: perf — on hxmc a hasher is two words: a new one per key (no pool, no pop and push; a young object
+	// that the key's computation drops)
+	static inline function Get():KeyHasher {
+		return new KeyHasher();
+	}
+	#elseif tshx_parallel
 	// PORT: hxmc (-D tshx-parallel) — a pool and a packing buffer per thread (go.Par.slot)
 	static final pools:Array<Array<KeyHasher>> = [for (_ in 0...go.Par.SLOTS) []];
 	static final packeds:Array<haxe.io.Bytes> = [for (_ in 0...go.Par.SLOTS) null];
@@ -931,9 +939,6 @@ class KeyHasher {
 			x = (x ^ u) * 16777619;
 		}
 		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
-		h1 = 0;
-		h2 = 0;
-		pool.push(this);
 		return s;
 	}
 	#else

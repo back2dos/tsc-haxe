@@ -779,7 +779,21 @@ class Core {
 
 	// Returns value if value is not the zero value of T; Otherwise, returns defaultValue. OrElse should only be used when
 	// defaultValue is constant or precomputed as its argument will be evaluated regardless as to the content of value.
-	public static inline function OrElse<T>(value:T, defaultValue:T):T {
+	// PORT: perf — a macro: for a value of a class type the zero value is null, a null test (no runtime type tests);
+	// for the others orElseDyn (isZero)
+	public static macro function OrElse(value:haxe.macro.Expr, defaultValue:haxe.macro.Expr):haxe.macro.Expr {
+		final t = haxe.macro.Context.followWithAbstracts(haxe.macro.Context.typeof(value));
+		final isClass = switch t {
+			case TInst(c, _): final n = c.get().name; n != "String" && !c.get().kind.match(KTypeParameter(_));
+			default: false;
+		};
+		return isClass ? macro {
+			final v = $value;
+			v != null ? v : $defaultValue;
+		} : macro ts.core.Core.orElseDyn($value, $defaultValue);
+	}
+
+	public static inline function orElseDyn<T>(value:T, defaultValue:T):T {
 		return !isZero(value) ? value : defaultValue;
 	}
 
