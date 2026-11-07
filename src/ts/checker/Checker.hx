@@ -1437,7 +1437,7 @@ class Checker {
 	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new Symbol());
 	var signatureArena:Arena<Signature> = new Arena<Signature>(() -> new Signature());
 	var indexInfoArena:Arena<IndexInfo> = new Arena<IndexInfo>(() -> new IndexInfo());
-	var mergedSymbols:IdentityMap<Symbol, Symbol> = null;
+	var mergedSymbols:LinkStore<Symbol, MergedSymbolLinks> = null; // PORT: perf — from TypeScript 7.1 (#64869)
 	var factory:NodeFactory = new NodeFactory();
 	var nodeLinks:LinkStore<Node, NodeLinks> = new LinkStore<Node, NodeLinks>(() -> new NodeLinks());
 	var signatureLinks:LinkStore<Node, SignatureLinks> = new LinkStore<Node, SignatureLinks>(() -> new SignatureLinks());
@@ -1857,7 +1857,7 @@ class Checker {
 		c.unionOfUnionTypes = new StringMap<Type>();
 		c.intersectionTypes = new StringMap<Type>();
 		c.propertiesTypes = new StringMap<Type>();
-		c.mergedSymbols = new IdentityMap<Symbol, Symbol>();
+		c.mergedSymbols = new LinkStore<Symbol, MergedSymbolLinks>(() -> new MergedSymbolLinks());
 		c.patternForType = new IdentityMap<Type, Node>();
 		c.contextFreeTypes = new IdentityMap<Node, Type>();
 		c.anyType = c.newIntrinsicType(TypeFlagsAny, "any");

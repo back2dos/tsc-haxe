@@ -274,6 +274,14 @@ enum abstract MembersOrExportsResolutionKind(Int) from Int to Int {
 
 typedef MembersAndExportsLinks = Array<SymbolTable>;
 
+// PORT: perf — TypeScript 7.1's merged symbols in a symbol link store (microsoft/TypeScript#64869)
+@:allow(ts.checker)
+class MergedSymbolLinks {
+	var target:Symbol = null;
+
+	public function new() {}
+}
+
 @:allow(ts.checker)
 class SpreadLinks {
 	var leftSpread:Symbol = null; // Left source for synthetic spread property

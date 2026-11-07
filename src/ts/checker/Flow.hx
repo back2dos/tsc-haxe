@@ -1719,9 +1719,21 @@ class Flow {
 				if (Ast.IsThisInTypeQuery(source)) {
 					return target.Kind == KindThisKeyword;
 				}
-				return Ast.IsIdentifier(target) && c.getResolvedSymbol(source) == c.getResolvedSymbol(target)
-					|| (Ast.IsVariableDeclaration(target) || Ast.IsBindingElement(target))
-					&& c.getExportSymbolOfValueSymbolIfExported(c.getResolvedSymbol(source)) == c.getSymbolOfDeclaration(target);
+				// PORT: perf — from TypeScript 7.1 (microsoft/TypeScript#64868): names compared before symbols
+				if (Ast.IsIdentifier(target)) {
+					return c.getResolvedSymbol(source) == c.getResolvedSymbol(target);
+				}
+				if (Ast.IsVariableDeclaration(target) || Ast.IsBindingElement(target)) {
+					// A declaration's symbol is named by its identifier, so a reference with a
+					// different name cannot resolve to it. Checking names first avoids loading
+					// the symbols of every unrelated declaration seen while walking flow nodes.
+					final name = target.Name();
+					if (name != null && Ast.IsIdentifier(name) && name.AsIdentifier().Text != source.Text()) {
+						return false;
+					}
+					return c.getExportSymbolOfValueSymbolIfExported(c.getResolvedSymbol(source)) == c.getSymbolOfDeclaration(target);
+				}
+				return false;
 			case KindThisKeyword:
 				return target.Kind == KindThisKeyword;
 			case KindSuperKeyword:
@@ -1729,13 +1741,15 @@ class Flow {
 			case KindNonNullExpression | KindParenthesizedExpression | KindSatisfiesExpression:
 				return c.isMatchingReference(source.Expression(), target);
 			case KindPropertyAccessExpression | KindElementAccessExpression:
+				// PORT: perf — from TypeScript 7.1 (microsoft/TypeScript#65045): non-access targets rejected first
+				if (!Ast.IsAccessExpression(target)) {
+					return false;
+				}
 				final sourcePropertyName = c.getAccessedPropertyName(source);
 				if (sourcePropertyName != null) {
-					if (Ast.IsAccessExpression(target)) {
-						final targetPropertyName = c.getAccessedPropertyName(target);
-						if (targetPropertyName != null) {
-							return targetPropertyName == sourcePropertyName && c.isMatchingReference(source.Expression(), target.Expression());
-						}
+					final targetPropertyName = c.getAccessedPropertyName(target);
+					if (targetPropertyName != null) {
+						return targetPropertyName == sourcePropertyName && c.isMatchingReference(source.Expression(), target.Expression());
 					}
 				}
 				if (Ast.IsElementAccessExpression(source) && Ast.IsElementAccessExpression(target)) {

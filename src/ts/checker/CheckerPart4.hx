@@ -2315,9 +2315,9 @@ class CheckerPart4 {
 
 	static function getMergedSymbol(c:Checker, symbol:Symbol):Symbol {
 		if (symbol != null) {
-			final merged = c.mergedSymbols.get(symbol);
-			if (merged != null) {
-				return merged;
+			final merged = c.mergedSymbols.TryGet(symbol);
+			if (merged != null && merged.target != null) {
+				return merged.target;
 			}
 		}
 		return symbol;
@@ -2331,7 +2331,7 @@ class CheckerPart4 {
 	}
 
 	static function recordMergedSymbol(c:Checker, target:Symbol, source:Symbol):Void {
-		c.mergedSymbols.set(source, target);
+		c.mergedSymbols.Get(source).target = target;
 	}
 
 	static function getSymbolIfSameReference(c:Checker, s1:Symbol, s2:Symbol):Symbol {
