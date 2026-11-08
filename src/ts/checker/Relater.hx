@@ -3390,7 +3390,7 @@ class Relater {
 	}
 
 	function structuredTypeRelatedTo(source:Type, target:Type, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
-		final saveErrorState = getErrorState();
+		final saveErrorChain = errorChain, saveRelatedInfo = relatedInfo; // PORT: perf — Go's errorState value as two locals (no object)
 		var result = structuredTypeRelatedToWorker(source, target, reportErrors, intersectionState);
 		if (relation != c.identityRelation) {
 			// The combined constraint of an intersection type is the intersection of the constraints of
@@ -3448,7 +3448,8 @@ class Relater {
 			}
 		}
 		if (result != TernaryFalse) {
-			restoreErrorState(saveErrorState);
+			errorChain = saveErrorChain;
+			relatedInfo = saveRelatedInfo;
 		}
 		return result;
 	}
@@ -3458,61 +3459,83 @@ class Relater {
 			&& !Core.Some(source.Types(), t -> t == target || t.objectFlags & ObjectFlagsNonInferrableType != 0);
 	}
 
+	// PORT: perf — structuredTypeRelatedToWorker's relateVariances closure as a method (Go: a closure; here no closure
+	// object and no boxes of the worker's locals it assigns, per worker call): it returns the Ternary, and the values
+	// of the locals it assigns (result always, varianceCheckFailed and originalErrorChain when set) and Go's second
+	// result in the rv fields, which the caller copies right after the call
+	var rvResult:Ternary = TernaryFalse;
+	var rvOk = false;
+	var rvSetVarianceCheckFailed = false;
+	var rvVarianceCheckFailed = false;
+	var rvSetOriginalErrorChain = false;
+	var rvOriginalErrorChain:ErrorChain = null;
+
+	inline function rvDone(result:Ternary, ok:Bool, setVcf:Bool, vcf:Bool, setOec:Bool, oec:ErrorChain):Void {
+		rvResult = result;
+		rvOk = ok;
+		rvSetVarianceCheckFailed = setVcf;
+		rvVarianceCheckFailed = vcf;
+		rvSetOriginalErrorChain = setOec;
+		rvOriginalErrorChain = oec;
+	}
+
+	function relateVariances(sourceTypeArguments:haxe.ds.Vector<Type>, targetTypeArguments:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>,
+			intersectionState:IntersectionState, reportErrors:Bool, saveErrorChain:ErrorChain, saveRelatedInfo:Array<Diagnostic>):Ternary {
+		final result = typeArgumentsRelatedTo(sourceTypeArguments, targetTypeArguments, variances, reportErrors, intersectionState);
+		if (result != TernaryFalse) {
+			rvDone(result, true, false, false, false, null);
+			return result;
+		}
+		if (Core.Some(variances, v -> v & VarianceFlagsAllowsStructuralFallback != 0)) {
+			// If some type parameter was `Unmeasurable` or `Unreliable`, and we couldn't pass by assuming it was identical, then we
+			// have to allow a structural fallback check
+			// We elide the variance-based error elaborations, since those might not be too helpful, since we'll potentially
+			// be assuming identity of the type parameter.
+			errorChain = saveErrorChain;
+			relatedInfo = saveRelatedInfo;
+			rvDone(result, false, false, false, true, null);
+			return TernaryFalse;
+		}
+		final allowStructuralFallback = c.hasCovariantVoidArgument(targetTypeArguments, variances);
+		final varianceCheckFailed = !allowStructuralFallback;
+		// The type arguments did not relate appropriately, but it may be because we have no variance
+		// information (in which case typeArgumentsRelatedTo defaulted to covariance for all type
+		// arguments). It might also be the case that the target type has a 'void' type argument for
+		// a covariant type parameter that is only used in return positions within the generic type
+		// (in which case any type argument is permitted on the source side). In those cases we proceed
+		// with a structural comparison. Otherwise, we know for certain the instantiations aren't
+		// related and we can return here.
+		if (Core.len(variances) != 0 && !allowStructuralFallback) {
+			// In some cases generic types that are covariant in regular type checking mode become
+			// invariant in --strictFunctionTypes mode because one or more type parameters are used in
+			// both co- and contravariant positions. In order to make it easier to diagnose *why* such
+			// types are invariant, if any of the type parameters are invariant we reset the reported
+			// errors and instead force a structural comparison (which will include elaborations that
+			// reveal the reason).
+			// We can switch on `reportErrors` here, since varianceCheckFailed guarantees we return `False`,
+			// we can return `False` early here to skip calculating the structural error message we don't need.
+			if (varianceCheckFailed && !(reportErrors && Core.Some(variances, v -> (v & VarianceFlagsVarianceMask) == VarianceFlagsInvariant))) {
+				rvDone(result, true, true, varianceCheckFailed, false, null);
+				return TernaryFalse;
+			}
+			// We remember the original error information so we can restore it in case the structural
+			// comparison unexpectedly succeeds. This can happen when the structural comparison result
+			// is a Ternary.Maybe for example caused by the recursion depth limiter.
+			final originalErrorChain = errorChain;
+			errorChain = saveErrorChain;
+			relatedInfo = saveRelatedInfo;
+			rvDone(result, false, true, varianceCheckFailed, true, originalErrorChain);
+			return TernaryFalse;
+		}
+		rvDone(result, false, true, varianceCheckFailed, false, null);
+		return TernaryFalse;
+	}
+
 	function structuredTypeRelatedToWorker(source:Type, target:Type, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
 		var result:Ternary = TernaryFalse;
 		var varianceCheckFailed = false;
 		var originalErrorChain:ErrorChain = null;
-		final saveErrorState = getErrorState();
-		// PORT: Go returns (Ternary, bool); the bool is passed back through relateVariancesOk
-		var relateVariancesOk = false;
-		final relateVariances = (sourceTypeArguments:haxe.ds.Vector<Type>, targetTypeArguments:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>,
-				intersectionState:IntersectionState) -> {
-			result = typeArgumentsRelatedTo(sourceTypeArguments, targetTypeArguments, variances, reportErrors, intersectionState);
-			if (result != TernaryFalse) {
-				relateVariancesOk = true;
-				return result;
-			}
-			if (Core.Some(variances, v -> v & VarianceFlagsAllowsStructuralFallback != 0)) {
-				// If some type parameter was `Unmeasurable` or `Unreliable`, and we couldn't pass by assuming it was identical, then we
-				// have to allow a structural fallback check
-				// We elide the variance-based error elaborations, since those might not be too helpful, since we'll potentially
-				// be assuming identity of the type parameter.
-				originalErrorChain = null;
-				restoreErrorState(saveErrorState);
-				relateVariancesOk = false;
-				return TernaryFalse;
-			}
-			final allowStructuralFallback = c.hasCovariantVoidArgument(targetTypeArguments, variances);
-			varianceCheckFailed = !allowStructuralFallback;
-			// The type arguments did not relate appropriately, but it may be because we have no variance
-			// information (in which case typeArgumentsRelatedTo defaulted to covariance for all type
-			// arguments). It might also be the case that the target type has a 'void' type argument for
-			// a covariant type parameter that is only used in return positions within the generic type
-			// (in which case any type argument is permitted on the source side). In those cases we proceed
-			// with a structural comparison. Otherwise, we know for certain the instantiations aren't
-			// related and we can return here.
-			if (Core.len(variances) != 0 && !allowStructuralFallback) {
-				// In some cases generic types that are covariant in regular type checking mode become
-				// invariant in --strictFunctionTypes mode because one or more type parameters are used in
-				// both co- and contravariant positions. In order to make it easier to diagnose *why* such
-				// types are invariant, if any of the type parameters are invariant we reset the reported
-				// errors and instead force a structural comparison (which will include elaborations that
-				// reveal the reason).
-				// We can switch on `reportErrors` here, since varianceCheckFailed guarantees we return `False`,
-				// we can return `False` early here to skip calculating the structural error message we don't need.
-				if (varianceCheckFailed && !(reportErrors && Core.Some(variances, v -> (v & VarianceFlagsVarianceMask) == VarianceFlagsInvariant))) {
-					relateVariancesOk = true;
-					return TernaryFalse;
-				}
-				// We remember the original error information so we can restore it in case the structural
-				// comparison unexpectedly succeeds. This can happen when the structural comparison result
-				// is a Ternary.Maybe for example caused by the recursion depth limiter.
-				originalErrorChain = errorChain;
-				restoreErrorState(saveErrorState);
-			}
-			relateVariancesOk = false;
-			return TernaryFalse;
-		};
+		final saveErrorChain = errorChain, saveRelatedInfo = relatedInfo; // PORT: perf — Go's errorState value as two locals (no object)
 		if (relation == c.identityRelation) {
 			// We've already checked that source.flags and target.flags are identical
 			if (source.flags & TypeFlagsUnionOrIntersection != 0) {
@@ -3610,8 +3633,15 @@ class Relater {
 			final nodeIsInJsFile = Ast.IsInJSFile(source.alias.symbol.ValueDeclaration);
 			final sourceTypes = c.fillMissingTypeArguments(source.alias.typeArguments, params, minParams, nodeIsInJsFile);
 			final targetTypes = c.fillMissingTypeArguments(target.alias.typeArguments, params, minParams, nodeIsInJsFile);
-			final varianceResult = relateVariances(sourceTypes, targetTypes, variances, intersectionState);
-			if (relateVariancesOk) {
+			final varianceResult = relateVariances(sourceTypes, targetTypes, variances, intersectionState, reportErrors, saveErrorChain, saveRelatedInfo);
+			result = rvResult;
+			if (rvSetVarianceCheckFailed) {
+				varianceCheckFailed = rvVarianceCheckFailed;
+			}
+			if (rvSetOriginalErrorChain) {
+				originalErrorChain = rvOriginalErrorChain;
+			}
+			if (rvOk) {
 				return varianceResult;
 			}
 		}
@@ -3679,7 +3709,8 @@ class Relater {
 					if (constraint != null) {
 						if (reportErrors && originalErrorChain != null) {
 							// create a new chain for the constraint error
-							restoreErrorState(saveErrorState);
+							errorChain = saveErrorChain;
+							relatedInfo = saveRelatedInfo;
 						}
 						result = isRelatedToEx(source, constraint, RecursionFlagsTarget, reportErrors, null /*headMessage*/, intersectionState);
 						if (result != TernaryFalse) {
@@ -3873,7 +3904,8 @@ class Relater {
 						}
 					}
 					originalErrorChain = errorChain;
-					restoreErrorState(saveErrorState);
+					errorChain = saveErrorChain;
+					relatedInfo = saveRelatedInfo;
 				}
 			}
 		}
@@ -3982,7 +4014,8 @@ class Relater {
 			if (target.flags & TypeFlagsConditional == 0 && c.hasNonCircularBaseConstraint(source)) {
 				final distributiveConstraint = c.getConstraintOfDistributiveConditionalType(source);
 				if (distributiveConstraint != null) {
-					restoreErrorState(saveErrorState);
+					errorChain = saveErrorChain;
+					relatedInfo = saveRelatedInfo;
 					result = isRelatedTo(distributiveConstraint, target, RecursionFlagsSource, reportErrors);
 					if (result != TernaryFalse) {
 						return result;
@@ -4054,8 +4087,15 @@ class Relater {
 				if (Core.len(variances) == 0) {
 					return TernaryUnknown;
 				}
-				final varianceResult = relateVariances(c.getTypeArguments(source), c.getTypeArguments(target), variances, intersectionState);
-				if (relateVariancesOk) {
+				final varianceResult = relateVariances(c.getTypeArguments(source), c.getTypeArguments(target), variances, intersectionState, reportErrors, saveErrorChain, saveRelatedInfo);
+				result = rvResult;
+				if (rvSetVarianceCheckFailed) {
+					varianceCheckFailed = rvVarianceCheckFailed;
+				}
+				if (rvSetOriginalErrorChain) {
+					originalErrorChain = rvOriginalErrorChain;
+				}
+				if (rvOk) {
 					return varianceResult;
 				}
 			} else if (c.isArrayType(target)
@@ -4083,7 +4123,7 @@ class Relater {
 			// relates to X. Thus, we include intersection types on the source side here.
 			if (source.flags & (TypeFlagsObject | TypeFlagsIntersection) != 0 && target.flags & TypeFlagsObject != 0) {
 				// Report structural errors only if we haven't reported any errors yet
-				final reportStructuralErrors = reportErrors && errorChain == saveErrorState.errorChain && !sourceIsPrimitive;
+				final reportStructuralErrors = reportErrors && errorChain == saveErrorChain && !sourceIsPrimitive;
 				result = propertiesRelatedTo(source, target, reportStructuralErrors, null /*excludedProperties*/, false /*optionalsOnly*/, intersectionState);
 				if (result != TernaryFalse) {
 					result &= signaturesRelatedTo(source, target, SignatureKindCall, reportStructuralErrors, intersectionState);
@@ -4101,7 +4141,7 @@ class Relater {
 					if (originalErrorChain != null) {
 						errorChain = originalErrorChain;
 					} else if (errorChain == null) {
-						errorChain = saveErrorState.errorChain;
+						errorChain = saveErrorChain;
 					}
 					// Use variance error (there is no structural one) and return false
 				}
@@ -4745,7 +4785,7 @@ class Relater {
 			result = signatureRelatedTo(sourceSignatures[0], targetSignatures[0], eraseGenerics, reportErrors, intersectionState);
 		} else if (targetSignatures != null) {
 			for (t in targetSignatures) {
-				final saveErrorState = getErrorState();
+				final saveErrorChain = errorChain, saveRelatedInfo = relatedInfo; // PORT: perf — Go's errorState value as two locals (no object)
 				// Only elaborate errors from the first failure
 				var shouldElaborateErrors = reportErrors;
 				var matched = false; // PORT: label — `continue outer`
@@ -4754,7 +4794,8 @@ class Relater {
 						final related = signatureRelatedTo(s, t, true /*erase*/, shouldElaborateErrors, intersectionState);
 						if (related != TernaryFalse) {
 							result &= related;
-							restoreErrorState(saveErrorState);
+							errorChain = saveErrorChain;
+							relatedInfo = saveRelatedInfo;
 							matched = true;
 							break;
 						}
