@@ -1404,7 +1404,7 @@ class CheckerPart1 {
 			}
 			c.checkDeferredNode(node);
 		}
-		links.deferredNodes.Clear();
+		links.deferredNodes = new ts.collections.OrderedSet<Node>();
 	}
 
 	static function checkDeferredNode(c:Checker, node:Node):Void {
@@ -1447,6 +1447,8 @@ class CheckerPart1 {
 				if (Ast.IsInstanceOfExpression(node)) {
 					c.resolveUntypedCall(node);
 				}
+			case KindObjectLiteralExpression | KindJsxAttributes:
+				c.checkContextualDeprecations(node);
 			default:
 		}
 		c.currentNode = saveCurrentNode;

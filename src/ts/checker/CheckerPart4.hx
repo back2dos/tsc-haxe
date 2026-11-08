@@ -1178,6 +1178,7 @@ class CheckerPart4 {
 			}
 			return result;
 		}
+		c.checkNodeDeferred(node);
 		final inDestructuringPattern = Ast.IsAssignmentTarget(node);
 		// Grammar checking
 		c.checkGrammarObjectLiteralExpression(node.AsObjectLiteralExpression(), inDestructuringPattern);
@@ -1385,6 +1386,31 @@ class CheckerPart4 {
 			});
 		}
 		return createObjectLiteralType();
+	}
+
+	static function checkContextualDeprecations(c:Checker, node:Node):Void {
+		final contextualType = c.getApparentTypeOfContextualType(node, ContextFlagsNone);
+		for (property in node.Properties()) {
+			if (c.isCanceled()) {
+				return;
+			}
+			if (property.Name() != null && !Ast.IsComputedPropertyName(property.Name())) {
+				c.checkDeprecatedProperty(property.Name(), contextualType);
+			}
+		}
+	}
+
+	static function checkDeprecatedProperty(c:Checker, name:Node, contextualType:Type):Void {
+		if (contextualType == null) {
+			return;
+		}
+		final prop = c.getPropertyOfType(contextualType, name.Text());
+		if (prop == null || Core.len(prop.Declarations) == 0) {
+			return;
+		}
+		if (c.isDeprecatedSymbol(prop)) {
+			c.addDeprecatedSuggestion(name, prop.Declarations, name.Text());
+		}
 	}
 
 	static function checkSpreadPropOverrides(c:Checker, t:Type, props:SymbolTable, spread:Node):Void {

@@ -102,6 +102,7 @@ class Jsx {
 	}
 
 	static function checkJsxAttributes(c:Checker, node:Node, checkMode:CheckMode):Type {
+		c.checkNodeDeferred(node);
 		return c.createJsxAttributesTypeFromAttributesProperty(node.Parent, checkMode);
 	}
 
@@ -739,12 +740,6 @@ class Jsx {
 					}
 					if (attributeDecl.Name().Text() == jsxChildrenPropertyName) {
 						explicitlySpecifyChildrenAttribute = true;
-					}
-					if (contextualType != null) {
-						final prop = c.getPropertyOfType(contextualType, member.Name);
-						if (prop != null && prop.Declarations != null && c.isDeprecatedSymbol(prop) && Ast.IsIdentifier(attributeDecl.Name())) {
-							c.addDeprecatedSuggestion(attributeDecl.Name(), prop.Declarations, attributeDecl.Name().Text());
-						}
 					}
 					if (contextualType != null && (checkMode & CheckModeInferential) != 0 && (checkMode & CheckModeSkipContextSensitive) == 0 && c.isContextSensitive(attributeDecl)) {
 						final inferenceContext = c.getInferenceContext(attributes);
