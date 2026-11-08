@@ -281,6 +281,11 @@ class CheckerPart3 {
 			return c.createPromiseReturnType(node, c.anyType);
 		}
 		final specifier = args[0];
+		if (c.compilerOptions.RewriteRelativeImportExtensions.IsTrue()
+			&& !c.compilerOptions.DisableDynamicImportExtensionRewriting.IsTrue()
+			&& !Ast.IsStringLiteralLike(specifier)) {
+			c.checkExternalEmitHelpers(node, ExternalEmitHelpersRewriteRelativeImportExtension);
+		}
 		final specifierType = c.checkExpressionCached(specifier);
 		var optionsType:Type = null;
 		if (args.length > 1) {
@@ -334,6 +339,12 @@ class CheckerPart3 {
 	 * @returns On success, the expression's signature's return type. On failure, anyType.
 	 */
 	static function checkCallExpression(c:Checker, node:Node, checkMode:CheckMode):Type {
+		if (c.compilerOptions.RewriteRelativeImportExtensions.IsTrue()
+			&& !c.compilerOptions.DisableDynamicImportExtensionRewriting.IsTrue()
+			&& Ast.IsInJSFile(node) && Ast.IsRequireCall(node, false /*requireStringLiteralLikeArgument*/)
+			&& !Ast.IsStringLiteralLike(node.Arguments()[0])) {
+			c.checkExternalEmitHelpers(node, ExternalEmitHelpersRewriteRelativeImportExtension);
+		}
 		c.checkGrammarTypeArguments(node, node.TypeArgumentList());
 		final signature = c.getResolvedSignature(node, null /*candidatesOutArray*/, checkMode);
 		if (signature == c.resolvingSignature) {
