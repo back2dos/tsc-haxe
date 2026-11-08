@@ -2281,7 +2281,8 @@ class CheckerPart6 {
 		} else {
 			cache = c.activeTypeMappersCaches[index];
 			if (cache == null) {
-				cache = new ActiveMapperCache();
+				final pool = c.activeMapperCachePool;
+				cache = pool.length != 0 ? pool.pop() : new ActiveMapperCache();
 				c.activeTypeMappersCaches[index] = cache;
 			}
 			if (alias == null) {
@@ -2294,7 +2295,7 @@ class CheckerPart6 {
 				b.writeType(t);
 				b.writeAlias(alias);
 				key = b.hash().Key();
-				final cached = cache.byKey.get(key);
+				final cached = cache.byKey == null ? null : cache.byKey.get(key);
 				if (cached != null) {
 					return cached;
 				}
@@ -2309,6 +2310,8 @@ class CheckerPart6 {
 		} else if (alias == null) {
 			cache.byId.set(t.id, result);
 		} else {
+			if (cache.byKey == null)
+				cache.byKey = new haxe.ds.StringMap<Type>();
 			cache.byKey.set(key, result);
 		}
 		c.instantiationStack.pop();
@@ -2356,8 +2359,12 @@ class CheckerPart6 {
 		c.activeMappers.pop();
 
 		// Clear the map, but leave it in the list for later reuse.
-		// PORT: the map is dropped instead (see pushActiveMapper).
-		c.activeTypeMappersCaches.pop();
+		// PORT: the map goes to a pool instead (see pushActiveMapper; PORT: perf — cleared, its table kept).
+		final cache = c.activeTypeMappersCaches.pop();
+		if (cache != null) {
+			cache.clear();
+			c.activeMapperCachePool.push(cache);
+		}
 	}
 
 	static function findActiveMapper(c:Checker, mapper:TypeMapper):Int {
@@ -2367,8 +2374,7 @@ class CheckerPart6 {
 	static function clearActiveMapperCaches(c:Checker):Void {
 		for (cache in rangeOf(c.activeTypeMappersCaches)) {
 			if (cache != null) {
-				cache.byId.clear();
-				cache.byKey.clear();
+				cache.clear();
 			}
 		}
 	}
@@ -4302,8 +4308,16 @@ class CheckerPart6 {
 // by type id (no alias) or by the hashed key (with an alias)
 @:allow(ts.checker)
 class ActiveMapperCache {
-	final byId = new haxe.ds.IntMap<Type>();
-	final byKey = new haxe.ds.StringMap<Type>();
+	// PORT: perf — a cache is pooled when its mapper is popped (Go keeps the cleared map in the slice's capacity for the
+	// next push): byId keeps its table when cleared, byKey (aliased instantiations, rare) is made on first use
+	final byId = new ts.core.ScratchIntMap<Type>();
+	var byKey:haxe.ds.StringMap<Type> = null;
 
 	public function new() {}
+
+	public function clear():Void {
+		byId.clear();
+		if (byKey != null)
+			byKey.clear();
+	}
 }
