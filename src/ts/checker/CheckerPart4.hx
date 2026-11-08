@@ -1620,7 +1620,7 @@ class CheckerPart4 {
 				}
 				result.Declarations = prop.Declarations;
 				links.nameType = c.valueSymbolLinks.Get(prop).nameType;
-				c.mappedSymbolLinks.Get(result).syntheticOrigin = prop;
+				c.setSyntheticOrigin(result, prop);
 				members.set(prop.Name, result);
 			}
 		}
@@ -1653,7 +1653,7 @@ class CheckerPart4 {
 		}
 		result.Declarations = prop.Declarations;
 		links.nameType = c.valueSymbolLinks.Get(prop).nameType;
-		c.mappedSymbolLinks.Get(result).syntheticOrigin = prop;
+		c.setSyntheticOrigin(result, prop);
 		return result;
 	}
 
@@ -2186,6 +2186,45 @@ class CheckerPart4 {
 		final result = Symbol.NewSharedData(symbol);
 		result.Flags = symbol.Flags | SymbolFlagsTransient;
 		return result;
+	}
+
+	// PORT: perf — Go's MappedSymbolLinks of a mapped type's property are fields of its value links
+	// (MappedValueSymbolLinks, made for a transient symbol with CheckFlagsMapped, which gets the mapped links when
+	// it is made); other symbols' are in mappedSymbolLinks
+	static inline function mappedValueLinks(c:Checker, s:Symbol):MappedValueSymbolLinks {
+		return (s.CheckFlags & CheckFlagsMapped) != 0 && (s.Flags & SymbolFlagsTransient) != 0 ? Std.downcast(c.valueSymbolLinks.TryGet(s), MappedValueSymbolLinks) : null;
+	}
+
+	static function hasMappedSymbolLinks(c:Checker, s:Symbol):Bool {
+		return c.mappedValueLinks(s) != null || c.mappedSymbolLinks.Has(s);
+	}
+
+	static function getMappedKeyType(c:Checker, s:Symbol):Type {
+		final v = c.mappedValueLinks(s);
+		return v != null ? v.mappedKeyType : c.mappedSymbolLinks.Get(s).keyType;
+	}
+
+	static function setMappedKeyType(c:Checker, s:Symbol, t:Type):Void {
+		final v = c.mappedValueLinks(s);
+		if (v != null) {
+			v.mappedKeyType = t;
+		} else {
+			c.mappedSymbolLinks.Get(s).keyType = t;
+		}
+	}
+
+	static function getSyntheticOrigin(c:Checker, s:Symbol):Symbol {
+		final v = c.mappedValueLinks(s);
+		return v != null ? v.mappedSyntheticOrigin : c.mappedSymbolLinks.Get(s).syntheticOrigin;
+	}
+
+	static function setSyntheticOrigin(c:Checker, s:Symbol, origin:Symbol):Void {
+		final v = c.mappedValueLinks(s);
+		if (v != null) {
+			v.mappedSyntheticOrigin = origin;
+		} else {
+			c.mappedSymbolLinks.Get(s).syntheticOrigin = origin;
+		}
 	}
 
 	static function newSymbolEx(c:Checker, flags:SymbolFlags, name:std.String, checkFlags:CheckFlags):Symbol {

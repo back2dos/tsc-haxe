@@ -2738,7 +2738,7 @@ class Flow {
 		}
 		if ((symbol.Flags & (SymbolFlagsVariable | SymbolFlagsProperty)) != 0) {
 			if ((symbol.CheckFlags & CheckFlagsMapped) != 0) {
-				final origin = c.mappedSymbolLinks.Get(symbol).syntheticOrigin;
+				final origin = c.getSyntheticOrigin(symbol);
 				if (origin != null && c.getExplicitTypeOfSymbol(origin, diagnostic) != null) {
 					return c.getTypeOfSymbol(symbol);
 				}

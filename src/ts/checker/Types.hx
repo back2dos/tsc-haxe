@@ -335,6 +335,17 @@ class SyntheticValueSymbolLinks extends TransientValueSymbolLinks {
 	}
 }
 
+// the value links of a mapped type's property, with Go's MappedSymbolLinks (Checker.getMappedKeyType, ...)
+@:allow(ts.checker)
+class MappedValueSymbolLinks extends SyntheticValueSymbolLinks {
+	var mappedKeyType:Type = null;
+	var mappedSyntheticOrigin:Symbol = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // the side record of the value links of a symbol that is not transient, with a target or mapper
 @:allow(ts.checker)
 class ValueSymbolTargetExtra extends ValueSymbolExtra {

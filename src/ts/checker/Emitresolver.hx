@@ -990,7 +990,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 					symbol = checker.getSymbolOfDeclaration(declaration);
 				}
 				final t = checker.getTypeOfSymbol(symbol);
-				checker.mappedSymbolLinks.Has(symbol);
+				checker.hasMappedSymbolLinks(symbol);
 				return ((symbol.Flags & SymbolFlagsProperty) != 0) && ((symbol.Flags & SymbolFlagsOptional) != 0) && Checker.isOptionalDeclaration(declaration)
 					&& checker.ReverseMappedSymbolLinks.Has(symbol) && checker.ReverseMappedSymbolLinks.Get(symbol).mappedType != null
 					&& Checker.containsNonMissingUndefinedType(checker, t);

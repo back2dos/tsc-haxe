@@ -827,8 +827,7 @@ class CheckerPart6 {
 				if (existingProp != null) {
 					final valueLinks = c.valueSymbolLinks.Get(existingProp);
 					valueLinks.nameType = c.getUnionType([valueLinks.nameType, propNameType]);
-					final mappedLinks = c.mappedSymbolLinks.Get(existingProp);
-					mappedLinks.keyType = c.getUnionType([mappedLinks.keyType, keyType]);
+					c.setMappedKeyType(existingProp, c.getUnionType([c.getMappedKeyType(existingProp), keyType]));
 				} else {
 					var modifiersProp:Symbol = null;
 					if (Checker.isTypeUsableAsPropertyName(keyType)) {
@@ -846,10 +845,9 @@ class CheckerPart6 {
 					final valueLinks = c.valueSymbolLinks.Get(prop);
 					valueLinks.containingType = t;
 					valueLinks.nameType = propNameType;
-					final mappedLinks = c.mappedSymbolLinks.Get(prop);
-					mappedLinks.keyType = keyType;
+					c.setMappedKeyType(prop, keyType);
 					if (modifiersProp != null) {
-						mappedLinks.syntheticOrigin = modifiersProp;
+						c.setSyntheticOrigin(prop, modifiersProp);
 						if (shouldLinkPropDeclarations) {
 							prop.Declarations = modifiersProp.Declarations;
 						}
@@ -897,7 +895,7 @@ class CheckerPart6 {
 				return c.errorType;
 			}
 			final templateType = c.getTemplateTypeFromMappedType(Core.OrElse(mappedType.AsMappedType().target, mappedType));
-			final mapper = Checker.appendTypeMapping(mappedType.AsMappedType().mapper, c.getTypeParameterFromMappedType(mappedType), c.mappedSymbolLinks.Get(symbol).keyType);
+			final mapper = Checker.appendTypeMapping(mappedType.AsMappedType().mapper, c.getTypeParameterFromMappedType(mappedType), c.getMappedKeyType(symbol));
 			var propType = c.instantiateType(templateType, mapper);
 			// When creating an optional property in strictNullChecks mode, if 'undefined' isn't assignable to the
 			// type, we include 'undefined' in the type. Similarly, when creating a non-optional property in strictNullChecks

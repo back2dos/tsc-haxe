@@ -383,8 +383,8 @@ class Services {
 					return [leftSpread, rightSpread];
 				}
 			}
-			if (c.mappedSymbolLinks.Has(symbol)) {
-				final syntheticOrigin = c.mappedSymbolLinks.Get(symbol).syntheticOrigin;
+			if (c.hasMappedSymbolLinks(symbol)) {
+				final syntheticOrigin = c.getSyntheticOrigin(symbol);
 				if (syntheticOrigin != null) {
 					return [syntheticOrigin];
 				}
