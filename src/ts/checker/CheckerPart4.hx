@@ -3350,14 +3350,14 @@ class CheckerPart4 {
 					final resolvedUsingRewritableExtension = resolvedModule.ResolvedUsingTsExtension
 						|| resolvedModule.ResolvedUsingExtraExtensions && sourceFile.ContentMapper() != "" && mappedSource;
 					if (!resolvedUsingRewritableExtension && shouldRewrite) {
-						final relativeToSourceFile = Tspath.GetRelativePathFromFile(Tspath.GetNormalizedAbsolutePath(importingSourceFile.FileName(),
+						final relativeToSourceFile = Tspath.GetRelativePathFromFile_legacy(Tspath.GetNormalizedAbsolutePath(importingSourceFile.FileName(),
 							c.program.GetCurrentDirectory()),
 							resolvedModule.ResolvedFileName, new ComparePathsOptions(c.program.UseCaseSensitiveFileNames(), c.program.GetCurrentDirectory()));
 						c.error(errorNode,
 							Diagnostics.This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
 							relativeToSourceFile);
 					} else if (resolvedUsingRewritableExtension && !shouldRewrite && (mappedSource || c.program.SourceFileMayBeEmitted(sourceFile, false))) {
-						var extension = Tspath.GetAnyExtensionFromPath(moduleReference, null, false);
+						var extension = Tspath.GetAnyExtensionFromPath(moduleReference, null, Tspath.CaseSensitive);
 						if (mappedSource) {
 							extension = ts.tspath.Tspath.ExtensionRewrites.GetExtensionRewrite(sourceFile.FileName(), rewrites, ignoreCase).value.Source;
 						}
@@ -3372,7 +3372,7 @@ class CheckerPart4 {
 
 							final compareOptions = new ComparePathsOptions(c.program.UseCaseSensitiveFileNames(), c.program.GetCurrentDirectory());
 
-							final rootDirPath = Tspath.GetRelativePathFromDirectory(ownRootDir, otherRootDir, compareOptions);
+							final rootDirPath = Tspath.GetRelativePathFromDirectory_legacy(ownRootDir, otherRootDir, compareOptions);
 
 							// Get outDir paths, defaulting to root directories if not specified
 							var ownOutDir = c.compilerOptions.OutDir;
@@ -3383,7 +3383,7 @@ class CheckerPart4 {
 							if (otherOutDir == "") {
 								otherOutDir = otherRootDir;
 							}
-							final outDirPath = Tspath.GetRelativePathFromDirectory(ownOutDir, otherOutDir, compareOptions);
+							final outDirPath = Tspath.GetRelativePathFromDirectory_legacy(ownOutDir, otherOutDir, compareOptions);
 
 							if (rootDirPath != outDirPath) {
 								c.error(errorNode,

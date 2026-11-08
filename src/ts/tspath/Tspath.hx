@@ -103,7 +103,7 @@ class Tspath {
 		if (withoutExtension != path) {
 			return withoutExtension;
 		}
-		final extension = GetAnyExtensionFromPath(path, null, false);
+		final extension = GetAnyExtensionFromPath(path, null, CaseSensitive);
 		if (extension != "") {
 			return RemoveExtension(path, extension);
 		}
@@ -158,8 +158,12 @@ class Tspath {
 		return Slices.Contains(extensions, ext);
 	}
 
-	public static function GetDeclarationFileExtension(fileName:String):String {
-		final base = GetBaseFileName(fileName);
+	public static inline function GetDeclarationFileExtension(fileName:String):String {
+		return getDeclarationFileExtensionFromNormalized(NormalizeSlashes(fileName));
+	}
+
+	static function getDeclarationFileExtensionFromNormalized(fileName:String):String {
+		final base = getBaseFileNameFromNormalized(fileName);
 		for (ext in SupportedDeclarationExtensions) {
 			if (StringTools.endsWith(base, ext)) {
 				return ext;
@@ -182,7 +186,7 @@ class Tspath {
 		} else if (FileExtensionIsOneOf(path, [ExtensionTs, ExtensionTsx, ExtensionJs, ExtensionJsx])) {
 			return ExtensionDts;
 		} else {
-			final ext = GetAnyExtensionFromPath(path, null, false);
+			final ext = GetAnyExtensionFromPath(path, null, CaseSensitive);
 			if (ext != "") {
 				return ".d" + ext + ".ts";
 			}
@@ -195,8 +199,8 @@ class Tspath {
 	// ChangeAnyExtension("/path/to/file.ext", ".js", ".ext") === "/path/to/file.js"
 	// ChangeAnyExtension("/path/to/file.ext", ".js", ".ts") === "/path/to/file.ext"
 	// ChangeAnyExtension("/path/to/file.ext", ".js", [".ext", ".ts"]) === "/path/to/file.js"
-	public static function ChangeAnyExtension(path:String, ext:String, extensions:Array<String>, ignoreCase:Bool):String {
-		final pathext = GetAnyExtensionFromPath(path, extensions, ignoreCase);
+	public static function ChangeAnyExtension(path:String, ext:String, extensions:Array<String>, caseSensitivity:CaseSensitivity):String {
+		final pathext = GetAnyExtensionFromPath(path, extensions, caseSensitivity);
 		if (pathext != "") {
 			final result = path.substring(0, path.length - pathext.length);
 			if (ext == "") {
@@ -211,7 +215,7 @@ class Tspath {
 	}
 
 	public static function ChangeExtension(path:String, newExtension:String):String {
-		return ChangeAnyExtension(path, newExtension, extensionsToRemove, false /*ignoreCase*/);
+		return ChangeAnyExtension(path, newExtension, extensionsToRemove, CaseSensitive);
 	}
 
 	// Like `changeAnyExtension`, but declaration file extensions are recognized
@@ -223,6 +227,9 @@ class Tspath {
 		final declarationExtension = GetDeclarationFileExtension(path);
 		if (declarationExtension != "") {
 			var ext = newExtension;
+			if (ext == "") {
+				return path.substring(0, path.length - declarationExtension.length);
+			}
 			if (!StringTools.startsWith(ext, ".")) {
 				ext = "." + ext;
 			}
@@ -251,13 +258,26 @@ class Tspath {
 
 	static final ignoredPaths:Array<String> = ["/node_modules/.", "/.git", ".#"];
 
-	public static function ContainsIgnoredPath(path:String):Bool {
+	static function containsIgnoredPath(path:String):Bool {
 		for (pattern in ignoredPaths) {
 			if (path.indexOf(pattern) >= 0) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	// PORT: transitional — main takes a RootedPath; String until all callers are typed.
+	public static inline function ContainsIgnoredPath(path:String):Bool {
+		return containsIgnoredPath(path);
+	}
+
+	public static inline function ContainsIgnoredDirectory(directory:RootedDirectoryPath):Bool {
+		return containsIgnoredPath(directory.AsString());
+	}
+
+	public static inline function ContainsIgnoredPathKey(path:PathKey):Bool {
+		return containsIgnoredPath(path.AsString());
 	}
 
 	// --- path.go ---
@@ -284,12 +304,6 @@ class Tspath {
 	// like `c:`, `c:\` or `c:/`).
 	public static function IsRootedDiskPath(path:String):Bool {
 		return GetEncodedRootLength(path) > 0;
-	}
-
-	// Determines whether a path consists only of a path root.
-	public static function IsDiskPathRoot(path:String):Bool {
-		final rootLength = GetEncodedRootLength(path);
-		return rootLength > 0 && rootLength == path.length;
 	}
 
 	// IsDynamicFileName returns true if the file name represents a dynamic/virtual file
@@ -362,7 +376,12 @@ class Tspath {
 		return result;
 	}
 
-	public static function GetPathComponents(path:String, currentDirectory:String):Array<String> {
+	public static function GetPathComponents(path:String):Array<String> {
+		path = NormalizeSlashes(path);
+		return pathComponents(path, GetRootLength(path));
+	}
+
+	static function resolvePathComponents(path:String, currentDirectory:String):Array<String> {
 		path = CombinePaths(currentDirectory, path);
 		return pathComponents(path, GetRootLength(path));
 	}
@@ -434,6 +453,18 @@ class Tspath {
 
 		// Untitled paths (e.g., "^/untitled/ts-nul-authority/Untitled-1")
 		if (ch0 == '^'.code && ln > 1 && StringTools.fastCodeAt(path, 1) == '/'.code) {
+			if (StringTools.startsWith(path, DynamicURIFileNamePrefix)) {
+				final schemeEnd = path.indexOf("/", DynamicURIFileNamePrefix.length);
+				if (schemeEnd != -1) {
+					// PORT: indexOf is absolute; Go indexes path[len(DynamicURIFileNamePrefix):]
+					final authorityStart = schemeEnd + 1;
+					final authorityEnd = path.indexOf("/", authorityStart);
+					if (authorityEnd != -1) {
+						return authorityEnd + 1;
+					}
+					return ~ln;
+				}
+			}
 			return 2; // Untitled: "^/"
 		}
 
@@ -485,9 +516,11 @@ class Tspath {
 		return rootLength;
 	}
 
-	public static function GetDirectoryPath(path:String):String {
-		path = NormalizeSlashes(path);
+	public static inline function GetDirectoryPath(path:String):String {
+		return getDirectoryPathFromNormalized(NormalizeSlashes(path));
+	}
 
+	static function getDirectoryPathFromNormalized(path:String):String {
 		// If the path provided is itself a root, then return it.
 		final rootLength = GetRootLength(path);
 		if (rootLength == path.length) {
@@ -582,12 +615,12 @@ class Tspath {
 		return NormalizePath(combinedPath);
 	}
 
-	public static function ResolveTripleslashReference(moduleName:String, containingFile:String):String {
-		final basePath = GetDirectoryPath(containingFile);
-		if (IsRootedDiskPath(moduleName)) {
-			return NormalizePath(moduleName);
+	public static function ResolvePathWithoutTrailingDirectorySeparator(path:String, ...paths:String):String {
+		final resolved = ResolvePath(path, ...paths);
+		if (resolved.length > GetRootLength(resolved)) {
+			return RemoveTrailingDirectorySeparator(resolved);
 		}
-		return NormalizePath(CombinePaths(basePath, moduleName));
+		return resolved;
 	}
 
 	public static function GetNormalizedPathComponents(path:String, currentDirectory:String):Array<String> {
@@ -651,8 +684,10 @@ class Tspath {
 		return i;
 	}
 
+	// PORT: transitional — main takes currentDirectory:RootedDirectoryPath (a RootedDirectoryPath converts
+	// to String, so main's calls compile); tightened when all callers are typed.
 	public static function GetNormalizedAbsolutePath(fileName:String, currentDirectory:String):String {
-		var rootLength = GetRootLength(fileName);
+		final rootLength = GetRootLength(fileName);
 		if (rootLength == 0 && currentDirectory != "") {
 			fileName = CombinePaths(currentDirectory, fileName);
 		} else if (!scanRelativePathSegment(fileName, true)) {
@@ -663,8 +698,29 @@ class Tspath {
 			// CombinePaths normalizes slashes, so not necessary in other branch
 			fileName = NormalizeSlashes(fileName);
 		}
-		rootLength = GetRootLength(fileName);
+		return getNormalizedAbsolutePathFromNormalizedSlashes(fileName);
+	}
 
+	static function getNormalizedAbsolutePathFromDirectory(fileName:String, currentDirectory:RootedDirectoryPath):String {
+		final rootLength = GetRootLength(fileName);
+		if (rootLength == 0 && currentDirectory.AsString() != "") {
+			if (fileName == "") {
+				fileName = currentDirectory.AsString();
+			} else {
+				fileName = appendPathToDirectory(currentDirectory, NormalizeSlashes(fileName));
+			}
+		} else if (!scanRelativePathSegment(fileName, true)) {
+			// PORT: perf — one scan, as in GetNormalizedAbsolutePath
+			return simpleNormalizedAbsolutePath(fileName, rootLength);
+		} else {
+			// CombinePaths normalizes slashes, so not necessary in other branch
+			fileName = NormalizeSlashes(fileName);
+		}
+		return getNormalizedAbsolutePathFromNormalizedSlashes(fileName);
+	}
+
+	static function getNormalizedAbsolutePathFromNormalizedSlashes(fileName:String):String {
+		final rootLength = GetRootLength(fileName);
 		final simpleNormalized = simpleNormalizePath(fileName);
 		if (simpleNormalized != null) {
 			return simpleNormalizedAbsolutePath(simpleNormalized, rootLength);
@@ -766,7 +822,7 @@ class Tspath {
 			return normalized;
 		}
 		if (length > rootLength) {
-			return RemoveTrailingDirectorySeparators(fileName);
+			return removeTrailingDirectorySeparators(fileName);
 		}
 		if (length == rootLength) {
 			return EnsureTrailingDirectorySeparator(fileName);
@@ -806,6 +862,11 @@ class Tspath {
 	// hasRelativePathSegment reports whether p contains ".", "..", "./", "../", "/.", "/..", "//", "/./", or "/../".
 	static function hasRelativePathSegment(p:String):Bool {
 		return scanRelativePathSegment(p, false);
+	}
+
+	// hasRelativePathSegment(p[from:]) without the slice.
+	static function scanRelativePathSegmentFrom(p:String, from:Int):Bool {
+		return from == 0 ? scanRelativePathSegment(p, false) : scanRelativePathSegment(p.substring(from), false);
 	}
 
 	// hasRelativePathSegment, or (backslash) a '\\' in p
@@ -866,7 +927,7 @@ class Tspath {
 		if (simple != null) {
 			return simple;
 		}
-		var normalized = GetNormalizedAbsolutePath(path, "");
+		var normalized = getNormalizedAbsolutePathFromNormalizedSlashes(path);
 		if (normalized != "" && HasTrailingDirectorySeparator(path)) {
 			normalized = EnsureTrailingDirectorySeparator(normalized);
 		}
@@ -999,7 +1060,7 @@ class Tspath {
 		return path;
 	}
 
-	public static function RemoveTrailingDirectorySeparators(path:String):String {
+	static function removeTrailingDirectorySeparators(path:String):String {
 		while (HasTrailingDirectorySeparator(path)) {
 			path = RemoveTrailingDirectorySeparator(path);
 		}
@@ -1016,13 +1077,48 @@ class Tspath {
 
 	//// Relative Paths
 
-	public static function GetPathComponentsRelativeTo(from:String, to:String, options:ComparePathsOptions):Array<String> {
-		final fromComponents = reducePathComponents(GetPathComponents(from, options.CurrentDirectory));
-		final toComponents = reducePathComponents(GetPathComponents(to, options.CurrentDirectory));
+	// PORT: transitional — the ComparePathsOptions variants (*_legacy) of the relative path functions stay until
+	// all callers are ported.
+	public static function GetPathComponentsRelativeTo_legacy(from:String, to:String, options:ComparePathsOptions):Array<String> {
+		return resolvePathComponentsRelativeTo(from, to, options.CurrentDirectory, options.caseSensitivity());
+	}
 
+	public static function GetRelativePathFromDirectory_legacy(fromDirectory:String, to:String, options:ComparePathsOptions):String {
+		return ResolveRelativePathFromDirectory(fromDirectory, to, options.CurrentDirectory, options.caseSensitivity());
+	}
+
+	public static function GetRelativePathFromFile_legacy(from:String, to:String, options:ComparePathsOptions):String {
+		return EnsurePathIsNonModuleName(GetRelativePathFromDirectory_legacy(GetDirectoryPath(from), to, options));
+	}
+
+	public static function ConvertToRelativePath_legacy(absoluteOrRelativePath:String, options:ComparePathsOptions):String {
+		if (!IsRootedDiskPath(absoluteOrRelativePath)) {
+			return absoluteOrRelativePath;
+		}
+		return ResolveRelativePathToDirectoryOrUrl(options.CurrentDirectory, absoluteOrRelativePath, false /*isAbsolutePathAnUrl*/,
+			options.CurrentDirectory, options.caseSensitivity());
+	}
+
+	public static function GetRelativePathToDirectoryOrUrl_legacy(directoryPathOrUrl:String, relativeOrAbsolutePath:String, isAbsolutePathAnUrl:Bool,
+			options:ComparePathsOptions):String {
+		return ResolveRelativePathToDirectoryOrUrl(directoryPathOrUrl, relativeOrAbsolutePath, isAbsolutePathAnUrl, options.CurrentDirectory,
+			options.caseSensitivity());
+	}
+
+	public static function GetPathComponentsRelativeTo(from:String, to:String, caseSensitivity:CaseSensitivity):Array<String> {
+		return getPathComponentsRelativeTo(reducePathComponents(GetPathComponents(from)), reducePathComponents(GetPathComponents(to)), caseSensitivity);
+	}
+
+	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
+	static function resolvePathComponentsRelativeTo(from:String, to:String, currentDirectory:String, caseSensitivity:CaseSensitivity):Array<String> {
+		return getPathComponentsRelativeTo(reducePathComponents(resolvePathComponents(from, currentDirectory)),
+			reducePathComponents(resolvePathComponents(to, currentDirectory)), caseSensitivity);
+	}
+
+	static function getPathComponentsRelativeTo(fromComponents:Array<String>, toComponents:Array<String>, caseSensitivity:CaseSensitivity):Array<String> {
 		var start = 0;
 		final maxCommonComponents = min(fromComponents.length, toComponents.length);
-		final stringEqualer = options.getEqualityComparer();
+		final stringEqualer = caseSensitivity.getEqualityComparer();
 		while (start < maxCommonComponents) {
 			final fromComponent = fromComponents[start];
 			final toComponent = toComponents[start];
@@ -1062,30 +1158,51 @@ class Tspath {
 		return result;
 	}
 
-	public static function GetRelativePathFromDirectory(fromDirectory:String, to:String, options:ComparePathsOptions):String {
+	public static function GetRelativePathFromDirectory(fromDirectory:String, to:String, caseSensitivity:CaseSensitivity):String {
 		if ((GetRootLength(fromDirectory) > 0) != (GetRootLength(to) > 0)) {
 			throw "paths must either both be absolute or both be relative";
 		}
-		final pathComponents = GetPathComponentsRelativeTo(fromDirectory, to, options);
+		final pathComponents = GetPathComponentsRelativeTo(fromDirectory, to, caseSensitivity);
 		return GetPathFromPathComponents(pathComponents);
 	}
 
-	public static function GetRelativePathFromFile(from:String, to:String, options:ComparePathsOptions):String {
-		return EnsurePathIsNonModuleName(GetRelativePathFromDirectory(GetDirectoryPath(from), to, options));
+	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
+	public static function ResolveRelativePathFromDirectory(fromDirectory:String, to:String, currentDirectory:String,
+			caseSensitivity:CaseSensitivity):String {
+		if ((GetRootLength(fromDirectory) > 0) != (GetRootLength(to) > 0)) {
+			throw "paths must either both be absolute or both be relative";
+		}
+		final pathComponents = resolvePathComponentsRelativeTo(fromDirectory, to, currentDirectory, caseSensitivity);
+		return GetPathFromPathComponents(pathComponents);
 	}
 
-	public static function ConvertToRelativePath(absoluteOrRelativePath:String, options:ComparePathsOptions):String {
+	public static function GetRelativePathFromFile(from:String, to:String, caseSensitivity:CaseSensitivity):String {
+		return EnsurePathIsNonModuleName(GetRelativePathFromDirectory(GetDirectoryPath(from), to, caseSensitivity));
+	}
+
+	public static function ConvertToRelativePath(absoluteOrRelativePath:String, currentDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):String {
 		if (!IsRootedDiskPath(absoluteOrRelativePath)) {
 			return absoluteOrRelativePath;
 		}
 
-		return GetRelativePathToDirectoryOrUrl(options.CurrentDirectory, absoluteOrRelativePath, false /*isAbsolutePathAnUrl*/, options);
+		return ResolveRelativePathToDirectoryOrUrl(currentDirectory.AsString(), absoluteOrRelativePath, false /*isAbsolutePathAnUrl*/, currentDirectory,
+			caseSensitivity);
 	}
 
 	public static function GetRelativePathToDirectoryOrUrl(directoryPathOrUrl:String, relativeOrAbsolutePath:String, isAbsolutePathAnUrl:Bool,
-			options:ComparePathsOptions):String {
-		final pathComponents = GetPathComponentsRelativeTo(directoryPathOrUrl, relativeOrAbsolutePath, options);
+			caseSensitivity:CaseSensitivity):String {
+		final pathComponents = GetPathComponentsRelativeTo(directoryPathOrUrl, relativeOrAbsolutePath, caseSensitivity);
+		return getRelativePathToDirectoryOrUrl(pathComponents, isAbsolutePathAnUrl);
+	}
 
+	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
+	public static function ResolveRelativePathToDirectoryOrUrl(directoryPathOrUrl:String, relativeOrAbsolutePath:String, isAbsolutePathAnUrl:Bool,
+			currentDirectory:String, caseSensitivity:CaseSensitivity):String {
+		final pathComponents = resolvePathComponentsRelativeTo(directoryPathOrUrl, relativeOrAbsolutePath, currentDirectory, caseSensitivity);
+		return getRelativePathToDirectoryOrUrl(pathComponents, isAbsolutePathAnUrl);
+	}
+
+	static function getRelativePathToDirectoryOrUrl(pathComponents:Array<String>, isAbsolutePathAnUrl:Bool):String {
 		final firstComponent = pathComponents[0];
 		if (isAbsolutePathAnUrl && IsRootedDiskPath(firstComponent)) {
 			var prefix:String;
@@ -1126,8 +1243,11 @@ class Tspath {
 	//	GetBaseFileName("file:///path/to/") == "to"
 	//	GetBaseFileName("file:///") == ""
 	//	GetBaseFileName("file://") == ""
-	public static function GetBaseFileName(path:String):String {
-		path = NormalizeSlashes(path);
+	public static inline function GetBaseFileName(path:String):String {
+		return getBaseFileNameFromNormalized(NormalizeSlashes(path));
+	}
+
+	static function getBaseFileNameFromNormalized(path:String):String {
 
 		// if the path provided is itself the root, then it has no file name.
 		final rootLength = GetRootLength(path);
@@ -1152,14 +1272,18 @@ class Tspath {
 	//	GetAnyExtensionFromPath("/path/to/file.js", ".ext", true) === ""
 	//	GetAnyExtensionFromPath("/path/to/file.js", [".ext", ".js"], true) === ".js"
 	//	GetAnyExtensionFromPath("/path/to/file.ext", ".EXT", false) === ""
-	public static function GetAnyExtensionFromPath(path:String, extensions:Array<String>, ignoreCase:Bool):String {
+	public static function GetAnyExtensionFromPath(path:String, extensions:Array<String>, caseSensitivity:CaseSensitivity):String {
 		// Retrieves any string from the final "." onwards from a base file name.
 		// Unlike extensionFromPath, which throws an exception on unrecognized extensions.
 		if (extensions != null && extensions.length > 0) {
-			return getAnyExtensionFromPathWorker(RemoveTrailingDirectorySeparator(path), extensions, Stringutil.GetStringEqualityComparer(ignoreCase));
+			return getAnyExtensionFromPathWorker(RemoveTrailingDirectorySeparator(path), extensions, caseSensitivity.getEqualityComparer());
 		}
 
-		final baseFileName = GetBaseFileName(path);
+		return getAnyExtensionFromNormalizedPath(NormalizeSlashes(path));
+	}
+
+	static function getAnyExtensionFromNormalizedPath(path:String):String {
+		final baseFileName = getBaseFileNameFromNormalized(path);
 		final extensionIndex = baseFileName.lastIndexOf(".");
 		if (extensionIndex >= 0) {
 			return baseFileName.substring(extensionIndex);
@@ -1167,9 +1291,9 @@ class Tspath {
 		return "";
 	}
 
-	public static function GetLongestExtensionFromPath(path:String, extensions:Null<Array<String>>, ignoreCase:Bool):String {
+	public static function GetLongestExtensionFromPath(path:String, extensions:Null<Array<String>>, caseSensitivity:CaseSensitivity):String {
 		path = RemoveTrailingDirectorySeparator(path);
-		final comparer = Stringutil.GetStringEqualityComparer(ignoreCase);
+		final comparer = caseSensitivity.getEqualityComparer();
 		var longest = "";
 		if (extensions != null) {
 			for (extension in extensions) {
@@ -1246,9 +1370,25 @@ class Tspath {
 		return PathIsRelative(moduleName) || IsRootedDiskPath(moduleName);
 	}
 
-	public static function ComparePaths(a:String, b:String, options:ComparePathsOptions):Int {
-		a = CombinePaths(options.CurrentDirectory, a);
-		b = CombinePaths(options.CurrentDirectory, b);
+	// PORT: transitional — the ComparePathsOptions variants stay until all callers are ported.
+	public static function ComparePaths_legacy(a:String, b:String, options:ComparePathsOptions):Int {
+		return ComparePathsRelativeTo(a, b, options.CurrentDirectory, options.caseSensitivity());
+	}
+
+	public static function ContainsPath_legacy(parent:String, child:String, options:ComparePathsOptions):Bool {
+		return ContainsPath(CombinePaths(options.CurrentDirectory, parent), CombinePaths(options.CurrentDirectory, child), options.caseSensitivity());
+	}
+
+	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
+	public static function ComparePathsRelativeTo(a:String, b:String, currentDirectory:String, caseSensitivity:CaseSensitivity):Int {
+		a = CombinePaths(currentDirectory, a);
+		b = CombinePaths(currentDirectory, b);
+		return ComparePaths(a, b, caseSensitivity);
+	}
+
+	public static function ComparePaths(a:String, b:String, caseSensitivity:CaseSensitivity):Int {
+		a = CombinePaths("", a);
+		b = CombinePaths("", b);
 
 		if (a == b) {
 			return 0;
@@ -1274,16 +1414,16 @@ class Tspath {
 		final aRest = a.substring(aRoot.length);
 		final bRest = b.substring(bRoot.length);
 		if (!hasRelativePathSegment(aRest) && !hasRelativePathSegment(bRest)) {
-			return options.GetComparer()(aRest, bRest);
+			return caseSensitivity.GetComparer()(aRest, bRest);
 		}
 
 		// The path contains a relative path segment. Normalize the paths and perform a slower component
 		// by component comparison.
-		final aComponents = reducePathComponents(GetPathComponents(a, ""));
-		final bComponents = reducePathComponents(GetPathComponents(b, ""));
+		final aComponents = reducePathComponents(GetPathComponents(a));
+		final bComponents = reducePathComponents(GetPathComponents(b));
 		final sharedLength = min(aComponents.length, bComponents.length);
 		for (i in 1...sharedLength) {
-			final result = options.GetComparer()(aComponents[i], bComponents[i]);
+			final result = caseSensitivity.GetComparer()(aComponents[i], bComponents[i]);
 			if (result != 0) {
 				return result;
 			}
@@ -1291,30 +1431,22 @@ class Tspath {
 		return Cmp.Compare(aComponents.length, bComponents.length);
 	}
 
-	public static function ComparePathsCaseSensitive(a:String, b:String, currentDirectory:String):Int {
-		return ComparePaths(a, b, new ComparePathsOptions(true, currentDirectory));
-	}
-
-	public static function ComparePathsCaseInsensitive(a:String, b:String, currentDirectory:String):Int {
-		return ComparePaths(a, b, new ComparePathsOptions(false, currentDirectory));
-	}
-
-	public static function ContainsPath(parent:String, child:String, options:ComparePathsOptions):Bool {
-		parent = CombinePaths(options.CurrentDirectory, parent);
-		child = CombinePaths(options.CurrentDirectory, child);
+	public static function ContainsPath(parent:String, child:String, caseSensitivity:CaseSensitivity):Bool {
+		parent = CombinePaths("", parent);
+		child = CombinePaths("", child);
 		if (parent == "" || child == "") {
 			return false;
 		}
 		if (parent == child) {
 			return true;
 		}
-		final parentComponents = reducePathComponents(GetPathComponents(parent, ""));
-		final childComponents = reducePathComponents(GetPathComponents(child, ""));
+		final parentComponents = reducePathComponents(GetPathComponents(parent));
+		final childComponents = reducePathComponents(GetPathComponents(child));
 		if (childComponents.length < parentComponents.length) {
 			return false;
 		}
 
-		final componentComparer = options.getEqualityComparer();
+		final componentComparer = caseSensitivity.getEqualityComparer();
 		for (i in 0...parentComponents.length) {
 			final parentComponent = parentComponents[i];
 			var comparer:(a:String, b:String) -> Bool;
@@ -1370,12 +1502,6 @@ class Tspath {
 		}
 	}
 
-	public static function ForEachAncestorDirectoryPath<T>(directory:Path, callback:(directory:Path) -> ValueOk<T>):ValueOk<T> {
-		return ForEachAncestorDirectory(directory, function(directory:String):ValueOk<T> {
-			return callback(directory);
-		});
-	}
-
 	public static function HasExtension(fileName:String):Bool {
 		return GetBaseFileName(fileName).indexOf(".") >= 0;
 	}
@@ -1397,8 +1523,14 @@ class Tspath {
 	//	/a/b/c/d, /a/b/c/e, /a/b/f/g, /x/y  (minComponents: 2)	=>  /a/b, /x/y
 	//	c:/a/b/c/d, d:/a/b/c/d =>	c:/a/b/c/d, d:/a/b/c/d
 	// PORT: Go returns (parents []string, ignored map[string]struct{}); the set is a StringMap<Bool>.
-	public static function GetCommonParents(paths:Array<String>, minComponents:Int, getPathComponents:(path:String, currentDirectory:String) -> Array<String>,
-			options:ComparePathsOptions):Pair<Array<String>, StringMap<Bool>> {
+	// PORT: transitional — kept until all callers use GetCommonParentDirectories.
+	public static function GetCommonParents_legacy(paths:Array<String>, minComponents:Int,
+			getPathComponents:(path:String, currentDirectory:String) -> Array<String>, options:ComparePathsOptions):Pair<Array<String>, StringMap<Bool>> {
+		return getCommonParents(paths, minComponents, p -> getPathComponents(p, options.CurrentDirectory), options.caseSensitivity());
+	}
+
+	static function getCommonParents(paths:Array<String>, minComponents:Int, getPathComponents:(path:String) -> Array<String>,
+			caseSensitivity:CaseSensitivity):Pair<Array<String>, StringMap<Bool>> {
 		if (minComponents < 1) {
 			throw "minComponents must be at least 1";
 		}
@@ -1406,7 +1538,7 @@ class Tspath {
 			return new Pair<Array<String>, StringMap<Bool>>(null, null);
 		}
 		if (paths.length == 1) {
-			if (reducePathComponents(getPathComponents(paths[0], options.CurrentDirectory)).length < minComponents) {
+			if (reducePathComponents(getPathComponents(paths[0])).length < minComponents) {
 				final ignored = new StringMap<Bool>();
 				ignored.set(paths[0], true);
 				return new Pair<Array<String>, StringMap<Bool>>(null, ignored);
@@ -1417,7 +1549,7 @@ class Tspath {
 		final ignored = new StringMap<Bool>();
 		final pathComponents:Array<Array<String>> = [];
 		for (path in paths) {
-			final components = reducePathComponents(getPathComponents(path, options.CurrentDirectory));
+			final components = reducePathComponents(getPathComponents(path));
 			if (components.length < minComponents) {
 				ignored.set(path, true);
 			} else {
@@ -1425,7 +1557,7 @@ class Tspath {
 			}
 		}
 
-		final results = getCommonParentsWorker(pathComponents, minComponents, options);
+		final results = getCommonParentsWorker(pathComponents, minComponents, caseSensitivity);
 		final n = results == null ? 0 : results.length;
 		final resultPaths = new Array<String>();
 		resultPaths.resize(n);
@@ -1436,7 +1568,7 @@ class Tspath {
 		return new Pair<Array<String>, StringMap<Bool>>(resultPaths, ignored);
 	}
 
-	static function getCommonParentsWorker(componentGroups:Array<Array<String>>, minComponents:Int, options:ComparePathsOptions):Array<Array<String>> {
+	static function getCommonParentsWorker(componentGroups:Array<Array<String>>, minComponents:Int, caseSensitivity:CaseSensitivity):Array<Array<String>> {
 		if (componentGroups == null || componentGroups.length == 0) {
 			return null;
 		}
@@ -1449,7 +1581,7 @@ class Tspath {
 			}
 		}
 
-		final equality = options.getEqualityComparer();
+		final equality = caseSensitivity.getEqualityComparer();
 		for (lastCommonIndex in 0...maxDepth) {
 			final candidate = componentGroups[0][lastCommonIndex];
 			for (k in 1...componentGroups.length) {
@@ -1457,10 +1589,10 @@ class Tspath {
 				if (!equality(candidate, comps[lastCommonIndex])) { // divergence
 					if (lastCommonIndex < minComponents) {
 						// Not enough components, we need to fan out
-						final orderedGroups:Array<Path> = [];
+						final orderedGroups:Array<String> = [];
 						final newGroups = new StringMap<CommonParentsGroup>();
 						for (g in componentGroups) {
-							final key = ToPath(g[lastCommonIndex], options.CurrentDirectory, options.UseCaseSensitiveFileNames);
+							final key = caseSensitivity.Canonicalize(g[lastCommonIndex]);
 							final existing = newGroups.get(key);
 							if (existing == null) {
 								orderedGroups.push(key);
@@ -1473,7 +1605,7 @@ class Tspath {
 						final result:Array<Array<String>> = [];
 						for (key in orderedGroups) {
 							final group = newGroups.get(key);
-							final subResults = getCommonParentsWorker(group.tails, minComponents - (lastCommonIndex + 1), options);
+							final subResults = getCommonParentsWorker(group.tails, minComponents - (lastCommonIndex + 1), caseSensitivity);
 							if (subResults != null) {
 								for (sr in subResults) {
 									// PORT: copy; Go's append(group.head, sr...) may write into head's backing array.
@@ -1491,13 +1623,13 @@ class Tspath {
 		return [componentGroups[0].slice(0, maxDepth)];
 	}
 
-	public static function StartsWithDirectory(fileName:String, directoryName:String, useCaseSensitiveFileNames:Bool):Bool {
+	public static function StartsWithDirectory(fileName:String, directoryName:String, caseSensitivity:CaseSensitivity):Bool {
 		if (directoryName == "") {
 			return false;
 		}
 
-		final canonicalFileName = GetCanonicalFileName(fileName, useCaseSensitiveFileNames);
-		var canonicalDirectoryName = GetCanonicalFileName(directoryName, useCaseSensitiveFileNames);
+		final canonicalFileName = caseSensitivity.Canonicalize(fileName);
+		var canonicalDirectoryName = caseSensitivity.Canonicalize(directoryName);
 		canonicalDirectoryName = Strings.TrimSuffix(canonicalDirectoryName, "/");
 		canonicalDirectoryName = Strings.TrimSuffix(canonicalDirectoryName, "\\");
 
@@ -1507,6 +1639,441 @@ class Tspath {
 
 	public static function CompareNumberOfDirectorySeparators(path1:String, path2:String):Int {
 		return Cmp.Compare(Strings.Count(path1, "/"), Strings.Count(path2, "/"));
+	}
+
+	// --- path.go (CaseSensitivity) ---
+
+	// PORT: Go's package-level constants tspath.CaseInsensitive / tspath.CaseSensitive.
+	public static inline final CaseInsensitive:CaseSensitivity = CaseSensitivity.CaseInsensitive;
+	public static inline final CaseSensitive:CaseSensitivity = CaseSensitivity.CaseSensitive;
+
+	// PORT: transitional — a bool useCaseSensitiveFileNames as a CaseSensitivity, until every host returns one.
+	public static inline function caseSensitivityOf(useCaseSensitiveFileNames:Bool):CaseSensitivity {
+		return useCaseSensitiveFileNames ? CaseSensitivity.CaseSensitive : CaseSensitivity.CaseInsensitive;
+	}
+
+	// PORT: perf helpers (no Go counterpart): a[from..from+n) == b[from..from+n), and with separate offsets.
+	static inline function regionEquals(a:String, b:String, from:Int, n:Int):Bool {
+		return regionEqualsAt(a, from, b, from, n);
+	}
+
+	static function regionEqualsAt(a:String, aFrom:Int, b:String, bFrom:Int, n:Int):Bool {
+		if (aFrom + n > a.length || bFrom + n > b.length) {
+			return false;
+		}
+		for (i in 0...n) {
+			if (StringTools.fastCodeAt(a, aFrom + i) != StringTools.fastCodeAt(b, bFrom + i)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	// --- dynamic.go ---
+
+	public static inline final DynamicURIFileNamePrefix = "^/~ts-uri~/";
+
+	public static inline function IsEncodedDynamicFileName(path:String):Bool {
+		return StringTools.startsWith(path, DynamicURIFileNamePrefix);
+	}
+
+	static function canonicalDynamicURIPath(path:String):String {
+		if (IsEncodedDynamicFileName(path) && GetRootLength(path) == path.length && !HasTrailingDirectorySeparator(path)) {
+			return path + "/";
+		}
+		return path;
+	}
+
+	// --- file_spec.go ---
+
+	public static inline function ToFileSpec(value:String):FileSpec {
+		return new FileSpec(value);
+	}
+
+	public static inline function ToPathPattern(value:String):PathPattern {
+		return new PathPattern(value);
+	}
+
+	// --- module_specifier.go ---
+
+	public static inline function ToModuleSpecifier(specifier:String):ModuleSpecifier {
+		return new ModuleSpecifier(specifier);
+	}
+
+	// --- pathkey.go ---
+
+	// PathKeyFromCanonical constructs a PathKey from text whose CaseSensitivity has
+	// already been applied. It validates that a non-empty path is rooted and
+	// normalized; the empty path is accepted as the sentinel value.
+	public static function PathKeyFromCanonical(path:String):PathKey {
+		final result = TryPathKeyFromCanonical(path);
+		if (result == null) {
+			throw "path must be normalized";
+		}
+		return result;
+	}
+
+	// TryPathKeyFromCanonical constructs a PathKey from text whose CaseSensitivity
+	// has already been applied. It validates that a non-empty path is rooted and
+	// normalized; the empty path is accepted as the sentinel value.
+	// PORT: (PathKey, bool) -> null when !ok.
+	public static function TryPathKeyFromCanonical(path:String):Null<PathKey> {
+		if (path == "") {
+			return new PathKey("");
+		}
+		if (TryRootedPathFromNormalized(path) == null) {
+			return null;
+		}
+		return new PathKey(path);
+	}
+
+	// CaseSensitivity.PathKey's body (an enum abstract method cannot call the PathKey constructor by that name).
+	static function pathKeyOf(path:String, c:CaseSensitivity):PathKey {
+		if (IsEncodedDynamicFileName(path)) {
+			return new PathKey(canonicalDynamicURIPath(path));
+		}
+		return new PathKey(c.Canonicalize(path));
+	}
+
+	// --- relative_path.go ---
+
+	// ToRelativePath normalizes a path that is known to be relative.
+	public static function ToRelativePath(path:String):RelativePath {
+		if (GetEncodedRootLength(path) != 0) {
+			throw "relative path must not be rooted";
+		}
+		return new RelativePath(NormalizePath(path));
+	}
+
+	// RelativePathFromNormalized creates a RelativePath from a value already known
+	// to be relative and normalized.
+	public static function RelativePathFromNormalized(path:String):RelativePath {
+		if (GetEncodedRootLength(path) != 0 || NormalizePath(path) != path) {
+			throw "relative path must be relative and normalized: " + path;
+		}
+		return new RelativePath(path);
+	}
+
+	// --- rooted_path.go ---
+
+	// ToRootedPath resolves path against currentDirectory and normalizes it.
+	public static function ToRootedPath(path:String, currentDirectory:RootedDirectoryPath):RootedPath {
+		if (path == "") {
+			throw "path must not be empty";
+		}
+		if (hasRootedURLSuffix(path)) {
+			throw "path must not contain a URL query or fragment";
+		}
+		if (GetEncodedRootLength(path) == 0 && hasURLRoot(currentDirectory.AsString()) && Strings.IndexAny(path, "?#") >= 0) {
+			throw "relative URL path must not contain a query or fragment";
+		}
+		final normalized = getNormalizedAbsolutePathFromDirectory(path, currentDirectory);
+		if (GetEncodedRootLength(normalized) == 0 || hasRootedURLSuffix(normalized)) {
+			throw "path must be rooted";
+		}
+		return new RootedPath(ensureRootedPathRootSeparator(normalized));
+	}
+
+	// RootedPathFromAbsolute validates and normalizes an absolute path, including
+	// converting platform directory separators to '/'.
+	public static function RootedPathFromAbsolute(path:String):RootedPath {
+		final result = TryRootedPathFromAbsolute(path);
+		if (result == null) {
+			throw "path must be absolute";
+		}
+		return result;
+	}
+
+	// TryRootedPathFromAbsolute validates and normalizes an absolute path,
+	// including converting platform directory separators to '/'.
+	// PORT: (RootedPath, bool) -> null when !ok.
+	public static function TryRootedPathFromAbsolute(path:String):Null<RootedPath> {
+		if (hasRootedURLSuffix(path) || !PathIsAbsolute(path)) {
+			return null;
+		}
+		return new RootedPath(ensureRootedPathRootSeparator(GetNormalizedAbsolutePath(path, "")));
+	}
+
+	static function ensureRootedPathRootSeparator(path:String):String {
+		if (GetRootLength(path) == path.length) {
+			if (!HasTrailingDirectorySeparator(path)) {
+				return path + "/";
+			}
+		}
+		return path;
+	}
+
+	// RootedPathFromNormalized validates a path that is already rooted and
+	// normalized without changing it.
+	public static function RootedPathFromNormalized(path:String):RootedPath {
+		final result = TryRootedPathFromNormalized(path);
+		if (result == null) {
+			throw "path must be rooted and normalized: " + path;
+		}
+		return result;
+	}
+
+	// TryRootedPathFromNormalized validates a path that is already rooted and
+	// normalized without changing it.
+	// PORT: (RootedPath, bool) -> null when !ok.
+	public static function TryRootedPathFromNormalized(path:String):Null<RootedPath> {
+		if (hasRootedURLSuffix(path)) {
+			return null;
+		}
+		var rootLength = GetEncodedRootLength(path);
+		if (rootLength < 0) {
+			rootLength = ~rootLength;
+		}
+		if (path == ""
+			|| rootLength == 0
+			|| path.indexOf("\\") >= 0
+			|| rootLength < path.length && StringTools.fastCodeAt(path, rootLength) == '/'.code
+			|| scanRelativePathSegmentFrom(path, rootLength)
+			|| path.length == rootLength && !HasTrailingDirectorySeparator(path)
+			|| path.length > rootLength && HasTrailingDirectorySeparator(path)) {
+			return null;
+		}
+		return new RootedPath(path);
+	}
+
+	static function hasRootedURLSuffix(path:String):Bool {
+		if (!hasURLRoot(path)) {
+			return false;
+		}
+		final afterScheme = path.indexOf(urlSchemeSeparator);
+		return Strings.IndexAnyFrom(path, "?#", afterScheme + urlSchemeSeparator.length) != -1;
+	}
+
+	static function hasURLRoot(path:String):Bool {
+		return GetEncodedRootLength(path) < 0 && path.indexOf(urlSchemeSeparator) >= 0;
+	}
+
+	// ToRootedFilePath resolves fileName against currentDirectory, normalizes it,
+	// and gives it file intent.
+	public static inline function ToRootedFilePath(fileName:String, currentDirectory:RootedDirectoryPath):RootedFilePath {
+		return new RootedFilePath(ToRootedPath(fileName, currentDirectory));
+	}
+
+	// RootedFilePathFromAbsolute validates and normalizes an absolute path,
+	// including converting platform directory separators to '/', then gives it
+	// file intent.
+	public static inline function RootedFilePathFromAbsolute(fileName:String):RootedFilePath {
+		return new RootedFilePath(RootedPathFromAbsolute(fileName));
+	}
+
+	// PORT: (RootedFilePath, bool) -> null when !ok.
+	public static inline function TryRootedFilePathFromAbsolute(fileName:String):Null<RootedFilePath> {
+		return cast TryRootedPathFromAbsolute(fileName);
+	}
+
+	// RootedFilePathFromNormalized validates a path that is already rooted and
+	// normalized without changing it, then gives it file intent.
+	public static inline function RootedFilePathFromNormalized(fileName:String):RootedFilePath {
+		return new RootedFilePath(RootedPathFromNormalized(fileName));
+	}
+
+	// PORT: (RootedFilePath, bool) -> null when !ok.
+	public static inline function TryRootedFilePathFromNormalized(fileName:String):Null<RootedFilePath> {
+		return cast TryRootedPathFromNormalized(fileName);
+	}
+
+	// ToRootedDirectoryPath resolves directory against currentDirectory,
+	// normalizes it, and gives it directory intent.
+	public static inline function ToRootedDirectoryPath(directory:String, currentDirectory:RootedDirectoryPath):RootedDirectoryPath {
+		return new RootedDirectoryPath(ToRootedPath(directory, currentDirectory));
+	}
+
+	// RootedDirectoryPathFromAbsolute validates and normalizes an absolute path,
+	// including converting platform directory separators to '/', then gives it
+	// directory intent.
+	public static inline function RootedDirectoryPathFromAbsolute(directory:String):RootedDirectoryPath {
+		return new RootedDirectoryPath(RootedPathFromAbsolute(directory));
+	}
+
+	// RootedDirectoryPathFromNormalized validates a path that is already rooted
+	// and normalized without changing it, then gives it directory intent.
+	public static inline function RootedDirectoryPathFromNormalized(directory:String):RootedDirectoryPath {
+		return new RootedDirectoryPath(RootedPathFromNormalized(directory));
+	}
+
+	// RootedFilePathFromPath gives a RootedPath file intent without changing it.
+	public static inline function RootedFilePathFromPath(path:RootedPath):RootedFilePath {
+		return new RootedFilePath(path);
+	}
+
+	// RootedDirectoryPathFromPath gives a RootedPath directory intent without
+	// changing it.
+	public static inline function RootedDirectoryPathFromPath(path:RootedPath):RootedDirectoryPath {
+		return new RootedDirectoryPath(path);
+	}
+
+	static function validateFileNameSuffix(prefix:String, suffix:String):Void {
+		if (prefix == "" && suffix != "") {
+			throw "cannot append a suffix to an empty file name";
+		}
+		if (Strings.IndexAny(suffix, "/\\") >= 0) {
+			throw "file name suffix must not contain a directory separator";
+		}
+	}
+
+	static function validateFileExtension(extension:String):Void {
+		if (Strings.IndexAny(extension, "/\\") >= 0) {
+			throw "file extension must not contain a directory separator";
+		}
+	}
+
+	static function rootedFilePathFromExtensionMutation(path:String):RootedFilePath {
+		final baseName = getBaseFileNameFromNormalized(path);
+		if (baseName == "." || baseName == ".." || HasTrailingDirectorySeparator(path) && path.length > GetRootLength(path)) {
+			throw "file extension change must preserve path normalization";
+		}
+		return rootedFilePathFromResolved(path);
+	}
+
+	static function relativePathFromNormalizedPaths(from:String, to:String, caseSensitivity:CaseSensitivity):String {
+		final fromComponents = pathComponents(from, GetRootLength(from));
+		final toComponents = pathComponents(to, GetRootLength(to));
+		if (IsEncodedDynamicFileName(from) || IsEncodedDynamicFileName(to)) {
+			fromComponents[0] = Strings.TrimSuffix(fromComponents[0], "/");
+			toComponents[0] = Strings.TrimSuffix(toComponents[0], "/");
+			if (fromComponents[0] != toComponents[0]) {
+				return to;
+			}
+			caseSensitivity = CaseSensitivity.CaseSensitive;
+		}
+		return GetPathFromPathComponents(getPathComponentsRelativeTo(fromComponents, toComponents, caseSensitivity));
+	}
+
+	// PORT: Go returns (parents []RootedDirectoryPath, ignored map[RootedDirectoryPath]struct{}); the set is a
+	// StringMap<Bool>.
+	public static function GetCommonParentDirectories(directories:Array<RootedDirectoryPath>, minComponents:Int,
+			getComponents:(directory:RootedDirectoryPath) -> Array<String>,
+			caseSensitivity:CaseSensitivity):Pair<Array<RootedDirectoryPath>, StringMap<Bool>> {
+		if (minComponents < 1) {
+			throw "minComponents must be at least 1";
+		}
+		if (directories == null || directories.length == 0) {
+			return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(null, null);
+		}
+		if (directories.length == 1) {
+			if (reducePathComponents(getComponents(directories[0])).length < minComponents) {
+				final ignored = new StringMap<Bool>();
+				ignored.set(directories[0], true);
+				return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(null, ignored);
+			}
+			return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(directories, null);
+		}
+
+		final ignored = new StringMap<Bool>();
+		final pathComponents:Array<Array<String>> = [];
+		for (directory in directories) {
+			final components = reducePathComponents(getComponents(directory));
+			if (components.length < minComponents) {
+				ignored.set(directory, true);
+			} else {
+				pathComponents.push(components);
+			}
+		}
+
+		final results = getCommonParentsWorker(pathComponents, minComponents, caseSensitivity);
+		final parents:Array<RootedDirectoryPath> = [];
+		if (results != null) {
+			for (components in results) {
+				parents.push(RootedDirectoryPathFromAbsolute(GetPathFromPathComponents(components)));
+			}
+		}
+		return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(parents, ignored);
+	}
+
+	static function rootedFilePathFromResolved(path:String):RootedFilePath {
+		if (hasRootedURLSuffix(path)) {
+			throw "path must not contain a URL query or fragment";
+		}
+		return new RootedFilePath(path);
+	}
+
+	// ForEachAncestorDirectoryPathStoppingAtGlobalCache calls callback for
+	// directory and its ancestors while retaining the normalized rooted invariant.
+	// PORT: callback returns Go (result T, stop bool) as go.ValueOk<T> (ok = stop).
+	public static function ForEachAncestorDirectoryPathStoppingAtGlobalCache<T>(globalCache:RootedDirectoryPath, directory:RootedDirectoryPath,
+			callback:(directory:RootedDirectoryPath) -> ValueOk<T>):T {
+		final r = directory.ForEachAncestorDirectory(function(ancestor:RootedDirectoryPath):ValueOk<T> {
+			final r = callback(ancestor);
+			return new ValueOk<T>(r.value, r.ok || ancestor == globalCache);
+		});
+		return r.value;
+	}
+
+	static inline function canAppendPathWithoutNormalization(path:String):Bool {
+		// PORT: perf — one scan (scanRelativePathSegment with backslash) answers both the '\\' test of
+		// isNormalizedSlashesRelativePath and hasRelativePathSegment.
+		return path != ""
+			&& GetEncodedRootLength(path) == 0
+			&& !scanRelativePathSegment(path, true)
+			&& !HasTrailingDirectorySeparator(path);
+	}
+
+	static inline function isNormalizedSlashesRelativePath(path:String):Bool {
+		return path != "" && GetEncodedRootLength(path) == 0 && !hasBackslash(path);
+	}
+
+	// appendPathWithLeadingDotSegments resolves paths like "./a/b" or "../../a/b"
+	// by walking up directory before appending, avoiding an intermediate string.
+	// It reports false if path has dot segments beyond its leading ones or
+	// would ascend past the root.
+	// PORT: (string, bool) -> null when !ok; rest is an offset into path instead of a slice.
+	static function appendPathWithLeadingDotSegments(directory:RootedDirectoryPath, path:String):Null<String> {
+		var dir = directory.AsString();
+		var rest = 0;
+		while (true) {
+			if (path.length - rest >= 2 && StringTools.fastCodeAt(path, rest) == '.'.code && StringTools.fastCodeAt(path, rest + 1) == '/'.code) {
+				rest += 2;
+			} else if (path.length - rest >= 3
+				&& StringTools.fastCodeAt(path, rest) == '.'.code
+				&& StringTools.fastCodeAt(path, rest + 1) == '.'.code
+				&& StringTools.fastCodeAt(path, rest + 2) == '/'.code) {
+				final parent = getDirectoryPathFromNormalized(dir);
+				if (parent == dir) {
+					return null;
+				}
+				dir = parent;
+				rest += 3;
+			} else {
+				break;
+			}
+		}
+		if (rest == 0) {
+			return null;
+		}
+		final restPath = path.substring(rest);
+		if (!canAppendPathWithoutNormalization(restPath)) {
+			return null;
+		}
+		return appendPathToDirectory(new RootedDirectoryPath(dir), restPath);
+	}
+
+	static inline function appendPathToDirectory(directory:RootedDirectoryPath, path:String):String {
+		if (HasTrailingDirectorySeparator(directory.AsString())) {
+			return directory.AsString() + path;
+		}
+		return directory.AsString() + "/" + path;
+	}
+
+	static function lastDirectorySeparator(path:String):Int {
+		var i = path.length - 1;
+		while (i >= 0) {
+			if (StringTools.fastCodeAt(path, i) == '/'.code) {
+				return i;
+			}
+			i--;
+		}
+		return -1;
+	}
+
+	// --- source_map_location.go ---
+
+	public static inline function ToSourceMapLocation(path:String):SourceMapLocation {
+		return new SourceMapLocation(NormalizeSlashes(path));
 	}
 }
 

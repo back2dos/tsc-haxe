@@ -365,7 +365,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	// or nil if no content mapper is registered for the file's extension.
 	public function GetContentMapperForFileName(fileName:std.String):Null<Mapper> {
 		final ignoreCase = !this.UseCaseSensitiveFileNames();
-		final extension = Tspath.GetLongestExtensionFromPath(fileName, this.ContentMapperExtensions(), ignoreCase);
+		final extension = Tspath.GetLongestExtensionFromPath(fileName, this.ContentMapperExtensions(), Tspath.caseSensitivityOf(!ignoreCase));
 		final mappers = this.ContentMappers();
 		if (mappers != null) {
 			for (mapper in mappers) {

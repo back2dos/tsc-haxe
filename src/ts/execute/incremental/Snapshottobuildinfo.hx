@@ -17,7 +17,7 @@ class ToBuildInfo {
 	public function new() {}
 
 	function relativeToBuildInfo(path:std.String):std.String {
-		return Tspath.EnsurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory(this.buildInfoDirectory, path, this.comparePathsOptions));
+		return Tspath.EnsurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(this.buildInfoDirectory, path, this.comparePathsOptions));
 	}
 
 	function toFileId(path:Path):BuildInfoFileId {

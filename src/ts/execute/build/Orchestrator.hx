@@ -61,7 +61,7 @@ class Orchestrator {
 	public function new() {}
 
 	function relativeFileName(fileName:std.String):std.String {
-		return Tspath.ConvertToRelativePath(fileName, this.comparePathsOptions);
+		return Tspath.ConvertToRelativePath_legacy(fileName, this.comparePathsOptions);
 	}
 
 	function toPath(fileName:std.String):Path {

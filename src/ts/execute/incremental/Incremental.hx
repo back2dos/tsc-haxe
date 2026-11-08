@@ -218,7 +218,7 @@ class Incremental {
 		}
 		builder.WriteString("\n");
 		if (diagnostic.File() != file) {
-			builder.WriteString(Tspath.EnsurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory(Tspath.GetDirectoryPath(file.Path()),
+			builder.WriteString(Tspath.EnsurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(Tspath.GetDirectoryPath(file.Path()),
 				diagnostic.File().Path(), new ComparePathsOptions())));
 		}
 		if (diagnostic.File() != null) {

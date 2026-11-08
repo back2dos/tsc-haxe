@@ -114,7 +114,7 @@ class TspathTest {
 			return path;
 		}
 		// Other paths require full normalization
-		var normalized = GetPathFromPathComponents(reducePathComponents(GetPathComponents(path, "")));
+		var normalized = GetPathFromPathComponents(reducePathComponents(GetPathComponents(path)));
 		if (normalized != "" && HasTrailingDirectorySeparator(path)) {
 			normalized = EnsureTrailingDirectorySeparator(normalized);
 		}
@@ -286,31 +286,31 @@ class TspathTest {
 			// getAnyExtensionFromPath
 
 		T.run("TestGetPathComponents", () -> {
-			deq([""], GetPathComponents("", ""));
-			deq(["", "a"], GetPathComponents("a", ""));
-			deq(["", ".", "a"], GetPathComponents("./a", ""));
-			deq(["/"], GetPathComponents("/", ""));
-			deq(["/", "a"], GetPathComponents("/a", ""));
-			deq(["/", "a"], GetPathComponents("/a/", ""));
-			deq(["c:"], GetPathComponents("c:", ""));
-			deq(["", "c:d"], GetPathComponents("c:d", ""));
-			deq(["c:/"], GetPathComponents("c:/", ""));
-			deq(["c:/", "path"], GetPathComponents("c:/path", ""));
-			deq(["//server"], GetPathComponents("//server", ""));
-			deq(["//server/"], GetPathComponents("//server/", ""));
-			deq(["//server/", "share"], GetPathComponents("//server/share", ""));
-			deq(["file:///"], GetPathComponents("file:///", ""));
-			deq(["file:///", "path"], GetPathComponents("file:///path", ""));
-			deq(["file:///c:"], GetPathComponents("file:///c:", ""));
-			deq(["file:///", "c:d"], GetPathComponents("file:///c:d", ""));
-			deq(["file:///c:/"], GetPathComponents("file:///c:/", ""));
-			deq(["file:///c:/", "path"], GetPathComponents("file:///c:/path", ""));
-			deq(["file://server"], GetPathComponents("file://server", ""));
-			deq(["file://server/"], GetPathComponents("file://server/", ""));
-			deq(["file://server/", "path"], GetPathComponents("file://server/path", ""));
-			deq(["http://server"], GetPathComponents("http://server", ""));
-			deq(["http://server/"], GetPathComponents("http://server/", ""));
-			deq(["http://server/", "path"], GetPathComponents("http://server/path", ""));
+			deq([""], GetPathComponents(""));
+			deq(["", "a"], GetPathComponents("a"));
+			deq(["", ".", "a"], GetPathComponents("./a"));
+			deq(["/"], GetPathComponents("/"));
+			deq(["/", "a"], GetPathComponents("/a"));
+			deq(["/", "a"], GetPathComponents("/a/"));
+			deq(["c:"], GetPathComponents("c:"));
+			deq(["", "c:d"], GetPathComponents("c:d"));
+			deq(["c:/"], GetPathComponents("c:/"));
+			deq(["c:/", "path"], GetPathComponents("c:/path"));
+			deq(["//server"], GetPathComponents("//server"));
+			deq(["//server/"], GetPathComponents("//server/"));
+			deq(["//server/", "share"], GetPathComponents("//server/share"));
+			deq(["file:///"], GetPathComponents("file:///"));
+			deq(["file:///", "path"], GetPathComponents("file:///path"));
+			deq(["file:///c:"], GetPathComponents("file:///c:"));
+			deq(["file:///", "c:d"], GetPathComponents("file:///c:d"));
+			deq(["file:///c:/"], GetPathComponents("file:///c:/"));
+			deq(["file:///c:/", "path"], GetPathComponents("file:///c:/path"));
+			deq(["file://server"], GetPathComponents("file://server"));
+			deq(["file://server/"], GetPathComponents("file://server/"));
+			deq(["file://server/", "path"], GetPathComponents("file://server/path"));
+			deq(["http://server"], GetPathComponents("http://server"));
+			deq(["http://server/"], GetPathComponents("http://server/"));
+			deq(["http://server/", "path"], GetPathComponents("http://server/path"));
 		});
 
 		T.run("TestReducePathComponents", () -> {

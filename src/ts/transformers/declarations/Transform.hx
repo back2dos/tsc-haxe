@@ -502,7 +502,7 @@ class DeclarationTransformer {
 			final opts = new ComparePathsOptions();
 			opts.CurrentDirectory = host.GetCurrentDirectory();
 			opts.UseCaseSensitiveFileNames = host.UseCaseSensitiveFileNames();
-			final fileName = Tspath.GetRelativePathToDirectoryOrUrl(outputFilePath, declFileName, false, // TODO: Probably unsafe to assume this isn't a URL, but that's what strada does
+			final fileName = Tspath.GetRelativePathToDirectoryOrUrl_legacy(outputFilePath, declFileName, false, // TODO: Probably unsafe to assume this isn't a URL, but that's what strada does
 				opts);
 
 			final r = new FileReference();

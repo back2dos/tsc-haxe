@@ -1236,7 +1236,7 @@ class CompilationResult {
 		if (outDir != "") {
 			final common = this.Program.CommonSourceDirectory();
 			if (common != "") {
-				path = Tspath.GetRelativePathFromDirectory(common, path, new ComparePathsOptions(this.Host.FS().UseCaseSensitiveFileNames(), this.Host.GetCurrentDirectory()));
+				path = Tspath.GetRelativePathFromDirectory_legacy(common, path, new ComparePathsOptions(this.Host.FS().UseCaseSensitiveFileNames(), this.Host.GetCurrentDirectory()));
 				path = Tspath.CombinePaths(Tspath.ResolvePath(this.Host.GetCurrentDirectory(), this.Options.OutDir), path);
 			}
 		}

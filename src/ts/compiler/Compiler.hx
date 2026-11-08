@@ -202,7 +202,7 @@ class Compiler {
 				host.UseCaseSensitiveFileNames(), null), host.GetCurrentDirectory());
 			final outputPath = Outputpaths.GetSourceFilePathInNewDirWorker(sourceFile.FileName(), options.OutDir, host.GetCurrentDirectory(), commonDir,
 				host.UseCaseSensitiveFileNames());
-			if (Tspath.ComparePaths(sourceFile.FileName(), outputPath, new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) == 0) {
+			if (Tspath.ComparePaths_legacy(sourceFile.FileName(), outputPath, new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) == 0) {
 				return false;
 			}
 		}

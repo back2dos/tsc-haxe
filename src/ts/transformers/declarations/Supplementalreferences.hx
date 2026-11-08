@@ -34,7 +34,7 @@ class Supplementalreferences implements ts.compiler.Emitter.DeclarationTransform
 				if (declarationPath == "") {
 					continue;
 				}
-				final relativePath = Tspath.GetRelativePathFromFile(declarationFilePath, declarationPath,
+				final relativePath = Tspath.GetRelativePathFromFile_legacy(declarationFilePath, declarationPath,
 					new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory()));
 				final ref = new FileReference();
 				ref.TextRange = Core.NewTextRange(-1, -1);

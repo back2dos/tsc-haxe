@@ -476,16 +476,16 @@ class Modulespecifiers {
 					final symlinkSet = loaded.value;
 
 					// Don't want to a package to globally import from itself (importNameCodeFix_symlink_own_package.ts)
-					if (Tspath.StartsWithDirectory(importingFileName, realPathDirectory, host.UseCaseSensitiveFileNames())) {
+					if (Tspath.StartsWithDirectory(importingFileName, realPathDirectory, Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames()))) {
 						return new ValueOk<Bool>(false, true); // Stop search, each ancestor directory will also hit this condition
 					}
 
 					for (target in targets) {
-						if (!Tspath.StartsWithDirectory(target, realPathDirectory, host.UseCaseSensitiveFileNames())) {
+						if (!Tspath.StartsWithDirectory(target, realPathDirectory, Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames()))) {
 							continue;
 						}
 
-						final relative = Tspath.GetRelativePathFromDirectory(realPathDirectory, target,
+						final relative = Tspath.GetRelativePathFromDirectory_legacy(realPathDirectory, target,
 							new ComparePathsOptions(host.UseCaseSensitiveFileNames(), cwd));
 						symlinkSet.Range(function(symlinkDirectory:String):Bool {
 							final option = Tspath.ResolvePath(symlinkDirectory, relative);
@@ -655,7 +655,7 @@ class Modulespecifiers {
 			relativePath = tryGetModuleNameFromRootDirs(rootDirs, moduleFileName, sourceDirectory, allowedEndings, compilerOptions, host);
 		}
 		if (relativePath.length == 0) {
-			relativePath = processEnding(ensurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory(sourceDirectory, moduleFileName,
+			relativePath = processEnding(ensurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(sourceDirectory, moduleFileName,
 				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory()))),
 				allowedEndings, compilerOptions, host);
 		}
@@ -851,7 +851,7 @@ class Modulespecifiers {
 		if (normalizedSourcePaths != null) {
 			for (sourcePath in normalizedSourcePaths) {
 				for (targetPath in normalizedTargetPaths) {
-					final candidate = ensurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory(sourcePath, targetPath,
+					final candidate = ensurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(sourcePath, targetPath,
 						new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())));
 					final candidateSepCount = Strings.Count(candidate, "/");
 					if (shortest.length == 0 || candidateSepCount < shortestSepCount) {
@@ -1041,14 +1041,14 @@ class Modulespecifiers {
 			// importNameCodeFix_typesVersions.ts for an example.)
 			final mainExportFile = Tspath.ToPath(mainFileRelative, packageRootPath, host.UseCaseSensitiveFileNames());
 			final compareOpt = new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory());
-			if (Tspath.ComparePaths(Tspath.RemoveFileExtension((mainExportFile : String)), Tspath.RemoveFileExtension(moduleFileToTry), compareOpt) == 0) {
+			if (Tspath.ComparePaths_legacy(Tspath.RemoveFileExtension((mainExportFile : String)), Tspath.RemoveFileExtension(moduleFileToTry), compareOpt) == 0) {
 				// ^ An arbitrary removal of file extension for this comparison is almost certainly wrong
 				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootPath);
 			} else if (packageJsonContent == null
 				|| packageJsonContent.Type.Value != "module"
 				&& !Tspath.FileExtensionIsOneOf(moduleFileToTry, Tspath.ExtensionsNotSupportingExtensionlessResolution)
 				&& Stringutil.HasPrefix(moduleFileToTry, (mainExportFile : String), host.UseCaseSensitiveFileNames())
-				&& Tspath.ComparePaths(Tspath.GetDirectoryPath(moduleFileToTry), Tspath.RemoveTrailingDirectorySeparator((mainExportFile : String)),
+				&& Tspath.ComparePaths_legacy(Tspath.GetDirectoryPath(moduleFileToTry), Tspath.RemoveTrailingDirectorySeparator((mainExportFile : String)),
 					compareOpt) == 0
 				&& Tspath.RemoveFileExtension(Tspath.GetBaseFileName(moduleFileToTry)) == "index") {
 				// if mainExportFile is a directory, which contains moduleFileToTry, we just try index file
@@ -1272,31 +1272,31 @@ class Modulespecifiers {
 
 				switch (mode) {
 					case MatchingModeExact:
-						if (extensionSwappedTarget.length > 0 && Tspath.ComparePaths(extensionSwappedTarget, pathOrPattern, compareOpts) == 0
-							|| Tspath.ComparePaths(targetFilePath, pathOrPattern, compareOpts) == 0
-							|| outputFile.length > 0 && Tspath.ComparePaths(outputFile, pathOrPattern, compareOpts) == 0
-							|| declarationFile.length > 0 && Tspath.ComparePaths(declarationFile, pathOrPattern, compareOpts) == 0) {
+						if (extensionSwappedTarget.length > 0 && Tspath.ComparePaths_legacy(extensionSwappedTarget, pathOrPattern, compareOpts) == 0
+							|| Tspath.ComparePaths_legacy(targetFilePath, pathOrPattern, compareOpts) == 0
+							|| outputFile.length > 0 && Tspath.ComparePaths_legacy(outputFile, pathOrPattern, compareOpts) == 0
+							|| declarationFile.length > 0 && Tspath.ComparePaths_legacy(declarationFile, pathOrPattern, compareOpts) == 0) {
 							return packageName;
 						}
 					case MatchingModeDirectory:
-						if (canTryTsExtension && Tspath.ContainsPath(targetFilePath, pathOrPattern, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory(pathOrPattern, targetFilePath, compareOpts);
+						if (canTryTsExtension && Tspath.ContainsPath_legacy(targetFilePath, pathOrPattern, compareOpts)) {
+							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, targetFilePath, compareOpts);
 							return Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(Tspath.CombinePaths(packageName, strValue), fragment), "");
 						}
-						if (extensionSwappedTarget.length > 0 && Tspath.ContainsPath(pathOrPattern, extensionSwappedTarget, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory(pathOrPattern, extensionSwappedTarget, compareOpts);
+						if (extensionSwappedTarget.length > 0 && Tspath.ContainsPath_legacy(pathOrPattern, extensionSwappedTarget, compareOpts)) {
+							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, extensionSwappedTarget, compareOpts);
 							return Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(Tspath.CombinePaths(packageName, strValue), fragment), "");
 						}
-						if (!canTryTsExtension && Tspath.ContainsPath(pathOrPattern, targetFilePath, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory(pathOrPattern, targetFilePath, compareOpts);
+						if (!canTryTsExtension && Tspath.ContainsPath_legacy(pathOrPattern, targetFilePath, compareOpts)) {
+							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, targetFilePath, compareOpts);
 							return Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(Tspath.CombinePaths(packageName, strValue), fragment), "");
 						}
-						if (outputFile.length > 0 && Tspath.ContainsPath(pathOrPattern, outputFile, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory(pathOrPattern, outputFile, compareOpts);
+						if (outputFile.length > 0 && Tspath.ContainsPath_legacy(pathOrPattern, outputFile, compareOpts)) {
+							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, outputFile, compareOpts);
 							return Tspath.CombinePaths(packageName, fragment);
 						}
-						if (declarationFile.length > 0 && Tspath.ContainsPath(pathOrPattern, declarationFile, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory(pathOrPattern, declarationFile, compareOpts);
+						if (declarationFile.length > 0 && Tspath.ContainsPath_legacy(pathOrPattern, declarationFile, compareOpts)) {
+							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, declarationFile, compareOpts);
 							final jsExtension = getJSExtensionForFile(declarationFile, options);
 							final fragmentWithJsExtension = Tspath.ChangeExtension(fragment, jsExtension);
 							return Tspath.CombinePaths(packageName, fragmentWithJsExtension);
@@ -1449,7 +1449,7 @@ class Modulespecifiers {
 		}
 		// Strada relies on Map insertion order to break remaining ties deterministically;
 		// Go maps are unordered, so compare paths to keep the ordering stable.
-		return Tspath.ComparePaths(a.FileName, b.FileName, new ComparePathsOptions(useCaseSensitiveFileNames));
+		return Tspath.ComparePaths_legacy(a.FileName, b.FileName, new ComparePathsOptions(useCaseSensitiveFileNames));
 	}
 
 	public static function PathIsBareSpecifier(path:String):Bool {
@@ -1630,7 +1630,7 @@ class Modulespecifiers {
 	}
 
 	static function getRelativePathIfInSameVolume(path:String, directoryPath:String, useCaseSensitiveFileNames:Bool):String {
-		final relativePath = Tspath.GetRelativePathToDirectoryOrUrl(directoryPath, path, false,
+		final relativePath = Tspath.GetRelativePathToDirectoryOrUrl_legacy(directoryPath, path, false,
 			new ComparePathsOptions(useCaseSensitiveFileNames, directoryPath));
 		if (Tspath.IsRootedDiskPath(relativePath)) {
 			return "";
@@ -1645,7 +1645,7 @@ class Modulespecifiers {
 		if (a.length == 0 || b.length == 0) {
 			return false;
 		}
-		return Tspath.ComparePaths(a, b, options) == 0;
+		return Tspath.ComparePaths_legacy(a, b, options) == 0;
 	}
 
 	static function prefersTsExtension(allowedEndings:Array<ModuleSpecifierEnding>):Bool {
@@ -1793,7 +1793,7 @@ class Modulespecifiers {
 				case ModuleSpecifierEndingTsExtension, ModuleSpecifierEndingJsExtension:
 					// Map .d.ts -> .js, .d.mts -> .mjs, .d.cts -> .cjs
 					final jsExtension = GetJSExtensionForDeclarationFileExtension(dtsExtension);
-					return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], false);
+					return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive);
 				case ModuleSpecifierEndingMinimal, ModuleSpecifierEndingIndex:
 					if (entrypoint.Ending == EndingChangeable) {
 						// .d.mts/.d.cts must keep an extension; rewrite to .mjs/.cjs instead of dropping
@@ -1805,11 +1805,11 @@ class Modulespecifiers {
 							return specifier;
 						}
 						final jsExtension = GetJSExtensionForDeclarationFileExtension(dtsExtension);
-						return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], false);
+						return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive);
 					}
 					// EndingExtensionChangeable - can only change extension, not remove it
 					final jsExtension = GetJSExtensionForDeclarationFileExtension(dtsExtension);
-					return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], false);
+					return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive);
 				default:
 			}
 			return specifier;

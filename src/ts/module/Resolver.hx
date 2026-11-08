@@ -358,8 +358,8 @@ class ResolutionState {
 		if (!nameOk.ok) {
 			return Module.continueSearching();
 		}
-		final parts = Tspath.GetPathComponents(r.name, "");
-		final nameParts = Tspath.GetPathComponents(name, "");
+		final parts = Tspath.GetPathComponents(r.name);
+		final nameParts = Tspath.GetPathComponents(name);
 		if (parts.length < nameParts.length || !Slices.Equal(nameParts, parts.slice(0, nameParts.length))) {
 			return Module.continueSearching();
 		}
@@ -558,9 +558,9 @@ class ResolutionState {
 				}
 				var parts:Array<String>;
 				if (Tspath.PathIsRelative(targetString)) {
-					parts = Tspath.GetPathComponents(targetString, "").slice(1);
+					parts = Tspath.GetPathComponents(targetString).slice(1);
 				} else {
-					parts = Tspath.GetPathComponents(targetString, "");
+					parts = Tspath.GetPathComponents(targetString);
 				}
 				final partsAfterFirst = parts.slice(1);
 				if (Slices.Contains(partsAfterFirst, "..") || Slices.Contains(partsAfterFirst, ".") || Slices.Contains(partsAfterFirst, "node_modules")) {
@@ -572,7 +572,7 @@ class ResolutionState {
 				final resolvedTarget = Tspath.CombinePaths(scope.PackageDirectory, targetString);
 				// TODO: Assert that `resolvedTarget` is actually within the package directory? That's what the spec says.... but I'm not sure we need
 				// to be in the business of validating everyone's import and export map correctness.
-				final subpathParts = Tspath.GetPathComponents(subpath, "");
+				final subpathParts = Tspath.GetPathComponents(subpath);
 				if (Slices.Contains(subpathParts, "..") || Slices.Contains(subpathParts, ".") || Slices.Contains(subpathParts, "node_modules")) {
 					if (r.tracer != null) {
 						r.tracer.write(Diagnostics.X_package_json_scope_0_has_invalid_type_for_target_of_specifier_1, scope.PackageDirectory, moduleName);
@@ -674,7 +674,7 @@ class ResolutionState {
 			&& (r.compilerOptions.DeclarationDir != "" || r.compilerOptions.OutDir != "")
 			&& finalPath.indexOf("/node_modules/") < 0
 			&& (r.compilerOptions.ConfigFilePath == ""
-				|| Tspath.ContainsPath(Tspath.GetDirectoryPath(packagePath), r.compilerOptions.ConfigFilePath,
+				|| Tspath.ContainsPath_legacy(Tspath.GetDirectoryPath(packagePath), r.compilerOptions.ConfigFilePath,
 					new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames(), r.resolver.host.GetCurrentDirectory())))) {
 			// Note: this differs from Strada's tryLoadInputFileForPath in that it
 			// does not attempt to perform "guesses", instead requring a clear root indicator.
@@ -702,7 +702,7 @@ class ResolutionState {
 			final candidateDirectories = r.getOutputDirectoriesForBaseDirectory(rootDir);
 			if (candidateDirectories != null) {
 				for (candidateDir in candidateDirectories) {
-					if (Tspath.ContainsPath(candidateDir, finalPath,
+					if (Tspath.ContainsPath_legacy(candidateDir, finalPath,
 						new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames(), r.resolver.host.GetCurrentDirectory()))) {
 						// The matched export is looking up something in either the out declaration or js dir, now map the written path back into the source dir and source extension
 						var pathFragment = "";
@@ -1032,7 +1032,7 @@ class ResolutionState {
 		final r = this;
 		final resolvedFileName = r.realPath(fileName);
 		final comparePathsOptions = new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames(), r.resolver.host.GetCurrentDirectory());
-		if (Tspath.ComparePaths(fileName, resolvedFileName, comparePathsOptions) == 0) {
+		if (Tspath.ComparePaths_legacy(fileName, resolvedFileName, comparePathsOptions) == 0) {
 			// If the fileName and realpath are differing only in casing, prefer fileName
 			// so that we can issue correct errors for casing under forceConsistentCasingInFileNames
 			return new Pair("", fileName);
@@ -1285,7 +1285,7 @@ class ResolutionState {
 		var extensionless = Tspath.RemoveFileExtension(candidate);
 		if (extensionless == candidate) {
 			// Once TS native extensions are handled, handle arbitrary extensions for declaration file mapping
-			var extension = Tspath.GetLongestExtensionFromPath(candidate, r.resolver.extraExtensions, false);
+			var extension = Tspath.GetLongestExtensionFromPath(candidate, r.resolver.extraExtensions, Tspath.CaseSensitive);
 			if (extension == "") {
 				extension = candidate.substring(candidate.lastIndexOf("."));
 			}
@@ -1517,7 +1517,7 @@ class ResolutionState {
 		var versionPaths = new VersionPaths();
 		if (packageInfo.Exists()) {
 			versionPaths = packageInfo.Contents.GetVersionPaths(r.getTraceFunc());
-			if (Tspath.ComparePaths(candidate, packageInfo.PackageDirectory, new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames())) == 0) {
+			if (Tspath.ComparePaths_legacy(candidate, packageInfo.PackageDirectory, new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames())) == 0) {
 				final file = r.getPackageFile(ext, packageInfo);
 				if (file.ok) {
 					packageFile = file.value;
@@ -1558,12 +1558,12 @@ class ResolutionState {
 			indexPath = Tspath.CombinePaths(candidate, "index");
 		}
 
-		if (versionPaths.Exists() && (packageFile == "" || Tspath.ContainsPath(candidate, packageFile, new ComparePathsOptions()))) {
+		if (versionPaths.Exists() && (packageFile == "" || Tspath.ContainsPath_legacy(candidate, packageFile, new ComparePathsOptions()))) {
 			var moduleName:String;
 			if (packageFile != "") {
-				moduleName = Tspath.GetRelativePathFromDirectory(candidate, packageFile, new ComparePathsOptions());
+				moduleName = Tspath.GetRelativePathFromDirectory_legacy(candidate, packageFile, new ComparePathsOptions());
 			} else {
-				moduleName = Tspath.GetRelativePathFromDirectory(candidate, indexPath, new ComparePathsOptions());
+				moduleName = Tspath.GetRelativePathFromDirectory_legacy(candidate, indexPath, new ComparePathsOptions());
 			}
 			if (r.tracer != null) {
 				r.tracer.write(Diagnostics.X_package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
@@ -1882,7 +1882,7 @@ class ResolutionState {
 						}
 					}
 				} else {
-					final partsAfterFirst = Tspath.GetPathComponents(exports.AsString(), "").slice(2);
+					final partsAfterFirst = Tspath.GetPathComponents(exports.AsString()).slice(2);
 					if (Slices.Contains(partsAfterFirst, "..") || Slices.Contains(partsAfterFirst, ".") || Slices.Contains(partsAfterFirst, "node_modules")) {
 						return;
 					}
@@ -2241,14 +2241,14 @@ class Resolver {
 			final comparePathsOptions = new ComparePathsOptions(r.host.FS().UseCaseSensitiveFileNames());
 			if (otherFiles != null) {
 				for (file in otherFiles) {
-					if (mainResolution.isResolved() && Tspath.ComparePaths(file, mainResolution.path, comparePathsOptions) == 0) {
+					if (mainResolution.isResolved() && Tspath.ComparePaths_legacy(file, mainResolution.path, comparePathsOptions) == 0) {
 						continue;
 					}
 
 					if (result == null)
 						result = [];
 					result.push(r.createResolvedEntrypointHandlingSymlink(file,
-						Tspath.ResolvePath(packageName, Tspath.GetRelativePathFromDirectory(packageJson.PackageDirectory, file, comparePathsOptions)), null,
+						Tspath.ResolvePath(packageName, Tspath.GetRelativePathFromDirectory_legacy(packageJson.PackageDirectory, file, comparePathsOptions)), null,
 						null, EndingChangeable));
 				}
 			}

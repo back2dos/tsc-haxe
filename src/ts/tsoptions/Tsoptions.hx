@@ -3769,7 +3769,7 @@ class Tsoptions {
 		if (configParseResult.FileNames() != null) {
 			for (f in configParseResult.FileNames()) {
 				final normalizedFilePath = Tspath.GetNormalizedAbsolutePath(f, configParseResult.GetCurrentDirectory());
-				final relativePath = Tspath.GetRelativePathFromFile(normalizedConfigPath, normalizedFilePath, comparePathsOptions);
+				final relativePath = Tspath.GetRelativePathFromFile_legacy(normalizedConfigPath, normalizedFilePath, comparePathsOptions);
 				if (files == null)
 					files = [];
 				files.push(relativePath);
@@ -3912,7 +3912,7 @@ class Tsoptions {
 							final relPaths:Array<std.String> = [];
 							for (s in strs) {
 								final absPath = Tspath.GetNormalizedAbsolutePath(s, configDir);
-								relPaths.push(Tspath.GetRelativePathFromFile(configFilePath, absPath, comparePathsOptions));
+								relPaths.push(Tspath.GetRelativePathFromFile_legacy(configFilePath, absPath, comparePathsOptions));
 							}
 							result.Set(name, relPaths);
 							done = true;
@@ -3947,7 +3947,7 @@ class Tsoptions {
 						// File path option - make relative to config
 						if (isString(value) && (value : std.String) != "") {
 							final absPath = Tspath.GetNormalizedAbsolutePath(value, configDir);
-							result.Set(name, Tspath.GetRelativePathFromFile(configFilePath, absPath, comparePathsOptions));
+							result.Set(name, Tspath.GetRelativePathFromFile_legacy(configFilePath, absPath, comparePathsOptions));
 							done = true;
 						}
 					}
@@ -5087,7 +5087,7 @@ class Tsoptions {
 									} else {
 										if (relativeDifference == "") {
 											final t = new ComparePathsOptions(host.FS().UseCaseSensitiveFileNames(), basePath);
-											relativeDifference = Tspath.ConvertToRelativePath(Tspath.GetDirectoryPath(extendedConfigPath), t);
+											relativeDifference = Tspath.ConvertToRelativePath_legacy(Tspath.GetDirectoryPath(extendedConfigPath), t);
 										}
 										return Tspath.CombinePaths(relativeDifference, pathStr);
 									}
@@ -6144,7 +6144,7 @@ class Tsoptions {
 				if (recursiveKeys != null) {
 					for (recursiveKey in recursiveKeys) {
 						final key = toCanonicalKey(path, comparePathsOptions.UseCaseSensitiveFileNames);
-						if (key != recursiveKey && Tspath.ContainsPath(recursiveKey, key, comparePathsOptions)) {
+						if (key != recursiveKey && Tspath.ContainsPath_legacy(recursiveKey, key, comparePathsOptions)) {
 							wildcardDirectories.remove(path);
 						}
 					}

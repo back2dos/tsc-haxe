@@ -50,6 +50,11 @@ class ComparePathsOptions {
 		return new ComparePathsOptions(UseCaseSensitiveFileNames, CurrentDirectory);
 	}
 
+	// PORT: transitional (ComparePathsOptions is gone in main).
+	public inline function caseSensitivity():CaseSensitivity {
+		return Tspath.caseSensitivityOf(UseCaseSensitiveFileNames);
+	}
+
 	public function GetComparer():(a:String, b:String) -> Int {
 		return Stringutil.GetStringComparer(!this.UseCaseSensitiveFileNames);
 	}

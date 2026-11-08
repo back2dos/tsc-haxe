@@ -486,7 +486,7 @@ class TsconfigparsingTest {
 					continue;
 				}
 
-				relativePaths.push(Tspath.ConvertToRelativePath(fileName, new ComparePathsOptions(fs.UseCaseSensitiveFileNames(), compilerDir)));
+				relativePaths.push(Tspath.ConvertToRelativePath_legacy(fileName, new ComparePathsOptions(fs.UseCaseSensitiveFileNames(), compilerDir)));
 			}
 
 			final expectedPaths = [

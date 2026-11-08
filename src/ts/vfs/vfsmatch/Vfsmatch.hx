@@ -92,7 +92,7 @@ class Vfsmatch {
 			// subpath of an existing base path
 			for (includeBasePath in includeBasePaths) {
 				if (Core.Every(basePaths, (basepath:String) -> {
-					return !Tspath.ContainsPath(basepath, includeBasePath, comparePathsOptions);
+					return !Tspath.ContainsPath_legacy(basepath, includeBasePath, comparePathsOptions);
 				})) {
 					basePaths.push(includeBasePath);
 				}

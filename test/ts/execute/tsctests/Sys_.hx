@@ -217,7 +217,7 @@ class TestSys implements System implements CommandLineTesting {
 
 		final configFilePath = program.Options().ConfigFilePath;
 		if (configFilePath != "") {
-			builder.WriteString(Tspath.GetRelativePathFromDirectory(this.cwd, configFilePath,
+			builder.WriteString(Tspath.GetRelativePathFromDirectory_legacy(this.cwd, configFilePath,
 				new ComparePathsOptions(this.FS().UseCaseSensitiveFileNames(), this.GetCurrentDirectory())));
 			builder.WriteString("::\n");
 		}

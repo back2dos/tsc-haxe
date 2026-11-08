@@ -987,7 +987,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			// BaseUrl will have been turned absolute by this point.
 			var useInstead = "";
 			if (configFilePath() != "") {
-				var relative = Tspath.GetRelativePathFromFile(configFilePath(), options.BaseUrl, this.comparePathsOptions);
+				var relative = Tspath.GetRelativePathFromFile_legacy(configFilePath(), options.BaseUrl, this.comparePathsOptions);
 				if (!(StringTools.startsWith(relative, "./") || StringTools.startsWith(relative, "../"))) {
 					relative = "./" + relative;
 				}
@@ -1259,7 +1259,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 					Diagnostics.The_common_source_directory_of_0_is_1_The_rootDir_setting_must_be_explicitly_set_to_this_or_another_path_to_adjust_your_output_s_file_layout,
 					[
 						Tspath.GetBaseFileName(options.ConfigFilePath),
-						Tspath.GetRelativePathFromFile(options.ConfigFilePath, dir59, this.comparePathsOptions)
+						Tspath.GetRelativePathFromFile_legacy(options.ConfigFilePath, dir59, this.comparePathsOptions)
 					]);
 				diag.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.Visit_https_Colon_Slash_Slashaka_ms_Slashts6_for_migration_information));
 			}
@@ -1812,7 +1812,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		if (!Tspath.IsDeclarationFileName(fileName)) {
 			return false;
 		}
-		return Tspath.ContainsPath(this.GetGlobalTypingsCacheLocation(), fileName, this.comparePathsOptions);
+		return Tspath.ContainsPath_legacy(this.GetGlobalTypingsCacheLocation(), fileName, this.comparePathsOptions);
 	}
 
 	public function GetDefaultLibFile(path:Path):LibFile {
@@ -1849,7 +1849,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			for (file in sourceFiles) {
 				final absoluteSourceFilePath = Tspath.GetCanonicalFileName(Tspath.GetNormalizedAbsolutePath(file, this.GetCurrentDirectory()),
 					this.UseCaseSensitiveFileNames());
-				if (!Tspath.ContainsPath(rootDirectory, file, this.comparePathsOptions)) {
+				if (!Tspath.ContainsPath_legacy(rootDirectory, file, this.comparePathsOptions)) {
 					this.includeProcessor.addProcessingDiagnostic(new ProcessingDiagnostic(processingDiagnosticKindExplainingFileInclude,
 						new IncludeExplainingDiagnostic(absoluteSourceFilePath, null,
 							Diagnostics.File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files, [file, rootDirectory])));
@@ -2093,7 +2093,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	public function ExplainFiles(w:go.Io.Writer, locale:Locale):Void {
 		final toRelativeFileName = function(fileName:std.String):std.String {
-			return Tspath.GetRelativePathFromDirectory(this.GetCurrentDirectory(), fileName, this.comparePathsOptions);
+			return Tspath.GetRelativePathFromDirectory_legacy(this.GetCurrentDirectory(), fileName, this.comparePathsOptions);
 		};
 		var filesExplained = 0;
 		final explainFile = function(file:HasFileName) {

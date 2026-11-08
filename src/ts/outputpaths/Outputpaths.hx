@@ -97,7 +97,7 @@ class Outputpaths {
 		final isJsonFile = Ast.IsJsonSourceFile(sourceFile);
 		// If json file emits to the same location skip writing it, if emitDeclarationOnly skip writing it
 		final isJsonEmittedToSameLocation = isJsonFile
-			&& Tspath.ComparePaths(sourceFile.FileName(), ownOutputFilePath,
+			&& Tspath.ComparePaths_legacy(sourceFile.FileName(), ownOutputFilePath,
 				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) == 0;
 		final paths = new OutputPaths();
 		if (sourceFile.ContentMapper() != "") {
@@ -151,7 +151,7 @@ class Outputpaths {
 		}
 		final outputFileName = GetOutputJSFileNameWorker(inputFileName, options, host);
 		if (!Tspath.FileExtensionIs(outputFileName, Tspath.ExtensionJson)
-			|| Tspath.ComparePaths(inputFileName, outputFileName,
+			|| Tspath.ComparePaths_legacy(inputFileName, outputFileName,
 				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) != 0) {
 			return outputFileName;
 		}
@@ -159,7 +159,7 @@ class Outputpaths {
 	}
 
 	static function isContentMappedFileName(fileName:String, host:OutputPathsHost):Bool {
-		return Tspath.GetLongestExtensionFromPath(fileName, host.ContentMapperExtensions(), !host.UseCaseSensitiveFileNames()) != "";
+		return Tspath.GetLongestExtensionFromPath(fileName, host.ContentMapperExtensions(), Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames())) != "";
 	}
 
 	public static function GetOutputJSFileNameWorker(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
@@ -223,7 +223,7 @@ class Outputpaths {
 		if (rewritten.ok) {
 			return changeToDeclarationExtension(rewritten.value);
 		}
-		final extension = Tspath.GetLongestExtensionFromPath(path, host.ContentMapperExtensions(), false);
+		final extension = Tspath.GetLongestExtensionFromPath(path, host.ContentMapperExtensions(), Tspath.CaseSensitive);
 		if (extension != "") {
 			return Tspath.RemoveExtension(path, extension) + ".d" + extension + ".ts";
 		}
@@ -233,7 +233,7 @@ class Outputpaths {
 	static function changeToDeclarationExtension(path:String):String {
 		var pathWithoutExtension = Tspath.RemoveFileExtension(path);
 		if (pathWithoutExtension == path) {
-			final extension = Tspath.GetAnyExtensionFromPath(path, null, false);
+			final extension = Tspath.GetAnyExtensionFromPath(path, null, Tspath.CaseSensitive);
 			if (extension != "") {
 				pathWithoutExtension = Tspath.RemoveExtension(path, extension);
 			}
@@ -249,7 +249,7 @@ class Outputpaths {
 	static function getOutputPathWithoutChangingExtension(inputFileName:String, outputDirectory:String, host:OutputPathsHost):String {
 		if (outputDirectory.length > 0) {
 			return Tspath.ResolvePath(outputDirectory,
-				Tspath.GetRelativePathFromDirectory(host.CommonSourceDirectory(), inputFileName,
+				Tspath.GetRelativePathFromDirectory_legacy(host.CommonSourceDirectory(), inputFileName,
 					new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())));
 		}
 		return inputFileName;
@@ -298,7 +298,7 @@ class Outputpaths {
 		var buildInfoExtensionLess:String;
 		if (options.OutDir != "") {
 			if (options.RootDir != "") {
-				buildInfoExtensionLess = Tspath.ResolvePath(options.OutDir, Tspath.GetRelativePathFromDirectory(options.RootDir, configFileExtensionLess, opts));
+				buildInfoExtensionLess = Tspath.ResolvePath(options.OutDir, Tspath.GetRelativePathFromDirectory_legacy(options.RootDir, configFileExtensionLess, opts));
 			} else {
 				buildInfoExtensionLess = Tspath.CombinePaths(options.OutDir, Tspath.GetBaseFileName(configFileExtensionLess));
 			}

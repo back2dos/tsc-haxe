@@ -120,7 +120,7 @@ class FileIncludeReason {
 			if (!this.relativeFileNameDiagOnce) {
 				this.relativeFileNameDiagOnce = true;
 				this.relativeFileNameDiag = this.computeDiagnostic(program, function(fileName:std.String):std.String {
-					return Tspath.GetRelativePathFromDirectory(program.GetCurrentDirectory(), fileName, program.comparePathsOptions);
+					return Tspath.GetRelativePathFromDirectory_legacy(program.GetCurrentDirectory(), fileName, program.comparePathsOptions);
 				});
 			}
 			return this.relativeFileNameDiag;

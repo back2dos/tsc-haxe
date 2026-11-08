@@ -44,7 +44,7 @@ class Generator {
 
 	// Adds a source to the source map
 	public function AddSource(fileName:String):SourceIndex {
-		final source = Tspath.GetRelativePathToDirectoryOrUrl(sourcesDirectoryPath, fileName, true, /*isAbsolutePathAnUrl*/
+		final source = Tspath.GetRelativePathToDirectoryOrUrl_legacy(sourcesDirectoryPath, fileName, true, /*isAbsolutePathAnUrl*/
 			pathOptions);
 
 		var sourceIndex:SourceIndex = 0;

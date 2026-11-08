@@ -410,7 +410,7 @@ class Emitter {
 			if (Tspath.GetRootLength(sourceMapDir) == 0) {
 				// The relative paths are relative to the common directory
 				sourceMapDir = Tspath.CombinePaths(this.host.CommonSourceDirectory(), sourceMapDir);
-				return Stringutil.EncodeURI(Tspath.GetRelativePathToDirectoryOrUrl(Tspath.GetDirectoryPath(Tspath.NormalizePath(filePath)), // get the relative sourceMapDir path based on jsFilePath
+				return Stringutil.EncodeURI(Tspath.GetRelativePathToDirectoryOrUrl_legacy(Tspath.GetDirectoryPath(Tspath.NormalizePath(filePath)), // get the relative sourceMapDir path based on jsFilePath
 					Tspath.CombinePaths(sourceMapDir, sourceMapFile), // this is where user expects to see sourceMap
 					/*isAbsolutePathAnUrl*/ true, new ComparePathsOptions(this.host.UseCaseSensitiveFileNames(), this.host.GetCurrentDirectory())));
 			} else {

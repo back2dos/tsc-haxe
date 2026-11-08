@@ -184,7 +184,7 @@ class CompilerTest {
 	}
 
 	function testHeader(isSubmodule:Bool):String {
-		var headerComponents = Tspath.GetPathComponentsRelativeTo(Repo.TestDataPath(), this.filename, new ComparePathsOptions());
+		var headerComponents = Tspath.GetPathComponentsRelativeTo_legacy(Repo.TestDataPath(), this.filename, new ComparePathsOptions());
 		if (isSubmodule) {
 			headerComponents = headerComponents.slice(4); // Strip "./../_submodules/TypeScript" prefix
 		}
@@ -245,7 +245,7 @@ class CompilerTest {
 			return program.GetSourceFile(f.UnitName) != null;
 		});
 
-		var headerComponents = Tspath.GetPathComponentsRelativeTo(Repo.TestDataPath(), this.filename, new ComparePathsOptions());
+		var headerComponents = Tspath.GetPathComponentsRelativeTo_legacy(Repo.TestDataPath(), this.filename, new ComparePathsOptions());
 		if (isSubmodule) {
 			headerComponents = headerComponents.slice(4); // Strip "./../_submodules/TypeScript" prefix
 		}

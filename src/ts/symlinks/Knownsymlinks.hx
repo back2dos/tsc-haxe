@@ -105,8 +105,8 @@ class KnownSymlinks {
 
 	// PORT: (string, string) → Pair(a = commonResolved, b = commonOriginal).
 	function guessDirectorySymlink(a:String, b:String, cwd:String):Pair<String, String> {
-		var aParts = Tspath.GetPathComponents(Tspath.GetNormalizedAbsolutePath(a, cwd), "");
-		var bParts = Tspath.GetPathComponents(Tspath.GetNormalizedAbsolutePath(b, cwd), "");
+		var aParts = Tspath.GetPathComponents(Tspath.GetNormalizedAbsolutePath(a, cwd));
+		var bParts = Tspath.GetPathComponents(Tspath.GetNormalizedAbsolutePath(b, cwd));
 		var isDirectory = false;
 		while (aParts.length >= 2
 			&& bParts.length >= 2

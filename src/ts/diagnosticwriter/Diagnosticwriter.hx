@@ -274,7 +274,7 @@ class Diagnosticwriter {
 		final firstChar = first.b;
 		var relativeFileName:String;
 		if (formatOpts != null) {
-			relativeFileName = Tspath.ConvertToRelativePath(file.FileName(), formatOpts.ComparePathsOptions);
+			relativeFileName = Tspath.ConvertToRelativePath_legacy(file.FileName(), formatOpts.ComparePathsOptions);
 		} else {
 			relativeFileName = file.FileName();
 		}
@@ -421,7 +421,7 @@ class Diagnosticwriter {
 		final line = Scanner.GetECMALineOfPosition(file, fileErrors[0].Pos());
 		var fileName = file.FileName();
 		if (Tspath.PathIsAbsolute(fileName) && Tspath.PathIsAbsolute(formatOpts.ComparePathsOptions.CurrentDirectory)) {
-			fileName = Tspath.ConvertToRelativePath(file.FileName(), formatOpts.ComparePathsOptions);
+			fileName = Tspath.ConvertToRelativePath_legacy(file.FileName(), formatOpts.ComparePathsOptions);
 		}
 		return Fmt.Sprintf("%s%s:%d%s", [fileName, foregroundColorEscapeGrey, line + 1, resetEscapeSequence]);
 	}
@@ -440,7 +440,7 @@ class Diagnosticwriter {
 			final line = lc.a;
 			final character = lc.b;
 			final fileName = diagnostic.File().FileName();
-			final relativeFileName = Tspath.ConvertToRelativePath(fileName, formatOpts.ComparePathsOptions);
+			final relativeFileName = Tspath.ConvertToRelativePath_legacy(fileName, formatOpts.ComparePathsOptions);
 			Fmt.Fprintf(output, "%s(%d,%d): ", [relativeFileName, line + 1, character + 1]);
 		}
 
