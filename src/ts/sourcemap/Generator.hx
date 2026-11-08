@@ -242,6 +242,8 @@ class Generator {
 			return Errors.New("generatedCharacter cannot be negative");
 		}
 		addMapping(generatedLine, generatedCharacter, sourceIndexNotSet, notSet /*sourceLine*/, notSetUTF16 /*sourceCharacter*/, nameIndexNotSet);
+		hasPendingSource = false;
+		hasPendingName = false;
 		return null;
 	}
 
@@ -262,6 +264,9 @@ class Generator {
 		}
 		if (sourceCharacter < 0) {
 			return Errors.New("sourceCharacter cannot be negative");
+		}
+		if (hasPending && !isNewGeneratedPosition(generatedLine, generatedCharacter) && !hasPendingSource) {
+			return null;
 		}
 		addMapping(generatedLine, generatedCharacter, sourceIndex, sourceLine, sourceCharacter, nameIndexNotSet);
 		return null;
@@ -287,6 +292,9 @@ class Generator {
 		}
 		if (nameIndex < 0 || nameIndex >= Core.len(names)) {
 			return Errors.New("nameIndex is out of range");
+		}
+		if (hasPending && !isNewGeneratedPosition(generatedLine, generatedCharacter) && !hasPendingSource) {
+			return null;
 		}
 		addMapping(generatedLine, generatedCharacter, sourceIndex, sourceLine, sourceCharacter, nameIndex);
 		return null;
@@ -339,7 +347,7 @@ class Generator {
 class RawSourceMap {
 	public var Version:Int = 0; // json:"version"
 	public var File:String = ""; // json:"file"
-	public var SourceRoot:String = ""; // json:"sourceRoot"
+	public var SourceRoot:String = ""; // json:"sourceRoot,omitzero"
 	public var Sources:Array<String> = null; // json:"sources"
 	public var Names:Array<String> = null; // json:"names"
 	public var Mappings:String = ""; // json:"mappings"
@@ -348,15 +356,17 @@ class RawSourceMap {
 	public function new() {}
 
 	// PORT: Go json.Marshal of the struct (go-json-experiment, AllowInvalidUTF8): fields in declaration
-	// order, `omitzero` drops a nil SourcesContent, a nil slice is `[]`, a nil *string is `null`.
+	// order, `omitzero` drops an empty SourceRoot and a nil SourcesContent, a nil slice is `[]`, a nil *string is `null`.
 	function marshalJSON():String {
 		final b = new StringBuf();
 		b.add('{"version":');
 		b.add(Version);
 		b.add(',"file":');
 		appendJSONString(b, File);
-		b.add(',"sourceRoot":');
-		appendJSONString(b, SourceRoot);
+		if (SourceRoot != "") {
+			b.add(',"sourceRoot":');
+			appendJSONString(b, SourceRoot);
+		}
 		b.add(',"sources":');
 		appendJSONStrings(b, Sources);
 		b.add(',"names":');
