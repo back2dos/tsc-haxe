@@ -43,6 +43,7 @@ class InferenceState {
 	var sourceStack:Array<Type> = null;
 	var targetStack:Array<Type> = null;
 	var next:InferenceState = null;
+	var clearedInferences:Bool = false; // PORT: perf — (from tsrs) the walk called clearCachedInferences (InferMemo.hx)
 
 	public function new() {}
 }
@@ -117,11 +118,12 @@ class Inference {
 		n.priority = priority;
 		n.inferencePriority = InferencePriorityMaxValue;
 		n.contravariant = contravariant;
-		c.inferFromTypes(n, originalSource, originalTarget);
+		InferMemo.inferFromTypesMemo(c, n, originalSource, originalTarget); // PORT: perf — (from tsrs) InferMemo.hx
 		c.putInferenceState(n);
 	}
 
 	static function inferFromTypes(c:Checker, n:InferenceState, source:Type, target:Type):Void {
+		c.inferMemoSteps++; // PORT: perf — (from tsrs) InferMemo.hx
 		if (!c.couldContainTypeVariablesWorker(target) || c.isNoInferType(target)) {
 			return;
 		}
@@ -257,6 +259,7 @@ class Inference {
 								}
 								inference.contraCandidates.push(candidate);
 								Checker.clearCachedInferences(n.inferences);
+								n.clearedInferences = true; // PORT: perf — (from tsrs) InferMemo.hx
 							}
 						} else if (!Slices.Contains(inference.candidates, candidate)) {
 							if (inference.candidates == null) {
@@ -264,12 +267,14 @@ class Inference {
 							}
 							inference.candidates.push(candidate);
 							Checker.clearCachedInferences(n.inferences);
+							n.clearedInferences = true; // PORT: perf — (from tsrs) InferMemo.hx
 						}
 					}
 					if ((n.priority & InferencePriorityReturnType) == 0 && (target.flags & TypeFlagsTypeParameter) != 0 && inference.topLevel
 						&& !c.isTypeParameterAtTopLevel(n.originalTarget, target, 0)) {
 						inference.topLevel = false;
 						Checker.clearCachedInferences(n.inferences);
+						n.clearedInferences = true; // PORT: perf — (from tsrs) InferMemo.hx
 					}
 				}
 				n.inferencePriority = minPriority(n.inferencePriority, n.priority);

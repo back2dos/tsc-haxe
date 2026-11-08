@@ -5,7 +5,9 @@ package ts.cmd;
 // helpers they use are not ported.
 class Tsgo {
 	static function main() {
-		Sys.exit(runMain());
+		final status = runMain();
+		ts.checker.InferMemo.finish(); // PORT: perf — (from tsrs) TSHX_INFER_MEMO_STATS
+		Sys.exit(status);
 	}
 
 	static function runMain():Int {

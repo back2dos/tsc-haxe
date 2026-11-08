@@ -2086,6 +2086,7 @@ class CheckerPart4 {
 	}
 
 	static function addDiagnostic(c:Checker, diagnostic:Diagnostic):Diagnostic {
+		c.diagnosticAdds++; // PORT: perf — (from tsrs) InferMemo.hx
 		// Discard diagnostics created while at the maximum number of recursive TypeToString invocations.
 		if (c.serializationLevel < Checker.maxSerializationLevel) {
 			return c.diagnostics.Add(diagnostic);
@@ -2094,6 +2095,7 @@ class CheckerPart4 {
 	}
 
 	static function addSuggestionDiagnostic(c:Checker, diagnostic:Diagnostic):Diagnostic {
+		c.diagnosticAdds++; // PORT: perf — (from tsrs) InferMemo.hx
 		// Discard diagnostics created while at the maximum number of recursive TypeToString invocations.
 		if (c.serializationLevel < Checker.maxSerializationLevel) {
 			return c.suggestionDiagnostics.Add(diagnostic);

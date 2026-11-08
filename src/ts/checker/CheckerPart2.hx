@@ -3892,6 +3892,7 @@ class CheckerPart2 {
 			final saveCurrentNode = c.currentNode;
 			c.currentNode = node;
 			c.instantiationCount = 0;
+			c.expressionChecks++; // PORT: perf — (from tsrs) InferMemo.hx
 			final uninstantiatedType = c.checkExpressionWorker(node, checkMode);
 			t = c.instantiateTypeWithSingleGenericCallSignature(node, uninstantiatedType, checkMode);
 			if (Checker.isConstEnumObjectType(t)) {

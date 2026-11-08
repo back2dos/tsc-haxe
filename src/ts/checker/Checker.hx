@@ -1634,6 +1634,12 @@ class Checker {
 	var flowInvocationCount:Int = 0;
 	var flowTypeCache:IdentityMap<Node, Type> = null;
 	var flowMemo:FlowMemo = new FlowMemo(); // PORT: perf — (from tsrs) FlowMemo.hx
+	// PORT: perf — (from tsrs) InferMemo.hx: the memo, inferFromTypes calls so far, diagnostics added so far, instantiation
+	// count resets (checkExpression) so far.
+	var inferMemo:InferMemo = new InferMemo();
+	var inferMemoSteps:Int = 0;
+	var diagnosticAdds:Int = 0;
+	var expressionChecks:Int = 0;
 	var lastFlowNode:FlowNode = null;
 	var lastFlowNodeReachable:Bool = false;
 	var flowNodeReachable:IdentityMap<FlowNode, Bool> = null;

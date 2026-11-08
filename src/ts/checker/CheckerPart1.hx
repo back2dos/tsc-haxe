@@ -1140,6 +1140,7 @@ class CheckerPart1 {
 			final saveWithinUnreachableCode = c.withinUnreachableCode;
 			c.currentNode = node;
 			c.instantiationCount = 0;
+			c.expressionChecks++; // PORT: perf — (from tsrs) InferMemo.hx (a count reset)
 			c.checkSourceElementWorker(node);
 			c.currentNode = saveCurrentNode;
 			c.withinUnreachableCode = saveWithinUnreachableCode;
@@ -1422,6 +1423,7 @@ class CheckerPart1 {
 		final saveCurrentNode = c.currentNode;
 		c.currentNode = node;
 		c.instantiationCount = 0;
+		c.expressionChecks++; // PORT: perf — (from tsrs) InferMemo.hx (a count reset)
 		switch (node.Kind) {
 			case KindCallExpression | KindNewExpression | KindTaggedTemplateExpression | KindDecorator | KindJsxOpeningElement:
 				// These node kinds are deferred checked when overload resolution fails. To save on work,
