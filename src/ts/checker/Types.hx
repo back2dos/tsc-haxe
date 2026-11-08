@@ -151,16 +151,85 @@ class SymbolReferenceLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Type of value symbol
-	var writeType:Type = null;
 	var target:Symbol = null;
 	var mapper:TypeMapper = null;
-	var nameType:Type = null;
-	var containingType:Type = null; // Mapped type for mapped type property, containing union or intersection type for synthetic property
-	var functionOrConstructorChecked:Bool = false;
+	// PORT: perf — from TypeScript main (microsoft/typescript-go#64797): the rarely set fields in a side record
+	// (allocated when one is set to a non-nil value)
+	var extra:ValueSymbolExtra = null;
+	var functionOrConstructorChecked(get, set):Bool;
+	var writeType(get, set):Type;
+	var nameType(get, set):Type;
+	var containingType(get, set):Type; // Mapped type for mapped type property, containing union or intersection type for synthetic property
+
+	inline function get_writeType():Type {
+		return extra == null ? null : extra.writeType;
+	}
+
+	inline function get_functionOrConstructorChecked():Bool {
+		return extra != null && extra.functionOrConstructorChecked;
+	}
+
+	function set_functionOrConstructorChecked(b:Bool):Bool {
+		if (extra == null) {
+			if (!b) {
+				return b;
+			}
+			extra = new ValueSymbolExtra();
+		}
+		return extra.functionOrConstructorChecked = b;
+	}
+
+	inline function get_nameType():Type {
+		return extra == null ? null : extra.nameType;
+	}
+
+	inline function get_containingType():Type {
+		return extra == null ? null : extra.containingType;
+	}
+
+	function set_writeType(t:Type):Type {
+		if (extra == null) {
+			if (t == null) {
+				return t;
+			}
+			extra = new ValueSymbolExtra();
+		}
+		return extra.writeType = t;
+	}
+
+	function set_nameType(t:Type):Type {
+		if (extra == null) {
+			if (t == null) {
+				return t;
+			}
+			extra = new ValueSymbolExtra();
+		}
+		return extra.nameType = t;
+	}
+
+	function set_containingType(t:Type):Type {
+		if (extra == null) {
+			if (t == null) {
+				return t;
+			}
+			extra = new ValueSymbolExtra();
+		}
+		return extra.containingType = t;
+	}
 
 	public function new() {
 		super();
 	}
+}
+
+@:allow(ts.checker)
+class ValueSymbolExtra {
+	var writeType:Type = null;
+	var nameType:Type = null;
+	var containingType:Type = null;
+	var functionOrConstructorChecked:Bool = false;
+
+	public function new() {}
 }
 
 @:allow(ts.checker)
