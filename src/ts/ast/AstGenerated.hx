@@ -544,12 +544,20 @@ class PrivateIdentifier extends NodeDefault implements PrimaryExpressionBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class QualifiedName extends NodeDefault implements FlowNodeBase implements CompositeBase {
-	@:isVar public var FlowNode(get, set):FlowNode = null;
+	public var FlowNode(get, set):FlowNode; // (in QualifiedNameRare)
 	@:isVar public var facts(get, set):Int = 0;
 	public var Left:EntityName = null;
 	public var Right:MemberName = null;
-	inline function get_FlowNode():FlowNode return FlowNode;
-	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_FlowNode():FlowNode return links == null ? null : rare_FlowNode();
+	function rare_FlowNode():FlowNode {
+		final r = QualifiedNameRare.store.TryGetInline(this);
+		return r == null ? null : r.FlowNode;
+	}
+	function set_FlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? QualifiedNameRare.store.Get(this) : QualifiedNameRare.store.TryGetInline(this);
+		if (r != null) r.FlowNode = v;
+		return v;
+	}
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -582,6 +590,17 @@ class QualifiedName extends NodeDefault implements FlowNodeBase implements Compo
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few QualifiedName nodes set (see GenAst.RARE_FIELDS)
+class QualifiedNameRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, QualifiedNameRare>(() -> new QualifiedNameRare());
+
+	public var FlowNode:FlowNode = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -893,10 +912,20 @@ class ForInOrOfStatement extends NodeDefault implements StatementBase implements
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
 	@:isVar public var facts(get, set):Int = 0;
-	public var AwaitModifier:AwaitKeyword = null;
+	public var AwaitModifier(get, set):AwaitKeyword; // (in ForInOrOfStatementRare)
 	public var Initializer:ForInitializer = null;
 	public var Expression:Expression = null;
 	public var Statement:Statement = null;
+	inline function get_AwaitModifier():AwaitKeyword return links == null ? null : rare_AwaitModifier();
+	function rare_AwaitModifier():AwaitKeyword {
+		final r = ForInOrOfStatementRare.store.TryGetInline(this);
+		return r == null ? null : r.AwaitModifier;
+	}
+	function set_AwaitModifier(v:AwaitKeyword):AwaitKeyword {
+		final r = v != null ? ForInOrOfStatementRare.store.Get(this) : ForInOrOfStatementRare.store.TryGetInline(this);
+		if (r != null) r.AwaitModifier = v;
+		return v;
+	}
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
 	inline function get_Locals():SymbolTable return Locals;
@@ -911,7 +940,8 @@ class ForInOrOfStatement extends NodeDefault implements StatementBase implements
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visit(v, this.AwaitModifier)
+		final r = ForInOrOfStatementRare.store.TryGetInline(this);
+		return Ast.visit(v, (r == null ? null : r.AwaitModifier))
 			|| Ast.visit(v, this.Initializer)
 			|| Ast.visit(v, this.Expression)
 			|| Ast.visit(v, this.Statement);
@@ -941,6 +971,17 @@ class ForInOrOfStatement extends NodeDefault implements StatementBase implements
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few ForInOrOfStatement nodes set (see GenAst.RARE_FIELDS)
+class ForInOrOfStatementRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ForInOrOfStatementRare>(() -> new ForInOrOfStatementRare());
+
+	public var AwaitModifier:AwaitKeyword = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -1192,13 +1233,21 @@ class CaseBlock extends NodeDefault implements LocalsContainerBase implements Co
 
 class CaseClause extends NodeDefault implements CaseOrDefaultClauseBase implements CompositeBase {
 	@:isVar public var Statements(get, set):StatementList = null;
-	@:isVar public var FallthroughFlowNode(get, set):FlowNode = null;
+	public var FallthroughFlowNode(get, set):FlowNode; // (in CaseClauseRare)
 	@:isVar public var facts(get, set):Int = 0;
 	public var Expression:Expression = null;
+	inline function get_FallthroughFlowNode():FlowNode return links == null ? null : rare_FallthroughFlowNode();
+	function rare_FallthroughFlowNode():FlowNode {
+		final r = CaseClauseRare.store.TryGetInline(this);
+		return r == null ? null : r.FallthroughFlowNode;
+	}
+	function set_FallthroughFlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? CaseClauseRare.store.Get(this) : CaseClauseRare.store.TryGetInline(this);
+		if (r != null) r.FallthroughFlowNode = v;
+		return v;
+	}
 	inline function get_Statements():StatementList return Statements;
 	inline function set_Statements(v:StatementList):StatementList return Statements = v;
-	inline function get_FallthroughFlowNode():FlowNode return FallthroughFlowNode;
-	inline function set_FallthroughFlowNode(v:FlowNode):FlowNode return FallthroughFlowNode = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -1231,6 +1280,17 @@ class CaseClause extends NodeDefault implements CaseOrDefaultClauseBase implemen
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few CaseClause nodes set (see GenAst.RARE_FIELDS)
+class CaseClauseRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, CaseClauseRare>(() -> new CaseClauseRare());
+
+	public var FallthroughFlowNode:FlowNode = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -1521,14 +1581,22 @@ class ExpressionStatement extends NodeDefault implements StatementBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class Block extends NodeDefault implements StatementBase implements LocalsContainerBase implements CompositeBase {
-	@:isVar public var FlowNode(get, set):FlowNode = null;
+	public var FlowNode(get, set):FlowNode; // (in BlockRare)
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var Statements:StatementList = null;
 	public var MultiLine:Bool = false;
-	inline function get_FlowNode():FlowNode return FlowNode;
-	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_FlowNode():FlowNode return links == null ? null : rare_FlowNode();
+	function rare_FlowNode():FlowNode {
+		final r = BlockRare.store.TryGetInline(this);
+		return r == null ? null : r.FlowNode;
+	}
+	function set_FlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? BlockRare.store.Get(this) : BlockRare.store.TryGetInline(this);
+		if (r != null) r.FlowNode = v;
+		return v;
+	}
 	inline function get_Locals():SymbolTable return Locals;
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
@@ -1568,6 +1636,17 @@ class Block extends NodeDefault implements StatementBase implements LocalsContai
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few Block nodes set (see GenAst.RARE_FIELDS)
+class BlockRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, BlockRare>(() -> new BlockRare());
+
+	public var FlowNode:FlowNode = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -2053,7 +2132,7 @@ class MissingDeclaration extends NodeDefault implements StatementBase implements
 // ──────────────────────────────────────────────────────────────────────
 
 class FunctionDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements FunctionLikeWithBodyBase implements CompositeBase {
-	@:isVar public var FlowNode(get, set):FlowNode = null;
+	public var FlowNode(get, set):FlowNode; // (in FunctionDeclarationRare)
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -2062,15 +2141,53 @@ class FunctionDeclaration extends NodeDefault implements StatementBase implement
 	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
-	@:isVar public var AsteriskToken(get, set):AsteriskToken = null;
+	public var FullSignature(get, set):TypeNode; // (in FunctionDeclarationRare)
+	public var AsteriskToken(get, set):AsteriskToken; // (in FunctionDeclarationRare)
 	@:isVar public var Body(get, set):NodeBody = null;
 	@:isVar public var EndFlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var name:IdentifierNode = null;
-	public var ReturnFlowNode:FlowNode = null;
-	inline function get_FlowNode():FlowNode return FlowNode;
-	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	public var ReturnFlowNode(get, set):FlowNode; // (in FunctionDeclarationRare)
+	inline function get_FlowNode():FlowNode return links == null ? null : rare_FlowNode();
+	function rare_FlowNode():FlowNode {
+		final r = FunctionDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FlowNode;
+	}
+	function set_FlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? FunctionDeclarationRare.store.Get(this) : FunctionDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FlowNode = v;
+		return v;
+	}
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = FunctionDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? FunctionDeclarationRare.store.Get(this) : FunctionDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
+	inline function get_ReturnFlowNode():FlowNode return links == null ? null : rare_ReturnFlowNode();
+	function rare_ReturnFlowNode():FlowNode {
+		final r = FunctionDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.ReturnFlowNode;
+	}
+	function set_ReturnFlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? FunctionDeclarationRare.store.Get(this) : FunctionDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.ReturnFlowNode = v;
+		return v;
+	}
+	inline function get_AsteriskToken():AsteriskToken return links == null ? null : rare_AsteriskToken();
+	function rare_AsteriskToken():AsteriskToken {
+		final r = FunctionDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.AsteriskToken;
+	}
+	function set_AsteriskToken(v:AsteriskToken):AsteriskToken {
+		final r = v != null ? FunctionDeclarationRare.store.Get(this) : FunctionDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.AsteriskToken = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
@@ -2087,10 +2204,6 @@ class FunctionDeclaration extends NodeDefault implements StatementBase implement
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
-	inline function get_AsteriskToken():AsteriskToken return AsteriskToken;
-	inline function set_AsteriskToken(v:AsteriskToken):AsteriskToken return AsteriskToken = v;
 	inline function get_Body():NodeBody return Body;
 	inline function set_Body(v:NodeBody):NodeBody return Body = v;
 	inline function get_EndFlowNode():FlowNode return EndFlowNode;
@@ -2103,13 +2216,14 @@ class FunctionDeclaration extends NodeDefault implements StatementBase implement
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = FunctionDeclarationRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
-			|| Ast.visit(v, this.AsteriskToken)
+			|| Ast.visit(v, (r == null ? null : r.AsteriskToken))
 			|| Ast.visit(v, this.name)
 			|| Ast.visitNodeList(v, this.TypeParameters)
 			|| Ast.visitNodeList(v, this.Parameters)
 			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.FullSignature)
+			|| Ast.visit(v, (r == null ? null : r.FullSignature))
 			|| Ast.visit(v, this.Body);
 	}
 
@@ -2169,6 +2283,20 @@ class FunctionDeclaration extends NodeDefault implements StatementBase implement
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few FunctionDeclaration nodes set (see GenAst.RARE_FIELDS)
+class FunctionDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, FunctionDeclarationRare>(() -> new FunctionDeclarationRare());
+
+	public var FlowNode:FlowNode = null;
+	public var FullSignature:TypeNode = null;
+	public var ReturnFlowNode:FlowNode = null;
+	public var AsteriskToken:AsteriskToken = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -2416,7 +2544,7 @@ class HeritageClause extends NodeDefault implements CompositeBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class InterfaceDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements TypeSyntaxBase {
-	@:isVar public var FlowNode(get, set):FlowNode = null;
+	public var FlowNode(get, set):FlowNode; // (in InterfaceDeclarationRare)
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -2424,8 +2552,16 @@ class InterfaceDeclaration extends NodeDefault implements StatementBase implemen
 	public var TypeParameters:TypeParameterList = null;
 	public var HeritageClauses:HeritageClauseList = null;
 	public var Members:TypeElementList = null;
-	inline function get_FlowNode():FlowNode return FlowNode;
-	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_FlowNode():FlowNode return links == null ? null : rare_FlowNode();
+	function rare_FlowNode():FlowNode {
+		final r = InterfaceDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FlowNode;
+	}
+	function set_FlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? InterfaceDeclarationRare.store.Get(this) : InterfaceDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FlowNode = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
@@ -2487,12 +2623,23 @@ class InterfaceDeclaration extends NodeDefault implements StatementBase implemen
 
 }
 
+// the fields that few InterfaceDeclaration nodes set (see GenAst.RARE_FIELDS)
+class InterfaceDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, InterfaceDeclarationRare>(() -> new InterfaceDeclarationRare());
+
+	public var FlowNode:FlowNode = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // TypeAliasDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
 class TypeAliasDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements LocalsContainerBase implements TypeSyntaxBase {
-	@:isVar public var FlowNode(get, set):FlowNode = null;
+	public var FlowNode(get, set):FlowNode; // (in TypeAliasDeclarationRare)
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -2501,8 +2648,16 @@ class TypeAliasDeclaration extends NodeDefault implements StatementBase implemen
 	public var name:IdentifierNode = null;
 	public var TypeParameters:TypeParameterList = null;
 	public var Type:TypeNode = null;
-	inline function get_FlowNode():FlowNode return FlowNode;
-	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_FlowNode():FlowNode return links == null ? null : rare_FlowNode();
+	function rare_FlowNode():FlowNode {
+		final r = TypeAliasDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FlowNode;
+	}
+	function set_FlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? TypeAliasDeclarationRare.store.Get(this) : TypeAliasDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FlowNode = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
@@ -2578,25 +2733,52 @@ class TypeAliasDeclaration extends NodeDefault implements StatementBase implemen
 
 }
 
+// the fields that few TypeAliasDeclaration nodes set (see GenAst.RARE_FIELDS)
+class TypeAliasDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, TypeAliasDeclarationRare>(() -> new TypeAliasDeclarationRare());
+
+	public var FlowNode:FlowNode = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // EnumMember
 // ──────────────────────────────────────────────────────────────────────
 
 class EnumMember extends NodeDefault implements DeclarationBase implements NamedMemberBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var modifiers(get, set):ModifierList = null;
+	public var modifiers(get, set):ModifierList; // (in EnumMemberRare)
 	@:isVar public var name(get, set):PropertyName = null;
-	@:isVar public var PostfixToken(get, set):TokenNode = null;
+	public var PostfixToken(get, set):TokenNode; // (in EnumMemberRare)
 	@:isVar public var facts(get, set):Int = 0;
 	public var Initializer:Expression = null;
+	inline function get_PostfixToken():TokenNode return links == null ? null : rare_PostfixToken();
+	function rare_PostfixToken():TokenNode {
+		final r = EnumMemberRare.store.TryGetInline(this);
+		return r == null ? null : r.PostfixToken;
+	}
+	function set_PostfixToken(v:TokenNode):TokenNode {
+		final r = v != null ? EnumMemberRare.store.Get(this) : EnumMemberRare.store.TryGetInline(this);
+		if (r != null) r.PostfixToken = v;
+		return v;
+	}
+	inline function get_modifiers():ModifierList return links == null ? null : rare_modifiers();
+	function rare_modifiers():ModifierList {
+		final r = EnumMemberRare.store.TryGetInline(this);
+		return r == null ? null : r.modifiers;
+	}
+	function set_modifiers(v:ModifierList):ModifierList {
+		final r = v != null ? EnumMemberRare.store.Get(this) : EnumMemberRare.store.TryGetInline(this);
+		if (r != null) r.modifiers = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_modifiers():ModifierList return modifiers;
-	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_name():PropertyName return name;
 	inline function set_name(v:PropertyName):PropertyName return name = v;
-	inline function get_PostfixToken():TokenNode return PostfixToken;
-	inline function set_PostfixToken(v:TokenNode):TokenNode return PostfixToken = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -2640,6 +2822,18 @@ class EnumMember extends NodeDefault implements DeclarationBase implements Named
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few EnumMember nodes set (see GenAst.RARE_FIELDS)
+class EnumMemberRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, EnumMemberRare>(() -> new EnumMemberRare());
+
+	public var PostfixToken:TokenNode = null;
+	public var modifiers:ModifierList = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -2809,31 +3003,66 @@ class NotEmittedTypeElement extends NodeDefault implements TypeElementBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class ImportDeclaration extends NodeDefault implements StatementBase implements ModifiersBase implements CompositeBase implements DeclarationBase {
-	@:isVar public var FlowNode(get, set):FlowNode = null;
-	@:isVar public var modifiers(get, set):ModifierList = null;
+	public var FlowNode(get, set):FlowNode; // (in ImportDeclarationRare)
+	public var modifiers(get, set):ModifierList; // (in ImportDeclarationRare)
 	@:isVar public var facts(get, set):Int = 0;
-	@:isVar public var Symbol(get, set):Symbol = null;
+	public var Symbol(get, set):Symbol; // (in ImportDeclarationRare)
 	public var ImportClause:ImportClauseNode = null;
 	public var ModuleSpecifier:Expression = null;
-	public var Attributes:ImportAttributesNode = null;
-	inline function get_FlowNode():FlowNode return FlowNode;
-	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
-	inline function get_modifiers():ModifierList return modifiers;
-	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
+	public var Attributes(get, set):ImportAttributesNode; // (in ImportDeclarationRare)
+	inline function get_FlowNode():FlowNode return links == null ? null : rare_FlowNode();
+	function rare_FlowNode():FlowNode {
+		final r = ImportDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FlowNode;
+	}
+	function set_FlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? ImportDeclarationRare.store.Get(this) : ImportDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FlowNode = v;
+		return v;
+	}
+	inline function get_Symbol():Symbol return links == null ? null : rare_Symbol();
+	function rare_Symbol():Symbol {
+		final r = ImportDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.Symbol;
+	}
+	function set_Symbol(v:Symbol):Symbol {
+		final r = v != null ? ImportDeclarationRare.store.Get(this) : ImportDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.Symbol = v;
+		return v;
+	}
+	inline function get_modifiers():ModifierList return links == null ? null : rare_modifiers();
+	function rare_modifiers():ModifierList {
+		final r = ImportDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.modifiers;
+	}
+	function set_modifiers(v:ModifierList):ModifierList {
+		final r = v != null ? ImportDeclarationRare.store.Get(this) : ImportDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.modifiers = v;
+		return v;
+	}
+	inline function get_Attributes():ImportAttributesNode return links == null ? null : rare_Attributes();
+	function rare_Attributes():ImportAttributesNode {
+		final r = ImportDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.Attributes;
+	}
+	function set_Attributes(v:ImportAttributesNode):ImportAttributesNode {
+		final r = v != null ? ImportDeclarationRare.store.Get(this) : ImportDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.Attributes = v;
+		return v;
+	}
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 
 	public function new() {
 		super();
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visitModifiers(v, this.modifiers)
+		final r = ImportDeclarationRare.store.TryGetInline(this);
+		return Ast.visitModifiers(v, (r == null ? null : r.modifiers))
 			|| Ast.visit(v, this.ImportClause)
 			|| Ast.visit(v, this.ModuleSpecifier)
-			|| Ast.visit(v, this.Attributes);
+			|| Ast.visit(v, (r == null ? null : r.Attributes));
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -2880,6 +3109,20 @@ class ImportDeclaration extends NodeDefault implements StatementBase implements 
 
 }
 
+// the fields that few ImportDeclaration nodes set (see GenAst.RARE_FIELDS)
+class ImportDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ImportDeclarationRare>(() -> new ImportDeclarationRare());
+
+	public var FlowNode:FlowNode = null;
+	public var Symbol:Symbol = null;
+	public var modifiers:ModifierList = null;
+	public var Attributes:ImportAttributesNode = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // ExternalModuleReference
 // ──────────────────────────────────────────────────────────────────────
@@ -2915,12 +3158,20 @@ class ExternalModuleReference extends NodeDefault {
 
 class NamespaceImport extends NodeDefault implements DeclarationBase implements ExportableBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var LocalSymbol(get, set):Symbol = null;
+	public var LocalSymbol(get, set):Symbol; // (in NamespaceImportRare)
 	public var name:IdentifierNode = null;
+	inline function get_LocalSymbol():Symbol return links == null ? null : rare_LocalSymbol();
+	function rare_LocalSymbol():Symbol {
+		final r = NamespaceImportRare.store.TryGetInline(this);
+		return r == null ? null : r.LocalSymbol;
+	}
+	function set_LocalSymbol(v:Symbol):Symbol {
+		final r = v != null ? NamespaceImportRare.store.Get(this) : NamespaceImportRare.store.TryGetInline(this);
+		if (r != null) r.LocalSymbol = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_LocalSymbol():Symbol return LocalSymbol;
-	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 
 	public function new() {
 		super();
@@ -2954,6 +3205,17 @@ class NamespaceImport extends NodeDefault implements DeclarationBase implements 
 		return Ast.ExportableBase_ExportableData(this);
 	}
 
+}
+
+// the fields that few NamespaceImport nodes set (see GenAst.RARE_FIELDS)
+class NamespaceImportRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, NamespaceImportRare>(() -> new NamespaceImportRare());
+
+	public var LocalSymbol:Symbol = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -3199,15 +3461,23 @@ class NamedExports extends NodeDefault implements CompositeBase {
 
 class ExportSpecifier extends NodeDefault implements DeclarationBase implements ExportableBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var LocalSymbol(get, set):Symbol = null;
+	public var LocalSymbol(get, set):Symbol; // (in ExportSpecifierRare)
 	@:isVar public var facts(get, set):Int = 0;
 	public var IsTypeOnly:Bool = false;
 	public var PropertyName:ModuleExportName = null;
 	public var name:ModuleExportName = null;
+	inline function get_LocalSymbol():Symbol return links == null ? null : rare_LocalSymbol();
+	function rare_LocalSymbol():Symbol {
+		final r = ExportSpecifierRare.store.TryGetInline(this);
+		return r == null ? null : r.LocalSymbol;
+	}
+	function set_LocalSymbol(v:Symbol):Symbol {
+		final r = v != null ? ExportSpecifierRare.store.Get(this) : ExportSpecifierRare.store.TryGetInline(this);
+		if (r != null) r.LocalSymbol = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_LocalSymbol():Symbol return LocalSymbol;
-	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -3247,6 +3517,17 @@ class ExportSpecifier extends NodeDefault implements DeclarationBase implements 
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few ExportSpecifier nodes set (see GenAst.RARE_FIELDS)
+class ExportSpecifierRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ExportSpecifierRare>(() -> new ExportSpecifierRare());
+
+	public var LocalSymbol:Symbol = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -3388,15 +3669,55 @@ class ConstructorDeclaration extends NodeDefault implements DeclarationBase impl
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
-	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
+	public var TypeParameters(get, set):TypeParameterList; // (in ConstructorDeclarationRare)
 	@:isVar public var Parameters(get, set):ParameterList = null;
-	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
-	@:isVar public var AsteriskToken(get, set):AsteriskToken = null;
+	public var Type(get, set):TypeNode; // (in ConstructorDeclarationRare)
+	public var FullSignature(get, set):TypeNode; // (in ConstructorDeclarationRare)
+	public var AsteriskToken(get, set):AsteriskToken; // (in ConstructorDeclarationRare)
 	@:isVar public var Body(get, set):NodeBody = null;
 	@:isVar public var EndFlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var ReturnFlowNode:FlowNode = null;
+	inline function get_AsteriskToken():AsteriskToken return links == null ? null : rare_AsteriskToken();
+	function rare_AsteriskToken():AsteriskToken {
+		final r = ConstructorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.AsteriskToken;
+	}
+	function set_AsteriskToken(v:AsteriskToken):AsteriskToken {
+		final r = v != null ? ConstructorDeclarationRare.store.Get(this) : ConstructorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.AsteriskToken = v;
+		return v;
+	}
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = ConstructorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? ConstructorDeclarationRare.store.Get(this) : ConstructorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
+	inline function get_Type():TypeNode return links == null ? null : rare_Type();
+	function rare_Type():TypeNode {
+		final r = ConstructorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.Type;
+	}
+	function set_Type(v:TypeNode):TypeNode {
+		final r = v != null ? ConstructorDeclarationRare.store.Get(this) : ConstructorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.Type = v;
+		return v;
+	}
+	inline function get_TypeParameters():TypeParameterList return links == null ? null : rare_TypeParameters();
+	function rare_TypeParameters():TypeParameterList {
+		final r = ConstructorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.TypeParameters;
+	}
+	function set_TypeParameters(v:TypeParameterList):TypeParameterList {
+		final r = v != null ? ConstructorDeclarationRare.store.Get(this) : ConstructorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.TypeParameters = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -3405,16 +3726,8 @@ class ConstructorDeclaration extends NodeDefault implements DeclarationBase impl
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
 	inline function set_NextContainer(v:Node):Node return NextContainer = v;
-	inline function get_TypeParameters():TypeParameterList return TypeParameters;
-	inline function set_TypeParameters(v:TypeParameterList):TypeParameterList return TypeParameters = v;
 	inline function get_Parameters():ParameterList return Parameters;
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
-	inline function get_Type():TypeNode return Type;
-	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
-	inline function get_AsteriskToken():AsteriskToken return AsteriskToken;
-	inline function set_AsteriskToken(v:AsteriskToken):AsteriskToken return AsteriskToken = v;
 	inline function get_Body():NodeBody return Body;
 	inline function set_Body(v:NodeBody):NodeBody return Body = v;
 	inline function get_EndFlowNode():FlowNode return EndFlowNode;
@@ -3427,11 +3740,12 @@ class ConstructorDeclaration extends NodeDefault implements DeclarationBase impl
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = ConstructorDeclarationRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
-			|| Ast.visitNodeList(v, this.TypeParameters)
+			|| Ast.visitNodeList(v, (r == null ? null : r.TypeParameters))
 			|| Ast.visitNodeList(v, this.Parameters)
-			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.FullSignature)
+			|| Ast.visit(v, (r == null ? null : r.Type))
+			|| Ast.visit(v, (r == null ? null : r.FullSignature))
 			|| Ast.visit(v, this.Body);
 	}
 
@@ -3481,6 +3795,20 @@ class ConstructorDeclaration extends NodeDefault implements DeclarationBase impl
 
 }
 
+// the fields that few ConstructorDeclaration nodes set (see GenAst.RARE_FIELDS)
+class ConstructorDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ConstructorDeclarationRare>(() -> new ConstructorDeclarationRare());
+
+	public var AsteriskToken:AsteriskToken = null;
+	public var FullSignature:TypeNode = null;
+	public var Type:TypeNode = null;
+	public var TypeParameters:TypeParameterList = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // GetAccessorDeclaration
 // ──────────────────────────────────────────────────────────────────────
@@ -3489,40 +3817,72 @@ class GetAccessorDeclaration extends NodeDefault implements AccessorDeclarationB
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
-	@:isVar public var PostfixToken(get, set):TokenNode = null;
+	public var PostfixToken(get, set):TokenNode; // (in GetAccessorDeclarationRare)
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
-	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
+	public var TypeParameters(get, set):TypeParameterList; // (in GetAccessorDeclarationRare)
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
-	@:isVar public var AsteriskToken(get, set):AsteriskToken = null;
+	public var FullSignature(get, set):TypeNode; // (in GetAccessorDeclarationRare)
+	public var AsteriskToken(get, set):AsteriskToken; // (in GetAccessorDeclarationRare)
 	@:isVar public var Body(get, set):NodeBody = null;
 	@:isVar public var EndFlowNode(get, set):FlowNode = null;
 	@:isVar public var FlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
+	inline function get_AsteriskToken():AsteriskToken return links == null ? null : rare_AsteriskToken();
+	function rare_AsteriskToken():AsteriskToken {
+		final r = GetAccessorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.AsteriskToken;
+	}
+	function set_AsteriskToken(v:AsteriskToken):AsteriskToken {
+		final r = v != null ? GetAccessorDeclarationRare.store.Get(this) : GetAccessorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.AsteriskToken = v;
+		return v;
+	}
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = GetAccessorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? GetAccessorDeclarationRare.store.Get(this) : GetAccessorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
+	inline function get_PostfixToken():TokenNode return links == null ? null : rare_PostfixToken();
+	function rare_PostfixToken():TokenNode {
+		final r = GetAccessorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.PostfixToken;
+	}
+	function set_PostfixToken(v:TokenNode):TokenNode {
+		final r = v != null ? GetAccessorDeclarationRare.store.Get(this) : GetAccessorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.PostfixToken = v;
+		return v;
+	}
+	inline function get_TypeParameters():TypeParameterList return links == null ? null : rare_TypeParameters();
+	function rare_TypeParameters():TypeParameterList {
+		final r = GetAccessorDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.TypeParameters;
+	}
+	function set_TypeParameters(v:TypeParameterList):TypeParameterList {
+		final r = v != null ? GetAccessorDeclarationRare.store.Get(this) : GetAccessorDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.TypeParameters = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
 	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_name():PropertyName return name;
 	inline function set_name(v:PropertyName):PropertyName return name = v;
-	inline function get_PostfixToken():TokenNode return PostfixToken;
-	inline function set_PostfixToken(v:TokenNode):TokenNode return PostfixToken = v;
 	inline function get_Locals():SymbolTable return Locals;
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
 	inline function set_NextContainer(v:Node):Node return NextContainer = v;
-	inline function get_TypeParameters():TypeParameterList return TypeParameters;
-	inline function set_TypeParameters(v:TypeParameterList):TypeParameterList return TypeParameters = v;
 	inline function get_Parameters():ParameterList return Parameters;
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
-	inline function get_AsteriskToken():AsteriskToken return AsteriskToken;
-	inline function set_AsteriskToken(v:AsteriskToken):AsteriskToken return AsteriskToken = v;
 	inline function get_Body():NodeBody return Body;
 	inline function set_Body(v:NodeBody):NodeBody return Body = v;
 	inline function get_EndFlowNode():FlowNode return EndFlowNode;
@@ -3537,12 +3897,13 @@ class GetAccessorDeclaration extends NodeDefault implements AccessorDeclarationB
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = GetAccessorDeclarationRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
 			|| Ast.visit(v, this.name)
-			|| Ast.visitNodeList(v, this.TypeParameters)
+			|| Ast.visitNodeList(v, (r == null ? null : r.TypeParameters))
 			|| Ast.visitNodeList(v, this.Parameters)
 			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.FullSignature)
+			|| Ast.visit(v, (r == null ? null : r.FullSignature))
 			|| Ast.visit(v, this.Body);
 	}
 
@@ -3602,6 +3963,20 @@ class GetAccessorDeclaration extends NodeDefault implements AccessorDeclarationB
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few GetAccessorDeclaration nodes set (see GenAst.RARE_FIELDS)
+class GetAccessorDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, GetAccessorDeclarationRare>(() -> new GetAccessorDeclarationRare());
+
+	public var AsteriskToken:AsteriskToken = null;
+	public var FullSignature:TypeNode = null;
+	public var PostfixToken:TokenNode = null;
+	public var TypeParameters:TypeParameterList = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -3736,10 +4111,30 @@ class IndexSignatureDeclaration extends NodeDefault implements DeclarationBase i
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
-	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
+	public var TypeParameters(get, set):TypeParameterList; // (in IndexSignatureDeclarationRare)
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
+	public var FullSignature(get, set):TypeNode; // (in IndexSignatureDeclarationRare)
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = IndexSignatureDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? IndexSignatureDeclarationRare.store.Get(this) : IndexSignatureDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
+	inline function get_TypeParameters():TypeParameterList return links == null ? null : rare_TypeParameters();
+	function rare_TypeParameters():TypeParameterList {
+		final r = IndexSignatureDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.TypeParameters;
+	}
+	function set_TypeParameters(v:TypeParameterList):TypeParameterList {
+		final r = v != null ? IndexSignatureDeclarationRare.store.Get(this) : IndexSignatureDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.TypeParameters = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -3748,14 +4143,10 @@ class IndexSignatureDeclaration extends NodeDefault implements DeclarationBase i
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
 	inline function set_NextContainer(v:Node):Node return NextContainer = v;
-	inline function get_TypeParameters():TypeParameterList return TypeParameters;
-	inline function set_TypeParameters(v:TypeParameterList):TypeParameterList return TypeParameters = v;
 	inline function get_Parameters():ParameterList return Parameters;
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
 
 	public function new() {
 		super();
@@ -3803,6 +4194,18 @@ class IndexSignatureDeclaration extends NodeDefault implements DeclarationBase i
 
 }
 
+// the fields that few IndexSignatureDeclaration nodes set (see GenAst.RARE_FIELDS)
+class IndexSignatureDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, IndexSignatureDeclarationRare>(() -> new IndexSignatureDeclarationRare());
+
+	public var FullSignature:TypeNode = null;
+	public var TypeParameters:TypeParameterList = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // MethodSignatureDeclaration
 // ──────────────────────────────────────────────────────────────────────
@@ -3817,7 +4220,17 @@ class MethodSignatureDeclaration extends NodeDefault implements DeclarationBase 
 	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
+	public var FullSignature(get, set):TypeNode; // (in MethodSignatureDeclarationRare)
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = MethodSignatureDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? MethodSignatureDeclarationRare.store.Get(this) : MethodSignatureDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -3836,8 +4249,6 @@ class MethodSignatureDeclaration extends NodeDefault implements DeclarationBase 
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
 
 	public function new() {
 		super();
@@ -3894,6 +4305,17 @@ class MethodSignatureDeclaration extends NodeDefault implements DeclarationBase 
 
 }
 
+// the fields that few MethodSignatureDeclaration nodes set (see GenAst.RARE_FIELDS)
+class MethodSignatureDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, MethodSignatureDeclarationRare>(() -> new MethodSignatureDeclarationRare());
+
+	public var FullSignature:TypeNode = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // MethodDeclaration
 // ──────────────────────────────────────────────────────────────────────
@@ -3902,26 +4324,54 @@ class MethodDeclaration extends NodeDefault implements DeclarationBase implement
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
-	@:isVar public var PostfixToken(get, set):TokenNode = null;
+	public var PostfixToken(get, set):TokenNode; // (in MethodDeclarationRare)
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
 	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
-	@:isVar public var AsteriskToken(get, set):AsteriskToken = null;
+	public var FullSignature(get, set):TypeNode; // (in MethodDeclarationRare)
+	public var AsteriskToken(get, set):AsteriskToken; // (in MethodDeclarationRare)
 	@:isVar public var Body(get, set):NodeBody = null;
 	@:isVar public var EndFlowNode(get, set):FlowNode = null;
 	@:isVar public var FlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = MethodDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? MethodDeclarationRare.store.Get(this) : MethodDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
+	inline function get_AsteriskToken():AsteriskToken return links == null ? null : rare_AsteriskToken();
+	function rare_AsteriskToken():AsteriskToken {
+		final r = MethodDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.AsteriskToken;
+	}
+	function set_AsteriskToken(v:AsteriskToken):AsteriskToken {
+		final r = v != null ? MethodDeclarationRare.store.Get(this) : MethodDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.AsteriskToken = v;
+		return v;
+	}
+	inline function get_PostfixToken():TokenNode return links == null ? null : rare_PostfixToken();
+	function rare_PostfixToken():TokenNode {
+		final r = MethodDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.PostfixToken;
+	}
+	function set_PostfixToken(v:TokenNode):TokenNode {
+		final r = v != null ? MethodDeclarationRare.store.Get(this) : MethodDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.PostfixToken = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
 	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_name():PropertyName return name;
 	inline function set_name(v:PropertyName):PropertyName return name = v;
-	inline function get_PostfixToken():TokenNode return PostfixToken;
-	inline function set_PostfixToken(v:TokenNode):TokenNode return PostfixToken = v;
 	inline function get_Locals():SymbolTable return Locals;
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
@@ -3932,10 +4382,6 @@ class MethodDeclaration extends NodeDefault implements DeclarationBase implement
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
-	inline function get_AsteriskToken():AsteriskToken return AsteriskToken;
-	inline function set_AsteriskToken(v:AsteriskToken):AsteriskToken return AsteriskToken = v;
 	inline function get_Body():NodeBody return Body;
 	inline function set_Body(v:NodeBody):NodeBody return Body = v;
 	inline function get_EndFlowNode():FlowNode return EndFlowNode;
@@ -3950,14 +4396,15 @@ class MethodDeclaration extends NodeDefault implements DeclarationBase implement
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = MethodDeclarationRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
-			|| Ast.visit(v, this.AsteriskToken)
+			|| Ast.visit(v, (r == null ? null : r.AsteriskToken))
 			|| Ast.visit(v, this.name)
-			|| Ast.visit(v, this.PostfixToken)
+			|| Ast.visit(v, (r == null ? null : r.PostfixToken))
 			|| Ast.visitNodeList(v, this.TypeParameters)
 			|| Ast.visitNodeList(v, this.Parameters)
 			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.FullSignature)
+			|| Ast.visit(v, (r == null ? null : r.FullSignature))
 			|| Ast.visit(v, this.Body);
 	}
 
@@ -4015,6 +4462,19 @@ class MethodDeclaration extends NodeDefault implements DeclarationBase implement
 
 }
 
+// the fields that few MethodDeclaration nodes set (see GenAst.RARE_FIELDS)
+class MethodDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, MethodDeclarationRare>(() -> new MethodDeclarationRare());
+
+	public var FullSignature:TypeNode = null;
+	public var AsteriskToken:AsteriskToken = null;
+	public var PostfixToken:TokenNode = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // PropertySignatureDeclaration
 // ──────────────────────────────────────────────────────────────────────
@@ -4025,7 +4485,17 @@ class PropertySignatureDeclaration extends NodeDefault implements DeclarationBas
 	@:isVar public var name(get, set):PropertyName = null;
 	@:isVar public var PostfixToken(get, set):TokenNode = null;
 	public var Type:TypeNode = null;
-	public var Initializer:Expression = null;
+	public var Initializer(get, set):Expression; // (in PropertySignatureDeclarationRare)
+	inline function get_Initializer():Expression return links == null ? null : rare_Initializer();
+	function rare_Initializer():Expression {
+		final r = PropertySignatureDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.Initializer;
+	}
+	function set_Initializer(v:Expression):Expression {
+		final r = v != null ? PropertySignatureDeclarationRare.store.Get(this) : PropertySignatureDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.Initializer = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -4040,11 +4510,12 @@ class PropertySignatureDeclaration extends NodeDefault implements DeclarationBas
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = PropertySignatureDeclarationRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
 			|| Ast.visit(v, this.name)
 			|| Ast.visit(v, this.PostfixToken)
 			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.Initializer);
+			|| Ast.visit(v, (r == null ? null : r.Initializer));
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -4079,6 +4550,17 @@ class PropertySignatureDeclaration extends NodeDefault implements DeclarationBas
 		Ast.NamedMemberBase_setModifiers(this, modifiers);
 	}
 
+}
+
+// the fields that few PropertySignatureDeclaration nodes set (see GenAst.RARE_FIELDS)
+class PropertySignatureDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, PropertySignatureDeclarationRare>(() -> new PropertySignatureDeclarationRare());
+
+	public var Initializer:Expression = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -4600,16 +5082,46 @@ class ArrowFunction extends NodeDefault implements ExpressionBase implements Dec
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
-	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
+	public var TypeParameters(get, set):TypeParameterList; // (in ArrowFunctionRare)
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
-	@:isVar public var AsteriskToken(get, set):AsteriskToken = null;
+	public var FullSignature(get, set):TypeNode; // (in ArrowFunctionRare)
+	public var AsteriskToken(get, set):AsteriskToken; // (in ArrowFunctionRare)
 	@:isVar public var Body(get, set):NodeBody = null;
 	@:isVar public var EndFlowNode(get, set):FlowNode = null;
 	@:isVar public var FlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var EqualsGreaterThanToken:EqualsGreaterThanToken = null;
+	inline function get_AsteriskToken():AsteriskToken return links == null ? null : rare_AsteriskToken();
+	function rare_AsteriskToken():AsteriskToken {
+		final r = ArrowFunctionRare.store.TryGetInline(this);
+		return r == null ? null : r.AsteriskToken;
+	}
+	function set_AsteriskToken(v:AsteriskToken):AsteriskToken {
+		final r = v != null ? ArrowFunctionRare.store.Get(this) : ArrowFunctionRare.store.TryGetInline(this);
+		if (r != null) r.AsteriskToken = v;
+		return v;
+	}
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = ArrowFunctionRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? ArrowFunctionRare.store.Get(this) : ArrowFunctionRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
+	inline function get_TypeParameters():TypeParameterList return links == null ? null : rare_TypeParameters();
+	function rare_TypeParameters():TypeParameterList {
+		final r = ArrowFunctionRare.store.TryGetInline(this);
+		return r == null ? null : r.TypeParameters;
+	}
+	function set_TypeParameters(v:TypeParameterList):TypeParameterList {
+		final r = v != null ? ArrowFunctionRare.store.Get(this) : ArrowFunctionRare.store.TryGetInline(this);
+		if (r != null) r.TypeParameters = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -4618,16 +5130,10 @@ class ArrowFunction extends NodeDefault implements ExpressionBase implements Dec
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
 	inline function set_NextContainer(v:Node):Node return NextContainer = v;
-	inline function get_TypeParameters():TypeParameterList return TypeParameters;
-	inline function set_TypeParameters(v:TypeParameterList):TypeParameterList return TypeParameters = v;
 	inline function get_Parameters():ParameterList return Parameters;
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
-	inline function get_AsteriskToken():AsteriskToken return AsteriskToken;
-	inline function set_AsteriskToken(v:AsteriskToken):AsteriskToken return AsteriskToken = v;
 	inline function get_Body():NodeBody return Body;
 	inline function set_Body(v:NodeBody):NodeBody return Body = v;
 	inline function get_EndFlowNode():FlowNode return EndFlowNode;
@@ -4642,11 +5148,12 @@ class ArrowFunction extends NodeDefault implements ExpressionBase implements Dec
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = ArrowFunctionRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
-			|| Ast.visitNodeList(v, this.TypeParameters)
+			|| Ast.visitNodeList(v, (r == null ? null : r.TypeParameters))
 			|| Ast.visitNodeList(v, this.Parameters)
 			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.FullSignature)
+			|| Ast.visit(v, (r == null ? null : r.FullSignature))
 			|| Ast.visit(v, this.EqualsGreaterThanToken)
 			|| Ast.visit(v, this.Body);
 	}
@@ -4701,6 +5208,19 @@ class ArrowFunction extends NodeDefault implements ExpressionBase implements Dec
 
 }
 
+// the fields that few ArrowFunction nodes set (see GenAst.RARE_FIELDS)
+class ArrowFunctionRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ArrowFunctionRare>(() -> new ArrowFunctionRare());
+
+	public var AsteriskToken:AsteriskToken = null;
+	public var FullSignature:TypeNode = null;
+	public var TypeParameters:TypeParameterList = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // FunctionExpression
 // ──────────────────────────────────────────────────────────────────────
@@ -4710,17 +5230,47 @@ class FunctionExpression extends NodeDefault implements PrimaryExpressionBase im
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
-	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
+	public var TypeParameters(get, set):TypeParameterList; // (in FunctionExpressionRare)
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
+	public var FullSignature(get, set):TypeNode; // (in FunctionExpressionRare)
 	@:isVar public var AsteriskToken(get, set):AsteriskToken = null;
 	@:isVar public var Body(get, set):NodeBody = null;
 	@:isVar public var EndFlowNode(get, set):FlowNode = null;
 	@:isVar public var FlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var name:IdentifierNode = null;
-	public var ReturnFlowNode:FlowNode = null;
+	public var ReturnFlowNode(get, set):FlowNode; // (in FunctionExpressionRare)
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = FunctionExpressionRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? FunctionExpressionRare.store.Get(this) : FunctionExpressionRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
+	inline function get_ReturnFlowNode():FlowNode return links == null ? null : rare_ReturnFlowNode();
+	function rare_ReturnFlowNode():FlowNode {
+		final r = FunctionExpressionRare.store.TryGetInline(this);
+		return r == null ? null : r.ReturnFlowNode;
+	}
+	function set_ReturnFlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? FunctionExpressionRare.store.Get(this) : FunctionExpressionRare.store.TryGetInline(this);
+		if (r != null) r.ReturnFlowNode = v;
+		return v;
+	}
+	inline function get_TypeParameters():TypeParameterList return links == null ? null : rare_TypeParameters();
+	function rare_TypeParameters():TypeParameterList {
+		final r = FunctionExpressionRare.store.TryGetInline(this);
+		return r == null ? null : r.TypeParameters;
+	}
+	function set_TypeParameters(v:TypeParameterList):TypeParameterList {
+		final r = v != null ? FunctionExpressionRare.store.Get(this) : FunctionExpressionRare.store.TryGetInline(this);
+		if (r != null) r.TypeParameters = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -4729,14 +5279,10 @@ class FunctionExpression extends NodeDefault implements PrimaryExpressionBase im
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
 	inline function set_NextContainer(v:Node):Node return NextContainer = v;
-	inline function get_TypeParameters():TypeParameterList return TypeParameters;
-	inline function set_TypeParameters(v:TypeParameterList):TypeParameterList return TypeParameters = v;
 	inline function get_Parameters():ParameterList return Parameters;
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
 	inline function get_AsteriskToken():AsteriskToken return AsteriskToken;
 	inline function set_AsteriskToken(v:AsteriskToken):AsteriskToken return AsteriskToken = v;
 	inline function get_Body():NodeBody return Body;
@@ -4753,13 +5299,14 @@ class FunctionExpression extends NodeDefault implements PrimaryExpressionBase im
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = FunctionExpressionRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
 			|| Ast.visit(v, this.AsteriskToken)
 			|| Ast.visit(v, this.name)
-			|| Ast.visitNodeList(v, this.TypeParameters)
+			|| Ast.visitNodeList(v, (r == null ? null : r.TypeParameters))
 			|| Ast.visitNodeList(v, this.Parameters)
 			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.FullSignature)
+			|| Ast.visit(v, (r == null ? null : r.FullSignature))
 			|| Ast.visit(v, this.Body);
 	}
 
@@ -4815,6 +5362,19 @@ class FunctionExpression extends NodeDefault implements PrimaryExpressionBase im
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few FunctionExpression nodes set (see GenAst.RARE_FIELDS)
+class FunctionExpressionRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, FunctionExpressionRare>(() -> new FunctionExpressionRare());
+
+	public var FullSignature:TypeNode = null;
+	public var ReturnFlowNode:FlowNode = null;
+	public var TypeParameters:TypeParameterList = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -5536,10 +6096,18 @@ class ObjectLiteralExpression extends NodeDefault implements PrimaryExpressionBa
 // ──────────────────────────────────────────────────────────────────────
 
 class SpreadAssignment extends NodeDefault implements DeclarationBase implements ObjectLiteralElementBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+	public var Symbol(get, set):Symbol; // (in SpreadAssignmentRare)
 	public var Expression:Expression = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
+	inline function get_Symbol():Symbol return links == null ? null : rare_Symbol();
+	function rare_Symbol():Symbol {
+		final r = SpreadAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.Symbol;
+	}
+	function set_Symbol(v:Symbol):Symbol {
+		final r = v != null ? SpreadAssignmentRare.store.Get(this) : SpreadAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.Symbol = v;
+		return v;
+	}
 
 	public function new() {
 		super();
@@ -5565,6 +6133,17 @@ class SpreadAssignment extends NodeDefault implements DeclarationBase implements
 		return Ast.SpreadAssignment_computeSubtreeFacts(this);
 	}
 
+}
+
+// the fields that few SpreadAssignment nodes set (see GenAst.RARE_FIELDS)
+class SpreadAssignmentRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, SpreadAssignmentRare>(() -> new SpreadAssignmentRare());
+
+	public var Symbol:Symbol = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -6811,7 +7390,17 @@ class FunctionTypeNode extends NodeDefault implements FunctionOrConstructorTypeN
 	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
-	@:isVar public var FullSignature(get, set):TypeNode = null;
+	public var FullSignature(get, set):TypeNode; // (in FunctionTypeNodeRare)
+	inline function get_FullSignature():TypeNode return links == null ? null : rare_FullSignature();
+	function rare_FullSignature():TypeNode {
+		final r = FunctionTypeNodeRare.store.TryGetInline(this);
+		return r == null ? null : r.FullSignature;
+	}
+	function set_FullSignature(v:TypeNode):TypeNode {
+		final r = v != null ? FunctionTypeNodeRare.store.Get(this) : FunctionTypeNodeRare.store.TryGetInline(this);
+		if (r != null) r.FullSignature = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -6826,8 +7415,6 @@ class FunctionTypeNode extends NodeDefault implements FunctionOrConstructorTypeN
 	inline function set_Parameters(v:ParameterList):ParameterList return Parameters = v;
 	inline function get_Type():TypeNode return Type;
 	inline function set_Type(v:TypeNode):TypeNode return Type = v;
-	inline function get_FullSignature():TypeNode return FullSignature;
-	inline function set_FullSignature(v:TypeNode):TypeNode return FullSignature = v;
 
 	public function new() {
 		super();
@@ -6873,6 +7460,17 @@ class FunctionTypeNode extends NodeDefault implements FunctionOrConstructorTypeN
 		Ast.ModifiersBase_setModifiers(this, modifiers);
 	}
 
+}
+
+// the fields that few FunctionTypeNode nodes set (see GenAst.RARE_FIELDS)
+class FunctionTypeNodeRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, FunctionTypeNodeRare>(() -> new FunctionTypeNodeRare());
+
+	public var FullSignature:TypeNode = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -8813,20 +9411,46 @@ class ImportEqualsDeclaration extends NodeDefault implements StatementBase imple
 // ──────────────────────────────────────────────────────────────────────
 
 class ExportDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ModifiersBase implements CompositeBase {
-	@:isVar public var FlowNode(get, set):FlowNode = null;
+	public var FlowNode(get, set):FlowNode; // (in ExportDeclarationRare)
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var modifiers(get, set):ModifierList = null;
+	public var modifiers(get, set):ModifierList; // (in ExportDeclarationRare)
 	@:isVar public var facts(get, set):Int = 0;
 	public var IsTypeOnly:Bool = false;
 	public var ExportClause:NamedExportBindings = null;
 	public var ModuleSpecifier:Expression = null;
-	public var Attributes:ImportAttributesNode = null;
-	inline function get_FlowNode():FlowNode return FlowNode;
-	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	public var Attributes(get, set):ImportAttributesNode; // (in ExportDeclarationRare)
+	inline function get_Attributes():ImportAttributesNode return links == null ? null : rare_Attributes();
+	function rare_Attributes():ImportAttributesNode {
+		final r = ExportDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.Attributes;
+	}
+	function set_Attributes(v:ImportAttributesNode):ImportAttributesNode {
+		final r = v != null ? ExportDeclarationRare.store.Get(this) : ExportDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.Attributes = v;
+		return v;
+	}
+	inline function get_FlowNode():FlowNode return links == null ? null : rare_FlowNode();
+	function rare_FlowNode():FlowNode {
+		final r = ExportDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.FlowNode;
+	}
+	function set_FlowNode(v:FlowNode):FlowNode {
+		final r = v != null ? ExportDeclarationRare.store.Get(this) : ExportDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.FlowNode = v;
+		return v;
+	}
+	inline function get_modifiers():ModifierList return links == null ? null : rare_modifiers();
+	function rare_modifiers():ModifierList {
+		final r = ExportDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.modifiers;
+	}
+	function set_modifiers(v:ModifierList):ModifierList {
+		final r = v != null ? ExportDeclarationRare.store.Get(this) : ExportDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.modifiers = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_modifiers():ModifierList return modifiers;
-	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -8835,10 +9459,11 @@ class ExportDeclaration extends NodeDefault implements StatementBase implements 
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visitModifiers(v, this.modifiers)
+		final r = ExportDeclarationRare.store.TryGetInline(this);
+		return Ast.visitModifiers(v, (r == null ? null : r.modifiers))
 			|| Ast.visit(v, this.ExportClause)
 			|| Ast.visit(v, this.ModuleSpecifier)
-			|| Ast.visit(v, this.Attributes);
+			|| Ast.visit(v, (r == null ? null : r.Attributes));
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -8875,6 +9500,19 @@ class ExportDeclaration extends NodeDefault implements StatementBase implements 
 
 }
 
+// the fields that few ExportDeclaration nodes set (see GenAst.RARE_FIELDS)
+class ExportDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ExportDeclarationRare>(() -> new ExportDeclarationRare());
+
+	public var Attributes:ImportAttributesNode = null;
+	public var FlowNode:FlowNode = null;
+	public var modifiers:ModifierList = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // ImportTypeNode
 // ──────────────────────────────────────────────────────────────────────
@@ -8883,8 +9521,18 @@ class ImportTypeNode extends NodeDefault implements NodeWithTypeArgumentsBase {
 	@:isVar public var TypeArguments(get, set):TypeList = null;
 	public var IsTypeOf:Bool = false;
 	public var Argument:TypeNode = null;
-	public var Attributes:ImportAttributesNode = null;
+	public var Attributes(get, set):ImportAttributesNode; // (in ImportTypeNodeRare)
 	public var Qualifier:EntityName = null;
+	inline function get_Attributes():ImportAttributesNode return links == null ? null : rare_Attributes();
+	function rare_Attributes():ImportAttributesNode {
+		final r = ImportTypeNodeRare.store.TryGetInline(this);
+		return r == null ? null : r.Attributes;
+	}
+	function set_Attributes(v:ImportAttributesNode):ImportAttributesNode {
+		final r = v != null ? ImportTypeNodeRare.store.Get(this) : ImportTypeNodeRare.store.TryGetInline(this);
+		if (r != null) r.Attributes = v;
+		return v;
+	}
 	inline function get_TypeArguments():TypeList return TypeArguments;
 	inline function set_TypeArguments(v:TypeList):TypeList return TypeArguments = v;
 
@@ -8893,8 +9541,9 @@ class ImportTypeNode extends NodeDefault implements NodeWithTypeArgumentsBase {
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = ImportTypeNodeRare.store.TryGetInline(this);
 		return Ast.visit(v, this.Argument)
-			|| Ast.visit(v, this.Attributes)
+			|| Ast.visit(v, (r == null ? null : r.Attributes))
 			|| Ast.visit(v, this.Qualifier)
 			|| Ast.visitNodeList(v, this.TypeArguments);
 	}
@@ -8915,6 +9564,17 @@ class ImportTypeNode extends NodeDefault implements NodeWithTypeArgumentsBase {
 		return Ast.TypeSyntaxBase_propagateSubtreeFacts(this);
 	}
 
+}
+
+// the fields that few ImportTypeNode nodes set (see GenAst.RARE_FIELDS)
+class ImportTypeNodeRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ImportTypeNodeRare>(() -> new ImportTypeNodeRare());
+
+	public var Attributes:ImportAttributesNode = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -8979,15 +9639,33 @@ class ImportClause extends NodeDefault implements DeclarationBase implements Exp
 
 class ImportSpecifier extends NodeDefault implements DeclarationBase implements ExportableBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var LocalSymbol(get, set):Symbol = null;
+	public var LocalSymbol(get, set):Symbol; // (in ImportSpecifierRare)
 	@:isVar public var facts(get, set):Int = 0;
 	public var IsTypeOnly:Bool = false;
-	public var PropertyName:ModuleExportName = null;
+	public var PropertyName(get, set):ModuleExportName; // (in ImportSpecifierRare)
 	public var name:IdentifierNode = null;
+	inline function get_LocalSymbol():Symbol return links == null ? null : rare_LocalSymbol();
+	function rare_LocalSymbol():Symbol {
+		final r = ImportSpecifierRare.store.TryGetInline(this);
+		return r == null ? null : r.LocalSymbol;
+	}
+	function set_LocalSymbol(v:Symbol):Symbol {
+		final r = v != null ? ImportSpecifierRare.store.Get(this) : ImportSpecifierRare.store.TryGetInline(this);
+		if (r != null) r.LocalSymbol = v;
+		return v;
+	}
+	inline function get_PropertyName():ModuleExportName return links == null ? null : rare_PropertyName();
+	function rare_PropertyName():ModuleExportName {
+		final r = ImportSpecifierRare.store.TryGetInline(this);
+		return r == null ? null : r.PropertyName;
+	}
+	function set_PropertyName(v:ModuleExportName):ModuleExportName {
+		final r = v != null ? ImportSpecifierRare.store.Get(this) : ImportSpecifierRare.store.TryGetInline(this);
+		if (r != null) r.PropertyName = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_LocalSymbol():Symbol return LocalSymbol;
-	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -8996,7 +9674,8 @@ class ImportSpecifier extends NodeDefault implements DeclarationBase implements 
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visit(v, this.PropertyName) || Ast.visit(v, this.name);
+		final r = ImportSpecifierRare.store.TryGetInline(this);
+		return Ast.visit(v, (r == null ? null : r.PropertyName)) || Ast.visit(v, this.name);
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -9027,6 +9706,18 @@ class ImportSpecifier extends NodeDefault implements DeclarationBase implements 
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few ImportSpecifier nodes set (see GenAst.RARE_FIELDS)
+class ImportSpecifierRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ImportSpecifierRare>(() -> new ImportSpecifierRare());
+
+	public var LocalSymbol:Symbol = null;
+	public var PropertyName:ModuleExportName = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -9153,8 +9844,18 @@ class TypeParameterDeclaration extends NodeDefault implements DeclarationBase im
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	public var name:IdentifierNode = null;
 	public var Constraint:TypeNode = null;
-	public var Expression:Expression = null;
+	public var Expression(get, set):Expression; // (in TypeParameterDeclarationRare)
 	public var DefaultType:TypeNode = null;
+	inline function get_Expression():Expression return links == null ? null : rare_Expression();
+	function rare_Expression():Expression {
+		final r = TypeParameterDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.Expression;
+	}
+	function set_Expression(v:Expression):Expression {
+		final r = v != null ? TypeParameterDeclarationRare.store.Get(this) : TypeParameterDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.Expression = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -9165,10 +9866,11 @@ class TypeParameterDeclaration extends NodeDefault implements DeclarationBase im
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = TypeParameterDeclarationRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
 			|| Ast.visit(v, this.name)
 			|| Ast.visit(v, this.Constraint)
-			|| Ast.visit(v, this.Expression)
+			|| Ast.visit(v, (r == null ? null : r.Expression))
 			|| Ast.visit(v, this.DefaultType);
 	}
 
@@ -9204,6 +9906,17 @@ class TypeParameterDeclaration extends NodeDefault implements DeclarationBase im
 		Ast.ModifiersBase_setModifiers(this, modifiers);
 	}
 
+}
+
+// the fields that few TypeParameterDeclaration nodes set (see GenAst.RARE_FIELDS)
+class TypeParameterDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, TypeParameterDeclarationRare>(() -> new TypeParameterDeclarationRare());
+
+	public var Expression:Expression = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
