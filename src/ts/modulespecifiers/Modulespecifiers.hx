@@ -902,7 +902,10 @@ class Modulespecifiers {
 			var moduleFileName = "";
 			while (true) {
 				// If the module could be imported by a directory name, use that directory's name
-				final pkgJsonResults = tryDirectoryWithPackageJson(parts, pathObj, importingSourceFile, host, overrideMode, options, allowedEndings);
+				final currentParts = new NodeModulePathParts(parts.TopLevelNodeModulesIndex, parts.TopLevelPackageNameIndex, packageRootIndex,
+					parts.FileNameIndex);
+				final pkgJsonResults = tryDirectoryWithPackageJson(currentParts, parts.PackageRootIndex, pathObj, importingSourceFile, host, overrideMode,
+					options, allowedEndings);
 				final moduleFileToTry = pkgJsonResults.moduleFileToTry;
 				final packageRootPath = pkgJsonResults.packageRootPath;
 				final blockedByExports = pkgJsonResults.blockedByExports;
@@ -940,7 +943,7 @@ class Modulespecifiers {
 		return Module.GetPackageNameFromTypesPackageName(nodeModulesDirectoryName);
 	}
 
-	static function tryDirectoryWithPackageJson(parts:NodeModulePathParts, pathObj:ModulePath, importingSourceFile:SourceFileForSpecifierGeneration,
+	static function tryDirectoryWithPackageJson(parts:NodeModulePathParts, packageBaseRootIndex:Int, pathObj:ModulePath, importingSourceFile:SourceFileForSpecifierGeneration,
 			host:ModuleSpecifierGenerationHost, overrideMode:ResolutionMode, options:CompilerOptions,
 			allowedEndings:Array<ModuleSpecifierEnding>):PkgJsonDirAttemptResult {
 		var rootIdx = parts.PackageRootIndex;
@@ -954,7 +957,7 @@ class Modulespecifiers {
 		final packageJson = host.GetPackageJsonInfo(packageJsonPath);
 		if (packageJson == null) {
 			// No package.json exists; an index.js will still resolve as the package name
-			final fileName = moduleFileToTry.substring(parts.PackageRootIndex + 1);
+			final fileName = moduleFileToTry.substring(packageBaseRootIndex + 1);
 			if (fileName == "index.d.ts" || fileName == "index.js" || fileName == "index.ts" || fileName == "index.tsx") {
 				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootPath);
 			} else {
