@@ -3756,7 +3756,6 @@ class Checker {
 
 	static function newSimpleTypeMapper(source:Type, target:Type):TypeMapper {
 		final m = new SimpleTypeMapper();
-		m.data = m;
 		m.source = source;
 		m.target = target;
 		return m;
@@ -3764,7 +3763,6 @@ class Checker {
 
 	static function newArrayTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
 		final m = new ArrayTypeMapper();
-		m.data = m;
 		m.sources = sources;
 		m.targets = targets;
 		return m;
@@ -3772,7 +3770,6 @@ class Checker {
 
 	static function newArrayToSingleTypeMapper(sources:Array<Type>, target:Type):TypeMapper {
 		final m = new ArrayToSingleTypeMapper();
-		m.data = m;
 		m.sources = sources;
 		m.target = target;
 		return m;
@@ -3780,7 +3777,6 @@ class Checker {
 
 	static function newDeferredTypeMapper(sources:Array<Type>, targets:Array<() -> Type>):TypeMapper {
 		final m = new DeferredTypeMapper();
-		m.data = m;
 		m.sources = sources;
 		m.targets = targets;
 		return m;
@@ -3788,14 +3784,12 @@ class Checker {
 
 	static function newFunctionTypeMapper(fn:(Type) -> Type):TypeMapper {
 		final m = new FunctionTypeMapper();
-		m.data = m;
 		m.fn = fn;
 		return m;
 	}
 
 	static function newMergedTypeMapper(m1:TypeMapper, m2:TypeMapper):TypeMapper {
 		final m = new MergedTypeMapper();
-		m.data = m;
 		m.m1 = m1;
 		m.m2 = m2;
 		return m;
@@ -3803,7 +3797,6 @@ class Checker {
 
 	static function newCompositeTypeMapper(c:Checker, m1:TypeMapper, m2:TypeMapper):TypeMapper {
 		final m = new CompositeTypeMapper();
-		m.data = m;
 		m.c = c;
 		m.m1 = m1;
 		m.m2 = m2;
@@ -5747,10 +5740,10 @@ class Checker {
 					// instantiateAnonymousType prepends a fresh type parameter mapping.
 					// Compare the effective instantiation, not the identity of that fresh parameter.
 					if (m1 != null) {
-						m1 = (cast m1.data : CompositeTypeMapper).m2;
+						m1 = (cast m1 : CompositeTypeMapper).m2;
 					}
 					if (m2 != null) {
-						m2 = (cast m2.data : CompositeTypeMapper).m2;
+						m2 = (cast m2 : CompositeTypeMapper).m2;
 					}
 				}
 				c = compareTypeMappers(m1, m2);
@@ -6011,24 +6004,24 @@ class Checker {
 		}
 		switch (kind1) {
 			case TypeMapperKindSimple:
-				final m1:SimpleTypeMapper = cast m1.data;
-				final m2:SimpleTypeMapper = cast m2.data;
+				final m1:SimpleTypeMapper = cast m1;
+				final m2:SimpleTypeMapper = cast m2;
 				final c = CompareTypes(m1.source, m2.source);
 				if (c != 0) {
 					return c;
 				}
 				return CompareTypes(m1.target, m2.target);
 			case TypeMapperKindArray:
-				final m1:ArrayTypeMapper = cast m1.data;
-				final m2:ArrayTypeMapper = cast m2.data;
+				final m1:ArrayTypeMapper = cast m1;
+				final m2:ArrayTypeMapper = cast m2;
 				final c = compareTypeLists(m1.sources, m2.sources);
 				if (c != 0) {
 					return c;
 				}
 				return compareTypeLists(m1.targets, m2.targets);
 			case TypeMapperKindMerged:
-				final m1:MergedTypeMapper = cast m1.data;
-				final m2:MergedTypeMapper = cast m2.data;
+				final m1:MergedTypeMapper = cast m1;
+				final m2:MergedTypeMapper = cast m2;
 				final c = compareTypeMappers(m1.m1, m2.m1);
 				if (c != 0) {
 					return c;

@@ -11,21 +11,21 @@ enum abstract TypeMapperKind(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
+// PORT: perf — no `data` field: Go's TypeMapper.data is always the mapper itself here (every mapper is a
+// TypeMapperBase subclass, which overrides these methods).
 class TypeMapper implements TypeMapperData {
-	var data:TypeMapperData = null;
-
 	public function new() {}
 
 	public function Map(t:Type):Type {
-		return data.Map(t);
+		return t;
 	}
 
 	public function Kind():TypeMapperKind {
-		return data.Kind();
+		return TypeMapperKindUnknown;
 	}
 
 	public function MapsThisOnly():Bool {
-		return data.MapsThisOnly();
+		return false;
 	}
 }
 
@@ -269,7 +269,6 @@ class Mapper {
 
 	static function newInferenceTypeMapper(c:Checker, n:InferenceContext, fixing:Bool):TypeMapper {
 		final m = new InferenceTypeMapper();
-		m.data = m;
 		m.c = c;
 		m.n = n;
 		m.fixing = fixing;
