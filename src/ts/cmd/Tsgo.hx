@@ -18,9 +18,13 @@ class Tsgo {
 		// collection copies a live set (t3code-server: 510 MB live of 471 MB at go.GcInit's 512 MB limit, 929
 		// of 942 at 1024), and below 4 GB it is cheaper not to run one at all: t3code-server 5.41 s at 512 MB,
 		// 5.54 s at 1024, 5.30 s at 4096 (old space 2.8 GB, no major collection); ts6-solution -b 1.66 s /
-		// 1114 MB peak at 512, 1.55 s / 752 MB at 4096. Not in watch mode (a long run that leaves garbage).
-		if (args.indexOf("--watch") < 0 && args.indexOf("-w") < 0)
-			hxmc.rt.Gc.setOldLimit(4096);
+		// 1114 MB peak at 512, 1.55 s / 752 MB at 4096. A quarter of the physical memory when that is more: a
+		// major collection of a heap that is ~all live copies it whole (peak ~2x the limit; vscode at 4096: 3794
+		// of 4049 MB live, 0.91 s, peak 8.4 GB). Not in watch mode (a long run that leaves garbage).
+		if (args.indexOf("--watch") < 0 && args.indexOf("-w") < 0) {
+			final quarterMb = (hxmc.rt.Os.physicalBytes() >> 22).toInt();
+			hxmc.rt.Gc.setOldLimit(quarterMb > 4096 ? quarterMb : 4096);
+		}
 		#end
 		if (args.length > 0) {
 			switch (args[0]) {
