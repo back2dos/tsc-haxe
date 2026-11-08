@@ -21,7 +21,7 @@ interface TypeSystemEntity {}
 class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	public var Flags:SymbolFlags = 0;
 	public var CheckFlags:CheckFlags = 0; // Non-zero only in transient symbols created by Checker
-	public var id:Int = 0; // PORT: atomic.Uint64 → Int (single-threaded; ids fit in 32 bits)
+	// PORT: perf — no id field: Go's `id` is an entry of the links (Ast.GetSymbolId)
 	var dataShared:Bool = false; // data is another symbol's
 	var data:SymbolWithData = null;
 	public var Name(get, set):String;

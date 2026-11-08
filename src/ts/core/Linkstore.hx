@@ -117,3 +117,12 @@ class LinkEntry {
 
 	public function new() {}
 }
+
+// PORT: perf — the entry of a node's or symbol's id (Ast.GetNodeId, Ast.GetSymbolId: few have one, so it is no field)
+class IdLink extends LinkEntry {
+	public var id:Int = 0;
+
+	public function new() {
+		super();
+	}
+}

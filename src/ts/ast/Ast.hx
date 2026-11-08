@@ -20,7 +20,7 @@ import haxe.ds.StringMap;
 //   Go: every node data struct (Identifier, FunctionDeclaration, ...) embeds `Node`, and Node
 //   points back to its data through the `nodeData` interface (`n.data`).
 //   Haxe: ONE object per node, like Go's single allocation.
-//   - class NodeDefault: the fields of Go `Node` (Kind, Flags, Loc as pos/end, id, Parent) and the
+//   - class NodeDefault: the fields of Go `Node` (Kind, Flags, Loc as pos/end, Parent; id: Ast.GetNodeId) and the
 //     methods of Go `NodeDefault` (the nodeData interface) as virtual methods. Go `n.data` is the
 //     object itself.
 //   - class X extends NodeDefault (generated): the fields of the Go data struct X with all
@@ -3155,51 +3155,54 @@ class Ast {
 	static final idMutex = new sys.thread.Mutex();
 	#end
 
-	public static function GetNodeId(node:Node):NodeId {
-		var id = node.id;
+	// PORT: perf — a node's or symbol's id is an entry of its links (core.IdLink), not a field: few get one
+	// (t3code-server: 0.4% of the 5.5M nodes, 0.4% of the 3.7M symbols), and without the field most nodes
+	// are 8 B smaller (their Int fields fill one slot fewer). The entry is made under idMutex (its id set
+	// once); a reader that finds none, or one whose id is not set yet, takes the lock.
+	static final nodeIds = new ts.core.Linkstore.LinkStore<Node, ts.core.Linkstore.IdLink>(() -> new ts.core.Linkstore.IdLink());
+	static final symbolIds = new ts.core.Linkstore.LinkStore<Symbol, ts.core.Linkstore.IdLink>(() -> new ts.core.Linkstore.IdLink());
+
+	public static inline function GetNodeId(node:Node):NodeId {
+		final e = nodeIds.TryGet(node);
+		return e != null && e.id != 0 ? e.id : newNodeId(node);
+	}
+
+	static function newNodeId(node:Node):NodeId {
+		#if tshx_parallel
+		idMutex.acquire();
+		#end
+		final e = nodeIds.Get(node);
+		var id = e.id;
 		if (id == 0) {
-			// Worst case, we burn a few ids if we have to CAS.
-			#if tshx_parallel
-			// PORT: hxmc (-D tshx-parallel) — Add + CompareAndSwap under a lock (the id is taken once).
-			idMutex.acquire();
-			id = node.id;
-			if (id == 0) {
-				nextNodeId++;
-				id = nextNodeId;
-				node.id = id;
-			}
-			idMutex.release();
-			#else
-			// PORT: Add + CompareAndSwap → increment and store (single-threaded).
 			nextNodeId++;
 			id = nextNodeId;
-			node.id = id;
-			#end
+			e.id = id;
 		}
+		#if tshx_parallel
+		idMutex.release();
+		#end
 		return id;
 	}
 
-	public static function GetSymbolId(symbol:Symbol):SymbolId {
-		var id = symbol.id;
+	public static inline function GetSymbolId(symbol:Symbol):SymbolId {
+		final e = symbolIds.TryGet(symbol);
+		return e != null && e.id != 0 ? e.id : newSymbolId(symbol);
+	}
+
+	static function newSymbolId(symbol:Symbol):SymbolId {
+		#if tshx_parallel
+		idMutex.acquire();
+		#end
+		final e = symbolIds.Get(symbol);
+		var id = e.id;
 		if (id == 0) {
-			// Worst case, we burn a few ids if we have to CAS.
-			#if tshx_parallel
-			// PORT: hxmc (-D tshx-parallel) — Add + CompareAndSwap under a lock (the id is taken once).
-			idMutex.acquire();
-			id = symbol.id;
-			if (id == 0) {
-				nextSymbolId++;
-				id = nextSymbolId;
-				symbol.id = id;
-			}
-			idMutex.release();
-			#else
-			// PORT: Add + CompareAndSwap → increment and store (single-threaded).
 			nextSymbolId++;
 			id = nextSymbolId;
-			symbol.id = id;
-			#end
+			e.id = id;
 		}
+		#if tshx_parallel
+		idMutex.release();
+		#end
 		return id;
 	}
 
@@ -12373,7 +12376,7 @@ class NodeDefault extends ts.core.Linkstore.LinkHolder implements ts.ast.Symbol.
 	public var pos:Int = 0;
 	public var end:Int = 0;
 	public var Loc(get, set):TextRange;
-	public var id:Int = 0; // PORT: atomic.Uint64 → Int (single-threaded; ids fit in 32 bits)
+	// PORT: perf — no id field: Go's `id` is an entry of the links (Ast.GetNodeId)
 	public var Parent:Node = null;
 
 	public function new() {
