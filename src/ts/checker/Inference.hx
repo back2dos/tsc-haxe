@@ -1538,7 +1538,8 @@ class Inference {
 			final constraint = c.getConstraintOfTypeParameter(inference.typeParameter);
 			if (constraint != null) {
 				final instantiatedConstraint = c.instantiateType(constraint, n.nonFixingMapper);
-				if (inferredType != null) {
+				// A pure return type inference is still filtered in a recursive call resolution, whose result can become the type of the enclosing declaration.
+				if (inferredType != null && ((n.flags & InferenceFlagsNoConstraintChecks) == 0 || inference.priority == InferencePriorityReturnType)) {
 					final constraintWithThis = c.getTypeWithThisArgument(instantiatedConstraint, inferredType, false);
 					if (n.compareTypes(inferredType, constraintWithThis, false) == TernaryFalse) {
 						var filteredByConstraint:Type = null;
