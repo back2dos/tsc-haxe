@@ -247,12 +247,16 @@ class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
 		return extra.functionOrConstructorChecked = b;
 	}
 
+	// PORT: perf — the name type and containing type of a synthetic or mapped property are fields of its links
+	// (SyntheticValueSymbolLinks), not of the side record
 	inline function get_nameType():Type {
-		return extra == null ? null : extra.nameType;
+		final s = Std.downcast(this, SyntheticValueSymbolLinks);
+		return s != null ? s.synNameType : extra == null ? null : extra.nameType;
 	}
 
 	inline function get_containingType():Type {
-		return extra == null ? null : extra.containingType;
+		final s = Std.downcast(this, SyntheticValueSymbolLinks);
+		return s != null ? s.synContainingType : extra == null ? null : extra.containingType;
 	}
 
 	function set_writeType(t:Type):Type {
@@ -266,6 +270,10 @@ class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	}
 
 	function set_nameType(t:Type):Type {
+		final s = Std.downcast(this, SyntheticValueSymbolLinks);
+		if (s != null) {
+			return s.synNameType = t;
+		}
 		if (extra == null) {
 			if (t == null) {
 				return t;
@@ -276,6 +284,10 @@ class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	}
 
 	function set_containingType(t:Type):Type {
+		final s = Std.downcast(this, SyntheticValueSymbolLinks);
+		if (s != null) {
+			return s.synContainingType = t;
+		}
 		if (extra == null) {
 			if (t == null) {
 				return t;
@@ -305,6 +317,18 @@ class ValueSymbolExtra {
 class TransientValueSymbolLinks extends ValueSymbolLinks {
 	var instTarget:Symbol = null;
 	var instMapper:TypeMapper = null;
+
+	public function new() {
+		super();
+	}
+}
+
+// the value links of a synthetic (union or intersection) or mapped property, which have a containing type and
+// most often a name type (see ValueSymbolLinks.get_nameType)
+@:allow(ts.checker)
+class SyntheticValueSymbolLinks extends TransientValueSymbolLinks {
+	var synNameType:Type = null;
+	var synContainingType:Type = null;
 
 	public function new() {
 		super();
