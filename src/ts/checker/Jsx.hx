@@ -28,6 +28,7 @@ class JsxElementLinks {
 	var resolvedJsxElementAttributesType:Type = null; // Resolved element attributes type of a JSX opening-like element
 	var jsxNamespace:Symbol = null; // Resolved JSX namespace symbol for this node
 	var jsxImplicitImportContainer:Symbol = null; // Resolved module symbol the implicit JSX import of this file should refer to
+	var firstJSXTagInFile:Node = null; // The first JSX tag in the file
 
 	public function new() {}
 }
@@ -1432,16 +1433,27 @@ class Jsx {
 	}
 
 	static function getJsxNamespaceContainerForImplicitImport(c:Checker, location:Node):Symbol {
-		var file:SourceFile = null;
-		var links:JsxElementLinks = null;
-		if (location != null) {
-			file = Ast.GetSourceFileOfNode(location);
-			if (file != null) {
-				links = c.jsxElementLinks.Get(file.AsNode());
-			}
-		}
-		if (links != null && links.jsxImplicitImportContainer != null) {
+		final file = Ast.GetSourceFileOfNode(location);
+		final links = c.jsxElementLinks.Get(file.AsNode());
+		if (links.jsxImplicitImportContainer != null) {
 			return Core.IfElse(links.jsxImplicitImportContainer == c.unknownSymbol, null, links.jsxImplicitImportContainer);
+		}
+		var canonicalErrorTag = links.firstJSXTagInFile;
+		if (canonicalErrorTag == null) {
+			var visit:Visitor = null;
+			visit = (node:Node) -> {
+				if (Ast.IsJsxElement(node) || Ast.IsJsxSelfClosingElement(node)) {
+					links.firstJSXTagInFile = node;
+					return true;
+				}
+				if (Ast.IsJsxFragment(node)) {
+					links.firstJSXTagInFile = node.AsJsxFragment().OpeningFragment; // to match strada, fragments issue errors on the opening fragment instead of the whole tag
+					return true;
+				}
+				return node.ForEachChild(visit);
+			};
+			file.AsNode().ForEachChild(visit);
+			canonicalErrorTag = links.firstJSXTagInFile;
 		}
 		final r = c.getJSXRuntimeImportSpecifier(file);
 		final moduleReference = r.a;
@@ -1450,14 +1462,12 @@ class Jsx {
 			return null;
 		}
 		final errorMessage = Diagnostics.This_JSX_tag_requires_the_module_path_0_to_exist_but_none_could_be_found_Make_sure_you_have_types_for_the_appropriate_package_installed;
-		final mod = c.resolveExternalModule(Core.OrElse(specifier, location), moduleReference, errorMessage, location, false);
+		final mod = c.resolveExternalModule(Core.OrElse(specifier, canonicalErrorTag), moduleReference, errorMessage, canonicalErrorTag, false);
 		var result:Symbol = null;
 		if (mod != null && mod != c.unknownSymbol) {
 			result = c.getMergedSymbol(c.resolveSymbol(mod));
 		}
-		if (links != null) {
-			links.jsxImplicitImportContainer = Core.OrElse(result, c.unknownSymbol);
-		}
+		links.jsxImplicitImportContainer = Core.OrElse(result, c.unknownSymbol);
 		return result;
 	}
 
