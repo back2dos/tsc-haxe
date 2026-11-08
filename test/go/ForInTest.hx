@@ -100,7 +100,7 @@ class ForInTest {
 				T.eq(a.value, b.value);
 				T.eq(a.ok, b.ok);
 			}
-			final e = Slices.BinarySearchFuncInline(null, 3, (x:Int, y:Int) -> x - y);
+			final e = Slices.BinarySearchFuncInline((null : Array<Int>), 3, (x:Int, y:Int) -> x - y);
 			T.eq(0, e.value);
 			T.eq(false, e.ok);
 		});
