@@ -1951,8 +1951,11 @@ class CheckerPart7 {
 	// PORT: perf — Go returns (typeSet, includes); includes is left in c.addTypesToUnionIncludes, read by the caller right
 	// after the call (no Pair per type).
 	// PORT: perf — TypeScript 7.1's construction (microsoft/typescript-go#4687): the constituents are collected, then
-	// sorted by CompareTypes and deduplicated, in place of a binary-search insertion per constituent. The sort merges
-	// the sorted runs the input already has (a nested union's types are one), as tsrs does.
+	// sorted by CompareTypes and deduplicated, in place of a binary-search insertion per constituent. As in tsrs, a
+	// union's constituents are already sorted and unique (and adding them keeps that order), so only the boundaries
+	// between source types can break the order: the list is a sequence of ascending runs starting there, merged
+	// pairwise (mergeTypeRuns); two unions are merged directly. CompareTypes is a total order in which only identical
+	// types compare equal (it ends with the type id), so any correct sort gives Go's order.
 	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type>
 		return c.addTypesToUnionA(typeSet, includes, sourceTypes);
 
@@ -1960,10 +1963,14 @@ class CheckerPart7 {
 		return c.addTypesToUnionV(typeSet, includes, sourceTypes);
 
 	static function addTypesToUnionA(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type> {
+		if (sourceTypes != null && sourceTypes.length == 2 && typeSet.length == 0 && sourceTypes[0].flags & sourceTypes[1].flags & TypeFlagsUnion != 0)
+			return c.addTwoUnionsToUnion(typeSet, includes, sourceTypes[0], sourceTypes[1]);
 		var lastType:Type = null;
+		var runs:Array<Int> = null; // the starts of the ascending runs after the first
 		if (sourceTypes != null) {
 			for (t in sourceTypes) {
 				if (t != lastType) {
+					final start = typeSet.length;
 					if (t.flags & TypeFlagsUnion != 0) {
 						final u = t.AsUnionType();
 						if (t.alias != null || u.origin != null) {
@@ -1974,12 +1981,18 @@ class CheckerPart7 {
 					} else {
 						includes = c.addTypeToUnion(typeSet, includes, t);
 					}
+					if (start > 0 && typeSet.length > start && Checker.CompareTypes(typeSet[start - 1], typeSet[start]) > 0) {
+						if (runs == null)
+							runs = [];
+						runs.push(start);
+					}
 					lastType = t;
 				}
 			}
 		}
 		if (typeSet.length >= 2) {
-			sortTypesByRuns(typeSet);
+			if (runs != null)
+				mergeTypeRuns(typeSet, runs);
 			// Deduplicate types
 			var unique = 1;
 			for (k in 1...typeSet.length) {
@@ -1997,10 +2010,14 @@ class CheckerPart7 {
 	}
 
 	static function addTypesToUnionV(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Array<Type> {
+		if (sourceTypes != null && sourceTypes.length == 2 && typeSet.length == 0 && sourceTypes[0].flags & sourceTypes[1].flags & TypeFlagsUnion != 0)
+			return c.addTwoUnionsToUnion(typeSet, includes, sourceTypes[0], sourceTypes[1]);
 		var lastType:Type = null;
+		var runs:Array<Int> = null; // the starts of the ascending runs after the first
 		if (sourceTypes != null) {
 			for (t in sourceTypes) {
 				if (t != lastType) {
+					final start = typeSet.length;
 					if (t.flags & TypeFlagsUnion != 0) {
 						final u = t.AsUnionType();
 						if (t.alias != null || u.origin != null) {
@@ -2011,12 +2028,18 @@ class CheckerPart7 {
 					} else {
 						includes = c.addTypeToUnion(typeSet, includes, t);
 					}
+					if (start > 0 && typeSet.length > start && Checker.CompareTypes(typeSet[start - 1], typeSet[start]) > 0) {
+						if (runs == null)
+							runs = [];
+						runs.push(start);
+					}
 					lastType = t;
 				}
 			}
 		}
 		if (typeSet.length >= 2) {
-			sortTypesByRuns(typeSet);
+			if (runs != null)
+				mergeTypeRuns(typeSet, runs);
 			// Deduplicate types
 			var unique = 1;
 			for (k in 1...typeSet.length) {
@@ -2033,19 +2056,109 @@ class CheckerPart7 {
 		return typeSet;
 	}
 
-	// a stable sort by CompareTypes that merges the ascending runs of `types` (natural merge sort)
-	static function sortTypesByRuns(types:Array<Type>):Void {
-		final n = types.length;
-		var runs:Array<Int> = null; // run starts after 0
-		for (k in 1...n) {
-			if (Checker.CompareTypes(types[k - 1], types[k]) > 0) {
-				if (runs == null)
-					runs = [];
-				runs.push(k);
-			}
+	// addTypesToUnion of two unions: their sorted, unique constituents merged (one of both added once)
+	static function addTwoUnionsToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t1:Type, t2:Type):Array<Type> {
+		final u1 = t1.AsUnionType(), u2 = t2.AsUnionType();
+		if (t1.alias != null || u1.origin != null || t2.alias != null || u2.origin != null) {
+			includes |= TypeFlagsUnion;
 		}
-		if (runs == null)
+		final a = u1.types, b = u2.types;
+		var i = 0, j = 0;
+		final n = a.length, m = b.length;
+		final short = n < m ? n : m, long = n < m ? m : n;
+		if (short > 0 && short * bitWidth(long) * 2 < long) {
+			// one is much shorter: each of its types placed by binary search in the other
+			final l = n < m ? b : a, s = n < m ? a : b;
+			var k = 0;
+			for (t in s) {
+				final p = lowerBoundType(l, k, long, t);
+				while (k < p)
+					includes = c.addTypeToUnion(typeSet, includes, l[k++]);
+				includes = c.addTypeToUnion(typeSet, includes, t);
+				if (k < long && l[k] == t)
+					k++;
+			}
+			while (k < long)
+				includes = c.addTypeToUnion(typeSet, includes, l[k++]);
+		} else {
+			while (i < n && j < m) {
+				final x = a[i], y = b[j];
+				if (x == y) {
+					includes = c.addTypeToUnion(typeSet, includes, x);
+					i++;
+					j++;
+				} else if (Checker.CompareTypes(x, y) < 0) {
+					includes = c.addTypeToUnion(typeSet, includes, x);
+					i++;
+				} else {
+					includes = c.addTypeToUnion(typeSet, includes, y);
+					j++;
+				}
+			}
+			while (i < n)
+				includes = c.addTypeToUnion(typeSet, includes, a[i++]);
+			while (j < m)
+				includes = c.addTypeToUnion(typeSet, includes, b[j++]);
+		}
+		c.addTypesToUnionIncludes = includes;
+		return typeSet;
+	}
+
+	static inline function bitWidth(n:Int):Int {
+		var w = 0;
+		while (n != 0) {
+			w++;
+			n >>>= 1;
+		}
+		return w;
+	}
+
+	// the first index in [lo, hi) of sorted `types` whose type is not below t
+	static extern inline overload function lowerBoundType(types:haxe.ds.Vector<Type>, lo:Int, hi:Int, t:Type):Int {
+		while (lo < hi) {
+			final h = (lo + hi) >>> 1;
+			if (types[h] != t && Checker.CompareTypes(types[h], t) < 0)
+				lo = h + 1;
+			else
+				hi = h;
+		}
+		return lo;
+	}
+
+	static extern inline overload function lowerBoundType(types:Array<Type>, lo:Int, hi:Int, t:Type):Int {
+		while (lo < hi) {
+			final h = (lo + hi) >>> 1;
+			if (types[h] != t && Checker.CompareTypes(types[h], t) < 0)
+				lo = h + 1;
+			else
+				hi = h;
+		}
+		return lo;
+	}
+
+	// sorts `types`, ascending runs that start at 0 and at each of `runs`, by CompareTypes: a single type next to a
+	// run is inserted by binary search, other runs are merged pairwise (identical types end up next to each other)
+	static function mergeTypeRuns(types:Array<Type>, runs:Array<Int>):Void {
+		final n = types.length;
+		if (runs.length == 1 && (runs[0] == 1 || runs[0] == n - 1)) {
+			if (runs[0] == 1) {
+				final t = types[0];
+				final p = lowerBoundType(types, 1, n, t) - 1;
+				for (k in 0...p)
+					types[k] = types[k + 1];
+				types[p] = t;
+			} else {
+				final t = types[n - 1];
+				final p = lowerBoundType(types, 0, n - 1, t);
+				var k = n - 1;
+				while (k > p) {
+					types[k] = types[k - 1];
+					k--;
+				}
+				types[p] = t;
+			}
 			return;
+		}
 		runs.push(n);
 		var src = types, dst:Array<Type> = [];
 		dst.resize(n);
