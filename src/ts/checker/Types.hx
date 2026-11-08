@@ -799,6 +799,8 @@ class TypeAlias {
 
 @:allow(ts.checker)
 class TypeExtra {
+	var alias:TypeAlias = null;
+	var node:Node = null; // (TypeReference)
 	var flowType:FlowType = null;
 	var objectTypeWithoutAbstractConstructSignatures:Type = null;
 	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
@@ -812,13 +814,28 @@ class Type implements TypeSystemEntity {
 	var objectFlags:ObjectFlags = 0;
 	var id:TypeId = 0;
 	var symbol:Symbol = null;
-	var alias:TypeAlias = null;
 	var checker:Checker = null;
 	// PORT: perf — no `data` field: Go's `data` (Type specific data) is always the type itself here (every
 	// TypeData is a TypeBase, a subclass of Type), so the As*() casts are of `this`.
-	// PORT: perf — the rarely set fields of a type (its FlowType; an object type's instantiations and type without
-	// abstract construct signatures) in a side record, allocated when one is set to a non-nil value
+	// PORT: perf — the rarely set fields of a type (its alias, FlowType; an object type's instantiations and type
+	// without abstract construct signatures; a deferred type reference's node) in a side record, allocated when one
+	// is set to a non-nil value
 	var extra:TypeExtra = null;
+	var alias(get, set):TypeAlias; // (in TypeExtra: t3code-server, 4% of the types have one)
+
+	inline function get_alias():TypeAlias {
+		return extra == null ? null : extra.alias;
+	}
+
+	function set_alias(v:TypeAlias):TypeAlias {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new TypeExtra();
+		}
+		return extra.alias = v;
+	}
 	// PORT: perf — FlowType{t: this, incomplete: false}, made once (Go returns FlowType by value); the incomplete
 	// one hangs off it (FlowType.twin).
 	var flowType(get, set):FlowType;
@@ -1313,9 +1330,25 @@ class ObjectType extends StructuredType {
 
 @:allow(ts.checker)
 class TypeReference extends ObjectType {
-	var node:Node = null; // TypeReferenceNode | ArrayTypeNode | TupleTypeNode when deferred, else nil
+	var node(get, set):Node; // TypeReferenceNode | ArrayTypeNode | TupleTypeNode when deferred, else nil (in TypeExtra)
 	var resolvedTypeArguments:haxe.ds.Vector<Type> = null; // PORT: perf — a Vector (one exact-size object; null: not resolved yet)
 	var lazy:LazyState = null; // Resolved member layout and instantiation state
+
+	inline function get_node():Node {
+		final x = (cast this : Type).extra;
+		return x == null ? null : x.node;
+	}
+
+	function set_node(v:Node):Node {
+		final t:Type = cast this;
+		if (t.extra == null) {
+			if (v == null) {
+				return v;
+			}
+			t.extra = new TypeExtra();
+		}
+		return t.extra.node = v;
+	}
 
 	public function new() {
 		super();
