@@ -5,6 +5,7 @@ import go.Fs.FileMode;
 import go.Time;
 import go.Tuple;
 import ts.tspath.Tspath;
+import ts.tspath.CaseSensitivity;
 import ts.vfs.internal.Internal;
 import ts.vfs.iovfs.Iofs;
 
@@ -19,7 +20,7 @@ class Iovfs {
 	//
 	// From does not actually handle case-insensitivity; ensure the passed in [fs.FS]
 	// respects case-insensitive file names if needed. Consider using [vfstest.FromMap] for testing.
-	public static function From(fsys:go.Fs.FS, useCaseSensitiveFileNames:Bool):FsWithSys {
+	public static function From(fsys:go.Fs.FS, caseSensitivity:CaseSensitivity):FsWithSys {
 		var realpath:(path:String) -> ValueError<String>;
 		if (Std.isOfType(fsys, RealpathFS)) {
 			final fsys:RealpathFS = cast fsys;
@@ -100,6 +101,6 @@ class Iovfs {
 				throw 'vfs: failed to create sub file system for ${go.Strconv.Quote(p)}: ${sub.err.Error()}';
 			}
 			return sub.value;
-		}), useCaseSensitiveFileNames, realpath, writeFile, appendFile, mkdirAll, remove, chtimes, fsys);
+		}), caseSensitivity, realpath, writeFile, appendFile, mkdirAll, remove, chtimes, fsys);
 	}
 }

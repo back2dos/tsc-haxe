@@ -106,7 +106,7 @@ class IncrementalTest {
 		files.set("/p/tsconfig.json", "{\"compilerOptions\": {\"incremental\": true, \"declaration\": true}}");
 		files.set("/p/a.ts", "export const a: number = 1;");
 		files.set("/p/b.ts", "import { a } from \"./a\";\nexport const b = a + 1;\nconst c: string = 1;");
-		final fs = ts.bundled.Bundled.WrapFS(ts.vfs.vfstest.Vfstest.Vfstest.FromMap(files, true));
+		final fs = ts.bundled.Bundled.WrapFS(ts.vfs.vfstest.Vfstest.Vfstest.FromMap(files, CaseSensitive));
 		function compile():Program {
 			final host = ts.compiler.Compiler.NewCachedFSCompilerHost(Tspath.RootedDirectoryPathFromNormalized("/p"), fs, ts.bundled.Bundled.LibPath(), null,
 				null);

@@ -5,6 +5,7 @@ import go.Fs.FileMode;
 import go.Tuple.ValueOk;
 import haxe.ds.StringMap;
 import ts.tspath.Tspath;
+import ts.tspath.RootedPath;
 import ts.vfs.Vfs;
 
 // Package bundled provides access to files bundled with TypeScript.
@@ -30,8 +31,8 @@ class Bundled {
 	// LibPath returns the path to the directory containing the bundled lib.d.ts files.
 	// If embedding is not enabled, this is a path on disk, and must be accessed through
 	// a real OS filesystem.
-	public static function LibPath():String {
-		return libPath();
+	public static function LibPath():RootedDirectoryPath {
+		return Tspath.RootedDirectoryPathFromNormalized(libPath());
 	}
 
 	// PORT: runtime.Caller(0) → the directory of Bundled.hx, recorded at compile time.

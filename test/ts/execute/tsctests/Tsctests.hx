@@ -1,5 +1,6 @@
 package ts.execute.tsctests;
 
+import ts.tspath.CaseSensitivity;
 import go.Time;
 import go.Patience;
 import ts.collections.Syncset;
@@ -7,7 +8,6 @@ import ts.diagnostics.Diagnostics;
 import ts.execute.Execute;
 import ts.locale.Locale;
 import ts.tspath.Tspath;
-import ts.tspath.Path.ComparePathsOptions;
 import ts.tsoptions.Tsoptions;
 import ts.vfs.iovfs.Iofs.FsWithSys;
 import ts.testutil.harnessutil.Harnessutil;
@@ -62,10 +62,10 @@ declare const console: { log(msg: any): void; };
 		return tscLibPath + "/" + libFile;
 	}
 
-	public static function NewTscSystem(files:Null<FileMap>, useCaseSensitiveFileNames:Bool, cwd:String):TestSys {
+	public static function NewTscSystem(files:Null<FileMap>, caseSensitivity:CaseSensitivity, cwd:String):TestSys {
 		final clock = new TestClock(Time.Now());
 		final sys = new TestSys();
-		sys.fs = new TestFs(Vfstest.FromMapWithClock(files, useCaseSensitiveFileNames, clock));
+		sys.fs = new TestFs(Vfstest.FromMapWithClock(files, caseSensitivity, clock));
 		sys.cwd = Tspath.RootedDirectoryPathFromNormalized(cwd);
 		sys.clock = clock;
 		return sys;
@@ -95,10 +95,10 @@ declare const console: { log(msg: any): void; };
 			libPath = tscInput.windowsStyleRoot + libPath.substring(1);
 		}
 		final currentWrite = new Builder();
-		final sys = NewTscSystem(tscInput.files, !tscInput.ignoreCase, cwd);
-		sys.defaultLibraryPath = libPath;
+		final sys = NewTscSystem(tscInput.files, tscInput.ignoreCase ? CaseInsensitive : CaseSensitive, cwd);
+		sys.defaultLibraryPath = Tspath.RootedDirectoryPathFromNormalized(libPath);
 		sys.setCurrentWrite(currentWrite);
-		sys.tracer = Harnessutil.NewTracerForBaselining(new ComparePathsOptions(!tscInput.ignoreCase, cwd), currentWrite);
+		sys.tracer = Harnessutil.NewTracerForBaselining(sys.cwd, tscInput.ignoreCase ? CaseInsensitive : CaseSensitive, currentWrite);
 		sys.env = tscInput.env;
 		sys.forIncrementalCorrectness = forIncrementalCorrectness;
 		// PORT: mockWatchBackend (watch mode) is not ported.

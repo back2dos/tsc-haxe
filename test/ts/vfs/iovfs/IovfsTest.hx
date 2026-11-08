@@ -15,7 +15,7 @@ class IovfsTest {
 		testfs.set("dir1/file2.ts", new MapFile(go.Utf8.StringToBytes("export const foo = 42;")));
 		testfs.set("dir2/file1.ts", new MapFile(go.Utf8.StringToBytes("export const foo = 42;")));
 
-		final fs = Iovfs.From(testfs, true /*tspath.CaseSensitive*/);
+		final fs = Iovfs.From(testfs, CaseSensitive);
 
 		T.run("TestIOFS/ReadFile", () -> {
 			var content = fs.ReadFile(rf("/foo.ts"));

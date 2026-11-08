@@ -43,31 +43,31 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return this.program.GetEmitModuleFormatOfFile(file);
 	}
 
-	public function FileExists(path:std.String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		return this.program.FileExists(path);
 	}
 
-	public function GetGlobalTypingsCacheLocation():std.String {
+	public function GetGlobalTypingsCacheLocation():RootedDirectoryPath {
 		return this.program.GetGlobalTypingsCacheLocation();
 	}
 
-	public function GetNearestAncestorDirectoryWithPackageJson(dirname:std.String):std.String {
+	public function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath {
 		return this.program.GetNearestAncestorDirectoryWithPackageJson(dirname);
 	}
 
-	public function GetPackageJsonInfo(pkgJsonPath:std.String):InfoCacheEntry {
+	public function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry {
 		return this.program.GetPackageJsonInfo(pkgJsonPath);
 	}
 
-	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):std.String {
+	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath {
 		return this.program.GetSourceOfProjectReferenceIfOutputIncluded(file);
 	}
 
-	public function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference {
+	public function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference {
 		return this.program.GetProjectReferenceFromSource(path);
 	}
 
-	public function GetRedirectTargets(path:Path):Array<std.String> {
+	public function GetRedirectTargets(path:PathKey):Array<RootedFilePath> {
 		return this.program.GetRedirectTargets(path);
 	}
 
@@ -99,15 +99,6 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 
 	public function BaseDirectory():RootedDirectoryPath {
 		return this.program.BaseDirectory();
-	}
-
-	// PORT: transitional — the module specifier host still reads GetCurrentDirectory/UseCaseSensitiveFileNames.
-	public function GetCurrentDirectory():RootedDirectoryPath {
-		return this.program.GetCurrentDirectory();
-	}
-
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.program.UseCaseSensitiveFileNames();
 	}
 
 	public function CommonSourceDirectory():RootedDirectoryPath {
@@ -150,8 +141,8 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return this.program.GetSymlinkCache();
 	}
 
-	public function ResolveModuleName(moduleName:std.String, containingFile:std.String, resolutionMode:ResolutionMode):ResolvedModule {
-		final resolved = this.program.processedFiles.resolver.ResolveModuleName(moduleName, /* PORT: transitional, unchecked */ cast containingFile, resolutionMode, null).a;
+	public function ResolveModuleName(moduleName:std.String, containingFile:RootedFilePath, resolutionMode:ResolutionMode):ResolvedModule {
+		final resolved = this.program.processedFiles.resolver.ResolveModuleName(moduleName, containingFile, resolutionMode, null).a;
 		return resolved;
 	}
 }

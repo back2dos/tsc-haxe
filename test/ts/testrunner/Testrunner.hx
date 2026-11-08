@@ -592,7 +592,7 @@ class Testrunner {
 		// compiler actually parses and reports positions against. Baseline that text (rather than the original
 		// foreign source) so the type, symbol, and error baselines line up with the compiler's positions.
 		for (file in Core.Concatenate(toBeCompiled, otherFiles)) {
-			final sf = result.Program.GetSourceFile(Tspath.GetNormalizedAbsolutePath(file.UnitName, currentDirectory));
+			final sf = result.Program.GetSourceFile(Tspath.ToRootedFilePath(file.UnitName, currentDirectory));
 			if (sf != null && sf.ContentMapper() != "") {
 				file.Content = sf.Text();
 			}

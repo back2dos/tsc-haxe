@@ -61,14 +61,30 @@ class SourceFileFromReferenceDiagnostic {
 	}
 }
 
+class CompilerResolutionHost implements ResolutionHost {
+	final host:CompilerHost;
+	final baseDirectory:RootedDirectoryPath;
+
+	public function new(host:CompilerHost, baseDirectory:RootedDirectoryPath) {
+		this.host = host;
+		this.baseDirectory = baseDirectory;
+	}
+
+	public function FS():ts.vfs.Vfs.FS {
+		return this.host.FS();
+	}
+
+	public function GetCurrentDirectory():RootedDirectoryPath {
+		return this.baseDirectory;
+	}
+}
+
 @:allow(ts.compiler)
 class FileLoader {
 	var opts:ProgramOptions = null;
 	var resolver:Resolver = null;
 	var defaultLibraryPath:RootedDirectoryPath = cast "";
 	var caseSensitivity:CaseSensitivity = Tspath.CaseInsensitive;
-	// PORT: transitional — the current directory (main: Config.BaseDirectory / the host)
-	var currentDirectory:RootedDirectoryPath = cast "";
 	var supportedExtensions:Array<Array<std.String>> = null;
 	var supportedExtensionsWithJsonIfResolveJsonModule:Array<Array<std.String>> = null;
 	var contentMapperExtensions:Array<std.String> = null;
@@ -88,7 +104,7 @@ class FileLoader {
 	#end
 
 	var projectReferenceFileMapper:ProjectReferenceFileMapper = null;
-	var dtsDirectories:Set<Path> = new Set<Path>();
+	var dtsDirectories:Set<PathKey> = new Set<PathKey>();
 
 	var pathForLibFileCache:StringMap<LibFile> = new StringMap(); // PORT: SyncMap[string, *LibFile] → StringMap
 	var pathForLibFileResolutions:StringMap<LibResolution> = new StringMap(); // PORT: SyncMap[tspath.Path, *libResolution] → StringMap
@@ -139,14 +155,7 @@ class FileLoader {
 	}
 
 	function addAutomaticTypeDirectiveTasks():Void {
-		var containingDirectory:RootedDirectoryPath;
-		final compilerOptions = this.opts.Config.CompilerOptions();
-		if (compilerOptions.ConfigFilePath != "") {
-			containingDirectory = compilerOptions.ConfigFilePath.Directory();
-		} else {
-			containingDirectory = this.currentDirectory;
-		}
-		final containingFileName = containingDirectory.ResolveFile(Module.InferredTypesContainingFile);
+		final containingFileName = this.opts.Config.BaseDirectory().ResolveFile(Module.InferredTypesContainingFile);
 		final t = new ParseTask();
 		t.normalizedFilePath = containingFileName;
 		t.path = this.caseSensitivity.PathKey(containingFileName.AsPath());
@@ -160,7 +169,7 @@ class FileLoader {
 		var typeResolutionsInFile:ModeAwareCache<ResolvedTypeReferenceDirective> = null;
 		var typeResolutionsTrace:Array<DiagAndArgs> = null;
 		var pDiagnostics:Array<ProcessingDiagnostic> = null;
-		final automaticTypeDirectiveNames = Module.GetAutomaticTypeDirectiveNames(this.opts.Config.CompilerOptions(), this.opts.Host.GetCurrentDirectory(), this.opts.Host.FS());
+		final automaticTypeDirectiveNames = Module.GetAutomaticTypeDirectiveNames(this.opts.Config.CompilerOptions(), this.opts.Config.BaseDirectory(), this.opts.Host.FS());
 		if (Core.len(automaticTypeDirectiveNames) != 0) {
 			toParse = [];
 			typeResolutionsInFile = new ModeAwareCache<ResolvedTypeReferenceDirective>();
@@ -213,7 +222,7 @@ class FileLoader {
 	function addProjectReferenceTasks(singleThreaded:Bool):Void {
 		this.projectReferenceFileMapper = new ProjectReferenceFileMapper();
 		this.projectReferenceFileMapper.opts = this.opts;
-		this.projectReferenceFileMapper.host = this.opts.Host;
+		this.projectReferenceFileMapper.host = new CompilerResolutionHost(this.opts.Host, this.opts.Config.BaseDirectory());
 		final projectReferences = this.opts.Config.ResolvedProjectReferencePaths();
 		if (Core.len(projectReferences) == 0) {
 			return;
@@ -258,7 +267,7 @@ class FileLoader {
 		final packageJsonScope = this.resolver.GetPackageScopeForPath(fileName.Directory());
 		final moduleResolutionKind = this.opts.Config.CompilerOptions().GetModuleResolutionKind();
 
-		var packageJsonType = "", packageJsonDirectory = "";
+		var packageJsonType = "", packageJsonDirectory:RootedDirectoryPath = cast "";
 		if (packageJsonScope.Exists()) {
 			packageJsonDirectory = packageJsonScope.PackageDirectory.AsDirectoryPath();
 			final v = packageJsonScope.Contents.Type.GetValue();
@@ -768,7 +777,7 @@ class FileLoader {
 		var replaced = false;
 		if (this.opts.Config.CompilerOptions().LibReplacement.IsTrue() && name != "lib.d.ts") {
 			final libraryName = Compiler.getLibraryNameFromLibFileName(name);
-			final resolveFrom = Compiler.getInferredLibraryNameResolveFrom(this.opts.Config.CompilerOptions(), this.currentDirectory, name);
+			final resolveFrom = Compiler.getInferredLibraryNameResolveFrom(this.opts.Config.BaseDirectory(), name);
 			final rr = this.resolveLibrary(libraryName, resolveFrom);
 			final resolution = rr.a, trace = rr.b;
 			if (resolution.IsResolved()) {
@@ -873,9 +882,9 @@ class ProcessedFiles {
 	var includeProcessor:IncludeProcessor = null;
 	// if file was included using source file and its output is actually part of program
 	// this contains mapping from output to source file
-	var outputFileToProjectReferenceSource:StringMap<std.String> = null;
+	var outputFileToProjectReferenceSource:StringMap<RootedFilePath> = null;
 	// Key is a file path. Value is the list of files that redirect to it (same package, different install location)
-	var redirectTargetsMap:StringMap<Array<std.String>> = null;
+	var redirectTargetsMap:StringMap<Array<RootedFilePath>> = null;
 	// filesByPath for redirect files
 	var redirectFilesByPath:StringMap<RedirectsFile> = null;
 	// Program-level diagnostics reported when a content mapper fails fatally (reported once per mapper).

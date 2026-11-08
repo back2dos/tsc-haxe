@@ -97,7 +97,7 @@ class ProcessingDiagnostic {
 					processInclude(reason);
 				}
 			}
-			redirectInfo = program.includeProcessor.explainRedirectAndImpliedFormat(program, diag.file, function(fileName:std.String) return fileName);
+			redirectInfo = program.includeProcessor.explainRedirectAndImpliedFormat(program, diag.file, function(fileName:RootedFilePath) return fileName.AsString());
 		}
 		if (diag.diagnosticReason != null) {
 			processInclude(diag.diagnosticReason);

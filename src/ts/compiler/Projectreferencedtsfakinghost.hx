@@ -6,7 +6,7 @@ import go.Time;
 
 @:allow(ts.compiler)
 class ProjectReferenceDtsFakingHost implements ResolutionHost {
-	var host:CompilerHost = null;
+	var currentDirectory:RootedDirectoryPath = cast "";
 	var fs:ts.vfs.cachedvfs.Cachedvfs.FS = null;
 
 	public function new() {}
@@ -18,14 +18,14 @@ class ProjectReferenceDtsFakingHost implements ResolutionHost {
 
 	// GetCurrentDirectory implements module.ResolutionHost.
 	public function GetCurrentDirectory():RootedDirectoryPath {
-		return this.host.GetCurrentDirectory();
+		return this.currentDirectory;
 	}
 }
 
 @:allow(ts.compiler)
 class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 	var projectReferenceFileMapper:ProjectReferenceFileMapper = null;
-	var dtsDirectories:Set<Path> = new Set<Path>();
+	var dtsDirectories:Set<PathKey> = new Set<PathKey>();
 	var knownSymlinks:KnownSymlinks = new KnownSymlinks();
 
 	public function new() {}
@@ -40,11 +40,11 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 		if (this.projectReferenceFileMapper.opts.Host.FS().FileExists(path)) {
 			return true;
 		}
-		if (!Tspath.IsDeclarationFileName(path)) {
+		if (!path.IsDeclarationFile()) {
 			return false;
 		}
 		// Project references go to source file instead of .d.ts file
-		return this.fileOrDirectoryExistsUsingSource(path /*isFile*/, true);
+		return this.fileExistsUsingSource(path);
 	}
 
 	// ReadFile implements vfs.FS.
@@ -79,7 +79,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 			this.handleDirectoryCouldBeSymlink(path);
 			return true;
 		}
-		return this.fileOrDirectoryExistsUsingSource(path /*isFile*/, false);
+		return this.directoryExistsUsingSource(path);
 	}
 
 	// GetAccessibleEntries implements vfs.FS.
@@ -99,60 +99,74 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 
 	// Realpath implements vfs.FS.
 	public function Realpath(path:RootedPath):RootedPath {
-		final result = this.knownSymlinks.Files().Load(this.toPath(path));
+		final result = this.knownSymlinks.Files().Load(this.pathKey(path));
 		if (result.ok) {
-			return /* PORT: transitional, unchecked (main: KnownSymlinks.Files stores RootedFilePath) */ cast result.value;
+			return result.value.AsPath();
 		}
 		return this.projectReferenceFileMapper.opts.Host.FS().Realpath(path);
 	}
 
-	function toPath(path:std.String):Path {
-		return Tspath.ToPath(path, this.projectReferenceFileMapper.opts.Host.GetCurrentDirectory(), this.CaseSensitivity().IsCaseSensitive());
+	function pathKey(path:RootedPath):PathKey {
+		return this.CaseSensitivity().PathKey(path);
 	}
 
 	function handleDirectoryCouldBeSymlink(directory:RootedDirectoryPath):Void {
-		if (Tspath.ContainsIgnoredPath(directory)) {
+		if (Tspath.ContainsIgnoredDirectory(directory)) {
 			return;
 		}
 
 		// Because we already watch node_modules, handle symlinks in there
-		if (directory.indexOf("/node_modules/") < 0) {
+		if (!directory.ContainsLowercaseDirectorySequence("/node_modules/")) {
 			return;
 		}
 
-		final directoryPath:Path = Tspath.EnsureTrailingDirectorySeparator(this.toPath(directory));
+		final directoryPath = this.pathKey(directory.AsPath());
 		if (this.knownSymlinks.Directories().Load(directoryPath).ok) {
 			return;
 		}
 
-		final realDirectory:std.String = this.Realpath(directory.AsPath());
-		var realPath:Path;
+		final realDirectory = Tspath.RootedDirectoryPathFromPath(this.Realpath(directory.AsPath()));
 		if (realDirectory == directory) {
 			// not symlinked
 			return;
 		}
-		realPath = Tspath.EnsureTrailingDirectorySeparator(this.toPath(realDirectory));
+		final realPath = this.pathKey(realDirectory.AsPath());
 		if (realPath == directoryPath) {
 			// not symlinked
 			return;
 		}
-		this.knownSymlinks.SetDirectory(directory, directoryPath, new KnownDirectoryLink(Tspath.EnsureTrailingDirectorySeparator(realDirectory), realPath));
+		this.knownSymlinks.SetDirectory(directory, directoryPath, new KnownDirectoryLink(realDirectory, realPath));
 	}
 
-	function fileOrDirectoryExistsUsingSource(fileOrDirectory:std.String, isFile:Bool):Bool {
-		final fileOrDirectoryExistsUsingSource = Core.IfElse(isFile, this.fileExistsIfProjectReferenceDts, this.directoryExistsIfProjectReferenceDeclDir);
+	function fileExistsUsingSource(file:RootedFilePath):Bool {
+		final fileOrDirectory = file.AsPath();
+		final filePath = this.pathKey(file.AsPath());
+		return this.fileOrDirectoryExistsUsingSource(fileOrDirectory, function(path:RootedPath):Tristate {
+			return this.fileExistsIfProjectReferenceDts(Tspath.RootedFilePathFromPath(path));
+		}, Module.NodeModulePackageRootForFile(file), function(realFile:RootedFilePath):Void {
+			this.knownSymlinks.SetFile(file, filePath, realFile);
+		});
+	}
+
+	function directoryExistsUsingSource(directory:RootedDirectoryPath):Bool {
+		return this.fileOrDirectoryExistsUsingSource(directory.AsPath(), function(path:RootedPath):Tristate {
+			return this.directoryExistsIfProjectReferenceDeclDir(Tspath.RootedDirectoryPathFromPath(path));
+		}, Module.NodeModulePackageRootForDirectory(directory), null);
+	}
+
+	function fileOrDirectoryExistsUsingSource(fileOrDirectory:RootedPath, existsUsingSource:(path:RootedPath) -> Tristate,
+			packageRoot:RootedDirectoryPath, onFileExists:Null<(realFile:RootedFilePath) -> Void>):Bool {
 		// Check current directory or file
-		final result = fileOrDirectoryExistsUsingSource(fileOrDirectory);
+		final result = existsUsingSource(fileOrDirectory);
 		if (result != TSUnknown) {
 			return result == TSTrue;
 		}
 
-		final fileOrDirectoryPath = this.toPath(fileOrDirectory);
-		if ((fileOrDirectoryPath : std.String).indexOf("/node_modules/") < 0) {
+		final fileOrDirectoryPath = this.pathKey(fileOrDirectory);
+		if (!fileOrDirectoryPath.ContainsLowercaseDirectorySequence("/node_modules/")) {
 			return false;
 		}
 		// Check if the directory or file is a symlinked package
-		final packageRoot = Module.NodeModulePackageRootForDirectory(/* PORT: transitional, unchecked (main: typed fileOrDirectory) */ cast fileOrDirectory);
 		if (packageRoot != "") {
 			this.handleDirectoryCouldBeSymlink(packageRoot);
 		}
@@ -160,7 +174,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 		if (knownDirectoryLinks.Size() == 0) {
 			return false;
 		}
-		if (isFile) {
+		if (onFileExists != null) {
 			if (this.knownSymlinks.Files().Load(fileOrDirectoryPath).ok) {
 				return true;
 			}
@@ -168,19 +182,18 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 
 		// If it contains node_modules check if its one of the symlinked path we know of
 		var exists = false;
-		knownDirectoryLinks.Range(function(directoryPath:Path, knownDirectoryLink:KnownDirectoryLink):Bool {
-			final hasPrefix = StringTools.startsWith(fileOrDirectoryPath, directoryPath);
-			if (!hasPrefix) {
+		knownDirectoryLinks.Range(function(directoryPath:PathKey, knownDirectoryLink:KnownDirectoryLink):Bool {
+			if (directoryPath == fileOrDirectoryPath || !directoryPath.ContainsPath(fileOrDirectoryPath)) {
 				return true;
 			}
-			final relative = (fileOrDirectoryPath : std.String).substring((directoryPath : std.String).length);
-			exists = fileOrDirectoryExistsUsingSource((knownDirectoryLink.RealPath : std.String) + relative).IsTrue();
+			final realFileOrDirectory = knownDirectoryLink.ResolveFilePath(Tspath.RootedFilePathFromPath(fileOrDirectory), this.CaseSensitivity());
+			if (realFileOrDirectory == null) {
+				throw "canonical symlink path did not match its presentation path";
+			}
+			exists = existsUsingSource(realFileOrDirectory.AsPath()).IsTrue();
 			if (exists) {
-				if (isFile) {
-					// Store the real path for the file
-					final absolutePath = Tspath.GetNormalizedAbsolutePath(fileOrDirectory, this.projectReferenceFileMapper.opts.Host.GetCurrentDirectory());
-					this.knownSymlinks.SetFile(absolutePath, fileOrDirectoryPath,
-						knownDirectoryLink.Real + absolutePath.substring((directoryPath : std.String).length));
+				if (onFileExists != null) {
+					onFileExists(realFileOrDirectory);
 				}
 				return false;
 			}
@@ -189,24 +202,19 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 		return exists;
 	}
 
-	function fileExistsIfProjectReferenceDts(file:std.String):Tristate {
-		final source = this.projectReferenceFileMapper.getProjectReferenceFromOutputDts(this.toPath(file));
+	function fileExistsIfProjectReferenceDts(file:RootedFilePath):Tristate {
+		final source = this.projectReferenceFileMapper.getProjectReferenceFromOutputDts(this.pathKey(file.AsPath()));
 		if (source != null) {
-			return Core.IfElse(this.projectReferenceFileMapper.opts.Host.FS().FileExists(/* PORT: transitional, unchecked (main: typed Source) */ cast source.Source), TSTrue, TSFalse);
+			return Core.IfElse(this.projectReferenceFileMapper.opts.Host.FS().FileExists(source.Source), TSTrue, TSFalse);
 		}
 		return TSUnknown;
 	}
 
-	function directoryExistsIfProjectReferenceDeclDir(dir:std.String):Tristate {
-		final dirPath = this.toPath(dir);
-		final dirPathWithTrailingDirectorySeparator = (dirPath : std.String) + "/";
+	function directoryExistsIfProjectReferenceDeclDir(dir:RootedDirectoryPath):Tristate {
+		final dirPath = this.pathKey(dir.AsPath());
 		// PORT: Go map iteration order is random; the result does not depend on it.
 		for (declDirPath in this.dtsDirectories.Keys().keys()) {
-			if (dirPath == declDirPath
-				|| // Any parent directory of declaration dir
-				StringTools.startsWith(declDirPath, dirPathWithTrailingDirectorySeparator)
-				|| // Any directory inside declaration dir
-				StringTools.startsWith(dirPath, (declDirPath : std.String) + "/")) {
+			if (dirPath.ContainsPath(declDirPath) || declDirPath.ContainsPath(dirPath)) {
 				return TSTrue;
 			}
 		}

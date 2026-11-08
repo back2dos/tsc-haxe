@@ -1206,7 +1206,7 @@ class NodeBuilderImpl {
 	function rewriteContentMappedModuleSpecifier(specifier:std.String):std.String {
 		if (((this.ctx.internalFlags : Int) & (InternalFlagsRewriteModuleSpecifiers : Int)) != 0 && this.ch.compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
 			final rewrites = this.ctx.host.ContentMapperExtensionRewrites();
-			final ignoreCase = !this.ctx.host.UseCaseSensitiveFileNames();
+			final ignoreCase = this.ctx.host.CaseSensitivity().IsCaseInsensitive();
 			if (ts.tspath.Tspath.ExtensionRewrites.ShouldRewriteExtension(specifier, rewrites, ignoreCase)) {
 				return ts.tspath.Tspath.ExtensionRewrites.RewriteSpecifierExtension(specifier, rewrites, ignoreCase).value;
 			}
@@ -3755,43 +3755,35 @@ class NodeBuilderSpecifierHostAdapter implements ModuleSpecifierGenerationHost {
 		return h.ContentMapperExtensionRewrites();
 	}
 
-	public function GetCurrentDirectory():RootedDirectoryPath {
-		return h.GetCurrentDirectory();
-	}
-
-	public function UseCaseSensitiveFileNames():Bool {
-		return h.UseCaseSensitiveFileNames();
-	}
-
 	public function GetSymlinkCache():KnownSymlinks {
 		return h.GetSymlinkCache();
 	}
 
-	public function GetGlobalTypingsCacheLocation():std.String {
+	public function GetGlobalTypingsCacheLocation():RootedDirectoryPath {
 		return h.GetGlobalTypingsCacheLocation();
 	}
 
-	public function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference {
+	public function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference {
 		return h.GetProjectReferenceFromSource(path);
 	}
 
-	public function GetRedirectTargets(path:Path):Array<std.String> {
+	public function GetRedirectTargets(path:PathKey):Array<RootedFilePath> {
 		return h.GetRedirectTargets(path);
 	}
 
-	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):std.String {
+	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath {
 		return h.GetSourceOfProjectReferenceIfOutputIncluded(file);
 	}
 
-	public function FileExists(path:std.String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		return h.FileExists(path);
 	}
 
-	public function GetNearestAncestorDirectoryWithPackageJson(dirname:std.String):std.String {
+	public function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath {
 		return h.GetNearestAncestorDirectoryWithPackageJson(dirname);
 	}
 
-	public function GetPackageJsonInfo(pkgJsonPath:std.String):InfoCacheEntry {
+	public function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry {
 		return h.GetPackageJsonInfo(pkgJsonPath);
 	}
 

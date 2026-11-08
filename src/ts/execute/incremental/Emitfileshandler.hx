@@ -24,7 +24,7 @@ class EmitFilesHandler {
 	var isForDtsErrors:Bool = false;
 	var signatures:SyncMap<Path, std.String> = new SyncMap<Path, std.String>("");
 	var emitSignatures:SyncMap<Path, EmitSignature> = new SyncMap<Path, EmitSignature>();
-	var latestChangedDtsFiles:SyncMap<Path, std.String> = new SyncMap<Path, std.String>("");
+	var latestChangedDtsFiles:SyncMap<PathKey, RootedFilePath> = new SyncMap<PathKey, RootedFilePath>(cast "");
 	var deletedPendingKinds:Set<Path> = new Set<Path>();
 	var emitUpdates:SyncMap<Path, EmitUpdate> = new SyncMap<Path, EmitUpdate>();
 	var hasEmitDiagnostics:Bool = false; // PORT: atomic.Bool → Bool
@@ -236,7 +236,7 @@ class EmitFilesHandler {
 
 	// Compare to existing computed signature and store it or handle the changes in d.ts map option from before
 	// returning undefined means that, we dont need to emit this d.ts file since its contents didnt change
-	function skipDtsOutputOfComposite(file:SourceFile, outputFileName:std.String, text:std.String, data:WriteFileData, newSignature:std.String,
+	function skipDtsOutputOfComposite(file:SourceFile, outputFileName:RootedFilePath, text:std.String, data:WriteFileData, newSignature:std.String,
 			differsOnlyInMap:BoolRef):Bool {
 		if (!this.program.snapshot.options.Composite.IsTrue()) {
 			return false;

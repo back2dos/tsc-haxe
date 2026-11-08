@@ -19,7 +19,7 @@ class ModuleTest {
 				"/repo/node_modules/pkg/main.d.ts" => "export const x: number;",
 				"/repo/node_modules/pkg/main.js" => "exports.x = 1;",
 				"/repo/src/file.ts" => ""
-			], true);
+			], CaseSensitive);
 			final host = new ResolutionHostStub(fs, "/repo");
 			final opts = bundlerOptions();
 			final resolver = Module.NewResolver(host, opts, cast "", "");
@@ -49,7 +49,7 @@ class ModuleTest {
 				"/repo/src/a/file.ts" => "",
 				"/repo/src/b/file.ts" => ""
 			];
-			final base = Vfstest.FromMap(files, true);
+			final base = Vfstest.FromMap(files, CaseSensitive);
 			var arrived = 0;
 			var other:Null<() -> Void> = null;
 			final replacements = new Replacements();
@@ -101,7 +101,7 @@ class ModuleTest {
 				"/repo/src/a/file.ts" => "",
 				"/repo/src/b/file.ts" => ""
 			];
-			final fs = new FlipFileExistsFS(Vfstest.FromMap(files, true), rootPkgJSON);
+			final fs = new FlipFileExistsFS(Vfstest.FromMap(files, CaseSensitive), rootPkgJSON);
 			final host = new ResolutionHostStub(fs.fs, "/repo");
 			final resolver = Module.NewResolver(host, bundlerOptions(), cast "", "");
 
@@ -166,7 +166,7 @@ class ModuleTest {
 				"/repo/src/a/file.ts" => "",
 				"/repo/src/b/file.ts" => ""
 			];
-			final fs = new FlipFileExistsFS(Vfstest.FromMap(files, true), peerPkgJSON);
+			final fs = new FlipFileExistsFS(Vfstest.FromMap(files, CaseSensitive), peerPkgJSON);
 			final host = new ResolutionHostStub(fs.fs, "/repo");
 			final resolver = Module.NewResolver(host, bundlerOptions(), cast "", "");
 

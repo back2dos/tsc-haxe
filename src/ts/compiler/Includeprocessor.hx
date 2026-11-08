@@ -109,7 +109,7 @@ class IncludeProcessor {
 		return relatedInfo;
 	}
 
-	function explainRedirectAndImpliedFormat(program:Program, filePath:Path, toFileName:(fileName:std.String) -> std.String):Array<Diagnostic> {
+	function explainRedirectAndImpliedFormat(program:Program, filePath:Path, toFileName:(fileName:RootedFilePath) -> std.String):Array<Diagnostic> {
 		if (this.redirectAndFileFormat.exists(filePath)) {
 			return this.redirectAndFileFormat.get(filePath);
 		}
@@ -148,20 +148,20 @@ class IncludeProcessor {
 					if (result == null)
 						result = [];
 					result.push(Ast.NewCompilerDiagnostic(Diagnostics.File_is_ECMAScript_module_because_0_has_field_type_with_value_module,
-						toFileName(metaData.PackageJsonDirectory + "/package.json")));
+						toFileName(metaData.PackageJsonDirectory.ResolveFile("package.json"))));
 				}
 			} else if (format == ModuleKindCommonJS) {
 				if (metaData.PackageJsonType != "") {
 					if (result == null)
 						result = [];
 					result.push(Ast.NewCompilerDiagnostic(Diagnostics.File_is_CommonJS_module_because_0_has_field_type_whose_value_is_not_module,
-						toFileName(metaData.PackageJsonDirectory + "/package.json")));
+						toFileName(metaData.PackageJsonDirectory.ResolveFile("package.json"))));
 				} else if (metaData.PackageJsonDirectory != "") {
 					if (metaData.PackageJsonType == "") {
 						if (result == null)
 							result = [];
 						result.push(Ast.NewCompilerDiagnostic(Diagnostics.File_is_CommonJS_module_because_0_does_not_have_field_type,
-							toFileName(metaData.PackageJsonDirectory + "/package.json")));
+							toFileName(metaData.PackageJsonDirectory.ResolveFile("package.json"))));
 					}
 				} else {
 					if (result == null)

@@ -40,7 +40,7 @@ class VfstestTest {
 				"foo/bar/baz" => new MapFile(contents, null, null, 1234),
 				"foo/bar2/baz2" => new MapFile(contents, null, null, 1234),
 				"foo/bar3/baz3" => new MapFile(contents, null, null, 1234),
-			]), false /*useCaseSensitiveFileNames*/, null);
+			]), CaseInsensitive, null);
 
 			final sensitive = Fs.ReadFile(vfs, "foo/bar/baz");
 			nilError(sensitive.err);
@@ -84,7 +84,7 @@ class VfstestTest {
 				"Foo/Bar/Baz" => new MapFile(contents, null, null, 1234),
 				"Foo/Bar2/Baz2" => new MapFile(contents, null, null, 1234),
 				"Foo/Bar3/Baz3" => new MapFile(contents, null, null, 1234),
-			]), false /*useCaseSensitiveFileNames*/, null);
+			]), CaseInsensitive, null);
 
 			final sensitive = Fs.ReadFile(vfs, "foo/bar/baz");
 			nilError(sensitive.err);
@@ -116,7 +116,7 @@ class VfstestTest {
 				"foo/bar/baz" => new MapFile(contents, null, null, 1234),
 				"foo/bar2/baz2" => new MapFile(contents, null, null, 1234),
 				"foo/bar3/baz3" => new MapFile(contents, null, null, 1234),
-			]), true /*useCaseSensitiveFileNames*/, null);
+			]), CaseSensitive, null);
 
 			final sensitive = Fs.ReadFile(vfs, "foo/bar/baz");
 			nilError(sensitive.err);
@@ -137,7 +137,7 @@ class VfstestTest {
 			]);
 
 			assertPanics(() -> {
-				Vfstest.convertMapFS(testfs, false /*useCaseSensitiveFileNames*/, null);
+				Vfstest.convertMapFS(testfs, CaseInsensitive, null);
 			}, 'duplicate path: "Foo" and "foo" have the same canonical path');
 		});
 
@@ -147,11 +147,11 @@ class VfstestTest {
 				"Foo" => new MapFile(b("baz")),
 			]);
 
-			Vfstest.convertMapFS(testfs, true /*useCaseSensitiveFileNames*/, null);
+			Vfstest.convertMapFS(testfs, CaseSensitive, null);
 		});
 
 		T.run("TestWritableFS", () -> {
-			final fs = Vfstest.FromMap((null : Map<String, Any>), false);
+			final fs = Vfstest.FromMap((null : Map<String, Any>), CaseInsensitive);
 
 			var err = fs.WriteFile(rf("/foo/bar/baz"), "hello, world");
 			nilError(err);
@@ -172,7 +172,7 @@ class VfstestTest {
 		});
 
 		T.run("TestWritableFSDelete", () -> {
-			final fs = Vfstest.FromMap((null : Map<String, Any>), false);
+			final fs = Vfstest.FromMap((null : Map<String, Any>), CaseInsensitive);
 
 			fs.WriteFile(rf("/foo/bar/file.ts"), "remove");
 			T.isTrue(fs.FileExists(rf("/foo/bar/file.ts")));
@@ -199,7 +199,7 @@ class VfstestTest {
 		});
 
 		T.run("TestStress", () -> {
-			final fs = Vfstest.FromMap((null : Map<String, Any>), false);
+			final fs = Vfstest.FromMap((null : Map<String, Any>), CaseInsensitive);
 
 			final ops:Array<() -> Void> = [
 				() -> {
@@ -259,7 +259,7 @@ class VfstestTest {
 			]);
 
 			assertPanics(() -> {
-				Vfstest.convertMapFS(testfs, false /*useCaseSensitiveFileNames*/, null);
+				Vfstest.convertMapFS(testfs, CaseInsensitive, null);
 			}, 'failed to create intermediate directories for "foo/oops": mkdir "foo": path exists but is not a directory');
 		});
 
@@ -269,7 +269,7 @@ class VfstestTest {
 				"/bytes" => b("hello, world"),
 				"/mapfile" => new MapFile(b("hello, world")),
 			];
-			final fs = Vfstest.FromMap(m, false);
+			final fs = Vfstest.FromMap(m, CaseInsensitive);
 
 			var content = fs.ReadFile(rf("/string"));
 			T.isTrue(content.ok);
@@ -290,7 +290,7 @@ class VfstestTest {
 				"d:/bytes" => b("hello, world"),
 				"e:/mapfile" => new MapFile(b("hello, world")),
 			];
-			final fs = Vfstest.FromMap(m, false);
+			final fs = Vfstest.FromMap(m, CaseInsensitive);
 
 			var content = fs.ReadFile(rf("c:/string"));
 			T.isTrue(content.ok);
@@ -311,35 +311,35 @@ class VfstestTest {
 					"/string" => "hello, world",
 					"c:/bytes" => b("hello, world"),
 				];
-				Vfstest.FromMap(m, false);
+				Vfstest.FromMap(m, CaseInsensitive);
 			}, "mixed posix and windows paths");
 		});
 
 		T.run("TestFromMap/NonRooted", () -> {
 			assertPanics(() -> {
 				final m:Map<String, Any> = ["string" => "hello, world"];
-				Vfstest.FromMap(m, false);
+				Vfstest.FromMap(m, CaseInsensitive);
 			}, 'non-rooted path "string"');
 		});
 
 		T.run("TestFromMap/NonNormalized", () -> {
 			assertPanics(() -> {
 				final m:Map<String, Any> = ["/string/" => "hello, world"];
-				Vfstest.FromMap(m, false);
+				Vfstest.FromMap(m, CaseInsensitive);
 			}, 'non-normalized path "/string/"');
 		});
 
 		T.run("TestFromMap/NonNormalized2", () -> {
 			assertPanics(() -> {
 				final m:Map<String, Any> = ["/string/../foo" => "hello, world"];
-				Vfstest.FromMap(m, false);
+				Vfstest.FromMap(m, CaseInsensitive);
 			}, 'non-normalized path "/string/../foo"');
 		});
 
 		T.run("TestFromMap/InvalidFile", () -> {
 			assertPanics(() -> {
 				final m:Map<String, Any> = ["/string" => 1234];
-				Vfstest.FromMap(m, false);
+				Vfstest.FromMap(m, CaseInsensitive);
 			}, "invalid file type int");
 		});
 
@@ -349,7 +349,7 @@ class VfstestTest {
 				"/dir1/file1.ts" => "export const foo = 42;",
 				"/dir1/file2.ts" => "export const foo = 42;",
 				"/dir2/file1.ts" => "export const foo = 42;",
-			], false /*useCaseSensitiveFileNames*/);
+			], CaseInsensitive);
 
 			T.run("TestVFSTestMapFS/ReadFile", () -> {
 				var content = fs.ReadFile(rf("/foo.ts"));
@@ -383,7 +383,7 @@ class VfstestTest {
 				"c:/dir1/file1.ts" => "export const foo = 42;",
 				"c:/dir1/file2.ts" => "export const foo = 42;",
 				"c:/dir2/file1.ts" => "export const foo = 42;",
-			], false);
+			], CaseInsensitive);
 
 			T.run("TestVFSTestMapFSWindows/ReadFile", () -> {
 				var content = fs.ReadFile(rf("c:/foo.ts"));
@@ -438,7 +438,7 @@ class VfstestTest {
 						}
 					}
 
-					final fs = Vfstest.FromMap(["/foo.ts" => buf.getBytes()], true);
+					final fs = Vfstest.FromMap(["/foo.ts" => buf.getBytes()], CaseSensitive);
 
 					final content = fs.ReadFile(rf("/foo.ts"));
 					T.isTrue(content.ok);
@@ -452,7 +452,7 @@ class VfstestTest {
 				buf.addByte(0xBB);
 				buf.addByte(0xBF);
 				buf.add(b(expected));
-				final fs = Vfstest.FromMap(["/foo.ts" => buf.getBytes()], true);
+				final fs = Vfstest.FromMap(["/foo.ts" => buf.getBytes()], CaseSensitive);
 
 				final content = fs.ReadFile(rf("/foo.ts"));
 				T.isTrue(content.ok);
@@ -471,7 +471,7 @@ class VfstestTest {
 				"/c" => Vfstest.Symlink("/d"),
 				"/d/existing.ts" => "this is existing.ts",
 			];
-			final fs = Vfstest.FromMap(m, false);
+			final fs = Vfstest.FromMap(m, CaseInsensitive);
 
 			T.run("TestSymlink/ReadFile", () -> {
 				var content = fs.ReadFile(rf("/symlink.ts"));
@@ -524,7 +524,7 @@ class VfstestTest {
 				"/c" => Vfstest.Symlink("/d"),
 				"/d/existing.ts" => "hello, world",
 			];
-			final fs = Vfstest.FromMap(m, false);
+			final fs = Vfstest.FromMap(m, CaseInsensitive);
 
 			var err = fs.WriteFile(rf("/some/dirlink/file.ts"), "hello, world");
 			nilError(err);
@@ -583,7 +583,7 @@ class VfstestTest {
 				"/c" => Vfstest.Symlink("/d"),
 				"/d/existing.ts" => "hello, world",
 			];
-			final fs = Vfstest.FromMap(m, false);
+			final fs = Vfstest.FromMap(m, CaseInsensitive);
 
 			final err = fs.WriteFile(rf("/a/foo/bar/new.ts"), "this is new.ts");
 			nilError(err);
@@ -605,7 +605,7 @@ class VfstestTest {
 				"/c" => Vfstest.Symlink("/d"),
 				"/d" => "hello, world",
 			];
-			final fs = Vfstest.FromMap(m, false);
+			final fs = Vfstest.FromMap(m, CaseInsensitive);
 
 			final err = fs.WriteFile(rf("/a/foo/bar/new.ts"), "this is new.ts");
 			error(err, 'mkdir "d": path exists but is not a directory');
@@ -622,7 +622,7 @@ class VfstestTest {
 				"/c" => Vfstest.Symlink("/d"),
 				"/d/existing.ts" => "hello, world",
 			];
-			final fs = Vfstest.FromMap(m, false);
+			final fs = Vfstest.FromMap(m, CaseInsensitive);
 
 			var err = fs.Remove(rp("/a"));
 			nilError(err);

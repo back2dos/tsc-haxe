@@ -17,7 +17,7 @@ class OrchestratorResult {
 	public var result:CommandLineResult = new CommandLineResult();
 	public var errors:Null<Array<Diagnostic>> = null;
 	public var statistics:Statistics = new Statistics();
-	public var filesToDelete:Null<Array<std.String>> = null;
+	public var filesToDelete:Null<Array<RootedFilePath>> = null;
 
 	public function new() {}
 
@@ -30,8 +30,8 @@ class OrchestratorResult {
 		}
 		if (this.filesToDelete != null) {
 			o.createBuilderStatusReporter(null)(Ast.NewCompilerDiagnostic(Diagnostics.A_non_dry_build_would_delete_the_following_files_Colon_0,
-				Core.Map(this.filesToDelete, function(f:std.String):std.String {
-					return "\r\n * " + f;
+				Core.Map(this.filesToDelete, function(f:RootedFilePath):std.String {
+					return "\r\n * " + f.AsString();
 				}).join("")));
 		}
 		if (!o.opts.Command.CompilerOptions.Diagnostics.IsTrue() && !o.opts.Command.CompilerOptions.ExtendedDiagnostics.IsTrue()) {
@@ -45,12 +45,13 @@ class OrchestratorResult {
 @:allow(ts.execute.build)
 class Orchestrator {
 	var opts:Options = null;
-	var comparePathsOptions:ComparePathsOptions = new ComparePathsOptions();
+	var currentDirectory:RootedDirectoryPath = cast "";
+	var caseSensitivity:CaseSensitivity = CaseInsensitive;
 	var host:Host = null;
 
 	// order generation result
-	var tasks:SyncMap<Path, BuildTask> = null;
-	var order:Null<Array<std.String>> = null;
+	var tasks:SyncMap<PathKey, BuildTask> = null;
+	var order:Null<Array<BuildTask>> = null;
 	var errors:Null<Array<Diagnostic>> = null;
 
 	var errorSummaryReporter:DiagnosticsReporter = null;
@@ -60,53 +61,52 @@ class Orchestrator {
 
 	public function new() {}
 
-	function relativeFileName(fileName:std.String):std.String {
-		return Tspath.ConvertToRelativePath_legacy(fileName, this.comparePathsOptions);
+	function relativeFileName(fileName:RootedFilePath):std.String {
+		return this.relativePath(fileName.AsPath());
 	}
 
-	function toPath(fileName:std.String):Path {
-		return Tspath.ToPath(fileName, this.comparePathsOptions.CurrentDirectory, this.comparePathsOptions.UseCaseSensitiveFileNames);
-	}
-
-	function resolveBuildInfoFileName(fileName:std.String, buildInfoDir:std.String):std.String {
-		if (Incremental.IsBuildInfoFileNameDefaultLibrary(fileName)) {
-			return Tspath.CombinePaths(this.host.DefaultLibraryPath(), fileName);
+	function relativePath(path:RootedPath):std.String {
+		final relative = this.caseSensitivity.RelativePathFromPath(this.currentDirectory, path);
+		if (relative != null) {
+			return relative.AsString();
 		}
-		return Tspath.GetNormalizedAbsolutePath(fileName, buildInfoDir);
+		return path.AsString();
 	}
 
-	public function Order():Null<Array<std.String>> {
-		return this.order;
+	public function Order():Null<Array<RootedFilePath>> {
+		return Core.Map(this.order, function(task:BuildTask):RootedFilePath {
+			return task.config;
+		});
 	}
 
 	public function Upstream(configName:std.String):Null<Array<std.String>> {
-		final path = this.toPath(configName);
+		final path = this.caseSensitivity.PathKey(Tspath.ToRootedPath(configName, this.currentDirectory));
 		final task = this.getTask(path);
 		return Core.Map(task.upStream, function(t:UpstreamTask):std.String {
-			return t.task.config;
+			return t.task.config.AsString();
 		});
 	}
 
 	public function Downstream(configName:std.String):Null<Array<std.String>> {
-		final path = this.toPath(configName);
+		final path = this.caseSensitivity.PathKey(Tspath.ToRootedPath(configName, this.currentDirectory));
 		final task = this.getTask(path);
 		return Core.Map(task.downStream, function(t:BuildTask):std.String {
-			return t.config;
+			return t.config.AsString();
 		});
 	}
 
-	function getTask(path:Path):BuildTask {
+	function getTask(path:PathKey):BuildTask {
 		final r = this.tasks.Load(path);
 		if (!r.ok) {
-			throw "No build task found for " + path;
+			throw "No build task found for " + path.AsString();
 		}
 		return r.value;
 	}
 
-	function createBuildTasks(oldTasks:Null<SyncMap<Path, BuildTask>>, configs:Null<Array<RootedFilePath>>, wg:WorkGroup):Void {
+	function createBuildTasks(oldTasks:Null<SyncMap<PathKey, BuildTask>>, configs:Null<Array<RootedFilePath>>, wg:WorkGroup):Void {
 		for (config in configs) {
 			wg.Queue(function() {
-				final path = this.toPath(config);
+				final path = this.caseSensitivity.PathKey(config.AsPath());
 				var task:Null<BuildTask> = null;
 				var buildInfo:Null<BuildInfoEntry> = null;
 				if (oldTasks != null) {
@@ -123,6 +123,7 @@ class Orchestrator {
 				if (task == null) {
 					task = new BuildTask();
 					task.config = config;
+					task.path = path;
 					task.isInitialCycle = oldTasks == null;
 					task.pending = true;
 					task.buildInfoEntry = buildInfo;
@@ -141,9 +142,9 @@ class Orchestrator {
 
 	// PORT: Go passes the slice `circularityStack` by value and appends to it; here one shared array is
 	// pushed and popped around the recursion, which gives the same contents at every use.
-	function setupBuildTask(configName:std.String, downStream:Null<BuildTask>, inCircularContext:Bool, completed:Set<Path>, analyzing:Set<Path>,
-			circularityStack:Array<std.String>):Null<BuildTask> {
-		final path = this.toPath(configName);
+	function setupBuildTask(configName:RootedFilePath, downStream:Null<BuildTask>, inCircularContext:Bool, completed:Set<PathKey>,
+			analyzing:Set<PathKey>, circularityStack:Array<std.String>):Null<BuildTask> {
+		final path = this.caseSensitivity.PathKey(configName.AsPath());
 		final task = this.getTask(path);
 		if (!completed.Has(path)) {
 			if (analyzing.Has(path)) {
@@ -156,7 +157,7 @@ class Orchestrator {
 				return null;
 			}
 			analyzing.Add(path);
-			circularityStack.push(configName);
+			circularityStack.push(configName.AsString());
 			if (task.resolved != null) {
 				final paths = task.resolved.ResolvedProjectReferencePaths();
 				for (index in 0...Core.len(paths)) {
@@ -173,14 +174,14 @@ class Orchestrator {
 			circularityStack.pop();
 			completed.Add(path);
 			// PORT: task.reportDone = make(chan struct{}) dropped (single-threaded, see Buildtask.hx).
-			final prev = Core.LastOrNil(this.order, "");
-			if (prev != "") {
-				task.prevReporter = this.getTask(this.toPath(prev));
+			final prev = Core.LastOrNil(this.order, null);
+			if (prev != null) {
+				task.prevReporter = prev;
 			}
 			// PORT: task.done = make(chan struct{}) dropped.
 			if (this.order == null)
 				this.order = [];
-			this.order.push(configName);
+			this.order.push(task);
 		}
 		if (this.opts.Command.CompilerOptions.Watch.IsTrue() && downStream != null) {
 			if (task.downStream == null)
@@ -192,13 +193,13 @@ class Orchestrator {
 
 	public function GenerateGraphReusingOldTasks():Void {
 		final tasks = this.tasks;
-		this.tasks = new SyncMap<Path, BuildTask>();
+		this.tasks = new SyncMap<PathKey, BuildTask>();
 		this.order = null;
 		this.errors = null;
 		this.GenerateGraph(tasks);
 	}
 
-	public function GenerateGraph(oldTasks:Null<SyncMap<Path, BuildTask>>):Void {
+	public function GenerateGraph(oldTasks:Null<SyncMap<PathKey, BuildTask>>):Void {
 		final projects = this.opts.Command.ResolvedProjectPaths();
 		// Parse all config files in parallel
 		final wg = Core.NewWorkGroup(this.opts.Command.CompilerOptions.SingleThreaded.IsTrue());
@@ -206,8 +207,8 @@ class Orchestrator {
 		wg.RunAndWait();
 
 		// Generate the graph
-		final completed = new Set<Path>();
-		final analyzing = new Set<Path>();
+		final completed = new Set<PathKey>();
+		final analyzing = new Set<PathKey>();
 		final circularityStack:Array<std.String> = [];
 		for (project in projects) {
 			this.setupBuildTask(project, null, false, completed, analyzing, circularityStack);
@@ -231,14 +232,14 @@ class Orchestrator {
 	function buildOrClean():CommandLineResult {
 		if (!this.opts.Command.BuildOptions.Clean.IsTrue() && this.opts.Command.BuildOptions.Verbose.IsTrue()) {
 			this.createBuilderStatusReporter(null)(Ast.NewCompilerDiagnostic(Diagnostics.Projects_in_this_build_Colon_0,
-				Core.Map(this.Order(), function(p:std.String):std.String {
-					return "\r\n    * " + this.relativeFileName(p);
+				Core.Map(this.order, function(task:BuildTask):std.String {
+					return "\r\n    * " + this.relativeFileName(task.config);
 				}).join("")));
 		}
 		final buildResult = new OrchestratorResult();
 		if (Core.len(this.errors) == 0) {
 			buildResult.statistics.Projects = Core.len(this.Order());
-			this.rangeTask(function(path:Path, task:BuildTask) {
+			this.rangeTask(function(path:PathKey, task:BuildTask) {
 				this.buildOrCleanProject(task, path, buildResult);
 			});
 		} else {
@@ -254,7 +255,7 @@ class Orchestrator {
 		return buildResult.result;
 	}
 
-	function rangeTask(f:(path:Path, task:BuildTask) -> Void):Void {
+	function rangeTask(f:(path:PathKey, task:BuildTask) -> Void):Void {
 		var numRoutines = 4;
 		final builders = this.opts.Command.BuildOptions.Builders;
 		if (this.opts.Command.CompilerOptions.SingleThreaded.IsTrue()) {
@@ -271,10 +272,8 @@ class Orchestrator {
 				if (index >= Core.len(this.order)) {
 					break;
 				}
-				final config = this.order[index];
-				final path = this.toPath(config);
-				final task = this.getTask(path);
-				f(path, task);
+				final task = this.order[index];
+				f(task.path, task);
 			}
 		};
 
@@ -289,7 +288,7 @@ class Orchestrator {
 		}
 	}
 
-	function buildOrCleanProject(task:BuildTask, path:Path, buildResult:OrchestratorResult):Void {
+	function buildOrCleanProject(task:BuildTask, path:PathKey, buildResult:OrchestratorResult):Void {
 		task.result = new TaskResult();
 		task.result.reportStatus = this.createBuilderStatusReporter(task);
 		task.result.diagnosticReporter = this.createDiagnosticReporter(task);

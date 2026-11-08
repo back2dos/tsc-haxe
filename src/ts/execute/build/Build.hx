@@ -9,13 +9,14 @@ class Build {
 		// PORT: skipped, watch mode (wm := watchmanager.NewWatchManager(...)).
 		final orchestrator = new Orchestrator();
 		orchestrator.opts = opts;
-		orchestrator.comparePathsOptions = new ComparePathsOptions(opts.Sys.FS().CaseSensitivity().IsCaseSensitive(), opts.Sys.GetCurrentDirectory());
-		orchestrator.tasks = new SyncMap<Path, BuildTask>();
+		orchestrator.currentDirectory = opts.Sys.GetCurrentDirectory();
+		orchestrator.caseSensitivity = opts.Sys.FS().CaseSensitivity();
+		orchestrator.tasks = new SyncMap<PathKey, BuildTask>();
 		final host = new Host();
 		host.orchestrator = orchestrator;
 		host.host = Compiler.NewCachedFSCompilerHost(orchestrator.opts.Sys.GetCurrentDirectory(), orchestrator.opts.Sys.FS(),
 			orchestrator.opts.Sys.DefaultLibraryPath(), null, null);
-		host.mTimes = new SyncMap<Path, Time>(Time.Zero());
+		host.mTimes = new SyncMap<PathKey, Time>(Time.Zero());
 		orchestrator.host = host;
 		if (opts.Command.CompilerOptions.Watch.IsTrue()) {
 			orchestrator.watchStatusReporter = Tsc.CreateWatchStatusReporter(opts.Sys, opts.Command.Locale(), opts.Command.CompilerOptions, opts.Testing);

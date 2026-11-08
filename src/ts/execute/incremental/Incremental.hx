@@ -38,8 +38,8 @@ class Incremental {
 		return new Host_(compilerHost);
 	}
 
-	public static function GetMTime(host:CompilerHost, fileName:std.String):Time {
-		final stat = host.FS().Stat(/* PORT: transitional (main: typed fileName) */ Tspath.RootedPathFromAbsolute(fileName));
+	public static function GetMTime(host:CompilerHost, fileName:RootedFilePath):Time {
+		final stat = host.FS().Stat(fileName.AsPath());
 		var mTime = Time.Zero();
 		if (stat != null) {
 			mTime = stat.ModTime();
@@ -78,11 +78,21 @@ class Incremental {
 		return !Tspath.PathIsRelative(fileName) && !Tspath.PathIsAbsolute(fileName);
 	}
 
-	// PORT: iter.Seq[string] → Iterator
-	static function getNormalizedPaths(paths:Array<std.String>, buildInfoDirectory:std.String):Iterator<std.String> {
-		final result:Array<std.String> = [];
-		for (path in paths) {
-			result.push(Tspath.GetNormalizedAbsolutePath(path, buildInfoDirectory));
+	public static function ResolveBuildInfoFileName(fileName:std.String, buildInfoDirectory:RootedDirectoryPath,
+			defaultLibraryPath:RootedDirectoryPath):RootedFilePath {
+		if (IsBuildInfoFileNameDefaultLibrary(fileName)) {
+			return defaultLibraryPath.ResolveFile(fileName);
+		}
+		return Tspath.ToRootedFilePath(fileName, buildInfoDirectory);
+	}
+
+	// PORT: iter.Seq[tspath.RootedFilePath] → Iterator
+	static function getBuildInfoFileNames(paths:Array<std.String>, buildInfoDirectory:RootedDirectoryPath):Iterator<RootedFilePath> {
+		final result:Array<RootedFilePath> = [];
+		if (paths != null) {
+			for (path in paths) {
+				result.push(buildInfoDirectory.ResolveFile(path));
+			}
 		}
 		return result.iterator();
 	}
@@ -218,8 +228,13 @@ class Incremental {
 		}
 		builder.WriteString("\n");
 		if (diagnostic.File() != file) {
-			builder.WriteString(Tspath.EnsurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(Tspath.GetDirectoryPath(file.Path()),
-				diagnostic.File().Path(), new ComparePathsOptions())));
+			final diagnosticFileName = diagnostic.File().FileName();
+			final relativePath = CaseInsensitive.RelativePathFromFile(file.FileName(), diagnosticFileName);
+			if (relativePath != null) {
+				builder.WriteString(relativePath.AsModuleSpecifier().AsString());
+			} else {
+				builder.WriteString(diagnosticFileName.AsString());
+			}
 		}
 		if (diagnostic.File() != null) {
 			builder.WriteString(Fmt.Sprintf("(%d,%d): ", [diagnostic.Pos(), diagnostic.Len()]));
@@ -261,11 +276,18 @@ class Incremental {
 		return incrementalProgram;
 	}
 
-	static function normalizePackageJsons(packageJsons:Array<std.String>):Array<std.String> {
+	// PORT: Go slices.Sort on []tspath.RootedFilePath (string order).
+	static function sortRootedFilePaths(paths:Null<Array<RootedFilePath>>):Void {
+		if (paths != null) {
+			Slices.SortFunc(paths, (a, b) -> a.Compare(b));
+		}
+	}
+
+	static function normalizePackageJsons(packageJsons:Array<RootedFilePath>):Array<RootedFilePath> {
 		if (packageJsons == null) {
 			return [];
 		}
-		Slices.SortStrings(packageJsons);
+		sortRootedFilePaths(packageJsons);
 		return Core.Deduplicate(packageJsons);
 	}
 
@@ -337,13 +359,12 @@ class Incremental {
 	}
 
 	// Gets the path to reference file from file name, it could be resolvedPath if present otherwise path
-	static function addReferencedFileFromFileName(program:CompilerProgram, fileName:std.String, referencedFiles:Set<Path>,
-			sourceFileDirectory:std.String):Void {
+	static function addReferencedFileFromFileName(program:CompilerProgram, fileName:RootedFilePath, referencedFiles:Set<Path>):Void {
 		final redirect = program.GetParseFileRedirect(fileName);
 		if (redirect != "") {
-			referencedFiles.Add(Tspath.ToPath(redirect, program.GetCurrentDirectory(), program.UseCaseSensitiveFileNames()));
+			referencedFiles.Add(program.PathKeyForFileName(redirect));
 		} else {
-			referencedFiles.Add(Tspath.ToPath(fileName, sourceFileDirectory, program.UseCaseSensitiveFileNames()));
+			referencedFiles.Add(program.PathKeyForFileName(fileName));
 		}
 	}
 
@@ -370,10 +391,10 @@ class Incremental {
 			addReferencedFilesFromImportLiteral(file, referencedFiles, checker, importName);
 		}
 
-		final sourceFileDirectory = Tspath.GetDirectoryPath(file.FileName());
+		final sourceFileDirectory = file.FileName().Directory();
 		// Handle triple slash references
 		for (referencedFile in file.ReferencedFiles) {
-			addReferencedFileFromFileName(program, referencedFile.FileName, referencedFiles, sourceFileDirectory);
+			addReferencedFileFromFileName(program, Tspath.ToRootedFilePath(referencedFile.FileName, sourceFileDirectory), referencedFiles);
 		}
 
 		// Handle type reference directives
@@ -381,7 +402,7 @@ class Incremental {
 		if (typeRefsInFile != null) {
 			for (typeRef in typeRefsInFile) {
 				if (typeRef.ResolvedFileName != "") {
-					addReferencedFileFromFileName(program, typeRef.ResolvedFileName, referencedFiles, sourceFileDirectory);
+					addReferencedFileFromFileName(program, typeRef.ResolvedFileName, referencedFiles);
 				}
 			}
 		}
@@ -507,15 +528,15 @@ class Incremental {
 
 	// --- snapshottobuildinfo.go ---
 
-	static function snapshotToBuildInfo(snapshot:Snapshot, program:CompilerProgram, buildInfoFileName:std.String):BuildInfo {
+	static function snapshotToBuildInfo(snapshot:Snapshot, program:CompilerProgram, buildInfoFileName:RootedFilePath):BuildInfo {
 		final buildInfo = new BuildInfo();
 		buildInfo.Version = Core.Version();
 		final to = new ToBuildInfo();
 		to.snapshot = snapshot;
 		to.program = program;
 		to.buildInfo = buildInfo;
-		to.buildInfoDirectory = Tspath.GetDirectoryPath(buildInfoFileName);
-		to.comparePathsOptions = new ComparePathsOptions(program.UseCaseSensitiveFileNames(), program.GetCurrentDirectory());
+		to.buildInfoDirectory = buildInfoFileName.Directory();
+		to.caseSensitivity = program.CaseSensitivity();
 
 		if (snapshot.options.IsIncremental()) {
 			to.collectRootFiles();
@@ -528,7 +549,7 @@ class Incremental {
 			to.setEmitDiagnostics();
 			to.setAffectedFilesPendingEmit();
 			if (snapshot.latestChangedDtsFile != "") {
-				buildInfo.LatestChangedDtsFile = to.relativeToBuildInfo(snapshot.latestChangedDtsFile);
+				buildInfo.LatestChangedDtsFile = to.fileNameRelativeToBuildInfo(snapshot.latestChangedDtsFile);
 			}
 		} else {
 			to.setRootOfNonIncrementalProgram();
@@ -571,10 +592,7 @@ class Incremental {
 		to.buildInfo = buildInfo;
 		to.buildInfoDirectory = config.GetBuildInfoFileName().Directory();
 		to.filePaths = Core.Map(buildInfo.FileNames, function(fileName:std.String):Path {
-			if (IsBuildInfoFileNameDefaultLibrary(fileName)) {
-				return Tspath.ToPath(Tspath.CombinePaths(host.DefaultLibraryPath(), fileName), host.GetCurrentDirectory(), host.FS().CaseSensitivity().IsCaseSensitive());
-			}
-			return Tspath.ToPath(fileName, to.buildInfoDirectory, config.CaseSensitivity().IsCaseSensitive());
+			return config.CaseSensitivity().PathKey(ResolveBuildInfoFileName(fileName, to.buildInfoDirectory, host.DefaultLibraryPath()).AsPath());
 		});
 		to.filePathSet = Core.Map(buildInfo.FileIdsList, function(fileIdList:Array<BuildInfoFileId>):Set<Path> {
 			final fileSet = new Set<Path>();
@@ -591,7 +609,7 @@ class Incremental {
 		to.setEmitDiagnostics();
 		to.setAffectedFilesPendingEmit();
 		if (buildInfo.LatestChangedDtsFile != "") {
-			to.snapshot.latestChangedDtsFile = to.toAbsolutePath(buildInfo.LatestChangedDtsFile);
+			to.snapshot.latestChangedDtsFile = to.toAbsoluteFileName(buildInfo.LatestChangedDtsFile);
 		}
 		to.snapshot.hasErrors = Core.IfElse(buildInfo.Errors, TSTrue, TSFalse);
 		to.snapshot.hasSemanticErrors = buildInfo.SemanticErrors;
@@ -715,7 +733,7 @@ class BuildInfoReader_ implements BuildInfoReader {
 		}
 
 		// Read build info file
-		final r = this.host.FS().ReadFile(/* PORT: transitional (main: typed buildInfoFileName) */ Tspath.RootedFilePathFromAbsolute(buildInfoFileName));
+		final r = this.host.FS().ReadFile(buildInfoFileName);
 		if (!r.ok) {
 			return null;
 		}

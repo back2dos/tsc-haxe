@@ -17,7 +17,7 @@ class ExtendedconfigcacheTest {
 
 	// PORT: the setup each Go subtest repeats (as in TypeScript main: NewDefaultParseConfigHost, no test host).
 	static function parse(files:Map<String, Any>):ParsedCommandLine {
-		final fs = Vfstest.FromMap(files, false /*caseSensitivity: CaseInsensitive*/);
+		final fs = Vfstest.FromMap(files, CaseInsensitive);
 		final cache = new ExtendedConfigCache();
 		return Tsoptions.GetParsedCommandLineOfConfigFile(Tspath.RootedFilePathFromNormalized("/project/tsconfig.json"), null, null,
 			Tsoptions.NewDefaultParseConfigHost(fs), cache).a;

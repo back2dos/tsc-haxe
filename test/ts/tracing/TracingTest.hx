@@ -26,7 +26,7 @@ class TracingTest {
 	static function newFS():FS {
 		final m = new Map<String, MapFile>();
 		m.set("/trace", new MapFile(null, ModeDir));
-		return Vfstest.FromMap(m, true);
+		return Vfstest.FromMap(m, CaseSensitive);
 	}
 
 	static function TestConcurrentDurationEventsUseSeparateThreadIDs() {

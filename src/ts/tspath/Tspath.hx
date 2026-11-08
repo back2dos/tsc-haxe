@@ -1081,40 +1081,11 @@ class Tspath {
 
 	//// Relative Paths
 
-	// PORT: transitional — the ComparePathsOptions variants (*_legacy) of the relative path functions stay until
-	// all callers are ported.
-	public static function GetPathComponentsRelativeTo_legacy(from:String, to:String, options:ComparePathsOptions):Array<String> {
-		return resolvePathComponentsRelativeTo(from, to, options.CurrentDirectory, options.caseSensitivity());
-	}
-
-	public static function GetRelativePathFromDirectory_legacy(fromDirectory:String, to:String, options:ComparePathsOptions):String {
-		return ResolveRelativePathFromDirectory(fromDirectory, to, options.CurrentDirectory, options.caseSensitivity());
-	}
-
-	public static function GetRelativePathFromFile_legacy(from:String, to:String, options:ComparePathsOptions):String {
-		return EnsurePathIsNonModuleName(GetRelativePathFromDirectory_legacy(GetDirectoryPath(from), to, options));
-	}
-
-	public static function ConvertToRelativePath_legacy(absoluteOrRelativePath:String, options:ComparePathsOptions):String {
-		if (!IsRootedDiskPath(absoluteOrRelativePath)) {
-			return absoluteOrRelativePath;
-		}
-		return ResolveRelativePathToDirectoryOrUrl(options.CurrentDirectory, absoluteOrRelativePath, false /*isAbsolutePathAnUrl*/,
-			options.CurrentDirectory, options.caseSensitivity());
-	}
-
-	public static function GetRelativePathToDirectoryOrUrl_legacy(directoryPathOrUrl:String, relativeOrAbsolutePath:String, isAbsolutePathAnUrl:Bool,
-			options:ComparePathsOptions):String {
-		return ResolveRelativePathToDirectoryOrUrl(directoryPathOrUrl, relativeOrAbsolutePath, isAbsolutePathAnUrl, options.CurrentDirectory,
-			options.caseSensitivity());
-	}
-
 	public static function GetPathComponentsRelativeTo(from:String, to:String, caseSensitivity:CaseSensitivity):Array<String> {
 		return getPathComponentsRelativeTo(reducePathComponents(GetPathComponents(from)), reducePathComponents(GetPathComponents(to)), caseSensitivity);
 	}
 
-	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
-	static function resolvePathComponentsRelativeTo(from:String, to:String, currentDirectory:String, caseSensitivity:CaseSensitivity):Array<String> {
+	static function resolvePathComponentsRelativeTo(from:String, to:String, currentDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):Array<String> {
 		return getPathComponentsRelativeTo(reducePathComponents(resolvePathComponents(from, currentDirectory)),
 			reducePathComponents(resolvePathComponents(to, currentDirectory)), caseSensitivity);
 	}
@@ -1170,8 +1141,7 @@ class Tspath {
 		return GetPathFromPathComponents(pathComponents);
 	}
 
-	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
-	public static function ResolveRelativePathFromDirectory(fromDirectory:String, to:String, currentDirectory:String,
+	public static function ResolveRelativePathFromDirectory(fromDirectory:String, to:String, currentDirectory:RootedDirectoryPath,
 			caseSensitivity:CaseSensitivity):String {
 		if ((GetRootLength(fromDirectory) > 0) != (GetRootLength(to) > 0)) {
 			throw "paths must either both be absolute or both be relative";
@@ -1199,9 +1169,8 @@ class Tspath {
 		return getRelativePathToDirectoryOrUrl(pathComponents, isAbsolutePathAnUrl);
 	}
 
-	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
 	public static function ResolveRelativePathToDirectoryOrUrl(directoryPathOrUrl:String, relativeOrAbsolutePath:String, isAbsolutePathAnUrl:Bool,
-			currentDirectory:String, caseSensitivity:CaseSensitivity):String {
+			currentDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):String {
 		final pathComponents = resolvePathComponentsRelativeTo(directoryPathOrUrl, relativeOrAbsolutePath, currentDirectory, caseSensitivity);
 		return getRelativePathToDirectoryOrUrl(pathComponents, isAbsolutePathAnUrl);
 	}
@@ -1374,17 +1343,7 @@ class Tspath {
 		return PathIsRelative(moduleName) || IsRootedDiskPath(moduleName);
 	}
 
-	// PORT: transitional — the ComparePathsOptions variants stay until all callers are ported.
-	public static function ComparePaths_legacy(a:String, b:String, options:ComparePathsOptions):Int {
-		return ComparePathsRelativeTo(a, b, options.CurrentDirectory, options.caseSensitivity());
-	}
-
-	public static function ContainsPath_legacy(parent:String, child:String, options:ComparePathsOptions):Bool {
-		return ContainsPath(CombinePaths(options.CurrentDirectory, parent), CombinePaths(options.CurrentDirectory, child), options.caseSensitivity());
-	}
-
-	// PORT: transitional — currentDirectory is a String until all callers are typed (main: RootedDirectoryPath).
-	public static function ComparePathsRelativeTo(a:String, b:String, currentDirectory:String, caseSensitivity:CaseSensitivity):Int {
+	public static function ComparePathsRelativeTo(a:String, b:String, currentDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):Int {
 		a = CombinePaths(currentDirectory, a);
 		b = CombinePaths(currentDirectory, b);
 		return ComparePaths(a, b, caseSensitivity);
@@ -1527,12 +1486,6 @@ class Tspath {
 	//	/a/b/c/d, /a/b/c/e, /a/b/f/g, /x/y  (minComponents: 2)	=>  /a/b, /x/y
 	//	c:/a/b/c/d, d:/a/b/c/d =>	c:/a/b/c/d, d:/a/b/c/d
 	// PORT: Go returns (parents []string, ignored map[string]struct{}); the set is a StringMap<Bool>.
-	// PORT: transitional — kept until all callers use GetCommonParentDirectories.
-	public static function GetCommonParents_legacy(paths:Array<String>, minComponents:Int,
-			getPathComponents:(path:String, currentDirectory:String) -> Array<String>, options:ComparePathsOptions):Pair<Array<String>, StringMap<Bool>> {
-		return getCommonParents(paths, minComponents, p -> getPathComponents(p, options.CurrentDirectory), options.caseSensitivity());
-	}
-
 	static function getCommonParents(paths:Array<String>, minComponents:Int, getPathComponents:(path:String) -> Array<String>,
 			caseSensitivity:CaseSensitivity):Pair<Array<String>, StringMap<Bool>> {
 		if (minComponents < 1) {
@@ -1650,11 +1603,6 @@ class Tspath {
 	// PORT: Go's package-level constants tspath.CaseInsensitive / tspath.CaseSensitive.
 	public static inline final CaseInsensitive:CaseSensitivity = CaseSensitivity.CaseInsensitive;
 	public static inline final CaseSensitive:CaseSensitivity = CaseSensitivity.CaseSensitive;
-
-	// PORT: transitional — a bool useCaseSensitiveFileNames as a CaseSensitivity, until every host returns one.
-	public static inline function caseSensitivityOf(useCaseSensitiveFileNames:Bool):CaseSensitivity {
-		return useCaseSensitiveFileNames ? CaseSensitivity.CaseSensitive : CaseSensitivity.CaseInsensitive;
-	}
 
 	// PORT: perf helpers (no Go counterpart): a[from..from+n) == b[from..from+n), and with separate offsets.
 	static inline function regionEquals(a:String, b:String, from:Int, n:Int):Bool {

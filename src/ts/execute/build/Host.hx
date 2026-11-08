@@ -12,11 +12,11 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 	var extendedConfigCache:ExtendedConfigCache = new ExtendedConfigCache();
 	var sourceFiles:ParseCache<SourceFileParseOptions, SourceFile> = new ParseCache(sourceFileParseOptionsKey);
 	// PORT: collections.SyncMap value field → SyncMap with Go's zero Duration.
-	var configTimes:SyncMap<Path, Duration> = new SyncMap<Path, Duration>(0);
+	var configTimes:SyncMap<PathKey, Duration> = new SyncMap<PathKey, Duration>(0);
 
 	// caches that stay as long as they are needed
-	var resolvedReferences:ParseCache<Path, ParsedCommandLine> = new ParseCache(pathKey);
-	var mTimes:SyncMap<Path, Time> = null;
+	var resolvedReferences:ParseCache<PathKey, ParsedCommandLine> = new ParseCache(pathKey);
+	var mTimes:SyncMap<PathKey, Time> = null;
 
 	public function new() {}
 
@@ -26,7 +26,7 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 			+ (opts.ExternalModuleIndicatorOptions.Force ? "1" : "0");
 	}
 
-	static function pathKey(path:Path):std.String {
+	static function pathKey(path:PathKey):std.String {
 		return path;
 	}
 
@@ -34,7 +34,7 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 		return this.host.FS();
 	}
 
-	public function DefaultLibraryPath():std.String {
+	public function DefaultLibraryPath():RootedDirectoryPath {
 		return this.host.DefaultLibraryPath();
 	}
 
@@ -56,7 +56,7 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 	}
 
 	public function GetSourceFile(opts:SourceFileParseOptions):SourceFile {
-		if (Tspath.IsDeclarationFileName(opts.FileName) || Tspath.FileExtensionIs(opts.FileName, Tspath.ExtensionJson)) {
+		if (opts.FileName.IsDeclarationFile() || opts.FileName.ExtensionIs(Tspath.ExtensionJson)) {
 			// Cache dts and json files as they will be reused
 			return this.sourceFiles.loadOrStore(opts, this.host.GetSourceFile, false /* allowZero */);
 		}
@@ -64,7 +64,7 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 	}
 
 	public function GetResolvedProjectReference(fileName:RootedFilePath, path:PathKey):ParsedCommandLine {
-		return this.resolvedReferences.loadOrStore(path, function(path:Path):ParsedCommandLine {
+		return this.resolvedReferences.loadOrStore(path, function(path:PathKey):ParsedCommandLine {
 			final configStart = this.orchestrator.opts.Sys.Now();
 			// Wrap command line options in "compilerOptions" key to match tsconfig.json structure
 			var commandLineRaw:Null<OrderedMap<std.String, Dynamic>> = null;
@@ -83,22 +83,22 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 	}
 
 	public function ReadBuildInfo(config:ParsedCommandLine):BuildInfo {
-		final configPath = this.orchestrator.toPath(config.ConfigName());
+		final configPath = this.orchestrator.caseSensitivity.PathKey(config.ConfigName().AsPath());
 		final task = this.orchestrator.getTask(configPath);
-		final buildInfo = task.loadOrStoreBuildInfo(this.orchestrator, this.orchestrator.toPath(config.ConfigName()), config.GetBuildInfoFileName()).a;
+		final buildInfo = task.loadOrStoreBuildInfo(this.orchestrator, config.GetBuildInfoFileName()).a;
 		return buildInfo;
 	}
 
-	public function GetMTime(file:std.String):Time {
+	public function GetMTime(file:RootedFilePath):Time {
 		return this.loadOrStoreMTime(file, null, true);
 	}
 
-	public function SetMTime(file:std.String, mTime:Time):Null<Error> {
-		return this.FS().Chtimes(/* PORT: transitional (main: typed file) */ Tspath.RootedPathFromAbsolute(file), Time.Zero(), mTime);
+	public function SetMTime(file:RootedFilePath, mTime:Time):Null<Error> {
+		return this.FS().Chtimes(file.AsPath(), Time.Zero(), mTime);
 	}
 
-	function loadOrStoreMTime(file:std.String, oldCache:Null<SyncMap<Path, Time>>, store:Bool):Time {
-		final path = this.orchestrator.toPath(file);
+	function loadOrStoreMTime(file:RootedFilePath, oldCache:Null<SyncMap<PathKey, Time>>, store:Bool):Time {
+		final path = this.orchestrator.caseSensitivity.PathKey(file.AsPath());
 		final existing = this.mTimes.Load(path);
 		if (existing.ok) {
 			return existing.value;
@@ -119,13 +119,13 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 		return mTime;
 	}
 
-	function storeMTime(file:std.String, mTime:Time):Void {
-		final path = this.orchestrator.toPath(file);
+	function storeMTime(file:RootedFilePath, mTime:Time):Void {
+		final path = this.orchestrator.caseSensitivity.PathKey(file.AsPath());
 		this.mTimes.Store(path, mTime);
 	}
 
-	function storeMTimeFromOldCache(file:std.String, oldCache:SyncMap<Path, Time>):Void {
-		final path = this.orchestrator.toPath(file);
+	function storeMTimeFromOldCache(file:RootedFilePath, oldCache:SyncMap<PathKey, Time>):Void {
+		final path = this.orchestrator.caseSensitivity.PathKey(file.AsPath());
 		final r = oldCache.Load(path);
 		if (r.ok) {
 			this.mTimes.Store(path, r.value);

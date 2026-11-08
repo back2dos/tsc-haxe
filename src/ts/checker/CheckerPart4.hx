@@ -3293,7 +3293,7 @@ class CheckerPart4 {
 
 		var sourceFile:SourceFile = null;
 		if (resolvedModule.IsResolved() && (resolutionDiagnostic == null || resolutionDiagnostic == Diagnostics.Module_0_was_resolved_to_1_but_jsx_is_not_set)) {
-			sourceFile = c.program.GetSourceFileForResolvedModule(resolvedModule.ResolvedFileName);
+			sourceFile = c.program.GetSourceFileForResolvedModule(resolvedModule);
 		}
 
 		if (sourceFile != null) {
@@ -3304,7 +3304,7 @@ class CheckerPart4 {
 
 			if (errorNode != null) {
 				final rewrites = c.program.ContentMapperExtensionRewrites();
-				final ignoreCase = !c.program.UseCaseSensitiveFileNames();
+				final ignoreCase = c.program.CaseSensitivity().IsCaseInsensitive();
 				final specifier = moduleReference;
 				final mappedSpecifier = ts.tspath.Tspath.ExtensionRewrites.RewriteSpecifierExtension(specifier, rewrites, ignoreCase).ok;
 				final checkDeclarationRewrite = c.compilerOptions.GetEmitDeclarations() && mappedSpecifier && Tspath.PathIsRelative(moduleReference)
@@ -3476,8 +3476,7 @@ class CheckerPart4 {
 		if (moduleNotFoundError != null) {
 			// See if this was possibly a projectReference redirect
 			if (resolvedModule.IsResolved()) {
-				final redirect = c.program.GetProjectReferenceFromSource(Tspath.ToPath(resolvedModule.ResolvedFileName, c.program.GetCurrentDirectory(),
-					c.program.UseCaseSensitiveFileNames()));
+				final redirect = c.program.GetProjectReferenceFromSource(resolvedModule.ResolvedPath);
 				if (redirect != null && redirect.OutputDts != "") {
 					c.error(errorNode, Diagnostics.Output_file_0_has_not_been_built_from_source_file_1, redirect.OutputDts, resolvedModule.ResolvedFileName);
 					return null;
@@ -3495,7 +3494,7 @@ class CheckerPart4 {
 				} else if (mode == Core.ResolutionModeESM && resolutionIsNode16OrNext && isExtensionlessRelativePathImport) {
 					var suggestedExt = "";
 					if (!Tspath.HasTrailingDirectorySeparator(moduleReference)) {
-						final absoluteRef = Tspath.GetNormalizedAbsolutePath(moduleReference, Tspath.GetDirectoryPath(importingSourceFile.FileName()));
+						final absoluteRef = importingSourceFile.FileName().Directory().ResolveFile(moduleReference);
 						suggestedExt = c.getSuggestedImportExtension(absoluteRef);
 					}
 					if (suggestedExt != "") {
@@ -3602,24 +3601,24 @@ class CheckerPart4 {
 		return importSourceWithoutExtension;
 	}
 
-	static function getSuggestedImportExtension(c:Checker, extensionlessImportPath:std.String):std.String {
-		if (c.program.FileExists(extensionlessImportPath + ".mts")) {
+	static function getSuggestedImportExtension(c:Checker, extensionlessImportPath:RootedFilePath):std.String {
+		if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".mts"))) {
 			return ".mjs";
-		} else if (c.program.FileExists(extensionlessImportPath + ".ts")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".ts"))) {
 			return ".js";
-		} else if (c.program.FileExists(extensionlessImportPath + ".cts")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".cts"))) {
 			return ".cjs";
-		} else if (c.program.FileExists(extensionlessImportPath + ".mjs")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".mjs"))) {
 			return ".mjs";
-		} else if (c.program.FileExists(extensionlessImportPath + ".js")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".js"))) {
 			return ".js";
-		} else if (c.program.FileExists(extensionlessImportPath + ".cjs")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".cjs"))) {
 			return ".cjs";
-		} else if (c.program.FileExists(extensionlessImportPath + ".tsx")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".tsx"))) {
 			return Core.IfElse(c.compilerOptions.Jsx == JsxEmitPreserve, ".jsx", ".js");
-		} else if (c.program.FileExists(extensionlessImportPath + ".jsx")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".jsx"))) {
 			return ".jsx";
-		} else if (c.program.FileExists(extensionlessImportPath + ".json")) {
+		} else if (c.program.FileExists(extensionlessImportPath.AppendSuffix(".json"))) {
 			return ".json";
 		}
 		return "";

@@ -210,12 +210,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	inline function set_includeProcessor(v)
 		return processedFiles.includeProcessor = v;
 
-	var outputFileToProjectReferenceSource(get, never):StringMap<std.String>;
+	var outputFileToProjectReferenceSource(get, never):StringMap<RootedFilePath>;
 
 	inline function get_outputFileToProjectReferenceSource()
 		return processedFiles.outputFileToProjectReferenceSource;
 
-	var redirectTargetsMap(get, never):StringMap<Array<std.String>>;
+	var redirectTargetsMap(get, never):StringMap<Array<RootedFilePath>>;
 
 	inline function get_redirectTargetsMap()
 		return processedFiles.redirectTargetsMap;
@@ -233,8 +233,8 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// --- end forwarding properties ---
 
 	// FileExists implements checker.Program.
-	public function FileExists(path:std.String):Bool {
-		return this.Host().FS().FileExists(/* PORT: transitional (main: typed path) */ Tspath.RootedFilePathFromAbsolute(path));
+	public function FileExists(path:RootedFilePath):Bool {
+		return this.Host().FS().FileExists(path);
 	}
 
 	// BaseDirectory implements checker.Program.
@@ -247,33 +247,27 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	// GetGlobalTypingsCacheLocation implements checker.Program.
-	public function GetGlobalTypingsCacheLocation():std.String {
+	public function GetGlobalTypingsCacheLocation():RootedDirectoryPath {
 		return this.opts.TypingsLocation;
 	}
 
 	// GetNearestAncestorDirectoryWithPackageJson implements checker.Program.
-	public function GetNearestAncestorDirectoryWithPackageJson(dirname:std.String):std.String {
-		final scoped = this.resolver.GetPackageScopeForPath(/* PORT: transitional (main: typed dirname) */ this.toRootedDirectoryPath(dirname));
+	public function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath {
+		final scoped = this.resolver.GetPackageScopeForPath(dirname);
 		if (scoped != null && scoped.Exists()) {
 			return scoped.PackageDirectory.AsDirectoryPath();
 		}
-		return "";
+		return cast "";
 	}
 
 	// GetPackageJsonInfo implements checker.Program.
-	public function GetPackageJsonInfo(pkgJsonPath:std.String):InfoCacheEntry {
-		final directory = /* PORT: transitional (main: typed pkgJsonPath) */ this.toRootedDirectoryPath(Tspath.GetDirectoryPath(pkgJsonPath));
+	public function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry {
+		final directory = pkgJsonPath.Directory();
 		final scoped = this.resolver.GetPackageScopeForPath(directory);
 		if (scoped != null && scoped.Exists() && scoped.PackageDirectory.AsDirectoryPath() == directory) {
 			return scoped;
 		}
 		return null;
-	}
-
-	// PORT: transitional — the module specifier host's paths are strings, possibly relative to the current
-	// directory (the 7.0.2 resolver keyed its package.json cache with ToPath against the current directory).
-	function toRootedDirectoryPath(directory:std.String):RootedDirectoryPath {
-		return Tspath.ToRootedDirectoryPath(directory == "" ? "." : directory, this.GetCurrentDirectory());
 	}
 
 	// PackageJsonCacheEntries iterates on all package json cache entries.
@@ -283,7 +277,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	// GetRedirectTargets returns the list of file paths that redirect to the given path.
 	// These are files from the same package (same name@version) installed in different locations.
-	public function GetRedirectTargets(path:Path):Array<std.String> {
+	public function GetRedirectTargets(path:PathKey):Array<RootedFilePath> {
 		return this.redirectTargetsMap == null ? null : this.redirectTargetsMap.get(path);
 	}
 
@@ -291,7 +285,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// this returns original source file name when including output of project reference
 	// otherwise same name
 	// Equivalent to originalFileName on SourceFile in Strada
-	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):std.String {
+	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath {
 		if (this.outputFileToProjectReferenceSource != null && this.outputFileToProjectReferenceSource.exists(file.Path())) {
 			return this.outputFileToProjectReferenceSource.get(file.Path());
 		}
@@ -299,7 +293,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	// GetProjectReferenceFromSource implements checker.Program.
-	public function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference {
+	public function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference {
 		return this.projectReferenceFileMapper.getProjectReferenceFromSource(path);
 	}
 
@@ -322,8 +316,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return redirect;
 	}
 
-	public function GetParseFileRedirect(fileName:std.String):std.String {
-		return this.projectReferenceFileMapper.getParseFileRedirect(Ast.NewHasFileName(/* PORT: transitional, unchecked */ cast fileName, this.toPath(fileName)));
+	public function GetParseFileRedirect(fileName:RootedFilePath):RootedFilePath {
+		return this.getParseFileRedirectByFileName(fileName);
+	}
+
+	function getParseFileRedirectByFileName(fileName:RootedFilePath):RootedFilePath {
+		return this.projectReferenceFileMapper.getParseFileRedirect(Ast.NewHasFileName(fileName, this.caseSensitivity.PathKey(fileName.AsPath())));
 	}
 
 	public function GetResolvedProjectReferences():Array<ParsedCommandLine> {
@@ -358,16 +356,16 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		// rather than redoing the logic approximately here, since most of the related logic now lives in module.Resolver
 		// Still, without the failed lookup reporting that only the loader does, this isn't terribly complicated
 
-		final fileName = Tspath.ResolvePath(Tspath.GetDirectoryPath(origin.FileName()), ref.FileName);
+		final fileName = origin.FileName().Directory().ResolveFile(ref.FileName);
 		final supportedExtensionsBase = Tsoptions.GetSupportedExtensions(this.Options(), null /*extraFileExtensions*/);
 		final supportedExtensions = Tsoptions.GetSupportedExtensionsWithJsonIfResolveJsonModule(this.Options(), supportedExtensionsBase);
 		final allowNonTsExtensions = this.Options().AllowNonTsExtensions.IsTrue();
-		if (Tspath.HasExtension(fileName)) {
+		if (fileName.HasExtension()) {
 			if (!allowNonTsExtensions) {
-				final canonicalFileName = Tspath.GetCanonicalFileName(fileName, this.UseCaseSensitiveFileNames());
+				final canonicalFileName = this.caseSensitivity.PathKey(fileName.AsPath());
 				var supported = false;
 				for (group in supportedExtensions) {
-					if (Tspath.FileExtensionIsOneOf(canonicalFileName, group)) {
+					if (canonicalFileName.ExtensionIsOneOf(group)) {
 						supported = true;
 						break;
 					}
@@ -377,10 +375,10 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 				}
 			}
 
-			return this.GetSourceFileForResolvedModule(fileName);
+			return this.getSourceFileWithRedirect(fileName, this.PathKeyForFileName(fileName));
 		}
 		if (allowNonTsExtensions) {
-			final extensionless = this.GetSourceFileForResolvedModule(fileName);
+			final extensionless = this.getSourceFileWithRedirect(fileName, this.PathKeyForFileName(fileName));
 			if (extensionless != null) {
 				return extensionless;
 			}
@@ -388,7 +386,8 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 		// Only try adding extensions from the first supported group (which should be .ts/.tsx/.d.ts)
 		for (ext in supportedExtensions[0]) {
-			final result = this.GetSourceFileForResolvedModule(fileName + ext);
+			final fileNameWithExtension = fileName.AppendSuffix(ext);
+			final result = this.getSourceFileWithRedirect(fileNameWithExtension, this.PathKeyForFileName(fileNameWithExtension));
 			if (result != null) {
 				return result;
 			}
@@ -2024,44 +2023,18 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.caseSensitivity.PathKey(fileName.AsPath());
 	}
 
-	public function GetSourceFile(filename:std.String):SourceFile {
-		final path = this.toPath(filename);
-		return this.GetSourceFileByPath(path);
+	public function GetSourceFile(fileName:RootedFilePath):SourceFile {
+		return this.GetSourceFileByPath(this.PathKeyForFileName(fileName));
 	}
 
-	// PORT: perf — (from tsrs) the result by file name: the program's files are fixed once it is built, and
-	// toPath normalizes a resolved name (with `..` segments) on every call. Checkers call it on threads (a lock).
-	final sourceFileForResolvedModule:StringMap<SourceFile> = new StringMap();
-	#if tshx_parallel
-	final sourceFileForResolvedModuleMutex = new sys.thread.Mutex();
-	#end
-
-	public function GetSourceFileForResolvedModule(fileName:std.String):SourceFile {
-		#if tshx_parallel
-		sourceFileForResolvedModuleMutex.acquire();
-		#end
-		final cached = sourceFileForResolvedModule.get(fileName);
-		final known = cached != null || sourceFileForResolvedModule.exists(fileName);
-		#if tshx_parallel
-		sourceFileForResolvedModuleMutex.release();
-		#end
-		if (known)
-			return cached;
-		final file = getSourceFileForResolvedModuleWorker(fileName);
-		#if tshx_parallel
-		sourceFileForResolvedModuleMutex.acquire();
-		#end
-		sourceFileForResolvedModule.set(fileName, file);
-		#if tshx_parallel
-		sourceFileForResolvedModuleMutex.release();
-		#end
-		return file;
+	public function GetSourceFileForResolvedModule(resolved:ResolvedModule):SourceFile {
+		return this.getSourceFileWithRedirect(resolved.ResolvedFileName, resolved.ResolvedPath);
 	}
 
-	function getSourceFileForResolvedModuleWorker(fileName:std.String):SourceFile {
-		final file = this.GetSourceFile(fileName);
+	function getSourceFileWithRedirect(fileName:RootedFilePath, path:PathKey):SourceFile {
+		final file = this.GetSourceFileByPath(path);
 		if (file == null) {
-			final filename = this.GetParseFileRedirect(fileName);
+			final filename = this.getParseFileRedirectByFileName(fileName);
 			if (filename != "") {
 				return this.GetSourceFile(filename);
 			}
@@ -2103,8 +2076,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	public function ExplainFiles(w:go.Io.Writer, locale:Locale, currentDirectory:RootedDirectoryPath):Void {
-		final toRelativeFileName = function(fileName:std.String):std.String {
-			return Tspath.GetRelativePathFromDirectory(currentDirectory, fileName, this.caseSensitivity);
+		final toRelativeFileName = function(fileName:RootedFilePath):std.String {
+			final relativePath = this.caseSensitivity.RelativePathFromDirectory(currentDirectory, fileName);
+			if (relativePath != null) {
+				return relativePath.AsString();
+			}
+			return fileName.AsString();
 		};
 		var filesExplained = 0;
 		final explainFile = function(file:HasFileName) {
@@ -2251,7 +2228,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 							}
 							if (name == "") {
 								// 3. GetPackageNameFromDirectory - extract from node_modules path
-								name = Modulespecifiers.GetPackageNameFromDirectory(resolvedModule.ResolvedFileName);
+								name = Modulespecifiers.GetPackageNameFromDirectory(resolvedModule.ResolvedFileName.AsPath());
 							}
 							// 4. If all fail, don't add empty string
 							if (name != "") {
@@ -2302,7 +2279,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	public function GetSymlinkCache():KnownSymlinks {
 		return this.knownSymlinks.getValue(function():KnownSymlinks {
-			final knownSymlinks = Symlinks.NewKnownSymlink(this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
+			final knownSymlinks = Symlinks.NewKnownSymlinks(this.CaseSensitivity());
 
 			// Resolved modules store realpath information when they're resolved inside node_modules
 			if (Lambda.count(this.resolvedModules) > 0 || Lambda.count(this.typeResolutionsInFile) > 0) {
@@ -2310,14 +2287,14 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			}
 
 			// Check other dependencies for symlinks
-			final seenPackageJsons = new Set<Path>();
+			final seenPackageJsons = new Set<PathKey>();
 			for (filePath => meta in this.sourceFileMetaDatas) {
 				if (meta.PackageJsonDirectory == ""
 					|| !this.SourceFileMayBeEmitted(this.GetSourceFileByPath(filePath), false)
-					|| !seenPackageJsons.AddIfAbsent(this.toPath(meta.PackageJsonDirectory))) {
+					|| !seenPackageJsons.AddIfAbsent(this.caseSensitivity.PathKey(meta.PackageJsonDirectory.AsPath()))) {
 					continue;
 				}
-				final packageJsonName = Tspath.CombinePaths(meta.PackageJsonDirectory, "package.json");
+				final packageJsonName = meta.PackageJsonDirectory.ResolveFile("package.json");
 				final info = this.GetPackageJsonInfo(packageJsonName);
 				if (info.GetContents() == null) {
 					continue;
@@ -2326,21 +2303,24 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 				for (dep in info.GetContents().GetRuntimeDependencyNames().Keys().keys()) {
 					// Skip work in common case: we already saved a symlink for this package directory
 					// in the node_modules adjacent to this package.json
-					final possibleDirectoryPath = this.toPath(Tspath.CombinePaths(meta.PackageJsonDirectory, "node_modules", dep));
+					final possibleDirectoryPath = this.caseSensitivity.PathKey(meta.PackageJsonDirectory.ResolveDirectory(Tspath.CombinePaths("node_modules", dep))
+						.AsPath());
 					if (knownSymlinks.HasDirectory(possibleDirectoryPath)) {
 						continue;
 					}
 					if (!StringTools.startsWith(dep, "@types")) {
-						final possibleTypesDirectoryPath = this.toPath(Tspath.CombinePaths(meta.PackageJsonDirectory, "node_modules", Module.GetTypesPackageName(dep)));
+						final possibleTypesDirectoryPath = this.caseSensitivity.PathKey(meta.PackageJsonDirectory.ResolveDirectory(Tspath.CombinePaths("node_modules",
+							Module.GetTypesPackageName(dep)))
+							.AsPath());
 						if (knownSymlinks.HasDirectory(possibleTypesDirectoryPath)) {
 							continue;
 						}
 					}
 
-					final packageResolution = this.resolver.ResolvePackageDirectory(dep, /* PORT: transitional, unchecked */ cast packageJsonName, Core.ResolutionModeCommonJS, null);
+					final packageResolution = this.resolver.ResolvePackageDirectory(dep, packageJsonName, Core.ResolutionModeCommonJS, null);
 					if (packageResolution.IsResolved() && packageResolution.OriginalPath != "") {
-						knownSymlinks.ProcessResolution(Tspath.CombinePaths(packageResolution.OriginalPath, "package.json"),
-							Tspath.CombinePaths(packageResolution.ResolvedFileName, "package.json"));
+						knownSymlinks.ProcessResolution(Tspath.RootedDirectoryPathFromPath(packageResolution.OriginalPath.AsPath()).ResolveFile("package.json"),
+							Tspath.RootedDirectoryPathFromPath(packageResolution.ResolvedFileName.AsPath()).ResolveFile("package.json"));
 					}
 				}
 			}
@@ -2348,18 +2328,18 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		});
 	}
 
-	public function ResolveModuleName(moduleName:std.String, containingFile:std.String, resolutionMode:ResolutionMode):ResolvedModule {
-		final resolved = this.resolver.ResolveModuleName(moduleName, /* PORT: transitional, unchecked */ cast containingFile, resolutionMode, null).a;
+	public function ResolveModuleName(moduleName:std.String, containingFile:RootedFilePath, resolutionMode:ResolutionMode):ResolvedModule {
+		final resolved = this.resolver.ResolveModuleName(moduleName, containingFile, resolutionMode, null).a;
 		return resolved;
 	}
 
-	public function ForEachResolvedModule(callback:(resolution:ResolvedModule, moduleName:std.String, mode:ResolutionMode, filePath:Path) -> Void,
+	public function ForEachResolvedModule(callback:(resolution:ResolvedModule, moduleName:std.String, mode:ResolutionMode, filePath:PathKey) -> Void,
 			file:SourceFile):Void {
 		Compiler.forEachResolution(this.resolvedModules, callback, file);
 	}
 
 	public function ForEachResolvedTypeReferenceDirective(callback:(resolution:ResolvedTypeReferenceDirective, moduleName:std.String, mode:ResolutionMode,
-		filePath:Path) -> Void, file:SourceFile):Void {
+		filePath:PathKey) -> Void, file:SourceFile):Void {
 		Compiler.forEachResolution(this.typeResolutionsInFile, callback, file);
 	}
 }
@@ -2402,7 +2382,7 @@ class SourceMapEmitResult {
 
 interface ProgramLike {
 	function Options():CompilerOptions;
-	function GetSourceFile(path:std.String):SourceFile;
+	function GetSourceFile(fileName:RootedFilePath):SourceFile;
 	function GetSourceFiles():Array<SourceFile>;
 	function GetConfigFileParsingDiagnostics():Array<Diagnostic>;
 	function GetSyntacticDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;

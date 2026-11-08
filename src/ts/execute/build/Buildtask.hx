@@ -24,7 +24,8 @@ class UpstreamTask {
 
 class BuildInfoEntry {
 	public var buildInfo:Null<BuildInfo> = null;
-	public var path:Path = "";
+	public var fileName:RootedFilePath = cast "";
+	public var path:PathKey = cast "";
 	public var mTime:Time = Time.Zero();
 	// PORT: pointer — *time.Time → Null<Time>.
 	public var dtsTime:Null<Time> = null;
@@ -42,7 +43,7 @@ class TaskResult {
 	public var statistics:Null<Statistics> = null;
 	public var program:Null<ts.execute.incremental.Program.Program> = null;
 	public var buildKind:BuildKind = buildKindNone;
-	public var filesToDelete:Null<Array<std.String>> = null;
+	public var filesToDelete:Null<Array<RootedFilePath>> = null;
 
 	public function new() {
 		this.builderWriter = new BuilderWriter(this.builder);
@@ -51,7 +52,8 @@ class TaskResult {
 
 @:allow(ts.execute.build)
 class BuildTask {
-	var config:std.String = "";
+	var config:RootedFilePath = cast "";
+	var path:PathKey = cast "";
 	var resolved:Null<ParsedCommandLine> = null;
 	var upStream:Null<Array<UpstreamTask>> = null;
 	var downStream:Null<Array<BuildTask>> = null; // Only set and used in watch mode
@@ -65,7 +67,7 @@ class BuildTask {
 	// PORT: `reportDone chan struct{}` dropped (see the file header).
 
 	var buildInfoEntry:Null<BuildInfoEntry> = null;
-	var packageJsons:Null<Array<std.String>> = null;
+	var packageJsons:Null<Array<RootedFilePath>> = null;
 
 	var errors:Null<Array<Diagnostic>> = null;
 	var pending:Bool = false;
@@ -91,7 +93,7 @@ class BuildTask {
 		this.result.diagnosticReporter(err);
 	}
 
-	function report(orchestrator:Orchestrator, configPath:Path, buildResult:OrchestratorResult):Void {
+	function report(orchestrator:Orchestrator, configPath:PathKey, buildResult:OrchestratorResult):Void {
 		// PORT: `<-t.prevReporter.reportDone` dropped (see header).
 		if (Core.len(this.errors) > 0) {
 			if (buildResult.errors == null)
@@ -129,7 +131,7 @@ class BuildTask {
 		// PORT: close(t.reportDone) dropped (see header).
 	}
 
-	function buildProject(orchestrator:Orchestrator, path:Path):Void {
+	function buildProject(orchestrator:Orchestrator, path:PathKey):Void {
 		// Wait on upstream tasks to complete
 		this.waitOnUpstream();
 		if (this.pending) {
@@ -160,7 +162,7 @@ class BuildTask {
 		this.unblockDownstream();
 	}
 
-	function updateDownstream(orchestrator:Orchestrator, path:Path):Void {
+	function updateDownstream(orchestrator:Orchestrator, path:PathKey):Void {
 		if (this.isInitialCycle) {
 			return;
 		}
@@ -183,12 +185,12 @@ class BuildTask {
 				if (fallToPseudo || kind == upToDateStatusTypeUpToDateWithUpstreamTypes || kind == upToDateStatusTypeUpToDateWithInputFileText) {
 					if (this.result.program.HasChangedDtsFile()) {
 						downStream.status = new UpToDateStatus(upToDateStatusTypeInputFileNewer,
-							new InputOutputName(this.config, downStream.status.oldestOutputFileName()));
+							new InputOutputName(this.config.AsPath(), downStream.status.oldestOutputFileName()));
 					}
 				} else if (kind == upToDateStatusTypeUpstreamErrors) {
 					final upstreamErrors = downStream.status.upstreamErrors();
-					final refConfig = Core.ResolveConfigFileNameOfProjectReference(/* PORT: transitional, unchecked */ cast upstreamErrors.ref);
-					if (orchestrator.toPath(refConfig) == path) {
+					final refConfig = Core.ResolveConfigFileNameOfProjectReference(upstreamErrors.ref);
+					if (orchestrator.caseSensitivity.PathKey(refConfig.AsPath()) == path) {
 						downStream.resetStatus();
 					}
 				}
@@ -197,7 +199,7 @@ class BuildTask {
 		}
 	}
 
-	function compileAndEmit(orchestrator:Orchestrator, path:Path):Void {
+	function compileAndEmit(orchestrator:Orchestrator, path:PathKey):Void {
 		this.errors = null;
 		if (orchestrator.opts.Command.BuildOptions.Verbose.IsTrue()) {
 			this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Building_project_0, orchestrator.relativeFileName(this.config)));
@@ -252,7 +254,7 @@ class BuildTask {
 		if (result.Status == ExitStatusDiagnosticsPresent_OutputsSkipped || result.Status == ExitStatusDiagnosticsPresent_OutputsGenerated) {
 			this.status = new UpToDateStatus(upToDateStatusTypeBuildErrors);
 		} else {
-			var oldestOutputFileName:std.String;
+			var oldestOutputFileName:RootedFilePath;
 			if (Core.len(result.EmitResult.EmittedFiles) > 0) {
 				oldestOutputFileName = result.EmitResult.EmittedFiles[0];
 			} else {
@@ -275,7 +277,7 @@ class BuildTask {
 					this.result.reportStatus(Ast.NewCompilerDiagnostic(Core.IfElse(upstreamStatus.refHasUpstreamErrors,
 						Diagnostics.Skipping_build_of_project_0_because_its_dependency_1_was_not_built,
 						Diagnostics.Skipping_build_of_project_0_because_its_dependency_1_has_errors),
-						orchestrator.relativeFileName(this.config), orchestrator.relativeFileName(upstreamStatus.ref)));
+						orchestrator.relativeFileName(this.config), orchestrator.relativePath(upstreamStatus.ref)));
 				}
 				return true;
 			case upToDateStatusTypeSolution:
@@ -308,7 +310,7 @@ class BuildTask {
 		return false;
 	}
 
-	function getUpToDateStatus(orchestrator:Orchestrator, configPath:Path):UpToDateStatus {
+	function getUpToDateStatus(orchestrator:Orchestrator, configPath:PathKey):UpToDateStatus {
 		if (this.status != null) {
 			return this.status;
 		}
@@ -336,10 +338,10 @@ class BuildTask {
 
 		// Check the build info
 		final buildInfoPath = this.resolved.GetBuildInfoFileName();
-		final getBuildInfoDirectory = Core.Memoize(function():std.String {
-			return Tspath.GetDirectoryPath(Tspath.GetNormalizedAbsolutePath(buildInfoPath, orchestrator.comparePathsOptions.CurrentDirectory));
+		final getBuildInfoDirectory = Core.Memoize(function():RootedDirectoryPath {
+			return buildInfoPath.Directory();
 		});
-		final bi = this.loadOrStoreBuildInfo(orchestrator, configPath, buildInfoPath);
+		final bi = this.loadOrStoreBuildInfo(orchestrator, buildInfoPath);
 		final buildInfo = bi.a, buildInfoTime = bi.b;
 		if (buildInfo == null) {
 			return new UpToDateStatus(upToDateStatusTypeOutputMissing, buildInfoPath);
@@ -382,16 +384,16 @@ class BuildTask {
 		var inputTextUnchanged = false;
 		var oldestOutputFileAndTime = new FileAndTime(buildInfoPath, buildInfoTime);
 		var newestInputFileAndTime = new FileAndTime();
-		final seenRoots = new Set<Path>();
+		final seenRoots = new Set<PathKey>();
 		final getBuildInfoRootInfoReader = Core.Memoize(function():BuildInfoRootInfoReader {
-			return buildInfo.GetBuildInfoRootInfoReader(getBuildInfoDirectory(), orchestrator.comparePathsOptions);
+			return buildInfo.GetBuildInfoRootInfoReader(getBuildInfoDirectory(), orchestrator.caseSensitivity);
 		});
 		for (inputFile in this.resolved.FileNames()) {
 			final inputTime = orchestrator.host.GetMTime(inputFile);
 			if (inputTime.IsZero()) {
 				return new UpToDateStatus(upToDateStatusTypeInputFileMissing, inputFile);
 			}
-			final inputPath = orchestrator.toPath(inputFile);
+			final inputPath = orchestrator.caseSensitivity.PathKey(inputFile.AsPath());
 			if (inputTime.After(oldestOutputFileAndTime.time)) {
 				var version = "";
 				var currentVersion = "";
@@ -402,7 +404,7 @@ class BuildTask {
 					final fileInfo = buildInfoFileInfo == null ? null : buildInfoFileInfo.GetFileInfo();
 					if (fileInfo != null && fileInfo.Version() != "") {
 						version = fileInfo.Version();
-						final text = orchestrator.host.FS().ReadFile(/* PORT: transitional (main: typed path) */ Tspath.RootedFilePathFromAbsolute(resolvedInputPath));
+						final text = orchestrator.host.FS().ReadFile(resolvedInputPath);
 						if (text.ok) {
 							currentVersion = Incremental.ComputeHash(text.value, orchestrator.opts.Testing != null);
 							if (version == currentVersion) {
@@ -413,7 +415,7 @@ class BuildTask {
 				}
 
 				if (version == "" || version != currentVersion) {
-					return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(inputFile, buildInfoPath));
+					return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(inputFile.AsPath(), buildInfoPath));
 				}
 			}
 			if (inputTime.After(newestInputFileAndTime.time)) {
@@ -425,16 +427,17 @@ class BuildTask {
 		for (root in getBuildInfoRootInfoReader().Roots()) {
 			if (!seenRoots.Has(root)) {
 				// File was root file when project was built but its not any more
-				return new UpToDateStatus(upToDateStatusTypeOutOfDateRoots, new InputOutputName(root, buildInfoPath));
+				return new UpToDateStatus(upToDateStatusTypeOutOfDateRoots,
+					new InputOutputName(getBuildInfoRootInfoReader().RootFileName(root).AsPath(), buildInfoPath));
 			}
 		}
 
 		if (buildInfo.IsIncremental()) {
-			final resolvedRoots = new Set<Path>();
+			final resolvedRoots = new Set<PathKey>();
 			for (root in getBuildInfoRootInfoReader().Roots()) {
 				final resolved = getBuildInfoRootInfoReader().GetBuildInfoFileInfo(root).b;
 				if (resolved != "") {
-					resolvedRoots.Add(resolved);
+					resolvedRoots.Add(orchestrator.caseSensitivity.PathKey(resolved.AsPath()));
 				}
 			}
 			for (index in 0...Core.len(buildInfo.FileInfos)) {
@@ -445,8 +448,8 @@ class BuildTask {
 				if (Incremental.IsBuildInfoFileNameDefaultLibrary(buildInfoFileName)) {
 					continue;
 				}
-				final inputFile = Tspath.GetNormalizedAbsolutePath(buildInfoFileName, getBuildInfoDirectory());
-				final inputPath = orchestrator.toPath(inputFile);
+				final inputFile = Incremental.ResolveBuildInfoFileName(buildInfoFileName, getBuildInfoDirectory(), orchestrator.host.DefaultLibraryPath());
+				final inputPath = orchestrator.caseSensitivity.PathKey(inputFile.AsPath());
 				// Root files are already checked
 				if (seenRoots.Has(inputPath) || resolvedRoots.Has(inputPath)) {
 					continue;
@@ -460,13 +463,13 @@ class BuildTask {
 					var currentVersion = "";
 					final version = buildInfoFileInfo.GetFileInfo().Version();
 					if (version != "") {
-						final text = orchestrator.host.FS().ReadFile(/* PORT: transitional (main: typed inputFile) */ Tspath.RootedFilePathFromAbsolute(inputFile));
+						final text = orchestrator.host.FS().ReadFile(inputFile);
 						if (text.ok) {
 							currentVersion = Incremental.ComputeHash(text.value, orchestrator.opts.Testing != null);
 						}
 					}
 					if (version == "" || version != currentVersion) {
-						return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(inputFile, buildInfoPath));
+						return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(inputFile.AsPath(), buildInfoPath));
 					}
 					inputTextUnchanged = true;
 				}
@@ -484,7 +487,7 @@ class BuildTask {
 
 				if (outputTime.Before(newestInputFileAndTime.time)) {
 					// Output file is older than input file
-					return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(newestInputFileAndTime.file, outputFile));
+					return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(newestInputFileAndTime.file.AsPath(), outputFile));
 				}
 
 				if (outputTime.Before(oldestOutputFileAndTime.time)) {
@@ -531,11 +534,11 @@ class BuildTask {
 				new InputOutputName(this.resolved.ProjectReferences()[upstream.refIndex].Path, oldestOutputFileAndTime.file));
 		}
 
-		final checkInputFileTime = function(inputFile:std.String):Null<UpToDateStatus> {
+		final checkInputFileTime = function(inputFile:RootedFilePath):Null<UpToDateStatus> {
 			final inputTime = orchestrator.host.GetMTime(inputFile);
 			if (inputTime.After(oldestOutputFileAndTime.time)) {
 				// Output file is older than input file
-				return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(inputFile, oldestOutputFileAndTime.file));
+				return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(inputFile.AsPath(), oldestOutputFileAndTime.file));
 			}
 			return null;
 		};
@@ -558,12 +561,12 @@ class BuildTask {
 				return new UpToDateStatus(upToDateStatusTypeInputFileMissing, packageJson);
 			}
 			if (packageJsonTime.After(oldestOutputFileAndTime.time)) {
-				return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(packageJson, oldestOutputFileAndTime.file));
+				return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(packageJson.AsPath(), oldestOutputFileAndTime.file));
 			}
 		}
 		for (packageJson in buildInfo.GetMissingPackageJsons(getBuildInfoDirectory())) {
 			if (!orchestrator.host.GetMTime(packageJson).IsZero()) {
-				return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(packageJson, oldestOutputFileAndTime.file));
+				return new UpToDateStatus(upToDateStatusTypeInputFileNewer, new InputOutputName(packageJson.AsPath(), oldestOutputFileAndTime.file));
 			}
 		}
 		this.packageJsons = [for (p in buildInfo.GetPackageJsons(getBuildInfoDirectory())) p];
@@ -588,7 +591,7 @@ class BuildTask {
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Core.IfElse(upstreamStatus.refHasUpstreamErrors,
 					Diagnostics.Project_0_can_t_be_built_because_its_dependency_1_was_not_built,
 					Diagnostics.Project_0_can_t_be_built_because_its_dependency_1_has_errors),
-					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName(upstreamStatus.ref)));
+					orchestrator.relativeFileName(this.config), orchestrator.relativePath(upstreamStatus.ref)));
 			case upToDateStatusTypeBuildErrors:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_it_has_errors,
 					orchestrator.relativeFileName(this.config)));
@@ -598,7 +601,7 @@ class BuildTask {
 				final inputOutputFileAndTime = this.status.inputOutputFileAndTime();
 				if (inputOutputFileAndTime != null) {
 					this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_up_to_date_because_newest_input_1_is_older_than_output_2,
-						orchestrator.relativeFileName(this.config), orchestrator.relativeFileName(inputOutputFileAndTime.input.file),
+						orchestrator.relativeFileName(this.config), orchestrator.relativePath(inputOutputFileAndTime.input.file.AsPath()),
 						orchestrator.relativeFileName(inputOutputFileAndTime.output.file)));
 				}
 			case upToDateStatusTypeUpToDateWithUpstreamTypes:
@@ -609,32 +612,32 @@ class BuildTask {
 					orchestrator.relativeFileName(this.config)));
 			case upToDateStatusTypeInputFileMissing:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_input_1_does_not_exist,
-					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : std.String))));
+					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : RootedFilePath))));
 			case upToDateStatusTypeOutputMissing:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_output_file_1_does_not_exist,
-					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : std.String))));
+					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : RootedFilePath))));
 			case upToDateStatusTypeInputFileNewer:
 				final inputOutput = this.status.inputOutputName();
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_output_1_is_older_than_input_2,
 					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName(inputOutput.output),
-					orchestrator.relativeFileName(inputOutput.input)));
+					orchestrator.relativePath(inputOutput.input)));
 			case upToDateStatusTypeOutOfDateBuildInfoWithPendingEmit:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_buildinfo_file_1_indicates_that_some_of_the_changes_were_not_emitted,
-					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : std.String))));
+					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : RootedFilePath))));
 			case upToDateStatusTypeOutOfDateBuildInfoWithErrors:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_buildinfo_file_1_indicates_that_program_needs_to_report_errors,
-					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : std.String))));
+					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : RootedFilePath))));
 			case upToDateStatusTypeOutOfDateOptions:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_buildinfo_file_1_indicates_there_is_change_in_compilerOptions,
-					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : std.String))));
+					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : RootedFilePath))));
 			case upToDateStatusTypeOutOfDateRoots:
 				final inputOutput = this.status.inputOutputName();
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_buildinfo_file_1_indicates_that_file_2_was_root_file_of_compilation_but_not_any_more,
 					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName(inputOutput.output),
-					orchestrator.relativeFileName(inputOutput.input)));
+					orchestrator.relativePath(inputOutput.input)));
 			case upToDateStatusTypeTsVersionOutputOfDate:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_out_of_date_because_output_for_it_was_generated_with_version_1_that_differs_with_current_version_2,
-					orchestrator.relativeFileName(this.config), orchestrator.relativeFileName((cast this.status.data : std.String)), Core.Version()));
+					orchestrator.relativeFileName(this.config), (cast this.status.data : std.String), Core.Version()));
 			case upToDateStatusTypeForceBuild:
 				this.result.reportStatus(Ast.NewCompilerDiagnostic(Diagnostics.Project_0_is_being_forcibly_rebuilt, orchestrator.relativeFileName(this.config)));
 			case upToDateStatusTypeSolution:
@@ -648,12 +651,12 @@ class BuildTask {
 		return !this.resolved.CompilerOptions().NoEmit.IsTrue() && !this.resolved.CompilerOptions().IsIncremental();
 	}
 
-	function updateTimeStamps(orchestrator:Orchestrator, emittedFiles:Null<Array<std.String>>, verboseMessage:Message):Void {
+	function updateTimeStamps(orchestrator:Orchestrator, emittedFiles:Null<Array<RootedFilePath>>, verboseMessage:Message):Void {
 		final emitted = emittedFiles == null ? Collections.NewSetFromItems() : Collections.NewSetFromItems(...emittedFiles);
 		var verboseMessageReported = false;
 		final buildInfoName = this.resolved.GetBuildInfoFileName();
 		final now = orchestrator.opts.Sys.Now();
-		final updateTimeStamp = function(file:std.String) {
+		final updateTimeStamp = function(file:RootedFilePath) {
 			if (emitted.Has(file)) {
 				return;
 			}
@@ -681,14 +684,16 @@ class BuildTask {
 		updateTimeStamp(this.resolved.GetBuildInfoFileName());
 	}
 
-	function cleanProject(orchestrator:Orchestrator, path:Path):Void {
+	function cleanProject(orchestrator:Orchestrator, path:PathKey):Void {
 		if (this.resolved == null) {
 			this.reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.File_0_not_found, this.config));
 			this.result.exitStatus = ExitStatusDiagnosticsPresent_OutputsSkipped;
 			return;
 		}
 
-		final inputPaths:Array<Path> = Core.Map(this.resolved.FileNames(), orchestrator.toPath);
+		final inputPaths:Array<PathKey> = Core.Map(this.resolved.FileNames(), function(fileName:RootedFilePath):PathKey {
+			return orchestrator.caseSensitivity.PathKey(fileName.AsPath());
+		});
 		final inputs = inputPaths == null ? Collections.NewSetFromItems() : Collections.NewSetFromItems(...inputPaths);
 		for (outputFile in this.resolved.GetOutputFileNames()) {
 			this.cleanProjectOutput(orchestrator, outputFile, inputs);
@@ -696,16 +701,15 @@ class BuildTask {
 		this.cleanProjectOutput(orchestrator, this.resolved.GetBuildInfoFileName(), inputs);
 	}
 
-	function cleanProjectOutput(orchestrator:Orchestrator, outputFile:std.String, inputs:Set<Path>):Void {
-		final outputPath = orchestrator.toPath(outputFile);
+	function cleanProjectOutput(orchestrator:Orchestrator, outputFile:RootedFilePath, inputs:Set<PathKey>):Void {
+		final outputPath = orchestrator.caseSensitivity.PathKey(outputFile.AsPath());
 		// If output name is same as input file name, do not delete and ignore the error
 		if (inputs.Has(outputPath)) {
 			return;
 		}
-		// PORT: transitional (main: typed outputFile)
-		if (orchestrator.host.FS().FileExists(Tspath.RootedFilePathFromAbsolute(outputFile))) {
+		if (orchestrator.host.FS().FileExists(outputFile)) {
 			if (!orchestrator.opts.Command.BuildOptions.Dry.IsTrue()) {
-				final err = orchestrator.host.FS().Remove(Tspath.RootedPathFromAbsolute(outputFile));
+				final err = orchestrator.host.FS().Remove(outputFile.AsPath());
 				if (err != null) {
 					this.reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.Failed_to_delete_file_0, outputFile));
 				}
@@ -728,13 +732,14 @@ class BuildTask {
 	// PORT: skipped, watch mode (resetConfig: only called from the watch cycle).
 
 	// PORT: (*incremental.BuildInfo, time.Time) → Pair.
-	function loadOrStoreBuildInfo(orchestrator:Orchestrator, configPath:Path, buildInfoFileName:std.String):Pair<Null<BuildInfo>, Time> {
-		final path = orchestrator.toPath(buildInfoFileName);
+	function loadOrStoreBuildInfo(orchestrator:Orchestrator, buildInfoFileName:RootedFilePath):Pair<Null<BuildInfo>, Time> {
+		final path = orchestrator.caseSensitivity.PathKey(buildInfoFileName.AsPath());
 		if (this.buildInfoEntry != null && this.buildInfoEntry.path == path) {
 			return new Pair(this.buildInfoEntry.buildInfo, this.buildInfoEntry.mTime);
 		}
 		this.buildInfoEntry = new BuildInfoEntry();
 		this.buildInfoEntry.buildInfo = Incremental.NewBuildInfoReader(orchestrator.host).ReadBuildInfo(this.resolved);
+		this.buildInfoEntry.fileName = buildInfoFileName;
 		this.buildInfoEntry.path = path;
 		var mTime = Time.Zero();
 		if (this.buildInfoEntry.buildInfo != null) {
@@ -744,7 +749,7 @@ class BuildTask {
 		return new Pair(this.buildInfoEntry.buildInfo, mTime);
 	}
 
-	function onBuildInfoEmit(orchestrator:Orchestrator, buildInfoFileName:std.String, buildInfo:BuildInfo, hasChangedDtsFile:Bool):Void {
+	function onBuildInfoEmit(orchestrator:Orchestrator, buildInfoFileName:RootedFilePath, buildInfo:BuildInfo, hasChangedDtsFile:Bool):Void {
 		var dtsTime:Null<Time> = null;
 		final mTime = orchestrator.opts.Sys.Now();
 		if (hasChangedDtsFile) {
@@ -754,7 +759,8 @@ class BuildTask {
 		}
 		final e = new BuildInfoEntry();
 		e.buildInfo = buildInfo;
-		e.path = orchestrator.toPath(buildInfoFileName);
+		e.fileName = buildInfoFileName;
+		e.path = orchestrator.caseSensitivity.PathKey(buildInfoFileName.AsPath());
 		e.mTime = mTime;
 		e.dtsTime = dtsTime;
 		this.buildInfoEntry = e;
@@ -771,8 +777,8 @@ class BuildTask {
 		if (this.buildInfoEntry.dtsTime != null) {
 			return this.buildInfoEntry.dtsTime;
 		}
-		final dtsTime = orchestrator.host.GetMTime(Tspath.GetNormalizedAbsolutePath(this.buildInfoEntry.buildInfo.LatestChangedDtsFile,
-			Tspath.GetDirectoryPath(this.buildInfoEntry.path)));
+		final dtsTime = orchestrator.host.GetMTime(Incremental.ResolveBuildInfoFileName(this.buildInfoEntry.buildInfo.LatestChangedDtsFile,
+			this.buildInfoEntry.fileName.Directory(), orchestrator.host.DefaultLibraryPath()));
 		this.buildInfoEntry.dtsTime = dtsTime;
 		return dtsTime;
 	}
@@ -781,8 +787,8 @@ class BuildTask {
 		return orchestrator.opts.Command.CompilerOptions.Watch.IsTrue() && !this.resolved.CompilerOptions().IsIncremental();
 	}
 
-	function writeFile(orchestrator:Orchestrator, fileName:std.String, text:std.String, data:Null<WriteFileData>):Null<Error> {
-		final err = orchestrator.host.FS().WriteFile(/* PORT: transitional (main: typed fileName) */ Tspath.RootedFilePathFromAbsolute(fileName), text);
+	function writeFile(orchestrator:Orchestrator, fileName:RootedFilePath, text:std.String, data:Null<WriteFileData>):Null<Error> {
+		final err = orchestrator.host.FS().WriteFile(fileName, text);
 		if (err == null) {
 			if (data != null && data.BuildInfo != null) {
 				this.onBuildInfoEmit(orchestrator, fileName, (cast data.BuildInfo : BuildInfo), this.result.program.HasChangedDtsFile());

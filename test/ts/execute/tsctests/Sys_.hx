@@ -59,7 +59,7 @@ class TestSys implements System implements CommandLineTesting {
 	// PORT: mockWatchBackend (watch mode) is not ported.
 
 	public var fs:TestFs = null;
-	public var defaultLibraryPath:String = "";
+	public var defaultLibraryPath:RootedDirectoryPath = cast "";
 	public var cwd:RootedDirectoryPath = cast "";
 	public var env:Null<Map<String, String>> = null;
 	public var clock:TestClock = null;
@@ -93,8 +93,7 @@ class TestSys implements System implements CommandLineTesting {
 	}
 
 	public function ensureLibPathExists(path:String):Void {
-		// PORT: defaultLibraryPath stays a string (System.DefaultLibraryPath); Go main: defaultLibraryPath.ResolveFile(path).
-		final fileName = Tspath.RootedFilePathFromAbsolute(this.defaultLibraryPath + "/" + path);
+		final fileName = this.defaultLibraryPath.ResolveFile(path);
 		if (!this.fsFromFileMap().ReadFile(fileName).ok) {
 			if (this.fs.defaultLibs == null) {
 				this.fs.defaultLibs = new SyncSet<String>();
@@ -107,7 +106,7 @@ class TestSys implements System implements CommandLineTesting {
 		}
 	}
 
-	public function DefaultLibraryPath():String {
+	public function DefaultLibraryPath():RootedDirectoryPath {
 		return this.defaultLibraryPath;
 	}
 

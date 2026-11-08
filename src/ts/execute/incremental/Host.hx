@@ -3,9 +3,8 @@ package ts.execute.incremental;
 // Port of host.go (types). Package-level funcs (CreateHost, GetMTime) are in Incremental.hx.
 
 interface Host {
-	function FS():FS;
-	function GetMTime(fileName:std.String):Time;
-	function SetMTime(fileName:std.String, mTime:Time):Null<Error>;
+	function GetMTime(fileName:RootedFilePath):Time;
+	function SetMTime(fileName:RootedFilePath, mTime:Time):Null<Error>;
 }
 
 // Go type `host` (renamed: the exported interface is Host).
@@ -17,15 +16,11 @@ class Host_ implements Host {
 		this.host = host;
 	}
 
-	public function FS():FS {
-		return this.host.FS();
-	}
-
-	public function GetMTime(fileName:std.String):Time {
+	public function GetMTime(fileName:RootedFilePath):Time {
 		return Incremental.GetMTime(this.host, fileName);
 	}
 
-	public function SetMTime(fileName:std.String, mTime:Time):Null<Error> {
-		return this.host.FS().Chtimes(/* PORT: transitional (main: typed fileName) */ Tspath.RootedPathFromAbsolute(fileName), Time.Zero(), mTime);
+	public function SetMTime(fileName:RootedFilePath, mTime:Time):Null<Error> {
+		return this.host.FS().Chtimes(fileName.AsPath(), Time.Zero(), mTime);
 	}
 }

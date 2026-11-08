@@ -210,7 +210,7 @@ class CompilerTest {
 			for (testCase in programTestCases()) {
 				T.run("TestProgram/" + testCase.testName, () -> {
 					final libPrefix = Bundled.LibPath() + "/";
-					var fs = Vfstest.FromMap((null : Map<String, Any>), false /*useCaseSensitiveFileNames*/);
+					var fs = Vfstest.FromMap((null : Map<String, Any>), CaseInsensitive);
 					fs = Bundled.WrapFS(fs);
 
 					for (testFile in testCase.files) {
@@ -242,7 +242,7 @@ class CompilerTest {
 			// Use case-sensitive file names so that /src/MyFile.ts and /src/myFile.ts
 			// have different canonical paths but the same lower-case path, triggering
 			// file casing diagnostics in the include processor.
-			var fs = Vfstest.FromMap((null : Map<String, Any>), true /*useCaseSensitiveFileNames*/);
+			var fs = Vfstest.FromMap((null : Map<String, Any>), CaseSensitive);
 			fs = Bundled.WrapFS(fs);
 
 			// Only create the lowercase version; /src/MyFile.ts does not exist.

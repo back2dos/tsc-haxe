@@ -8,7 +8,6 @@ import ts.ast.Symbol;
 import ts.packagejson.Cache.VersionPaths;
 import ts.packagejson.Exportsorimports.ExportsOrImports;
 import ts.module.Resolver.ResolvedEntrypoint;
-import ts.tspath.Path.ComparePathsOptions;
 
 // Port of internal/modulespecifiers: package-level funcs and vars of all files (Go file order).
 @:allow(ts.modulespecifiers)
@@ -27,8 +26,8 @@ class Modulespecifiers {
 
 	// Program errors validate that `noEmit` or `emitDeclarationOnly` is also set,
 	// so this function doesn't check them to avoid propagating errors.
-	static function shouldAllowImportingTsExtension(compilerOptions:CompilerOptions, fromFileName:String):Bool {
-		return compilerOptions.GetAllowImportingTsExtensions() || fromFileName.length > 0 && Tspath.IsDeclarationFileName(fromFileName);
+	static function shouldAllowImportingTsExtension(compilerOptions:CompilerOptions, fromFileName:RootedFilePath):Bool {
+		return compilerOptions.GetAllowImportingTsExtensions() || fromFileName.IsDeclarationFile();
 	}
 
 	static function usesExtensionsOnImports(file:SourceFileForSpecifierGeneration):Bool {
@@ -92,7 +91,7 @@ class Modulespecifiers {
 
 		if (pref == ImportModuleSpecifierEndingPreferenceJs || resolutionMode == Core.ResolutionModeESM && moduleResolutionIsNodeNext) {
 			// Extensions are explicitly requested or required. Now choose between .js and .ts.
-			if (!shouldAllowImportingTsExtension(compilerOptions, "")) {
+			if (!shouldAllowImportingTsExtension(compilerOptions, cast "")) {
 				return ModuleSpecifierEndingJsExtension;
 			}
 			// `allowImportingTsExtensions` is a strong signal, so use .ts unless the file
@@ -115,7 +114,7 @@ class Modulespecifiers {
 		// Look at imports and/or requires to guess whether .js, .ts, or extensionless imports are preferred.
 		// N.B. that `Index` detection is not supported since it would require file system probing to do
 		// accurately, and more importantly, literally nobody wants `Index` and its existence is a mystery.
-		if (!shouldAllowImportingTsExtension(compilerOptions, "")) {
+		if (!shouldAllowImportingTsExtension(compilerOptions, cast "")) {
 			// If .ts imports are not valid, we only need to see one .js import to go with that.
 			if (sourceFile != null && usesExtensionsOnImports(sourceFile)) {
 				return ModuleSpecifierEndingJsExtension;
@@ -256,7 +255,7 @@ class Modulespecifiers {
 			options:ModuleSpecifierOptions, forAutoImports:Bool):ModuleSpecifiersResult {
 		final ambient = tryGetModuleNameFromAmbientModule(moduleSymbol, checker);
 		if (ambient.name.length > 0) {
-			if (forAutoImports && IsExcludedByRegex(ambient.name, userPreferences.AutoImportSpecifierExcludeRegexes)) {
+			if (forAutoImports && IsExcludedByRegex(ambient.name.AsString(), userPreferences.AutoImportSpecifierExcludeRegexes)) {
 				return new ModuleSpecifiersResult(null, ResultKindAmbient, ambient.symbol);
 			}
 			return new ModuleSpecifiersResult([ambient.name], ResultKindAmbient, ambient.symbol);
@@ -274,9 +273,9 @@ class Modulespecifiers {
 		return new ModuleSpecifiersResult(r.a, r.b);
 	}
 
-	public static function GetModuleSpecifiersForFileWithInfo(importingSourceFile:SourceFileForSpecifierGeneration, moduleFileName:String,
+	public static function GetModuleSpecifiersForFileWithInfo(importingSourceFile:SourceFileForSpecifierGeneration, moduleFileName:RootedFilePath,
 			compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences, options:ModuleSpecifierOptions,
-			forAutoImports:Bool):Pair<Array<String>, ResultKind> {
+			forAutoImports:Bool):Pair<Array<ModuleSpecifier>, ResultKind> {
 		final modulePaths = getAllModulePathsWorker(getInfo(host.GetSourceOfProjectReferenceIfOutputIncluded(importingSourceFile), host), moduleFileName,
 			host, compilerOptions, options);
 
@@ -288,7 +287,7 @@ class Modulespecifiers {
 			for (decl in moduleSymbol.Declarations) {
 				if (Ast.IsModuleWithStringLiteralName(decl)
 					&& (!Ast.IsModuleAugmentationExternal(decl) || !Tspath.IsExternalModuleNameRelative(decl.Name().Text()))) {
-					return new AmbientModuleInfo(decl.Name().Text(), moduleSymbol);
+					return new AmbientModuleInfo(Tspath.ToModuleSpecifier(decl.Name().Text()), moduleSymbol);
 				}
 			}
 		}
@@ -332,23 +331,22 @@ class Modulespecifiers {
 				}
 				// TODO: Possible strada bug - isn't this insufficient in the presence of merge symbols?
 				if (exportSymbol == d.Symbol()) {
-					return new AmbientModuleInfo(possibleContainer.Name().Text(), possibleContainer.Symbol());
+					return new AmbientModuleInfo(Tspath.ToModuleSpecifier(possibleContainer.Name().Text()), possibleContainer.Symbol());
 				}
 			}
 		}
-		return new AmbientModuleInfo("", null);
+		return new AmbientModuleInfo(cast "", null);
 	}
 
-	static function getInfo(importingSourceFileName:String, host:ModuleSpecifierGenerationHost):Info {
-		final sourceDirectory = Tspath.GetDirectoryPath(importingSourceFileName);
-		return new Info(host.UseCaseSensitiveFileNames(), importingSourceFileName, sourceDirectory);
+	static function getInfo(importingSourceFileName:RootedFilePath, host:ModuleSpecifierGenerationHost):Info {
+		return new Info(host.CaseSensitivity(), importingSourceFileName, importingSourceFileName.Directory());
 	}
 
-	static function getAllModulePaths(info:Info, importedFileName:String, host:ModuleSpecifierGenerationHost, compilerOptions:CompilerOptions,
+	static function getAllModulePaths(info:Info, importedFileName:RootedFilePath, host:ModuleSpecifierGenerationHost, compilerOptions:CompilerOptions,
 			preferences:UserPreferences, options:ModuleSpecifierOptions):Array<ModulePath> {
 		// !!! use new cache model
-		// importingFilePath := tspath.ToPath(info.ImportingSourceFileName, host.GetCurrentDirectory(), host.UseCaseSensitiveFileNames());
-		// importedFilePath := tspath.ToPath(importedFileName, host.GetCurrentDirectory(), host.UseCaseSensitiveFileNames());
+		// importingFilePath := info.CaseSensitivity.PathKey(info.ImportingSourceFileName.AsPath())
+		// importedFilePath := info.CaseSensitivity.PathKey(importedFileName.AsPath())
 		// cache := host.getModuleSpecifierCache();
 		// if (cache != nil) {
 		//     cached := cache.get(importingFilePath, importedFilePath, preferences, options);
@@ -361,12 +359,12 @@ class Modulespecifiers {
 		return modulePaths;
 	}
 
-	static function getAllModulePathsWorker(info:Info, importedFileName:String, host:ModuleSpecifierGenerationHost, compilerOptions:CompilerOptions,
-			options:ModuleSpecifierOptions):Array<ModulePath> {
+	static function getAllModulePathsWorker(info:Info, importedFileName:RootedFilePath, host:ModuleSpecifierGenerationHost,
+			compilerOptions:CompilerOptions, options:ModuleSpecifierOptions):Array<ModulePath> {
 		// PORT: Go map (random iteration order) → StringMap + key list; each group is sorted below,
 		// so the result does not depend on the iteration order (as in Go).
 		final allFileNames = new StringMap<ModulePath>();
-		final allFileNameKeys:Array<String> = [];
+		final allFileNameKeys:Array<RootedFilePath> = [];
 		final paths = GetEachFileNameOfModule(info.ImportingSourceFileName, importedFileName, host, true);
 		for (p in paths) {
 			if (!allFileNames.exists(p.FileName))
@@ -374,21 +372,20 @@ class Modulespecifiers {
 			allFileNames.set(p.FileName, p);
 		}
 
-		final useCaseSensitiveFileNames = info.UseCaseSensitiveFileNames;
+		final caseSensitivity = info.CaseSensitivity;
 		final comparePaths = function(a:ModulePath, b:ModulePath):Int {
-			return comparePathsByRedirect(a, b, useCaseSensitiveFileNames);
+			return comparePathsByRedirect(a, b, caseSensitivity);
 		};
 
 		// Sort by paths closest to importing file Name directory
 		final sortedPaths:Array<ModulePath> = [];
 		var directory = info.SourceDirectory;
 		while (allFileNameKeys.length != 0) {
-			final directoryStart = Tspath.EnsureTrailingDirectorySeparator(directory);
 			var pathsInDirectory:Array<ModulePath> = null;
 			var i = 0;
 			while (i < allFileNameKeys.length) {
 				final fileName = allFileNameKeys[i];
-				if (StringTools.startsWith(fileName, directoryStart)) {
+				if (caseSensitivity.StartsWithDirectory(fileName, directory)) {
 					if (pathsInDirectory == null)
 						pathsInDirectory = [];
 					pathsInDirectory.push(allFileNames.get(fileName));
@@ -403,7 +400,7 @@ class Modulespecifiers {
 				for (p in pathsInDirectory)
 					sortedPaths.push(p);
 			}
-			final newDirectory = Tspath.GetDirectoryPath(directory);
+			final newDirectory = directory.AsPath().Directory();
 			if (newDirectory == directory) {
 				break;
 			}
@@ -420,30 +417,29 @@ class Modulespecifiers {
 
 	// containsIgnoredPath checks if a path contains patterns that should be ignored.
 	// This is a local helper that duplicates tspath.ContainsIgnoredPath for performance.
-	static function containsIgnoredPath(s:String):Bool {
-		return s.indexOf("/node_modules/.") >= 0 || s.indexOf("/.git") >= 0 || s.indexOf(".#") >= 0;
+	static function containsIgnoredPath(fileName:RootedFilePath):Bool {
+		return fileName.AsString().indexOf("/node_modules/.") >= 0 || fileName.AsString().indexOf("/.git") >= 0 || fileName.AsString().indexOf(".#") >= 0;
 	}
 
-	// ContainsNodeModules checks if a path contains the node_modules directory.
-	public static function ContainsNodeModules(s:String):Bool {
-		return s.indexOf("/node_modules/") >= 0;
+	static function moduleSpecifierContainsNodeModules(specifier:ModuleSpecifier):Bool {
+		return specifier.Contains("/node_modules/");
 	}
 
 	// GetEachFileNameOfModule returns all possible file paths for a module, including symlink alternatives.
 	// This function handles symlink resolution and provides multiple path options for module resolution.
-	public static function GetEachFileNameOfModule(importingFileName:String, importedFileName:String, host:ModuleSpecifierGenerationHost,
-			preferSymlinks:Bool):Array<ModulePath> {
-		final cwd = host.GetCurrentDirectory();
-		final importedPath = Tspath.ToPath(importedFileName, cwd, host.UseCaseSensitiveFileNames());
-		var referenceRedirect = "";
+	public static function GetEachFileNameOfModule(importingFileName:RootedFilePath, importedFileName:RootedFilePath,
+			host:ModuleSpecifierGenerationHost, preferSymlinks:Bool):Array<ModulePath> {
+		final caseSensitivity = host.CaseSensitivity();
+		final importedPath = caseSensitivity.PathKey(importedFileName.AsPath());
+		var referenceRedirect:RootedFilePath = cast "";
 		final outputAndReference = host.GetProjectReferenceFromSource(importedPath);
 		if (outputAndReference != null && outputAndReference.OutputDts != "") {
 			referenceRedirect = outputAndReference.OutputDts;
 		}
 
 		final redirects = host.GetRedirectTargets(importedPath);
-		final importedFileNames:Array<String> = [];
-		if (referenceRedirect.length > 0) {
+		final importedFileNames:Array<RootedFilePath> = [];
+		if (referenceRedirect != "") {
 			importedFileNames.push(referenceRedirect);
 		}
 		importedFileNames.push(importedFileName);
@@ -451,45 +447,41 @@ class Modulespecifiers {
 			for (r in redirects)
 				importedFileNames.push(r);
 		}
-		final targets = Core.Map(importedFileNames, function(f:String):String return Tspath.GetNormalizedAbsolutePath(f, cwd));
+		final targets = importedFileNames;
 		var shouldFilterIgnoredPaths = !Core.Every(targets, containsIgnoredPath);
 
 		final results:Array<ModulePath> = [];
 		if (!preferSymlinks) {
 			for (p in targets) {
 				if (!(shouldFilterIgnoredPaths && containsIgnoredPath(p))) {
-					results.push(new ModulePath(p, ContainsNodeModules(p), referenceRedirect == p));
+					results.push(new ModulePath(p, p.ContainsLowercaseDirectorySequence("/node_modules/"), referenceRedirect == p));
 				}
 			}
 		}
 
 		final symlinkCache = host.GetSymlinkCache();
-		final fullImportedFileName = Tspath.GetNormalizedAbsolutePath(importedFileName, cwd);
 		if (symlinkCache != null) {
-			Tspath.ForEachAncestorDirectoryStoppingAtGlobalCache(host.GetGlobalTypingsCacheLocation(), Tspath.GetDirectoryPath(fullImportedFileName),
-				function(realPathDirectory:String):ValueOk<Bool> {
-					final loaded = symlinkCache.DirectoriesByRealpath()
-						.Load(Tspath.ToPath(realPathDirectory, cwd, host.UseCaseSensitiveFileNames()).EnsureTrailingDirectorySeparator());
+			Tspath.ForEachAncestorDirectoryPathStoppingAtGlobalCache(host.GetGlobalTypingsCacheLocation(), importedFileName.Directory(),
+				function(realPathDirectory:RootedDirectoryPath):ValueOk<Bool> {
+					final loaded = symlinkCache.DirectoriesByRealpath().Load(caseSensitivity.PathKey(realPathDirectory.AsPath()));
 					if (!loaded.ok) {
 						return new ValueOk<Bool>(false, false);
 					} // Continue to ancestor directory
 					final symlinkSet = loaded.value;
 
 					// Don't want to a package to globally import from itself (importNameCodeFix_symlink_own_package.ts)
-					if (Tspath.StartsWithDirectory(importingFileName, realPathDirectory, Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames()))) {
+					if (caseSensitivity.ContainsFilePath(realPathDirectory, importingFileName)) {
 						return new ValueOk<Bool>(false, true); // Stop search, each ancestor directory will also hit this condition
 					}
 
 					for (target in targets) {
-						if (!Tspath.StartsWithDirectory(target, realPathDirectory, Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames()))) {
+						final relative = caseSensitivity.RelativeFilePathFromDirectory(realPathDirectory, target);
+						if (relative == null) {
 							continue;
 						}
-
-						final relative = Tspath.GetRelativePathFromDirectory_legacy(realPathDirectory, target,
-							new ComparePathsOptions(host.UseCaseSensitiveFileNames(), cwd));
-						symlinkSet.Range(function(symlinkDirectory:String):Bool {
-							final option = Tspath.ResolvePath(symlinkDirectory, relative);
-							results.push(new ModulePath(option, ContainsNodeModules(option), target == referenceRedirect));
+						symlinkSet.Range(function(symlinkDirectory:RootedDirectoryPath):Bool {
+							final option = symlinkDirectory.ResolveRelativeFile(relative);
+							results.push(new ModulePath(option, option.ContainsLowercaseDirectorySequence("/node_modules/"), target == referenceRedirect));
 							shouldFilterIgnoredPaths = true; // We found a non-ignored path in symlinks, so we can reject ignored-path realpaths
 							return true;
 						});
@@ -502,7 +494,7 @@ class Modulespecifiers {
 		if (preferSymlinks) {
 			for (p in targets) {
 				if (!(shouldFilterIgnoredPaths && containsIgnoredPath(p))) {
-					results.push(new ModulePath(p, ContainsNodeModules(p), referenceRedirect == p));
+					results.push(new ModulePath(p, p.ContainsLowercaseDirectorySequence("/node_modules/"), referenceRedirect == p));
 				}
 			}
 		}
@@ -512,20 +504,20 @@ class Modulespecifiers {
 
 	static function computeModuleSpecifiers(modulePaths:Array<ModulePath>, compilerOptions:CompilerOptions,
 			importingSourceFile:SourceFileForSpecifierGeneration, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences,
-			options:ModuleSpecifierOptions, forAutoImport:Bool):Pair<Array<String>, ResultKind> {
+			options:ModuleSpecifierOptions, forAutoImport:Bool):Pair<Array<ModuleSpecifier>, ResultKind> {
 		final info = getInfo(importingSourceFile.FileName(), host);
 		final preferences = getModuleSpecifierPreferences(userPreferences, host, compilerOptions, importingSourceFile, "");
+		final caseSensitivity = info.CaseSensitivity;
 
-		var existingSpecifier = "";
+		var existingSpecifier:ModuleSpecifier = cast "";
 		for (modulePath in modulePaths) {
-			final targetPath = Tspath.ToPath(modulePath.FileName, host.GetCurrentDirectory(), info.UseCaseSensitiveFileNames);
+			final targetPath = caseSensitivity.PathKey(modulePath.FileName.AsPath());
 			var existingImport:StringLiteralLike = null;
 			final imports = importingSourceFile.Imports();
 			if (imports != null) {
 				for (importSpecifier in imports) {
 					final resolvedModule = host.GetResolvedModuleFromModuleSpecifier(importingSourceFile, importSpecifier);
-					if (resolvedModule.IsResolved()
-						&& Tspath.ToPath(resolvedModule.ResolvedFileName, host.GetCurrentDirectory(), info.UseCaseSensitiveFileNames) == targetPath) {
+					if (resolvedModule.IsResolved() && resolvedModule.ResolvedPath == targetPath) {
 						existingImport = importSpecifier;
 						break;
 					}
@@ -545,13 +537,13 @@ class Modulespecifiers {
 					// If the candidate import mode doesn't match the mode we're generating for, don't consider it
 					continue;
 				}
-				existingSpecifier = existingImport.Text();
+				existingSpecifier = Tspath.ToModuleSpecifier(existingImport.Text());
 				break;
 			}
 		}
 
 		if (existingSpecifier != "") {
-			return new Pair<Array<String>, ResultKind>([existingSpecifier], ResultKindNone);
+			return new Pair<Array<ModuleSpecifier>, ResultKind>([existingSpecifier], ResultKindNone);
 		}
 
 		final importedFileIsInNodeModules = Core.Some(modulePaths, function(p:ModulePath):Bool return p.IsInNodeModules);
@@ -561,25 +553,25 @@ class Modulespecifiers {
 		//   2. Specifiers generated using "paths" from tsconfig
 		//   3. Non-relative specfiers resulting from a path through node_modules (e.g. "@foo/bar/path/to/file")
 		//   4. Relative paths
-		var pathsSpecifiers:Array<String> = null;
-		var redirectPathsSpecifiers:Array<String> = null;
-		var nodeModulesSpecifiers:Array<String> = null;
-		var relativeSpecifiers:Array<String> = null;
+		var pathsSpecifiers:Array<ModuleSpecifier> = null;
+		var redirectPathsSpecifiers:Array<ModuleSpecifier> = null;
+		var nodeModulesSpecifiers:Array<ModuleSpecifier> = null;
+		var relativeSpecifiers:Array<ModuleSpecifier> = null;
 
 		for (modulePath in modulePaths) {
-			var specifier = "";
+			var specifier:ModuleSpecifier = cast "";
 			if (modulePath.IsInNodeModules) {
 				specifier = tryGetModuleNameAsNodeModule(modulePath, info, importingSourceFile, host, compilerOptions, userPreferences /*packageNameOnly*/,
 					false, options.OverrideImportMode);
 			}
-			if (specifier.length > 0 && !(forAutoImport && IsExcludedByRegex(specifier, preferences.excludeRegexes))) {
+			if (specifier.length > 0 && !(forAutoImport && IsExcludedByRegex(specifier.AsString(), preferences.excludeRegexes))) {
 				if (nodeModulesSpecifiers == null)
 					nodeModulesSpecifiers = [];
 				nodeModulesSpecifiers.push(specifier);
 				if (modulePath.IsRedirect) {
 					// If we got a specifier for a redirect, it was a bare package specifier (e.g. "@foo/bar",
 					// not "@foo/bar/path/to/file"). No other specifier will be this good, so stop looking.
-					return new Pair<Array<String>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
+					return new Pair<Array<ModuleSpecifier>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
 				}
 			}
 
@@ -589,7 +581,7 @@ class Modulespecifiers {
 			}
 			final local = getLocalModuleSpecifier(modulePath.FileName, info, compilerOptions, host, importMode, preferences,
 				/*pathsOnly*/ modulePath.IsRedirect || specifier.length > 0);
-			if (local.length == 0 || forAutoImport && IsExcludedByRegex(local, preferences.excludeRegexes)) {
+			if (local.length == 0 || forAutoImport && IsExcludedByRegex(local.AsString(), preferences.excludeRegexes)) {
 				continue;
 			}
 			if (modulePath.IsRedirect) {
@@ -597,7 +589,7 @@ class Modulespecifiers {
 					redirectPathsSpecifiers = [];
 				redirectPathsSpecifiers.push(local);
 			} else if (PathIsBareSpecifier(local)) {
-				if (ContainsNodeModules(local)) {
+				if (moduleSpecifierContainsNodeModules(local)) {
 					// We could be in this branch due to inappropriate use of `baseUrl`, not intentional `paths`
 					// usage. It's impossible to reason about where to prioritize baseUrl-generated module
 					// specifiers, but if they contain `/node_modules/`, they're going to trigger a portability
@@ -627,57 +619,63 @@ class Modulespecifiers {
 		}
 
 		if (Core.len(pathsSpecifiers) > 0) {
-			return new Pair<Array<String>, ResultKind>(pathsSpecifiers, ResultKindPaths);
+			return new Pair<Array<ModuleSpecifier>, ResultKind>(pathsSpecifiers, ResultKindPaths);
 		}
 		if (Core.len(redirectPathsSpecifiers) > 0) {
-			return new Pair<Array<String>, ResultKind>(redirectPathsSpecifiers, ResultKindRedirect);
+			return new Pair<Array<ModuleSpecifier>, ResultKind>(redirectPathsSpecifiers, ResultKindRedirect);
 		}
 		if (Core.len(nodeModulesSpecifiers) > 0) {
-			return new Pair<Array<String>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
+			return new Pair<Array<ModuleSpecifier>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
 		}
-		return new Pair<Array<String>, ResultKind>(relativeSpecifiers, ResultKindRelative);
+		return new Pair<Array<ModuleSpecifier>, ResultKind>(relativeSpecifiers, ResultKindRelative);
 	}
 
-	static function getLocalModuleSpecifier(moduleFileName:String, info:Info, compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost,
-			importMode:ResolutionMode, preferences:ModuleSpecifierPreferences, pathsOnly:Bool):String {
+	static function getLocalModuleSpecifier(moduleFileName:RootedFilePath, info:Info, compilerOptions:CompilerOptions,
+			host:ModuleSpecifierGenerationHost, importMode:ResolutionMode, preferences:ModuleSpecifierPreferences, pathsOnly:Bool):ModuleSpecifier {
 		final paths = compilerOptions.Paths;
-		final rootDirs = compilerOptions.RootDirs;
+		final rootDirs = compilerOptions.GetEffectiveRootDirs();
 
 		if (pathsOnly && paths == null) {
-			return "";
+			return cast "";
 		}
 
 		final sourceDirectory = info.SourceDirectory;
 
 		final allowedEndings = preferences.getAllowedEndingsInPreferredOrder(importMode);
-		var relativePath = "";
+		var relativePath:ModuleSpecifier = cast "";
 		if (Core.len(rootDirs) > 0) {
 			relativePath = tryGetModuleNameFromRootDirs(rootDirs, moduleFileName, sourceDirectory, allowedEndings, compilerOptions, host);
 		}
 		if (relativePath.length == 0) {
-			relativePath = processEnding(ensurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(sourceDirectory, moduleFileName,
-				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory()))),
-				allowedEndings, compilerOptions, host);
+			final relativePathFromSource = host.CaseSensitivity().RelativePathFromDirectory(sourceDirectory, moduleFileName);
+			var path = moduleFileName.AsString();
+			if (relativePathFromSource != null) {
+				path = relativePathFromSource.AsModuleSpecifier().AsString();
+			}
+			relativePath = processEnding(Tspath.ToModuleSpecifier(path), moduleFileName, allowedEndings, compilerOptions, host);
 		}
 
 		if ((paths == null && !compilerOptions.GetResolvePackageJsonImports()) || preferences.relativePreference == RelativePreferenceRelative) {
 			if (pathsOnly) {
-				return "";
+				return cast "";
 			}
 			return relativePath;
 		}
 
-		final root = compilerOptions.GetPathsBasePath(host.GetCurrentDirectory());
-		final baseDirectory = Tspath.GetNormalizedAbsolutePath(root, host.GetCurrentDirectory());
-		final relativeToBaseUrl = getRelativePathIfInSameVolume(moduleFileName, baseDirectory, host.UseCaseSensitiveFileNames());
+		var baseDirectory = host.BaseDirectory();
+		final pathsBasePath = compilerOptions.GetPathsBasePath(baseDirectory);
+		if (pathsBasePath != "") {
+			baseDirectory = pathsBasePath;
+		}
+		final relativeToBaseUrl = getRelativePathIfInSameVolume(moduleFileName, baseDirectory, host.CaseSensitivity());
 		if (relativeToBaseUrl.length == 0) {
 			if (pathsOnly) {
-				return "";
+				return cast "";
 			}
 			return relativePath;
 		}
 
-		var fromPackageJsonImports = "";
+		var fromPackageJsonImports:ModuleSpecifier = cast "";
 		if (!pathsOnly) {
 			fromPackageJsonImports = tryGetModuleNameFromPackageJsonImports(moduleFileName, sourceDirectory, compilerOptions, host, importMode,
 				prefersTsExtension(allowedEndings));
@@ -685,16 +683,17 @@ class Modulespecifiers {
 
 		var fromPaths = "";
 		if ((pathsOnly || fromPackageJsonImports.length == 0) && paths != null) {
-			fromPaths = tryGetModuleNameFromPaths(relativeToBaseUrl, paths, allowedEndings, baseDirectory, host, compilerOptions);
+			fromPaths = tryGetModuleNameFromPaths(relativeToBaseUrl.AsString(), moduleFileName, paths, allowedEndings, baseDirectory, host,
+				compilerOptions);
 		}
 
 		if (pathsOnly) {
-			return fromPaths;
+			return Tspath.ToModuleSpecifier(fromPaths);
 		}
 
 		var maybeNonRelative:String;
 		if (fromPackageJsonImports.length > 0) {
-			maybeNonRelative = fromPackageJsonImports;
+			maybeNonRelative = fromPackageJsonImports.AsString();
 		} else {
 			maybeNonRelative = fromPaths;
 		}
@@ -702,29 +701,30 @@ class Modulespecifiers {
 			return relativePath;
 		}
 
-		final relativeIsExcluded = IsExcludedByRegex(relativePath, preferences.excludeRegexes);
+		final relativeIsExcluded = IsExcludedByRegex(relativePath.AsString(), preferences.excludeRegexes);
 		final nonRelativeIsExcluded = IsExcludedByRegex(maybeNonRelative, preferences.excludeRegexes);
 		if (!relativeIsExcluded && nonRelativeIsExcluded) {
 			return relativePath;
 		}
 		if (relativeIsExcluded && !nonRelativeIsExcluded) {
-			return maybeNonRelative;
+			return Tspath.ToModuleSpecifier(maybeNonRelative);
 		}
 
 		if (preferences.relativePreference == RelativePreferenceNonRelative && !Tspath.PathIsRelative(maybeNonRelative)) {
-			return maybeNonRelative;
+			return Tspath.ToModuleSpecifier(maybeNonRelative);
 		}
 
 		if (preferences.relativePreference == RelativePreferenceExternalNonRelative && !Tspath.PathIsRelative(maybeNonRelative)) {
-			var projectDirectory:Path;
-			if (compilerOptions.ConfigFilePath.length > 0) {
-				projectDirectory = Tspath.ToPath(Tspath.GetDirectoryPath(compilerOptions.ConfigFilePath), host.GetCurrentDirectory(),
-					host.UseCaseSensitiveFileNames());
+			var projectDirectory:PathKey;
+			final configFileName = compilerOptions.ConfigFilePath;
+			if (configFileName != "") {
+				projectDirectory = host.CaseSensitivity().PathKey(configFileName.Directory().AsPath());
 			} else {
-				projectDirectory = Tspath.ToPath(host.GetCurrentDirectory(), host.GetCurrentDirectory(), host.UseCaseSensitiveFileNames());
+				projectDirectory = host.CaseSensitivity().PathKey(host.BaseDirectory().AsPath());
 			}
-			final canonicalSourceDirectory = Tspath.ToPath(sourceDirectory, host.GetCurrentDirectory(), host.UseCaseSensitiveFileNames());
-			final modulePath = Tspath.ToPath(moduleFileName, (projectDirectory : String), host.UseCaseSensitiveFileNames());
+			final caseSensitivity = host.CaseSensitivity();
+			final canonicalSourceDirectory = caseSensitivity.PathKey(sourceDirectory.AsPath());
+			final modulePath = caseSensitivity.PathKey(moduleFileName.AsPath());
 
 			final sourceIsInternal = projectDirectory.ContainsPath(canonicalSourceDirectory);
 			final targetIsInternal = projectDirectory.ContainsPath(modulePath);
@@ -737,14 +737,13 @@ class Modulespecifiers {
 				//      lib/              | (path crosses tsconfig.json)
 				//        imported.ts <---
 				//
-				return maybeNonRelative;
+				return Tspath.ToModuleSpecifier(maybeNonRelative);
 			}
 
-			final nearestTargetPackageJson = host.GetNearestAncestorDirectoryWithPackageJson(Tspath.GetDirectoryPath((modulePath : String)));
+			final nearestTargetPackageJson = host.GetNearestAncestorDirectoryWithPackageJson(moduleFileName.Directory());
 			final nearestSourcePackageJson = host.GetNearestAncestorDirectoryWithPackageJson(sourceDirectory);
 
-			if (!packageJsonPathsAreEqual(nearestTargetPackageJson, nearestSourcePackageJson,
-				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory()))) {
+			if (!packageJsonPathsAreEqual(nearestTargetPackageJson, nearestSourcePackageJson, host.CaseSensitivity())) {
 				// 2. The importing and imported files are part of different packages.
 				//
 				//      packages/a/
@@ -754,42 +753,43 @@ class Modulespecifiers {
 				//        package.json     |
 				//        component.ts <---
 				//
-				return maybeNonRelative;
+				return Tspath.ToModuleSpecifier(maybeNonRelative);
 			}
 
 			return relativePath;
 		}
 
 		// Prefer a relative import over a baseUrl import if it has fewer components.
-		if (isPathRelativeToParent(maybeNonRelative) || CountPathComponents(relativePath) < CountPathComponents(maybeNonRelative)) {
+		if (StringTools.startsWith(maybeNonRelative, "..") || CountPathComponents(relativePath.AsString()) < CountPathComponents(maybeNonRelative)) {
 			return relativePath;
 		}
-		return maybeNonRelative;
+		return Tspath.ToModuleSpecifier(maybeNonRelative);
 	}
 
-	static function processEnding(fileName:String, allowedEndings:Array<ModuleSpecifierEnding>, options:CompilerOptions,
-			host:ModuleSpecifierGenerationHost):String {
+	static function processEnding(specifier:ModuleSpecifier, sourceFileName:RootedFilePath, allowedEndings:Array<ModuleSpecifierEnding>,
+			options:CompilerOptions, host:ModuleSpecifierGenerationHost):ModuleSpecifier {
+		final fileName = specifier.AsString();
 		if (Tspath.FileExtensionIsOneOf(fileName, [Tspath.ExtensionJson, Tspath.ExtensionMjs, Tspath.ExtensionCjs])) {
-			return fileName;
+			return specifier;
 		}
 
 		final noExtension = Tspath.RemoveFileExtension(fileName);
 		if (fileName == noExtension) {
-			return fileName;
+			return specifier;
 		}
 
 		final jsPriority = Slices.Index(allowedEndings, ModuleSpecifierEndingJsExtension);
 		final tsPriority = Slices.Index(allowedEndings, ModuleSpecifierEndingTsExtension);
 		if (Tspath.FileExtensionIsOneOf(fileName, [Tspath.ExtensionMts, Tspath.ExtensionCts]) && tsPriority != -1 && tsPriority < jsPriority) {
-			return fileName;
+			return specifier;
 		}
 		if (Tspath.FileExtensionIsOneOf(fileName, [Tspath.ExtensionDmts, Tspath.ExtensionDcts])) {
 			final inputExt = Tspath.GetDeclarationFileExtension(fileName);
 			final ext = GetJSExtensionForDeclarationFileExtension(inputExt);
-			return Tspath.RemoveExtension(fileName, inputExt) + ext;
+			return Tspath.ToModuleSpecifier(Tspath.RemoveExtension(fileName, inputExt) + ext);
 		}
 		if (Tspath.FileExtensionIsOneOf(fileName, [Tspath.ExtensionMts, Tspath.ExtensionCts])) {
-			return noExtension + getJSExtensionForFile(fileName, options);
+			return Tspath.ToModuleSpecifier(noExtension + getJSExtensionForFile(fileName, options));
 		}
 		if (!Tspath.FileExtensionIsOneOf(fileName, [Tspath.ExtensionDts])
 			&& Tspath.FileExtensionIsOneOf(fileName, [Tspath.ExtensionTs])
@@ -797,23 +797,23 @@ class Modulespecifiers {
 			// `foo.d.json.ts` and the like - remap back to `foo.json`
 			final result = TryGetRealFileNameForNonJSDeclarationFileName(fileName);
 			if (result != "") {
-				return result;
+				return Tspath.ToModuleSpecifier(result);
 			}
 		}
 
 		switch (allowedEndings[0]) {
 			case ModuleSpecifierEndingMinimal:
 				final withoutIndex = trimSuffix(noExtension, "/index");
-				if (host != null && withoutIndex != noExtension && tryGetAnyFileFromPath(host, withoutIndex)) {
+				if (host != null && withoutIndex != noExtension && tryGetAnyFileFromPath(host, Tspath.RootedFilePathFromPath(sourceFileName.Directory().AsPath()))) {
 					// Can't remove index if there's a file by the same name as the directory.
 					// Probably more callers should pass `host` so we can determine this?
-					return noExtension;
+					return Tspath.ToModuleSpecifier(noExtension);
 				}
-				return withoutIndex;
+				return Tspath.ToModuleSpecifier(withoutIndex);
 			case ModuleSpecifierEndingIndex:
-				return noExtension;
+				return Tspath.ToModuleSpecifier(noExtension);
 			case ModuleSpecifierEndingJsExtension:
-				return noExtension + getJSExtensionForFile(fileName, options);
+				return Tspath.ToModuleSpecifier(noExtension + getJSExtensionForFile(fileName, options));
 			case ModuleSpecifierEndingTsExtension:
 				// For now, we don't know if this import is going to be type-only, which means we don't
 				// know if a .d.ts extension is valid, so use no extension or a .js extension
@@ -827,33 +827,33 @@ class Modulespecifiers {
 						}
 					}
 					if (extensionlessPriority != -1 && extensionlessPriority < jsPriority) {
-						return noExtension;
+						return Tspath.ToModuleSpecifier(noExtension);
 					}
-					return noExtension + getJSExtensionForFile(fileName, options);
+					return Tspath.ToModuleSpecifier(noExtension + getJSExtensionForFile(fileName, options));
 				}
-				return fileName;
+				return specifier;
 			default:
 				Debug.AssertNever(allowedEndings[0]);
-				return "";
+				return cast "";
 		}
 	}
 
-	static function tryGetModuleNameFromRootDirs(rootDirs:Array<String>, moduleFileName:String, sourceDirectory:String,
-			allowedEndings:Array<ModuleSpecifierEnding>, compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost):String {
-		final normalizedTargetPaths = getPathsRelativeToRootDirs(moduleFileName, rootDirs, host.UseCaseSensitiveFileNames());
+	static function tryGetModuleNameFromRootDirs(rootDirs:Array<RootedDirectoryPath>, moduleFileName:RootedFilePath,
+			sourceDirectory:RootedDirectoryPath, allowedEndings:Array<ModuleSpecifierEnding>, compilerOptions:CompilerOptions,
+			host:ModuleSpecifierGenerationHost):ModuleSpecifier {
+		final normalizedTargetPaths = getPathsRelativeToRootDirs(moduleFileName, rootDirs, host.CaseSensitivity());
 		if (Core.len(normalizedTargetPaths) == 0) {
-			return "";
+			return cast "";
 		}
 
-		final normalizedSourcePaths = getPathsRelativeToRootDirs(sourceDirectory, rootDirs, host.UseCaseSensitiveFileNames());
-		var shortest = "";
+		final normalizedSourcePaths = getPathsRelativeToRootDirs(Tspath.RootedFilePathFromPath(sourceDirectory.AsPath()), rootDirs, host.CaseSensitivity());
+		var shortest:ModuleSpecifier = cast "";
 		var shortestSepCount = 0;
 		if (normalizedSourcePaths != null) {
 			for (sourcePath in normalizedSourcePaths) {
 				for (targetPath in normalizedTargetPaths) {
-					final candidate = ensurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(sourcePath, targetPath,
-						new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())));
-					final candidateSepCount = Strings.Count(candidate, "/");
+					final candidate = host.CaseSensitivity().RelativePathFromRelativeDirectory(sourcePath, targetPath).AsModuleSpecifier();
+					final candidateSepCount = Strings.Count(candidate.AsString(), "/");
 					if (shortest.length == 0 || candidateSepCount < shortestSepCount) {
 						shortest = candidate;
 						shortestSepCount = candidateSepCount;
@@ -863,103 +863,110 @@ class Modulespecifiers {
 		}
 
 		if (shortest.length == 0) {
-			return "";
+			return cast "";
 		}
-		return processEnding(shortest, allowedEndings, compilerOptions, host);
+		return processEnding(shortest, moduleFileName, allowedEndings, compilerOptions, host);
 	}
 
 	static function tryGetModuleNameAsNodeModule(pathObj:ModulePath, info:Info, importingSourceFile:SourceFileForSpecifierGeneration,
 			host:ModuleSpecifierGenerationHost, options:CompilerOptions, userPreferences:UserPreferences, packageNameOnly:Bool,
-			overrideMode:ResolutionMode):String {
+			overrideMode:ResolutionMode):ModuleSpecifier {
 		final parts = GetNodeModulePathParts(pathObj.FileName);
 		if (parts == null) {
-			return "";
+			return cast "";
 		}
 
-		final caseSensitive = host.UseCaseSensitiveFileNames();
+		final caseSensitivity = host.CaseSensitivity();
 		final globalTypingsCacheLocation = host.GetGlobalTypingsCacheLocation();
 		// Check reachability before consulting package.json exports, which can return
 		// a bare specifier directly. An exported path is only usable if the importing
 		// file can reach the package through node_modules, and packages under the
 		// global typings cache are excluded.
-		// PORT: the prefix up to the top-level node_modules is the same in pathObj.FileName and in
-		// every specifier computed below from it.
-		final pathToTopLevelNodeModules = pathObj.FileName.substring(0, parts.TopLevelNodeModulesIndex);
-		if (!Stringutil.HasPrefix(info.SourceDirectory, pathToTopLevelNodeModules, caseSensitive)
-			|| globalTypingsCacheLocation.length > 0
-			&& Stringutil.HasPrefix(globalTypingsCacheLocation, pathToTopLevelNodeModules, caseSensitive)) {
-			return "";
+		if (!caseSensitivity.ContainsPath(parts.TopLevelNodeModulesSearchRoot, info.SourceDirectory.AsPath())
+			|| globalTypingsCacheLocation != ""
+			&& caseSensitivity.ContainsPath(parts.TopLevelNodeModulesSearchRoot, globalTypingsCacheLocation.AsPath())) {
+			return cast "";
 		}
 
 		// Simplify the full file path to something that can be resolved by Node.
 		final preferences = getModuleSpecifierPreferences(userPreferences, host, options, importingSourceFile, "");
 		final allowedEndings = preferences.getAllowedEndingsInPreferredOrder(Core.ResolutionModeNone);
 
-		var moduleSpecifier = pathObj.FileName;
+		var moduleSpecifier = pathObj.FileName.AsString();
 		var isPackageRootPath = false;
 		if (!packageNameOnly) {
-			var packageRootIndex = parts.PackageRootIndex;
-			var moduleFileName = "";
-			while (true) {
-				// If the module could be imported by a directory name, use that directory's name
-				final currentParts = new NodeModulePathParts(parts.TopLevelNodeModulesIndex, parts.TopLevelPackageNameIndex, packageRootIndex,
-					parts.FileNameIndex);
-				final pkgJsonResults = tryDirectoryWithPackageJson(currentParts, parts.PackageRootIndex, pathObj, importingSourceFile, host, overrideMode,
-					options, allowedEndings);
-				final moduleFileToTry = pkgJsonResults.moduleFileToTry;
-				final packageRootPath = pkgJsonResults.packageRootPath;
-				final blockedByExports = pkgJsonResults.blockedByExports;
-				final verbatimFromExports = pkgJsonResults.verbatimFromExports;
-				if (blockedByExports) {
-					return ""; // File is under this package.json, but is not publicly exported - there's no way to name it via `node_modules` resolution
-				}
-				if (verbatimFromExports) {
-					return moduleFileToTry;
-				}
-				//}
-				if (packageRootPath.length > 0) {
-					moduleSpecifier = packageRootPath;
-					isPackageRootPath = true;
-					break;
-				}
-				if (moduleFileName.length == 0) {
-					moduleFileName = moduleFileToTry;
-				}
-				// try with next level of directory
-				packageRootIndex = Core.IndexAfter(pathObj.FileName, "/", packageRootIndex + 1);
-				if (packageRootIndex == -1) {
-					moduleSpecifier = processEnding(moduleFileName, allowedEndings, options, host);
-					break;
+			if (parts.IsDirectNodeModulesFile) {
+				moduleSpecifier = processEnding(pathObj.FileName.AsModuleSpecifier(), pathObj.FileName, allowedEndings, options, host).AsString();
+			} else {
+				var moduleFileName:RootedFilePath = cast "";
+				var packageRootDirectory = parts.PackageRootDirectory;
+				final relativeComponents = parts.PackageRelativePath.AsString().split("/");
+				var i = 0;
+				while (true) {
+					final packagePath = packageRootDirectory.AsPath().RelativeTo(parts.TopLevelNodeModulesDirectory);
+					if (packagePath == null) {
+						return cast "";
+					}
+					// If the module could be imported by a directory name, use that directory's name
+					final pkgJsonResults = tryDirectoryWithPackageJson(packageRootDirectory, parts.PackageRootDirectory, packagePath.AsString(), pathObj,
+						importingSourceFile, host, overrideMode, options, allowedEndings);
+					final moduleFileToTry = pkgJsonResults.moduleFileToTry;
+					final resolvedPackageRoot = pkgJsonResults.packageRootDirectory;
+					final blockedByExports = pkgJsonResults.blockedByExports;
+					if (blockedByExports) {
+						return cast ""; // File is under this package.json, but is not publicly exported - there's no way to name it via `node_modules` resolution
+					}
+					if (pkgJsonResults.verbatimFromExports != "") {
+						return pkgJsonResults.verbatimFromExports;
+					}
+					//}
+					if (resolvedPackageRoot != "") {
+						moduleSpecifier = resolvedPackageRoot.AsString();
+						isPackageRootPath = true;
+						break;
+					}
+					if (moduleFileName.length == 0) {
+						moduleFileName = moduleFileToTry;
+					}
+					if (i >= relativeComponents.length - 1) {
+						moduleSpecifier = processEnding(moduleFileName.AsModuleSpecifier(), moduleFileName, allowedEndings, options, host).AsString();
+						break;
+					}
+					packageRootDirectory = packageRootDirectory.ResolveDirectory(relativeComponents[i]);
+					i++;
 				}
 			}
 		}
 
 		if (pathObj.IsRedirect && !isPackageRootPath) {
-			return "";
+			return cast "";
 		}
 
 		// If the module was found in @types, get the actual Node package name
-		final nodeModulesDirectoryName = moduleSpecifier.substring(parts.TopLevelPackageNameIndex + 1);
-		return Module.GetPackageNameFromTypesPackageName(nodeModulesDirectoryName);
+		final nodeModulesPrefix = Tspath.EnsureTrailingDirectorySeparator(parts.TopLevelNodeModulesDirectory.AsString());
+		if (!StringTools.startsWith(moduleSpecifier, nodeModulesPrefix)) {
+			return cast "";
+		}
+		final nodeModulesDirectoryName = moduleSpecifier.substring(nodeModulesPrefix.length);
+		return Tspath.ToModuleSpecifier(Module.GetPackageNameFromTypesPackageName(nodeModulesDirectoryName));
 	}
 
-	static function tryDirectoryWithPackageJson(parts:NodeModulePathParts, packageBaseRootIndex:Int, pathObj:ModulePath, importingSourceFile:SourceFileForSpecifierGeneration,
-			host:ModuleSpecifierGenerationHost, overrideMode:ResolutionMode, options:CompilerOptions,
-			allowedEndings:Array<ModuleSpecifierEnding>):PkgJsonDirAttemptResult {
-		var rootIdx = parts.PackageRootIndex;
-		if (rootIdx == -1) {
-			rootIdx = pathObj.FileName.length; // TODO: possible strada bug? -1 in js slice removes characters from the end, in go it panics - js behavior seems unwanted here?
-		}
-		final packageRootPath = pathObj.FileName.substring(0, rootIdx);
-		final packageJsonPath = Tspath.CombinePaths(packageRootPath, "package.json");
+	static function tryDirectoryWithPackageJson(packageRootDirectory:RootedDirectoryPath, packageBaseDirectory:RootedDirectoryPath,
+			packageName:String, pathObj:ModulePath, importingSourceFile:SourceFileForSpecifierGeneration, host:ModuleSpecifierGenerationHost,
+			overrideMode:ResolutionMode, options:CompilerOptions, allowedEndings:Array<ModuleSpecifierEnding>):PkgJsonDirAttemptResult {
+		final packageJsonPath = packageRootDirectory.ResolveFile("package.json");
 		var moduleFileToTry = pathObj.FileName;
 		var maybeBlockedByTypesVersions = false;
 		final packageJson = host.GetPackageJsonInfo(packageJsonPath);
 		if (packageJson == null) {
 			// No package.json exists; an index.js will still resolve as the package name
-			final fileName = moduleFileToTry.substring(packageBaseRootIndex + 1);
+			final relative = moduleFileToTry.RelativeTo(packageBaseDirectory);
+			if (relative == null) {
+				throw "module file was not contained by package root";
+			}
+			final fileName = relative.AsString();
 			if (fileName == "index.d.ts" || fileName == "index.js" || fileName == "index.ts" || fileName == "index.tsx") {
-				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootPath);
+				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootDirectory);
 			} else {
 				return new PkgJsonDirAttemptResult(moduleFileToTry);
 			}
@@ -975,8 +982,7 @@ class Modulespecifiers {
 			// The package name that we found in node_modules could be different from the package
 			// name in the package.json content via url/filepath dependency specifiers. We need to
 			// use the actual directory name, so don't look at `packageJsonContent.name` here.
-			final nodeModulesDirectoryName = packageRootPath.substring(parts.TopLevelPackageNameIndex + 1);
-			final packageName = Module.GetPackageNameFromTypesPackageName(nodeModulesDirectoryName);
+			final packageName = Module.GetPackageNameFromTypesPackageName(packageName);
 
 			// Determine resolution mode for package.json exports condition matching.
 			// TypeScript's tryDirectoryWithPackageJson uses the importing file's mode (moduleSpecifiers.ts:1257),
@@ -984,24 +990,24 @@ class Modulespecifiers {
 			// using the logic from getImpliedNodeFormatForEmitWorker (program.ts:4827-4838).
 			// .cjs/.cts/.d.cts → CommonJS → "require" condition
 			// .mjs/.mts/.d.mts → ESM → "import" condition
-			if (Tspath.FileExtensionIsOneOf(pathObj.FileName, [Tspath.ExtensionCjs, Tspath.ExtensionCts, Tspath.ExtensionDcts])) {
+			if (pathObj.FileName.ExtensionIsOneOf([Tspath.ExtensionCjs, Tspath.ExtensionCts, Tspath.ExtensionDcts])) {
 				importMode = Core.ResolutionModeCommonJS;
-			} else if (Tspath.FileExtensionIsOneOf(pathObj.FileName, [Tspath.ExtensionMjs, Tspath.ExtensionMts, Tspath.ExtensionDmts])) {
+			} else if (pathObj.FileName.ExtensionIsOneOf([Tspath.ExtensionMjs, Tspath.ExtensionMts, Tspath.ExtensionDmts])) {
 				importMode = Core.ResolutionModeESM;
 			}
 
 			final conditions = Module.GetConditions(options, importMode);
 
-			var fromExports = "";
+			var fromExports:ModuleSpecifier = cast "";
 			if (packageJsonContent != null && packageJsonContent.Fields.Exports.Type != JSONValueTypeNotPresent) {
-				fromExports = tryGetModuleNameFromExports(options, host, pathObj.FileName, packageRootPath, packageName, packageJsonContent.Fields.Exports,
-					conditions);
+				fromExports = tryGetModuleNameFromExports(options, host, pathObj.FileName, packageRootDirectory, packageName,
+					packageJsonContent.Fields.Exports, conditions);
 			}
 			if (fromExports.length > 0) {
-				return new PkgJsonDirAttemptResult(fromExports, "", false, true);
+				return new PkgJsonDirAttemptResult(cast "", null, false, fromExports);
 			}
 			if (packageJsonContent != null && packageJsonContent.Fields.Exports.Type != JSONValueTypeNotPresent) {
-				return new PkgJsonDirAttemptResult(pathObj.FileName, "", true);
+				return new PkgJsonDirAttemptResult(moduleFileToTry, null, true);
 			}
 		}
 
@@ -1010,12 +1016,16 @@ class Modulespecifiers {
 			versionPaths = packageJsonContent.GetVersionPaths(null);
 		}
 		if (versionPaths.GetPaths() != null) {
-			final subModuleName = pathObj.FileName.substring(packageRootPath.length + 1);
-			final fromPaths = tryGetModuleNameFromPaths(subModuleName, versionPaths.GetPaths(), allowedEndings, packageRootPath, host, options);
+			final subModuleName = moduleFileToTry.RelativeTo(packageRootDirectory);
+			if (subModuleName == null) {
+				throw "module file was not contained by package root";
+			}
+			final fromPaths = tryGetModuleNameFromPaths(subModuleName.AsString(), moduleFileToTry, versionPaths.GetPaths(), allowedEndings,
+				packageRootDirectory, host, options);
 			if (fromPaths.length == 0) {
 				maybeBlockedByTypesVersions = true;
 			} else {
-				moduleFileToTry = Tspath.CombinePaths(packageRootPath, fromPaths);
+				moduleFileToTry = packageRootDirectory.ResolveFile(fromPaths);
 			}
 		}
 		// If the file is the main module, it can be imported by the package name
@@ -1039,31 +1049,37 @@ class Modulespecifiers {
 			// package got pulled into the program anyway, e.g. transitively through a file that *is* reachable. It
 			// happens very easily in fourslash tests though, since every test file listed gets included. See
 			// importNameCodeFix_typesVersions.ts for an example.)
-			final mainExportFile = Tspath.ToPath(mainFileRelative, packageRootPath, host.UseCaseSensitiveFileNames());
-			final compareOpt = new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory());
-			if (Tspath.ComparePaths_legacy(Tspath.RemoveFileExtension((mainExportFile : String)), Tspath.RemoveFileExtension(moduleFileToTry), compareOpt) == 0) {
-				// ^ An arbitrary removal of file extension for this comparison is almost certainly wrong
-				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootPath);
-			} else if (packageJsonContent == null
-				|| packageJsonContent.Type.Value != "module"
-				&& !Tspath.FileExtensionIsOneOf(moduleFileToTry, Tspath.ExtensionsNotSupportingExtensionlessResolution)
-				&& Stringutil.HasPrefix(moduleFileToTry, (mainExportFile : String), host.UseCaseSensitiveFileNames())
-				&& Tspath.ComparePaths_legacy(Tspath.GetDirectoryPath(moduleFileToTry), Tspath.RemoveTrailingDirectorySeparator((mainExportFile : String)),
-					compareOpt) == 0
-				&& Tspath.RemoveFileExtension(Tspath.GetBaseFileName(moduleFileToTry)) == "index") {
-				// if mainExportFile is a directory, which contains moduleFileToTry, we just try index file
-				// example mainExportFile: `pkg/lib` and moduleFileToTry: `pkg/lib/index`, we can use packageRootPath
-				// but this behavior is deprecated for packages with "type": "module", so we only do this for packages without "type": "module"
-				// and make sure that the extension on index.{???} is something that supports omitting the extension
-				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootPath);
+			final caseSensitivity = host.CaseSensitivity();
+			var packageType = "";
+			if (packageJsonContent != null) {
+				packageType = packageJsonContent.Type.Value;
+			}
+			if (isPackageMainFile(moduleFileToTry, packageRootDirectory, mainFileRelative, packageType, caseSensitivity)) {
+				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootDirectory);
 			}
 		}
 
 		return new PkgJsonDirAttemptResult(moduleFileToTry);
 	}
 
-	static function tryGetModuleNameFromExports(options:CompilerOptions, host:ModuleSpecifierGenerationHost, targetFilePath:String,
-			packageDirectory:String, packageName:String, exports:ExportsOrImports, conditions:Array<String>):String {
+	static function isPackageMainFile(moduleFileName:RootedFilePath, packageRootDirectory:RootedDirectoryPath, mainFileRelative:String,
+			packageType:String, caseSensitivity:CaseSensitivity):Bool {
+		final mainIsDirectory = Tspath.HasTrailingDirectorySeparator(mainFileRelative);
+		final mainExportFile = packageRootDirectory.ResolveFile(mainFileRelative);
+
+		if (!mainIsDirectory && caseSensitivity.CompareFileNameStems(mainExportFile.RemoveFileExtension(), moduleFileName.RemoveFileExtension()) == 0) {
+			// An arbitrary removal of file extension for this comparison is almost certainly wrong.
+			return true;
+		}
+		final mainExportDirectory = Tspath.RootedDirectoryPathFromPath(mainExportFile.AsPath());
+		return packageType != "module"
+			&& !moduleFileName.ExtensionIsOneOf(Tspath.ExtensionsNotSupportingExtensionlessResolution)
+			&& caseSensitivity.ComparePaths(moduleFileName.Directory().AsPath(), mainExportDirectory.AsPath()) == 0
+			&& Tspath.RemoveFileExtension(moduleFileName.BaseName()) == "index";
+	}
+
+	static function tryGetModuleNameFromExports(options:CompilerOptions, host:ModuleSpecifierGenerationHost, targetFileName:RootedFilePath,
+			packageDirectory:RootedDirectoryPath, packageName:String, exports:ExportsOrImports, conditions:Array<String>):ModuleSpecifier {
 		if (exports.IsSubpaths()) {
 			// sub-mappings
 			// 3 cases:
@@ -1071,47 +1087,47 @@ class Modulespecifiers {
 			// * pattern mappings (contains a *)
 			// * exact mappings (no *, does not end with /)
 			for (k => subk in exports.AsObject().Entries()) {
-				final subPackageName = Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(packageName, k), "");
+				final subPackageName = Tspath.ResolvePathWithoutTrailingDirectorySeparator(packageName, k);
 				var mode = MatchingModeExact;
 				if (StringTools.endsWith(k, "/")) {
 					mode = MatchingModeDirectory;
 				} else if (k.indexOf("*") >= 0) {
 					mode = MatchingModePattern;
 				}
-				final result = tryGetModuleNameFromExportsOrImports(options, host, targetFilePath, packageDirectory, subPackageName, subk, conditions,
+				final result = tryGetModuleNameFromExportsOrImports(options, host, targetFileName, packageDirectory, subPackageName, subk, conditions,
 					mode /*isImports*/, false /*preferTsExtension*/, false);
 				if (result.length > 0) {
-					return result;
+					return Tspath.ToModuleSpecifier(result);
 				}
 			}
 		}
-		return tryGetModuleNameFromExportsOrImports(options, host, targetFilePath, packageDirectory, packageName, exports, conditions,
-			MatchingModeExact,
+		return Tspath.ToModuleSpecifier(tryGetModuleNameFromExportsOrImports(options, host, targetFileName, packageDirectory, packageName, exports,
+			conditions, MatchingModeExact,
 			/*isImports*/ false,
-			/*preferTsExtension*/ false);
+			/*preferTsExtension*/ false));
 	}
 
-	static function tryGetModuleNameFromPackageJsonImports(moduleFileName:String, sourceDirectory:String, options:CompilerOptions,
-			host:ModuleSpecifierGenerationHost, importMode:ResolutionMode, preferTsExtension:Bool):String {
+	static function tryGetModuleNameFromPackageJsonImports(moduleFileName:RootedFilePath, sourceDirectory:RootedDirectoryPath,
+			options:CompilerOptions, host:ModuleSpecifierGenerationHost, importMode:ResolutionMode, preferTsExtension:Bool):ModuleSpecifier {
 		if (!options.GetResolvePackageJsonImports()) {
-			return "";
+			return cast "";
 		}
 
 		final ancestorDirectoryWithPackageJson = host.GetNearestAncestorDirectoryWithPackageJson(sourceDirectory);
 		if (ancestorDirectoryWithPackageJson.length == 0) {
-			return "";
+			return cast "";
 		}
-		final packageJsonPath = Tspath.CombinePaths(ancestorDirectoryWithPackageJson, "package.json");
+		final packageJsonPath = ancestorDirectoryWithPackageJson.ResolveFile("package.json");
 
 		final info = host.GetPackageJsonInfo(packageJsonPath);
 		if (info == null) {
-			return "";
+			return cast "";
 		}
 
 		final imports = info.GetContents().Fields.Imports;
 		switch (imports.Type) {
 			case JSONValueTypeNotPresent, JSONValueTypeArray, JSONValueTypeString:
-				return ""; // not present or invalid for imports
+				return cast ""; // not present or invalid for imports
 			case JSONValueTypeObject:
 				final conditions = Module.GetConditions(options, importMode);
 				final top = imports.AsObject();
@@ -1133,25 +1149,25 @@ class Modulespecifiers {
 					final result = tryGetModuleNameFromExportsOrImports(options, host, moduleFileName, ancestorDirectoryWithPackageJson, k, value,
 						conditions, mode, true, preferTsExtension);
 					if (result.length > 0) {
-						return result;
+						return Tspath.ToModuleSpecifier(result);
 					}
 				}
 			default:
 		}
 
-		return "";
+		return cast "";
 	}
 
-	static function tryGetModuleNameFromPaths(relativeToBaseUrl:String, paths:OrderedMap<String, Array<String>>,
-			allowedEndings:Array<ModuleSpecifierEnding>, baseDirectory:String, host:ModuleSpecifierGenerationHost,
+	static function tryGetModuleNameFromPaths(relativeToBaseUrl:String, fileName:RootedFilePath, paths:OrderedMap<String, Array<String>>,
+			allowedEndings:Array<ModuleSpecifierEnding>, baseDirectory:RootedDirectoryPath, host:ModuleSpecifierGenerationHost,
 			compilerOptions:CompilerOptions):String {
-		final caseSensitive = host.UseCaseSensitiveFileNames();
+		final caseSensitivity = host.CaseSensitivity();
 		for (key => values in paths.Entries()) {
 			if (values == null)
 				continue;
 			for (patternText in values) {
 				final normalized = Tspath.NormalizePath(patternText);
-				var pattern = getRelativePathIfInSameVolume(normalized, baseDirectory, caseSensitive);
+				var pattern = resolvePathPatternIfInSameVolume(normalized, baseDirectory, caseSensitivity);
 				if (pattern.length == 0) {
 					pattern = normalized;
 				}
@@ -1201,30 +1217,34 @@ class Modulespecifiers {
 				final candidates:Array<SpecPair> = [];
 				if (allowedEndings != null) {
 					for (ending in allowedEndings) {
-						final result = processEnding(relativeToBaseUrl, [ending], compilerOptions, host);
+						final result = processEnding(Tspath.ToModuleSpecifier(relativeToBaseUrl), fileName, [ending], compilerOptions, host);
 						candidates.push(new SpecPair(ending, result));
 					}
 				}
 				if (Tspath.TryGetExtensionFromPath(pattern).length > 0) {
-					candidates.push(new SpecPair(ModuleSpecifierEndingJsExtension, relativeToBaseUrl));
+					candidates.push(new SpecPair(ModuleSpecifierEndingJsExtension, Tspath.ToModuleSpecifier(relativeToBaseUrl)));
 				}
 
 				if (ok) {
 					for (c in candidates) {
-						final value = c.value;
+						final value = c.value.AsString();
 						if (value.length >= prefix.length + suffix.length
-							&& Stringutil.HasPrefix(value, prefix, caseSensitive) // TODO: possible strada bug: these are not case-switched in strada
-							&& Stringutil.HasSuffix(value, suffix, caseSensitive)
-							&& validateEnding(c, relativeToBaseUrl, compilerOptions, host)) {
+							&& Stringutil.HasPrefix(value, prefix, caseSensitivity.IsCaseSensitive()) // TODO: possible strada bug: these are not case-switched in strada
+							&& Stringutil.HasSuffix(value, suffix, caseSensitivity.IsCaseSensitive())
+							&& validateEnding(c, relativeToBaseUrl, fileName, compilerOptions, host)) {
 							final matchedStar = value.substring(prefix.length, value.length - suffix.length);
 							if (!Tspath.PathIsRelative(matchedStar)) {
 								return replaceFirstStar(key, matchedStar);
 							}
 						}
 					}
-				} else if (Core.Some(candidates, function(c:SpecPair):Bool return c.ending != ModuleSpecifierEndingMinimal && pattern == c.value)
+				} else if (Core.Some(candidates, function(c:SpecPair):Bool {
+					return c.ending != ModuleSpecifierEndingMinimal && pattern == c.value.AsString();
+				})
 					|| Core.Some(candidates, function(c:SpecPair):Bool {
-						return c.ending == ModuleSpecifierEndingMinimal && pattern == c.value && validateEnding(c, relativeToBaseUrl, compilerOptions, host);
+						return c.ending == ModuleSpecifierEndingMinimal
+							&& pattern == c.value.AsString()
+							&& validateEnding(c, relativeToBaseUrl, fileName, compilerOptions, host);
 					})) {
 					return key;
 				}
@@ -1233,7 +1253,8 @@ class Modulespecifiers {
 		return "";
 	}
 
-	static function validateEnding(c:SpecPair, relativeToBaseUrl:String, compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost):Bool {
+	static function validateEnding(c:SpecPair, relativeToBaseUrl:String, fileName:RootedFilePath, compilerOptions:CompilerOptions,
+			host:ModuleSpecifierGenerationHost):Bool {
 		// Optimization: `removeExtensionAndIndexPostFix` can query the file system (a good bit) if `ending` is `Minimal`, the basename
 		// is 'index', and a `host` is provided. To avoid that until it's unavoidable, we ran the function with no `host` above. Only
 		// here, after we've checked that the minimal ending is indeed a match (via the length and prefix/suffix checks / `some` calls),
@@ -1241,12 +1262,14 @@ class Modulespecifiers {
 		// `ModuleSpecifierEnding.Index` result, which should already be in the list of candidates if `Minimal` was. (Note: the assumption here is
 		// that every module resolution mode that supports dropping extensions also supports dropping `/index`. Like literally
 		// everything else in this file, this logic needs to be updated if that's not true in some future module resolution mode.)
-		return c.ending != ModuleSpecifierEndingMinimal || c.value == processEnding(relativeToBaseUrl, [c.ending], compilerOptions, host);
+		return c.ending != ModuleSpecifierEndingMinimal
+			|| c.value == processEnding(Tspath.ToModuleSpecifier(relativeToBaseUrl), fileName, [c.ending], compilerOptions, host);
 	}
 
-	static function tryGetModuleNameFromExportsOrImports(options:CompilerOptions, host:ModuleSpecifierGenerationHost, targetFilePath:String,
-			packageDirectory:String, packageName:String, exports:ExportsOrImports, conditions:Array<String>, mode:MatchingMode, isImports:Bool,
-			preferTsExtension:Bool):String {
+	static function tryGetModuleNameFromExportsOrImports(options:CompilerOptions, host:ModuleSpecifierGenerationHost, targetFileName:RootedFilePath,
+			packageDirectory:RootedDirectoryPath, packageName:String, exports:ExportsOrImports, conditions:Array<String>, mode:MatchingMode,
+			isImports:Bool, preferTsExtension:Bool):String {
+		final packageSpecifier = Tspath.ToModuleSpecifier(packageName);
 		switch (exports.Type) {
 			case JSONValueTypeNotPresent:
 				return "";
@@ -1254,82 +1277,97 @@ class Modulespecifiers {
 				final strValue:String = exports.Value;
 
 				// possible strada bug? Always uses compilerOptions of the host project, not those applicable to the targeted package.json!
-				var outputFile = "";
-				var declarationFile = "";
+				var outputFile:RootedFilePath = cast "";
+				var declarationFile:RootedFilePath = cast "";
 				if (isImports) {
-					// PORT: transitional (main: typed targetFilePath)
-					outputFile = Outputpaths.GetOutputJSFileNameWorker(Tspath.RootedFilePathFromAbsolute(targetFilePath), options, host);
-					declarationFile = Outputpaths.GetOutputDeclarationFileNameWorker(Tspath.RootedFilePathFromAbsolute(targetFilePath), options, host);
+					outputFile = Outputpaths.GetOutputJSFileNameWorker(targetFileName, options, host);
+					declarationFile = Outputpaths.GetOutputDeclarationFileNameWorker(targetFileName, options, host);
 				}
 
-				final pathOrPattern = Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(packageDirectory, strValue), "");
-				var extensionSwappedTarget = "";
-				if (Tspath.HasTSFileExtension(targetFilePath)) {
-					extensionSwappedTarget = Tspath.RemoveFileExtension(targetFilePath) + Module.TryGetJSExtensionForFile(targetFilePath, options);
+				var extensionSwappedTarget:RootedFilePath = cast "";
+				if (targetFileName.HasTSFileExtension()) {
+					extensionSwappedTarget = targetFileName.RemoveFileExtension().AppendSuffix(Module.TryGetJSExtensionForFileName(targetFileName, options));
 				}
-				final canTryTsExtension = preferTsExtension && Tspath.HasImplementationTSFileExtension(targetFilePath);
+				final canTryTsExtension = preferTsExtension && targetFileName.HasImplementationTSFileExtension();
 
-				final compareOpts = new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory());
+				final caseSensitivity = host.CaseSensitivity();
 
 				switch (mode) {
 					case MatchingModeExact:
-						if (extensionSwappedTarget.length > 0 && Tspath.ComparePaths_legacy(extensionSwappedTarget, pathOrPattern, compareOpts) == 0
-							|| Tspath.ComparePaths_legacy(targetFilePath, pathOrPattern, compareOpts) == 0
-							|| outputFile.length > 0 && Tspath.ComparePaths_legacy(outputFile, pathOrPattern, compareOpts) == 0
-							|| declarationFile.length > 0 && Tspath.ComparePaths_legacy(declarationFile, pathOrPattern, compareOpts) == 0) {
+						if (Tspath.HasTrailingDirectorySeparator(strValue)) {
+							return "";
+						}
+						final resolvedTarget = packageDirectory.ResolveFile(strValue);
+						if (extensionSwappedTarget.length > 0 && caseSensitivity.CompareFilePaths(extensionSwappedTarget, resolvedTarget) == 0
+							|| caseSensitivity.CompareFilePaths(targetFileName, resolvedTarget) == 0
+							|| outputFile.length > 0 && caseSensitivity.CompareFilePaths(outputFile, resolvedTarget) == 0
+							|| declarationFile.length > 0 && caseSensitivity.CompareFilePaths(declarationFile, resolvedTarget) == 0) {
 							return packageName;
 						}
 					case MatchingModeDirectory:
-						if (canTryTsExtension && Tspath.ContainsPath_legacy(targetFilePath, pathOrPattern, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, targetFilePath, compareOpts);
-							return Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(Tspath.CombinePaths(packageName, strValue), fragment), "");
+						final resolvedTarget = packageDirectory.ResolveDirectory(Tspath.RemoveTrailingDirectorySeparator(strValue));
+						if (canTryTsExtension
+							&& caseSensitivity.ContainsPath(Tspath.RootedDirectoryPathFromPath(targetFileName.AsPath()), resolvedTarget.AsPath())) {
+							final fragment = caseSensitivity.RelativePathFromDirectory(resolvedTarget, targetFileName);
+							return packageSpecifier.Resolve(strValue, fragment.AsString()).AsString();
 						}
-						if (extensionSwappedTarget.length > 0 && Tspath.ContainsPath_legacy(pathOrPattern, extensionSwappedTarget, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, extensionSwappedTarget, compareOpts);
-							return Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(Tspath.CombinePaths(packageName, strValue), fragment), "");
+						if (extensionSwappedTarget.length > 0 && caseSensitivity.ContainsFilePath(resolvedTarget, extensionSwappedTarget)) {
+							final fragment = caseSensitivity.RelativePathFromDirectory(resolvedTarget, extensionSwappedTarget);
+							return packageSpecifier.Resolve(strValue, fragment.AsString()).AsString();
 						}
-						if (!canTryTsExtension && Tspath.ContainsPath_legacy(pathOrPattern, targetFilePath, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, targetFilePath, compareOpts);
-							return Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(Tspath.CombinePaths(packageName, strValue), fragment), "");
+						if (!canTryTsExtension && caseSensitivity.ContainsFilePath(resolvedTarget, targetFileName)) {
+							final fragment = caseSensitivity.RelativePathFromDirectory(resolvedTarget, targetFileName);
+							return packageSpecifier.Resolve(strValue, fragment.AsString()).AsString();
 						}
-						if (outputFile.length > 0 && Tspath.ContainsPath_legacy(pathOrPattern, outputFile, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, outputFile, compareOpts);
-							return Tspath.CombinePaths(packageName, fragment);
+						if (outputFile.length > 0 && caseSensitivity.ContainsFilePath(resolvedTarget, outputFile)) {
+							final fragment = caseSensitivity.RelativePathFromDirectory(resolvedTarget, outputFile);
+							return packageSpecifier.CombineRelative(fragment).AsString();
 						}
-						if (declarationFile.length > 0 && Tspath.ContainsPath_legacy(pathOrPattern, declarationFile, compareOpts)) {
-							final fragment = Tspath.GetRelativePathFromDirectory_legacy(pathOrPattern, declarationFile, compareOpts);
-							final jsExtension = getJSExtensionForFile(declarationFile, options);
-							final fragmentWithJsExtension = Tspath.ChangeExtension(fragment, jsExtension);
-							return Tspath.CombinePaths(packageName, fragmentWithJsExtension);
+						if (declarationFile.length > 0 && caseSensitivity.ContainsFilePath(resolvedTarget, declarationFile)) {
+							final fragment = caseSensitivity.RelativePathFromDirectory(resolvedTarget, declarationFile);
+							final jsExtension = getJSExtensionForFileName(declarationFile, options);
+							final fragmentWithJsExtension = fragment.ChangeExtension(jsExtension);
+							return packageSpecifier.CombineRelative(fragmentWithJsExtension).AsString();
 						}
 					case MatchingModePattern:
+						final pathOrPattern = Tspath.ResolvePath(packageDirectory.AsString(), strValue);
 						// PORT: strings.Cut(pathOrPattern, "*").
 						final starIndex = pathOrPattern.indexOf("*");
 						final leadingSlice = starIndex >= 0 ? pathOrPattern.substring(0, starIndex) : pathOrPattern;
 						final trailingSlice = starIndex >= 0 ? pathOrPattern.substring(starIndex + 1) : "";
-						final caseSensitive = host.UseCaseSensitiveFileNames();
-						if (canTryTsExtension && Stringutil.HasPrefixAndSuffixWithoutOverlap(targetFilePath, leadingSlice, trailingSlice, caseSensitive)) {
+						final caseSensitivity = host.CaseSensitivity();
+						final targetFilePath = targetFileName.AsString();
+						if (canTryTsExtension
+							&& Stringutil.HasPrefixAndSuffixWithoutOverlap(targetFilePath, leadingSlice, trailingSlice, caseSensitivity.IsCaseSensitive())) {
 							final starReplacement = targetFilePath.substring(leadingSlice.length, targetFilePath.length - trailingSlice.length);
 							return replaceFirstStar(packageName, starReplacement);
 						}
-						if (extensionSwappedTarget.length > 0
-							&& Stringutil.HasPrefixAndSuffixWithoutOverlap(extensionSwappedTarget, leadingSlice, trailingSlice, caseSensitive)) {
-							final starReplacement = extensionSwappedTarget.substring(leadingSlice.length, extensionSwappedTarget.length - trailingSlice.length);
+						final extensionSwappedTargetString = extensionSwappedTarget.AsString();
+						if (extensionSwappedTargetString.length > 0
+							&& Stringutil.HasPrefixAndSuffixWithoutOverlap(extensionSwappedTargetString, leadingSlice, trailingSlice,
+								caseSensitivity.IsCaseSensitive())) {
+							final starReplacement = extensionSwappedTargetString.substring(leadingSlice.length,
+								extensionSwappedTargetString.length - trailingSlice.length);
 							return replaceFirstStar(packageName, starReplacement);
 						}
-						if (!canTryTsExtension && Stringutil.HasPrefixAndSuffixWithoutOverlap(targetFilePath, leadingSlice, trailingSlice, caseSensitive)) {
+						if (!canTryTsExtension
+							&& Stringutil.HasPrefixAndSuffixWithoutOverlap(targetFilePath, leadingSlice, trailingSlice, caseSensitivity.IsCaseSensitive())) {
 							final starReplacement = targetFilePath.substring(leadingSlice.length, targetFilePath.length - trailingSlice.length);
 							return replaceFirstStar(packageName, starReplacement);
 						}
-						if (outputFile.length > 0 && Stringutil.HasPrefixAndSuffixWithoutOverlap(outputFile, leadingSlice, trailingSlice, caseSensitive)) {
-							final starReplacement = outputFile.substring(leadingSlice.length, outputFile.length - trailingSlice.length);
+						final outputFileString = outputFile.AsString();
+						if (outputFileString.length > 0
+							&& Stringutil.HasPrefixAndSuffixWithoutOverlap(outputFileString, leadingSlice, trailingSlice, caseSensitivity.IsCaseSensitive())) {
+							final starReplacement = outputFileString.substring(leadingSlice.length, outputFileString.length - trailingSlice.length);
 							return replaceFirstStar(packageName, starReplacement);
 						}
-						if (declarationFile.length > 0
-							&& Stringutil.HasPrefixAndSuffixWithoutOverlap(declarationFile, leadingSlice, trailingSlice, caseSensitive)) {
-							final starReplacement = declarationFile.substring(leadingSlice.length, declarationFile.length - trailingSlice.length);
+						final declarationFileString = declarationFile.AsString();
+						if (declarationFileString.length > 0
+							&& Stringutil.HasPrefixAndSuffixWithoutOverlap(declarationFileString, leadingSlice, trailingSlice,
+								caseSensitivity.IsCaseSensitive())) {
+							final starReplacement = declarationFileString.substring(leadingSlice.length, declarationFileString.length - trailingSlice.length);
 							final substituted = replaceFirstStar(packageName, starReplacement);
-							final jsExtension = Module.TryGetJSExtensionForFile(declarationFile, options);
+							final jsExtension = Module.TryGetJSExtensionForFileName(declarationFile, options);
 							if (jsExtension.length > 0) {
 								return Tspath.ChangeFullExtension(substituted, jsExtension);
 							}
@@ -1340,7 +1378,7 @@ class Modulespecifiers {
 			case JSONValueTypeArray:
 				final arr = exports.AsArray();
 				for (e in arr) {
-					final result = tryGetModuleNameFromExportsOrImports(options, host, targetFilePath, packageDirectory, packageName, e, conditions, mode,
+					final result = tryGetModuleNameFromExportsOrImports(options, host, targetFileName, packageDirectory, packageName, e, conditions, mode,
 						isImports, preferTsExtension);
 					if (result.length > 0) {
 						return result;
@@ -1353,7 +1391,7 @@ class Modulespecifiers {
 					if (key == "default"
 						|| Slices.Contains(conditions, key)
 						|| Slices.Contains(conditions, "types") && Module.IsApplicableVersionedTypesKey(key)) {
-						final result = tryGetModuleNameFromExportsOrImports(options, host, targetFilePath, packageDirectory, packageName, value, conditions,
+						final result = tryGetModuleNameFromExportsOrImports(options, host, targetFileName, packageDirectory, packageName, value, conditions,
 							mode, isImports, preferTsExtension);
 						if (result.length > 0) {
 							return result;
@@ -1375,28 +1413,28 @@ class Modulespecifiers {
 	// specifiers.
 	public static function GetModuleSpecifier(compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost,
 			importingSourceFile:SourceFile, // !!! | FutureSourceFile
-			importingSourceFileName:String, oldImportSpecifier:String, // used only in updatingModuleSpecifier
-			toFileName:String, options:ModuleSpecifierOptions):String {
+			importingSourceFileName:RootedFilePath, oldImportSpecifier:ModuleSpecifier, // used only in updatingModuleSpecifier
+			toFileName:RootedFilePath, options:ModuleSpecifierOptions):ModuleSpecifier {
 		return getModuleSpecifierWithPreferences(compilerOptions, host, importingSourceFile, importingSourceFileName, oldImportSpecifier, toFileName,
 			new UserPreferences(), options);
 	}
 
 	public static function UpdateModuleSpecifier(compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost, importingSourceFile:SourceFile,
-			importingSourceFileName:String, oldImportSpecifier:String, toFileName:String, userPreferences:UserPreferences,
-			options:ModuleSpecifierOptions):String {
+			importingSourceFileName:RootedFilePath, oldImportSpecifier:ModuleSpecifier, toFileName:RootedFilePath, userPreferences:UserPreferences,
+			options:ModuleSpecifierOptions):ModuleSpecifier {
 		return getModuleSpecifierWithPreferences(compilerOptions, host, importingSourceFile, importingSourceFileName, oldImportSpecifier, toFileName,
 			userPreferences, options);
 	}
 
 	static function getModuleSpecifierWithPreferences(compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost,
 			importingSourceFile:SourceFile, // !!! | FutureSourceFile
-			importingSourceFileName:String, oldImportSpecifier:String, // used only in updatingModuleSpecifier
-			toFileName:String, userPreferences:UserPreferences, options:ModuleSpecifierOptions):String {
+			importingSourceFileName:RootedFilePath, oldImportSpecifier:ModuleSpecifier, // used only in updatingModuleSpecifier
+			toFileName:RootedFilePath, userPreferences:UserPreferences, options:ModuleSpecifierOptions):ModuleSpecifier {
 		// PORT: *ast.SourceFile as SourceFileForSpecifierGeneration / ast.HasFileName → adapter.
 		final importingFile = SourceFileAdapter.Of(importingSourceFile);
 		final info = getInfo(importingSourceFileName, host);
 		final modulePaths = getAllModulePaths(info, toFileName, host, compilerOptions, userPreferences, options);
-		final preferences = getModuleSpecifierPreferences(userPreferences, host, compilerOptions, importingFile, oldImportSpecifier);
+		final preferences = getModuleSpecifierPreferences(userPreferences, host, compilerOptions, importingFile, oldImportSpecifier.AsString());
 
 		var resolutionMode = options.OverrideImportMode;
 		if (resolutionMode == Core.ResolutionModeNone) {
@@ -1438,23 +1476,23 @@ class Modulespecifiers {
 	static var regexPatternCacheSize = 0;
 	#end
 
-	static function comparePathsByRedirect(a:ModulePath, b:ModulePath, useCaseSensitiveFileNames:Bool):Int {
+	static function comparePathsByRedirect(a:ModulePath, b:ModulePath, caseSensitivity:CaseSensitivity):Int {
 		// Redirects sort first, matching Strada's compareBooleans(b.isRedirect, a.isRedirect).
 		final c1 = Core.CompareBooleans(b.IsRedirect, a.IsRedirect);
 		if (c1 != 0) {
 			return c1;
 		}
-		final c2 = Tspath.CompareNumberOfDirectorySeparators(a.FileName, b.FileName);
+		final c2 = Reflect.compare(a.FileName.DirectorySeparatorCount(), b.FileName.DirectorySeparatorCount());
 		if (c2 != 0) {
 			return c2;
 		}
 		// Strada relies on Map insertion order to break remaining ties deterministically;
 		// Go maps are unordered, so compare paths to keep the ordering stable.
-		return Tspath.ComparePaths_legacy(a.FileName, b.FileName, new ComparePathsOptions(useCaseSensitiveFileNames));
+		return caseSensitivity.CompareFilePaths(a.FileName, b.FileName);
 	}
 
-	public static function PathIsBareSpecifier(path:String):Bool {
-		return !Tspath.PathIsAbsolute(path) && !Tspath.PathIsRelative(path);
+	public static function PathIsBareSpecifier(path:ModuleSpecifier):Bool {
+		return !path.IsAbsolute() && !path.IsRelative();
 	}
 
 	public static function IsExcludedByRegex(moduleSpecifier:String, excludes:Null<Array<String>>):Bool {
@@ -1526,25 +1564,6 @@ class Modulespecifiers {
 		return compiled;
 	}
 
-	/**
-	 * Ensures a path is either absolute (prefixed with `/` or `c:`) or dot-relative (prefixed
-	 * with `./` or `../`) so as not to be confused with an unprefixed module name.
-	 *
-	 * ```ts
-	 * ensurePathIsNonModuleName("/path/to/file.ext") === "/path/to/file.ext"
-	 * ensurePathIsNonModuleName("./path/to/file.ext") === "./path/to/file.ext"
-	 * ensurePathIsNonModuleName("../path/to/file.ext") === "../path/to/file.ext"
-	 * ensurePathIsNonModuleName("path/to/file.ext") === "./path/to/file.ext"
-	 * ```
-	 *
-	 */
-	static function ensurePathIsNonModuleName(path:String):String {
-		if (PathIsBareSpecifier(path)) {
-			return "./" + path;
-		}
-		return path;
-	}
-
 	public static function GetJSExtensionForDeclarationFileExtension(ext:String):String {
 		switch (ext) {
 			case Tspath.ExtensionDts:
@@ -1584,6 +1603,14 @@ class Modulespecifiers {
 		return result;
 	}
 
+	static function getJSExtensionForFileName(fileName:RootedFilePath, options:CompilerOptions):String {
+		final result = Module.TryGetJSExtensionForFileName(fileName, options);
+		if (result.length == 0) {
+			throw 'Extension ${fileName.Extension()} is unsupported:: FileName:: $fileName';
+		}
+		return result;
+	}
+
 	/**
 	 * Gets the extension from a path.
 	 * Path must have a valid extension.
@@ -1596,7 +1623,7 @@ class Modulespecifiers {
 		return ext;
 	}
 
-	static function tryGetAnyFileFromPath(host:ModuleSpecifierGenerationHost, path:String):Bool {
+	static function tryGetAnyFileFromPath(host:ModuleSpecifierGenerationHost, path:RootedFilePath):Bool {
 		// !!! TODO: shouldn't this use readdir instead of fileexists for perf?
 		// We check all js, `node` and `json` extensions in addition to TS, since node module resolution would also choose those over the directory
 		final allowJsOptions = new CompilerOptions();
@@ -1604,8 +1631,7 @@ class Modulespecifiers {
 		final extGroups = Tsoptions.GetSupportedExtensions(allowJsOptions, [".node", ".json"]);
 		for (exts in extGroups) {
 			for (e in exts) {
-				final fullPath = path + e;
-				if (host.FileExists(Tspath.GetNormalizedAbsolutePath(fullPath, host.GetCurrentDirectory()))) {
+				if (host.FileExists(path.AppendSuffix(e))) {
 					return true;
 				}
 			}
@@ -1613,10 +1639,11 @@ class Modulespecifiers {
 		return false;
 	}
 
-	static function getPathsRelativeToRootDirs(path:String, rootDirs:Array<String>, useCaseSensitiveFileNames:Bool):Null<Array<String>> {
-		var results:Null<Array<String>> = null;
+	static function getPathsRelativeToRootDirs(path:RootedFilePath, rootDirs:Array<RootedDirectoryPath>,
+			caseSensitivity:CaseSensitivity):Null<Array<RelativePath>> {
+		var results:Null<Array<RelativePath>> = null;
 		for (rootDir in rootDirs) {
-			final relativePath = getRelativePathIfInSameVolume(path, rootDir, useCaseSensitiveFileNames);
+			final relativePath = getRelativePathIfInSameVolume(path, rootDir, caseSensitivity);
 			if (!isPathRelativeToParent(relativePath)) {
 				if (results == null)
 					results = [];
@@ -1626,27 +1653,36 @@ class Modulespecifiers {
 		return results;
 	}
 
-	static function isPathRelativeToParent(path:String):Bool {
-		return StringTools.startsWith(path, "..");
+	static function isPathRelativeToParent(path:RelativePath):Bool {
+		return path.IsParentRelative();
 	}
 
-	static function getRelativePathIfInSameVolume(path:String, directoryPath:String, useCaseSensitiveFileNames:Bool):String {
-		final relativePath = Tspath.GetRelativePathToDirectoryOrUrl_legacy(directoryPath, path, false,
-			new ComparePathsOptions(useCaseSensitiveFileNames, directoryPath));
+	static function getRelativePathIfInSameVolume(path:RootedFilePath, directoryPath:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity):RelativePath {
+		final relativePath = caseSensitivity.RelativePathFromDirectory(directoryPath, path);
+		if (relativePath == null) {
+			return Tspath.RelativePathFromNormalized("");
+		}
+		return relativePath;
+	}
+
+	static function resolvePathPatternIfInSameVolume(path:String, directoryPath:RootedDirectoryPath, caseSensitivity:CaseSensitivity):String {
+		final relativePath = Tspath.ResolveRelativePathToDirectoryOrUrl(directoryPath.AsString(), path, false, directoryPath, caseSensitivity);
+
 		if (Tspath.IsRootedDiskPath(relativePath)) {
 			return "";
 		}
 		return relativePath;
 	}
 
-	static function packageJsonPathsAreEqual(a:String, b:String, options:ComparePathsOptions):Bool {
+	static function packageJsonPathsAreEqual(a:RootedDirectoryPath, b:RootedDirectoryPath, caseSensitivity:CaseSensitivity):Bool {
 		if (a == b) {
 			return true;
 		}
-		if (a.length == 0 || b.length == 0) {
+		if (a == "" || b == "") {
 			return false;
 		}
-		return Tspath.ComparePaths_legacy(a, b, options) == 0;
+		return caseSensitivity.ComparePaths(a.AsPath(), b.AsPath()) == 0;
 	}
 
 	static function prefersTsExtension(allowedEndings:Array<ModuleSpecifierEnding>):Bool {
@@ -1671,57 +1707,69 @@ class Modulespecifiers {
 		return StringTools.endsWith(s, suffix) ? s.substring(0, s.length - suffix.length) : s;
 	}
 
-	public static function GetNodeModulePathParts(fullPath:String):Null<NodeModulePathParts> {
-		// If fullPath can't be valid module file within node_modules, returns undefined.
-		// Example of expected pattern: /base/path/node_modules/[@scope/otherpackage/@otherscope/node_modules/]package/[subdirectory/]file.js
-		// Returns indices:                       ^            ^                                                      ^             ^
-
-		var topLevelNodeModulesIndex = 0;
-		var topLevelPackageNameIndex = 0;
-		var packageRootIndex = 0;
-		var fileNameIndex = 0;
-
-		var partStart = 0;
+	public static function GetNodeModulePathParts(fileName:RootedFilePath):Null<NodeModulePathParts> {
+		final fullPath = fileName.AsString();
+		var topLevelNodeModulesIndex = -1;
+		var packageNameStart = -1;
+		var packageRootIndex = -1;
+		var hasNestedNodeModules = false;
 		var partEnd = 0;
 		var state = nodeModulesPathParseStateBeforeNodeModules;
 
 		while (partEnd >= 0) {
-			partStart = partEnd;
+			final partStart = partEnd;
 			partEnd = Core.IndexAfter(fullPath, "/", partStart + 1);
 			switch (state) {
 				case nodeModulesPathParseStateBeforeNodeModules:
-					if (fullPath.substring(partStart).indexOf("/node_modules/") == 0) {
+					if (StringTools.startsWith(fullPath.substring(partStart), "/node_modules/")) {
 						topLevelNodeModulesIndex = partStart;
-						topLevelPackageNameIndex = partEnd;
 						state = nodeModulesPathParseStateNodeModules;
 					}
-				case nodeModulesPathParseStateNodeModules, nodeModulesPathParseStateScope:
-					if (state == nodeModulesPathParseStateNodeModules && StringTools.fastCodeAt(fullPath, partStart + 1) == "@".code) {
+				case nodeModulesPathParseStateNodeModules:
+					packageNameStart = partStart + 1;
+					if (packageNameStart >= fullPath.length) {
+						return null;
+					}
+					if (StringTools.fastCodeAt(fullPath, packageNameStart) == "@".code) {
 						state = nodeModulesPathParseStateScope;
 					} else {
 						packageRootIndex = partEnd;
 						state = nodeModulesPathParseStatePackageContent;
 					}
+				case nodeModulesPathParseStateScope:
+					packageRootIndex = partEnd;
+					state = nodeModulesPathParseStatePackageContent;
 				case nodeModulesPathParseStatePackageContent:
-					if (fullPath.substring(partStart).indexOf("/node_modules/") == 0) {
+					if (StringTools.startsWith(fullPath.substring(partStart), "/node_modules/")) {
+						hasNestedNodeModules = true;
 						state = nodeModulesPathParseStateNodeModules;
-					} else {
-						state = nodeModulesPathParseStatePackageContent;
 					}
 				default:
 			}
 		}
 
-		fileNameIndex = partStart;
-
-		if (state > nodeModulesPathParseStateNodeModules) {
-			return new NodeModulePathParts(topLevelNodeModulesIndex, topLevelPackageNameIndex, packageRootIndex, fileNameIndex);
+		if (topLevelNodeModulesIndex == -1 || packageNameStart == -1) {
+			return null;
 		}
-		return null;
+
+		final rootLength = fileName.RootLength();
+		final searchRootEnd = Std.int(Math.max(topLevelNodeModulesIndex, rootLength));
+		final topLevelNodeModulesSearchRoot = Tspath.RootedDirectoryPathFromNormalized(fullPath.substring(0, searchRootEnd));
+		final topLevelNodeModulesDirectory = Tspath.RootedDirectoryPathFromNormalized(fullPath.substring(0,
+			topLevelNodeModulesIndex + "/node_modules".length));
+		if (packageRootIndex == -1) {
+			return new NodeModulePathParts(topLevelNodeModulesSearchRoot, topLevelNodeModulesDirectory, cast "", fullPath.substring(packageNameStart),
+				Tspath.RelativePathFromNormalized(""), hasNestedNodeModules, true);
+		}
+		final packageRootDirectory = Tspath.RootedDirectoryPathFromNormalized(fullPath.substring(0, packageRootIndex));
+		return new NodeModulePathParts(topLevelNodeModulesSearchRoot, topLevelNodeModulesDirectory, packageRootDirectory,
+			fullPath.substring(packageNameStart, packageRootIndex), Tspath.RelativePathFromNormalized(fullPath.substring(packageRootIndex + 1)),
+			hasNestedNodeModules, false);
 	}
 
 	public static function GetNodeModulesPackageName(compilerOptions:CompilerOptions, importingSourceFile:SourceFile, // !!! | FutureSourceFile
-			nodeModulesFileName:String, host:ModuleSpecifierGenerationHost, preferences:UserPreferences, options:ModuleSpecifierOptions):String {
+			nodeModulesFileName:RootedFilePath, host:ModuleSpecifierGenerationHost, preferences:UserPreferences,
+			options:ModuleSpecifierOptions):ModuleSpecifier {
 		final info = getInfo(importingSourceFile.FileName(), host);
 		final modulePaths = getAllModulePaths(info, nodeModulesFileName, host, compilerOptions, preferences, options);
 		for (modulePath in modulePaths) {
@@ -1731,7 +1779,7 @@ class Modulespecifiers {
 				return result;
 			}
 		}
-		return "";
+		return cast "";
 	}
 
 	static function allKeysStartWithDot(obj:OrderedMap<String, ExportsOrImports>):Bool {
@@ -1743,7 +1791,8 @@ class Modulespecifiers {
 		return true;
 	}
 
-	public static function GetPackageNameFromDirectory(fileOrDirectoryPath:String):String {
+	public static function GetPackageNameFromDirectory(path:RootedPath):String {
+		final fileOrDirectoryPath = path.AsString();
 		final idx = fileOrDirectoryPath.lastIndexOf("/node_modules/");
 		if (idx == -1) {
 			return "";
@@ -1774,10 +1823,12 @@ class Modulespecifiers {
 	// ProcessEntrypointEnding processes a pre-computed module specifier from a package.json exports
 	// entrypoint according to the entrypoint's Ending type and the user's preferred endings.
 	public static function ProcessEntrypointEnding(entrypoint:ResolvedEntrypoint, prefs:UserPreferences, host:ModuleSpecifierGenerationHost,
-			options:CompilerOptions, importingSourceFile:SourceFileForSpecifierGeneration, allowedEndings:Null<Array<ModuleSpecifierEnding>>):String {
+			options:CompilerOptions, importingSourceFile:SourceFileForSpecifierGeneration,
+			allowedEndings:Null<Array<ModuleSpecifierEnding>>):ModuleSpecifier {
+		// PORT: ResolvedEntrypoint.ModuleSpecifier is still a String in the resolver.
 		var specifier = entrypoint.ModuleSpecifier;
 		if (entrypoint.Ending == EndingFixed) {
-			return specifier;
+			return Tspath.ToModuleSpecifier(entrypoint.ModuleSpecifier);
 		}
 
 		if (Core.len(allowedEndings) == 0) {
@@ -1794,7 +1845,7 @@ class Modulespecifiers {
 				case ModuleSpecifierEndingTsExtension, ModuleSpecifierEndingJsExtension:
 					// Map .d.ts -> .js, .d.mts -> .mjs, .d.cts -> .cjs
 					final jsExtension = GetJSExtensionForDeclarationFileExtension(dtsExtension);
-					return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive);
+					return Tspath.ToModuleSpecifier(Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive));
 				case ModuleSpecifierEndingMinimal, ModuleSpecifierEndingIndex:
 					if (entrypoint.Ending == EndingChangeable) {
 						// .d.mts/.d.cts must keep an extension; rewrite to .mjs/.cjs instead of dropping
@@ -1803,79 +1854,79 @@ class Modulespecifiers {
 							if (preferredEnding == ModuleSpecifierEndingMinimal) {
 								specifier = trimSuffix(specifier, "/index");
 							}
-							return specifier;
+							return Tspath.ToModuleSpecifier(specifier);
 						}
 						final jsExtension = GetJSExtensionForDeclarationFileExtension(dtsExtension);
-						return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive);
+						return Tspath.ToModuleSpecifier(Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive));
 					}
 					// EndingExtensionChangeable - can only change extension, not remove it
 					final jsExtension = GetJSExtensionForDeclarationFileExtension(dtsExtension);
-					return Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive);
+					return Tspath.ToModuleSpecifier(Tspath.ChangeAnyExtension(specifier, jsExtension, [dtsExtension], Tspath.CaseSensitive));
 				default:
 			}
-			return specifier;
+			return Tspath.ToModuleSpecifier(specifier);
 		}
 
 		// Handle .ts/.tsx/.mts/.cts extensions
 		if (Tspath.FileExtensionIsOneOf(specifier, [Tspath.ExtensionTs, Tspath.ExtensionTsx, Tspath.ExtensionMts, Tspath.ExtensionCts])) {
 			switch (preferredEnding) {
 				case ModuleSpecifierEndingTsExtension:
-					return specifier;
+					return Tspath.ToModuleSpecifier(specifier);
 				case ModuleSpecifierEndingJsExtension:
 					final jsExtension = Module.TryGetJSExtensionForFile(specifier, options);
 					if (jsExtension != "") {
-						return Tspath.RemoveFileExtension(specifier) + jsExtension;
+						return Tspath.ToModuleSpecifier(Tspath.RemoveFileExtension(specifier) + jsExtension);
 					}
-					return specifier;
+					return Tspath.ToModuleSpecifier(specifier);
 				case ModuleSpecifierEndingMinimal, ModuleSpecifierEndingIndex:
 					if (entrypoint.Ending == EndingChangeable) {
 						specifier = Tspath.RemoveFileExtension(specifier);
 						if (preferredEnding == ModuleSpecifierEndingMinimal) {
 							specifier = trimSuffix(specifier, "/index");
 						}
-						return specifier;
+						return Tspath.ToModuleSpecifier(specifier);
 					}
 					// EndingExtensionChangeable - can only change extension, not remove it
 					final jsExtension = Module.TryGetJSExtensionForFile(specifier, options);
 					if (jsExtension != "") {
-						return Tspath.RemoveFileExtension(specifier) + jsExtension;
+						return Tspath.ToModuleSpecifier(Tspath.RemoveFileExtension(specifier) + jsExtension);
 					}
-					return specifier;
+					return Tspath.ToModuleSpecifier(specifier);
 				default:
 			}
-			return specifier;
+			return Tspath.ToModuleSpecifier(specifier);
 		}
 
 		// Handle .js/.jsx/.mjs/.cjs extensions
 		if (Tspath.FileExtensionIsOneOf(specifier, [Tspath.ExtensionJs, Tspath.ExtensionJsx, Tspath.ExtensionMjs, Tspath.ExtensionCjs])) {
 			switch (preferredEnding) {
 				case ModuleSpecifierEndingTsExtension, ModuleSpecifierEndingJsExtension:
-					return specifier;
+					return Tspath.ToModuleSpecifier(specifier);
 				case ModuleSpecifierEndingMinimal, ModuleSpecifierEndingIndex:
 					if (entrypoint.Ending == EndingChangeable) {
 						specifier = Tspath.RemoveFileExtension(specifier);
 						if (preferredEnding == ModuleSpecifierEndingMinimal) {
 							specifier = trimSuffix(specifier, "/index");
 						}
-						return specifier;
+						return Tspath.ToModuleSpecifier(specifier);
 					}
 					// EndingExtensionChangeable - keep the extension
-					return specifier;
+					return Tspath.ToModuleSpecifier(specifier);
 				default:
 			}
-			return specifier;
+			return Tspath.ToModuleSpecifier(specifier);
 		}
 
 		// For other extensions (like .json), return as-is
-		return specifier;
+		return Tspath.ToModuleSpecifier(specifier);
 	}
 }
 
 private class AmbientModuleInfo {
-	public final name:String;
+	public final name:ModuleSpecifier;
 	public final symbol:Symbol;
 
-	public function new(name:String, symbol:Symbol) {
+	public function new(name:ModuleSpecifier, symbol:Symbol) {
 		this.name = name;
 		this.symbol = symbol;
 	}

@@ -198,10 +198,9 @@ class ParseTask implements HasFileName {
 		}
 	}
 
-	// PORT: main gets the redirect's typed file name and path key from getParseFileRedirect; its result is a
-	// string here until projectreferencefilemapper is ported.
-	function redirect(loader:FileLoader, redirectFileName:std.String):Void {
-		final fileName = Tspath.RootedFilePathFromAbsolute(redirectFileName);
+	// PORT: main gets the redirect's path key from getParseFileRedirect too (SourcePath/OutputDtsPath); the
+	// key is computed here.
+	function redirect(loader:FileLoader, fileName:RootedFilePath):Void {
 		this.redirectedParseTask = new ParseTask();
 		this.redirectedParseTask.normalizedFilePath = fileName;
 		this.redirectedParseTask.path = loader.caseSensitivity.PathKey(fileName.AsPath());
@@ -446,7 +445,7 @@ class FilesParser {
 
 		final includeProcessor = new IncludeProcessor();
 		includeProcessor.fileIncludeReasons = new StringMap();
-		var outputFileToProjectReferenceSource:StringMap<std.String> = null;
+		var outputFileToProjectReferenceSource:StringMap<RootedFilePath> = null;
 		if (!loader.opts.canUseProjectReferenceSource()) {
 			outputFileToProjectReferenceSource = new StringMap();
 		}
@@ -458,7 +457,7 @@ class FilesParser {
 		final sourceFilesFoundSearchingNodeModules = new Set<Path>();
 		final libFilesMap = new StringMap<LibFile>();
 
-		var redirectTargetsMap:StringMap<Array<std.String>> = null;
+		var redirectTargetsMap:StringMap<Array<RootedFilePath>> = null;
 		var redirectFilesByPath:StringMap<RedirectsFile> = null;
 		var redirectFilesCount = 0; // PORT: len(redirectFilesByPath)
 		var packageIdToSourceFile:StringMap<SourceFile> = null; // PORT: map[module.PackageId] → key Compiler.packageIdKey

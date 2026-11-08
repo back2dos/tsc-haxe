@@ -410,7 +410,7 @@ class Emitter {
 
 interface SourceFileMayBeEmittedHost {
 	function Options():CompilerOptions;
-	function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference;
+	function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference;
 	function IsSourceFileFromExternalLibrary(file:SourceFile):Bool;
 	function BaseDirectory():RootedDirectoryPath;
 	function CaseSensitivity():CaseSensitivity;

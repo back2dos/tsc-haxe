@@ -50,10 +50,10 @@ enum abstract UpToDateStatusType(Int) from Int to Int {
 }
 
 class InputOutputName {
-	public var input:std.String = "";
-	public var output:std.String = "";
+	public var input:RootedPath;
+	public var output:RootedFilePath;
 
-	public function new(input:std.String = "", output:std.String = "") {
+	public function new(input:RootedPath, output:RootedFilePath) {
 		this.input = input;
 		this.output = output;
 	}
@@ -61,11 +61,11 @@ class InputOutputName {
 
 // PORT: Go value struct; never mutated after construction (assignments replace the whole value).
 class FileAndTime {
-	public var file:std.String = "";
+	public var file:RootedFilePath;
 	public var time:Time = Time.Zero();
 
-	public function new(file:std.String = "", ?time:Time) {
-		this.file = file;
+	public function new(?file:RootedFilePath, ?time:Time) {
+		this.file = file == null ? cast "" : file;
 		this.time = time == null ? Time.Zero() : time;
 	}
 }
@@ -83,10 +83,10 @@ class InputOutputFileAndTime {
 }
 
 class UpstreamErrors {
-	public var ref:std.String = "";
+	public var ref:RootedPath;
 	public var refHasUpstreamErrors:Bool = false;
 
-	public function new(ref:std.String = "", refHasUpstreamErrors:Bool = false) {
+	public function new(ref:RootedPath, refHasUpstreamErrors:Bool = false) {
 		this.ref = ref;
 		this.refHasUpstreamErrors = refHasUpstreamErrors;
 	}
@@ -128,7 +128,7 @@ class UpToDateStatus {
 		return Std.isOfType(this.data, InputOutputName) ? (cast this.data : InputOutputName) : null;
 	}
 
-	public function oldestOutputFileName():std.String {
+	public function oldestOutputFileName():RootedFilePath {
 		if (!this.isPseudoBuild() && this.kind != upToDateStatusTypeUpToDate) {
 			throw "only valid for up to date status of pseudo-build or up to date";
 		}
@@ -141,7 +141,7 @@ class UpToDateStatus {
 		if (inputOutputName != null) {
 			return inputOutputName.output;
 		}
-		return (cast this.data : std.String);
+		return (cast this.data : RootedFilePath);
 	}
 
 	public function upstreamErrors():UpstreamErrors {
