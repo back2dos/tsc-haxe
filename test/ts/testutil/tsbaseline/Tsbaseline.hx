@@ -870,7 +870,9 @@ class Tsbaseline {
 		final addDtsFile = function(file:TestFile, dtsFiles:Array<TestFile>):Array<TestFile> {
 			if (Tspath.IsDeclarationFileName(file.UnitName) || Tspath.HasJSONFileExtension(file.UnitName)) {
 				dtsFiles = appendFile(dtsFiles, file);
-			} else if (Tspath.HasTSFileExtension(file.UnitName) || (Tspath.HasJSFileExtension(file.UnitName) && options.GetAllowJS())) {
+			} else if (result.Program.GetSourceFile(file.UnitName) != null
+				&& (Tspath.HasTSFileExtension(file.UnitName) || (Tspath.HasJSFileExtension(file.UnitName) && options.GetAllowJS()))) {
+				// PORT: main checks that the program has the file (TypeScript main's js_emit_baseline.go)
 				final declFile = findResultCodeFile(file.UnitName);
 				if (declFile != null && findUnit(declFile.UnitName, declInputFiles) == null && findUnit(declFile.UnitName, declOtherFiles) == null) {
 					dtsFiles = appendFile(dtsFiles, new TestFile(declFile.UnitName, Strings.TrimPrefix(declFile.Content, "\u{FEFF}")));

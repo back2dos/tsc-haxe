@@ -3207,11 +3207,10 @@ class CheckerPart7 {
 	}
 
 	static function checkComputedPropertyName(c:Checker, node:Node):Type {
-		final links = c.typeNodeLinks.Get(node.Expression());
+		final links = c.typeNodeLinks.Get(node);
 		if (links.resolvedType == null) {
-			if ((Ast.IsTypeLiteralNode(node.Parent.Parent) || Ast.IsClassLike(node.Parent.Parent) || Ast.IsInterfaceDeclaration(node.Parent.Parent))
-				&& Ast.IsBinaryExpression(node.Expression()) && node.Expression().AsBinaryExpression().OperatorToken.Kind == KindInKeyword
-				&& !Ast.IsAccessor(node.Parent)) {
+			links.resolvedType = c.circularConstraintType;
+			if (Checker.isInvalidComputedPropertyName(node)) {
 				links.resolvedType = c.errorType;
 				return links.resolvedType;
 			}
@@ -4316,6 +4315,16 @@ class CheckerPart7 {
 			return c.getSimplifiedIndexedAccessType(t, writing);
 		} else if (t.flags & TypeFlagsConditional != 0) {
 			return c.getSimplifiedConditionalType(t, writing);
+		} else if (t.flags & TypeFlagsIndex != 0) {
+			return c.getSimplifiedIndexType(t);
+		}
+		return t;
+	}
+
+	static function getSimplifiedIndexType(c:Checker, t:Type):Type {
+		final target = t.AsIndexType().target;
+		if (c.isGenericMappedType(target) && c.getNameTypeFromMappedType(target) != null && !c.isMappedTypeWithKeyofConstraintDeclaration(target)) {
+			return c.getIndexTypeForMappedType(target, IndexFlagsNone);
 		}
 		return t;
 	}
@@ -4417,6 +4426,18 @@ class CheckerPart7 {
 	}
 
 	static function getSimplifiedConditionalType(c:Checker, t:Type, writing:Bool):Type {
+		final key = CachedTypeKey.keyOf(Core.IfElse(writing, CachedTypeKindSimplifiedConditionalTypeForWriting, CachedTypeKindSimplifiedConditionalTypeForReading),
+			t.id);
+		final cached = c.cachedTypes.get(key);
+		if (cached != null) {
+			return cached;
+		}
+		final result = c.getSimplifiedConditionalTypeWorker(t, writing);
+		c.cachedTypes.set(key, result);
+		return result;
+	}
+
+	static function getSimplifiedConditionalTypeWorker(c:Checker, t:Type, writing:Bool):Type {
 		final checkType = t.AsConditionalType().checkType;
 		final extendsType = t.AsConditionalType().extendsType;
 		final trueType = c.getTrueTypeFromConditionalType(t);

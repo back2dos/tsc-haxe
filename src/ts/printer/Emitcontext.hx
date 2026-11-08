@@ -479,9 +479,7 @@ class EmitContext {
 			return false;
 		}
 		sourceFile = MostOriginal(sourceFile.AsNode()).AsSourceFile();
-		// PORT: TypeScript main collects the identifiers lazily (SourceFile.HasIdentifier, typescript-go#4731); here
-		// the parser's Identifiers map (Go 7.0.2) is still used
-		return sourceFile.Identifiers == null || !sourceFile.Identifiers.exists(name);
+		return !sourceFile.HasIdentifier(name);
 	}
 
 	public function EmitFlags(node:Node):EmitFlags {

@@ -141,6 +141,7 @@ import ts.checker.Symbolaccessibility.SymbolTableID.*;
 import ts.checker.Types.ParseFlags.*;
 import ts.checker.Types.SignatureKind.*;
 import ts.checker.Types.ContextFlags.*;
+import ts.checker.Types.MemberOverrideStatus.*;
 import ts.checker.Types.TypeFormatFlags.*;
 import ts.checker.Types.SymbolFormatFlags.*;
 import ts.checker.Types.ExternalEmitHelpers.*;

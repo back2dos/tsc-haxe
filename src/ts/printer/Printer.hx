@@ -4227,11 +4227,12 @@ class Printer {
 	//
 
 	function emitCaseOrDefaultClauseStatements(node:CaseOrDefaultClause, colonPos:Int):Void {
-		final emitAsSingleStatement = Core.len(node.Statements.Nodes) == 1 && // treat synthesized nodes as located on the same line for emit purposes
+		final statements = node.StatementList();
+		final emitAsSingleStatement = Core.len(statements.Nodes) == 1 && // treat synthesized nodes as located on the same line for emit purposes
 			(currentSourceFile == null
-				|| Ast.NodeIsSynthesized(node.AsNode())
-				|| Ast.NodeIsSynthesized(node.Statements.Nodes[0])
-				|| RangeStartPositionsAreOnSameLine(node.Loc, node.Statements.Nodes[0].Loc, currentSourceFile));
+				|| Ast.NodeIsSynthesized(node)
+				|| Ast.NodeIsSynthesized(statements.Nodes[0])
+				|| RangeStartPositionsAreOnSameLine(node.Loc, statements.Nodes[0].Loc, currentSourceFile));
 
 		var format = LFCaseOrDefaultClauseStatements;
 		if (emitAsSingleStatement) {
@@ -4244,31 +4245,31 @@ class Printer {
 			emitToken(KindColonToken, colonPos, WriteKindPunctuation, node.AsNode());
 		}
 
-		emitList(fn_emitStatement, node.AsNode(), node.Statements, format);
+		emitList(fn_emitStatement, node, statements, format);
 	}
 
-	function emitCaseClause(node:CaseOrDefaultClause):Void {
+	function emitCaseClause(node:CaseClause):Void {
 		final state = enterNode(node.AsNode());
 		emitToken(KindCaseKeyword, node.Pos(), WriteKindKeyword, node.AsNode());
 		writeSpace();
 		emitExpression(node.Expression, OperatorPrecedenceLowest);
-		emitCaseOrDefaultClauseStatements(node, node.Expression.End());
+		emitCaseOrDefaultClauseStatements(node.AsNode(), node.Expression.End());
 		exitNode(node.AsNode(), state);
 	}
 
-	function emitDefaultClause(node:CaseOrDefaultClause):Void {
+	function emitDefaultClause(node:DefaultClause):Void {
 		final state = enterNode(node.AsNode());
 		final pos = emitToken(KindDefaultKeyword, node.Pos(), WriteKindKeyword, node.AsNode());
-		emitCaseOrDefaultClauseStatements(node, pos);
+		emitCaseOrDefaultClauseStatements(node.AsNode(), pos);
 		exitNode(node.AsNode(), state);
 	}
 
-	function emitCaseOrDefaultClauseNode(node:CaseOrDefaultClauseNode):Void {
+	function emitCaseOrDefaultClauseNode(node:CaseOrDefaultClause):Void {
 		switch (node.Kind) {
 			case KindCaseClause:
-				emitCaseClause(node.AsCaseOrDefaultClause());
+				emitCaseClause(node.AsCaseClause());
 			case KindDefaultClause:
-				emitDefaultClause(node.AsCaseOrDefaultClause());
+				emitDefaultClause(node.AsDefaultClause());
 			default:
 				throw 'unhandled CaseOrDefaultClause: ${node.Kind.String()}';
 		}
@@ -5009,9 +5010,9 @@ class Printer {
 
 			// Clauses
 			case KindCaseClause:
-				emitCaseClause(node.AsCaseOrDefaultClause());
+				emitCaseClause(node.AsCaseClause());
 			case KindDefaultClause:
-				emitDefaultClause(node.AsCaseOrDefaultClause());
+				emitDefaultClause(node.AsDefaultClause());
 			case KindHeritageClause:
 				emitHeritageClause(node.AsHeritageClause());
 			case KindCatchClause:

@@ -86,4 +86,38 @@ class Jsdoc {
 			}
 		}
 	}
+
+	// --- jsdoc.go (main): checkJSDocAugmentsTagMatchesExtends (#64889, #64072) ---
+	static function checkJSDocAugmentsTagMatchesExtends(c:Checker, node:Node, baseTypeNode:ExpressionWithTypeArgumentsNode, baseType:Type):Void {
+		if (!Ast.IsInJSFile(node)) {
+			return;
+		}
+		final file = Ast.GetSourceFileOfNode(node);
+		for (j in node.EagerJSDoc(file)) {
+			if (j.AsJSDoc().Tags == null) {
+				continue;
+			}
+			for (tag in j.AsJSDoc().Tags.Nodes) {
+				if (tag.Kind != KindJSDocAugmentsTag) {
+					continue;
+				}
+				final sourceTypeNode = tag.ClassName();
+				final sourceType = c.getTypeFromTypeNode(sourceTypeNode);
+				final sourceName = Checker.getIdentifierFromEntityNameExpression(sourceTypeNode.Expression());
+				if (Ast.IsEntityNameExpression(baseTypeNode.Expression())) {
+					if (c.isTypeIdenticalTo(sourceType, baseType)) {
+						continue;
+					}
+					final targetName = Checker.getIdentifierFromEntityNameExpression(baseTypeNode.Expression());
+					if (targetName != null && sourceName != null) {
+						c.error(sourceName, Diagnostics.JSDoc_0_1_does_not_match_the_extends_2_clause, tag.TagName().Text(), sourceName.Text(),
+							targetName.Text());
+					}
+				} else if (sourceName != null && !c.isTypeAssignableTo(baseType, sourceType)) {
+					c.error(sourceName, Diagnostics.JSDoc_0_1_does_not_match_the_extends_2_clause, tag.TagName().Text(), sourceName.Text(),
+						Scanner.GetTextOfNode(baseTypeNode.Expression()));
+				}
+			}
+		}
+	}
 }

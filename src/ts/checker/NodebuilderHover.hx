@@ -487,7 +487,7 @@ class NodebuilderHover {
 			// Handle alias/re-export symbols
 			if (m.Flags & SymbolFlagsAlias != 0) {
 				final aliasDecl = b.ch.getDeclarationOfAliasSymbol(m);
-				final target = b.ch.getMergedSymbol(b.ch.getTargetOfAliasDeclaration(aliasDecl));
+				final target = b.ch.getMergedSymbol(b.ch.getTargetOfAliasDeclaration(aliasDecl, false /*dontRecursivelyResolve*/));
 				if (target != null) {
 					// If the alias target is a local symbol (not itself an export), emit its declaration first
 					if (target.Flags & (SymbolFlagsBlockScopedVariable | SymbolFlagsFunctionScopedVariable | SymbolFlagsProperty) != 0) {
@@ -538,7 +538,7 @@ class NodebuilderHover {
 				final hasModuleExports = merged.Flags & (SymbolFlagsValueModule | SymbolFlagsNamespaceModule) != 0 && merged.Exports != null
 					&& merged.Exports.keys().hasNext();
 				if (!hasModuleExports) {
-					bodyNodes.push(b.f.NewModuleDeclaration(null, KindNamespaceKeyword, b.f.NewIdentifier(m.Name), b.f.NewModuleBlock(b.f.NewNodeList(null))));
+					bodyNodes.push(b.f.NewModuleDeclaration(null, KindNamespaceKeyword, b.f.NewIdentifier(m.Name), null /*attributes*/, b.f.NewModuleBlock(b.f.NewNodeList(null))));
 					bodyIsLocal.push(false);
 				}
 				i++;
@@ -584,7 +584,7 @@ class NodebuilderHover {
 		if (!Ast.IsIdentifier(localName)) {
 			keyword = KindModuleKeyword;
 		}
-		final result = b.f.NewModuleDeclaration(null, keyword, localName, b.f.NewModuleBlock(b.f.NewNodeList(bodyStatements)));
+		final result = b.f.NewModuleDeclaration(null, keyword, localName, null /*attributes*/, b.f.NewModuleBlock(b.f.NewNodeList(bodyStatements)));
 		b.ctx.flags = oldFlags;
 		return result;
 	}

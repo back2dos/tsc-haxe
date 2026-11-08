@@ -448,6 +448,11 @@ class CheckerPart1 {
 	}
 
 	static function onFailedToResolveSymbol(c:Checker, errorLocation:Node, name:std.String, meaning:SymbolFlags, nameNotFoundMessage:Message):Void {
+		// The `const` in a `const` assertion (`x as const`) is a syntactic marker, not a real
+		// type reference, and must never be resolved or reported as an unresolvable name.
+		if (Checker.isConstTypeReferenceName(errorLocation)) {
+			return;
+		}
 		if (errorLocation != null
 			&& (errorLocation.Parent.Kind == KindJSDocLink
 				|| c.checkAndReportErrorForMissingPrefix(errorLocation, name)
@@ -526,7 +531,11 @@ class CheckerPart1 {
 			final symbol = c.resolveSymbol(c.resolveName(errorLocation, name, SymbolFlagsNamespaceModule, null /*nameNotFoundMessage*/, false /*isUse*/,
 				false /*excludeGlobals*/));
 			if (symbol != null) {
-				c.error(errorLocation, Diagnostics.Cannot_use_namespace_0_as_a_value, name);
+				// `export = ns` may legitimately reference a namespace; checkExportAssignment decides
+				// whether that is an error, so don't report "cannot use namespace as a value" here.
+				if (!Checker.isExportAssignmentExpressionName(errorLocation)) {
+					c.error(errorLocation, Diagnostics.Cannot_use_namespace_0_as_a_value, name);
+				}
 				return true;
 			}
 		} else if (meaning & (SymbolFlagsType & ~SymbolFlagsValue) != 0) {
@@ -567,6 +576,11 @@ class CheckerPart1 {
 			if (symbol != null) {
 				final allFlags = c.getSymbolFlags(symbol);
 				if (allFlags & SymbolFlagsValue == 0) {
+					// `export = SomeType` may legitimately reference a type-only name; checkExportAssignment
+					// decides whether that is an error, so don't report "used as a value" here.
+					if (Checker.isExportAssignmentExpressionName(errorLocation)) {
+						return true;
+					}
 					if (Checker.isES2015OrLaterConstructorName(name)) {
 						c.error(errorLocation,
 							Diagnostics.X_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later,
@@ -989,7 +1003,7 @@ class CheckerPart1 {
 			if (node == null) {
 				throw "Unexpected nil in getImmediateAliasedSymbol";
 			}
-			links.immediateTarget = c.getTargetOfAliasDeclaration(node);
+			links.immediateTarget = c.getTargetOfAliasDeclaration(node, true /*dontRecursivelyResolve*/);
 		}
 		return links.immediateTarget;
 	}
@@ -1030,7 +1044,6 @@ class CheckerPart1 {
 		// PORT: defer — the tracer pop runs at the end of the function (success path).
 		var popTrace:() -> Void = null;
 		if (!links.typeChecked) {
-			c.saveDeferredDiagnostics = true;
 			final tr = c.tracer;
 			if (tr != null) {
 				final args = new StringMap<Any>();
@@ -1049,7 +1062,6 @@ class CheckerPart1 {
 			if (!sourceFile.IsDeclarationFile && !c.isCanceled()) {
 				c.checkUnusedRenamedBindingElements();
 			}
-			c.saveDeferredDiagnostics = false;
 			c.produceDeferredDiagnostics();
 			c.reportedUnreachableNodes.Clear();
 			links.typeChecked = true;
@@ -1644,6 +1656,8 @@ class CheckerPart1 {
 					c.error(node, Diagnostics.Construct_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type);
 				case KindCallSignature:
 					c.error(node, Diagnostics.Call_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type);
+				case KindIndexSignature:
+					c.error(node, Diagnostics.Index_signature_which_lacks_type_annotation_implicitly_has_an_any_type);
 				default:
 			}
 		}
@@ -1716,6 +1730,9 @@ class CheckerPart1 {
 		// Grammar checking
 		c.checkGrammarModifiers(node);
 		node.ForEachChild(c.checkSourceElement);
+		if (CheckerPart5.symbolTableLen(node.Locals()) != 0) {
+			c.registerForUnusedIdentifiersCheck(node);
+		}
 	}
 
 	static function checkConstructorDeclaration(c:Checker, node:Node):Void {
@@ -1871,7 +1888,9 @@ class CheckerPart1 {
 			}
 		}
 		c.checkSourceElements(node.TypeArguments());
-		c.checkTypeReferenceOrImport(node);
+		if (!(Checker.isConstTypeReference(node) && Ast.IsAssertionExpression(node.Parent))) {
+			c.checkTypeReferenceOrImport(node);
+		}
 	}
 
 	static function checkTypeReferenceOrImport(c:Checker, node:Node):Void {
@@ -1936,6 +1955,9 @@ class CheckerPart1 {
 	}
 
 	static function checkTypePredicate(c:Checker, node:Node):Void {
+		// Always check the predicate's type so nested type errors are reported even when the
+		// predicate is in an invalid position, keeping diagnostics stable.
+		c.checkSourceElement(node.Type());
 		final parent = c.getTypePredicateParent(node);
 		if (parent == null) {
 			// The parent must not be valid.
@@ -1947,7 +1969,6 @@ class CheckerPart1 {
 		if (typePredicate == null) {
 			return;
 		}
-		c.checkSourceElement(node.Type());
 		final parameterName = node.AsTypePredicateNode().ParameterName;
 		if (typePredicate.kind != TypePredicateKindThis && typePredicate.kind != TypePredicateKindAssertsThis) {
 			if (typePredicate.parameterIndex >= 0) {
@@ -2238,7 +2259,9 @@ class CheckerPart1 {
 		c.checkSourceElement(node.AsImportTypeNode().Argument);
 		final attributes = node.AsImportTypeNode().Attributes;
 		if (attributes != null) {
-			c.getResolutionModeOverride(attributes.AsImportAttributes(), true /*reportErrors*/);
+			final importAttributes = attributes.AsImportAttributes();
+			c.checkGrammarImportAttributeValues(importAttributes);
+			c.getResolutionModeOverride(importAttributes, true /*reportErrors*/);
 		}
 		c.checkTypeReferenceOrImport(node);
 	}
@@ -2356,6 +2379,7 @@ class CheckerPart1 {
 		c.checkSourceElement(body);
 		c.checkAllCodePathsInNonVoidFunctionReturnOrThrow(node, c.getReturnTypeFromAnnotation(node));
 		if (node.FunctionLikeData().FullSignature != null) {
+			c.checkSourceElement(node.FunctionLikeData().FullSignature);
 			if (c.getContextualCallSignature(c.getTypeFromTypeNode(node.FunctionLikeData().FullSignature), node) == null) {
 				c.error(node.FunctionLikeData().FullSignature,
 					Diagnostics.A_JSDoc_type_tag_on_a_function_must_have_a_signature_with_the_correct_number_of_arguments);
@@ -2511,7 +2535,8 @@ class CheckerPart1 {
 						}
 						return;
 					}
-					if (Ast.NodeIsPresent(subsequentNode.Body())) {
+					// Abstract methods can't have an implementation in the same class, so the next method can't be a misnamed one.
+					if (Ast.NodeIsPresent(subsequentNode.Body()) && !Ast.HasSyntacticModifier(node, ModifierFlagsAbstract)) {
 						c.error(errorNode, Diagnostics.Function_implementation_name_must_be_0, Scanner.DeclarationNameToString(name));
 						return;
 					}

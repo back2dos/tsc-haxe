@@ -423,6 +423,20 @@ class TypeNodeLinks {
 	public function new() {}
 }
 
+enum abstract MemberOverrideStatus(Int) from Int to Int {
+	var MemberOverrideStatusNone = 0;
+	var MemberOverrideStatusNeedsOverride = 1;
+	var MemberOverrideStatusHasInvalidOverride = 2;
+}
+
+@:allow(ts.checker)
+class ComputedNameNodeLinks {
+	var hasName:Tristate = 0; // If the node has a computable name
+	var name:std.String = ""; // Resolved name associated with the type of the node
+
+	public function new() {}
+}
+
 @:allow(ts.checker)
 class EnumMemberLinks {
 	var value:Result = new Result() /* PORT: Go zero struct */; // Constant value of enum member

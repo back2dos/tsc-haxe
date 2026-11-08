@@ -29,7 +29,7 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	}
 
 	public function IsExternalModule():Bool {
-		return Flags & SymbolFlagsModule != 0 && Name.length > 0 && StringTools.fastCodeAt(Name, 0) == '"'.code;
+		return Flags & SymbolFlagsModule != 0 && Ast.IsAmbientModuleSymbolName(Name);
 	}
 
 	public function IsStatic():Bool {

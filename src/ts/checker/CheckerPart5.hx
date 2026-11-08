@@ -42,7 +42,7 @@ class CheckerPart5 {
 			// Remove all replacable-by-method members, along with their flags.
 			symbol.Declarations = appendNode(Core.Filter(symbol.Declarations, fn_isNotReplacableByMethod), member);
 			final oldFlags = symbol.Flags;
-			symbol.Flags = SymbolFlagsNone;
+			symbol.Flags = SymbolFlagsTransient;
 			for (d in symbol.Declarations) {
 				symbol.Flags |= d.Symbol().Flags;
 			}
@@ -220,7 +220,7 @@ class CheckerPart5 {
 			if (node == null) {
 				throw "Unexpected nil in resolveAlias for symbol: " + c.symbolToString(symbol);
 			}
-			var target = c.getTargetOfAliasDeclaration(node);
+			var target = c.getTargetOfAliasDeclaration(node, false /*dontRecursivelyResolve*/);
 			if (Ast.IsNonLocalAlias(target, SymbolFlagsValue | SymbolFlagsType | SymbolFlagsNamespace)) {
 				// When the target is a pure alias, we transitively resolve and propagate any typeOnlyDeclaration
 				target = c.resolveIndirectionAlias(symbol, target);
@@ -558,7 +558,8 @@ class CheckerPart5 {
 		var result:Type = null;
 		switch (declaration.Kind) {
 			case KindParameter | KindPropertyDeclaration | KindPropertySignature | KindVariableDeclaration | KindBindingElement:
-				result = c.getWidenedTypeForVariableLikeDeclaration(declaration, true /*reportErrors*/);
+				result = c.getWidenedTypeForVariableLikeDeclaration(declaration,
+					!c.isParameterOfContextSensitiveSignature(symbol)); // only report diagnostics for context-insensitive parameters - context-sensitive ones may have their type fixed to something else
 			case KindPropertyAssignment:
 				result = c.checkPropertyAssignment(declaration, CheckModeNormal);
 			case KindShorthandPropertyAssignment:
@@ -776,11 +777,12 @@ class CheckerPart5 {
 	static function padObjectLiteralType(c:Checker, t:Type, pattern:Node):Type {
 		var missingElements:Array<Node> = null;
 		for (e in rangeOf(pattern.Elements())) {
-			if (e.Initializer() != null) {
-				final name = c.getPropertyNameFromBindingElement(e);
-				if (name != Ast.InternalSymbolNameMissing && c.getPropertyOfType(t, name) == null) {
-					missingElements = appendNode(missingElements, e);
-				}
+			if (Checker.hasDotDotDotToken(e)) {
+				continue;
+			}
+			final name = c.getPropertyNameFromBindingElement(e);
+			if (name != Ast.InternalSymbolNameMissing && c.getPropertyOfType(t, name) == null) {
+				missingElements = appendNode(missingElements, e);
 			}
 		}
 		if (Core.len(missingElements) == 0) {
@@ -792,7 +794,7 @@ class CheckerPart5 {
 		}
 		for (e in missingElements) {
 			final symbol = c.newSymbol(SymbolFlagsProperty | SymbolFlagsOptional, c.getPropertyNameFromBindingElement(e));
-			c.valueSymbolLinks.Get(symbol).resolvedType = c.getTypeFromBindingElement(e, false /*includePatternInType*/, false /*reportErrors*/);
+			c.valueSymbolLinks.Get(symbol).resolvedType = c.getTypeFromBindingElement(e, false /*includePatternInType*/, true /*reportErrors*/);
 			members.set(symbol.Name, symbol);
 		}
 		final result = c.newAnonymousType(t.symbol, members, null, null, c.getIndexInfosOfType(t));
@@ -2054,7 +2056,12 @@ class CheckerPart5 {
 				if (!c.noImplicitAny) {
 					diagnostic = Diagnostics.X_0_implicitly_has_an_1_return_type_but_a_better_type_may_be_inferred_from_usage;
 				} else if ((declaration.Flags & NodeFlagsReparsed) != 0) {
-					c.error(declaration, Diagnostics.This_overload_implicitly_returns_the_type_0_because_it_lacks_a_return_type_annotation, typeAsString);
+					final name = Scanner.DeclarationNameToString(Ast.GetNameOfDeclaration(declaration));
+					if (name != "") {
+						c.error(declaration, Diagnostics.X_0_which_lacks_return_type_annotation_implicitly_has_an_1_return_type, name, typeAsString);
+					} else {
+						c.error(declaration, Diagnostics.This_overload_implicitly_returns_the_type_0_because_it_lacks_a_return_type_annotation, typeAsString);
+					}
 					return;
 				} else if (wideningKind == WideningKindGeneratorYield) {
 					diagnostic = Diagnostics.X_0_which_lacks_return_type_annotation_implicitly_has_an_1_yield_type;
@@ -2208,13 +2215,13 @@ class CheckerPart5 {
 	}
 
 	static function getUndefinedProperty(c:Checker, prop:Symbol):Symbol {
-		final cached = c.undefinedProperties.get(prop.Name);
+		final cached = c.undefinedProperties.get(prop);
 		if (cached != null) {
 			return cached;
 		}
 		final result = c.createSymbolWithType(prop, c.undefinedOrMissingType);
 		result.Flags |= SymbolFlagsOptional;
-		c.undefinedProperties.set(prop.Name, result);
+		c.undefinedProperties.set(prop, result);
 		return result;
 	}
 
@@ -2325,7 +2332,7 @@ class CheckerPart5 {
 				return c.errorType;
 			}
 			final targetSymbol = c.resolveAlias(symbol);
-			final exportSymbol = c.getTargetOfAliasDeclaration(c.getDeclarationOfAliasSymbol(symbol));
+			final exportSymbol = c.getTargetOfAliasDeclaration(c.getDeclarationOfAliasSymbol(symbol), false /*dontRecursivelyResolve*/);
 			// It only makes sense to get the type of a value symbol. If the result of resolving
 			// the alias is not a value, then it has no type. To get the type associated with a
 			// type symbol, call getDeclaredTypeOfSymbol.
@@ -2427,7 +2434,15 @@ class CheckerPart5 {
 		if (name != Ast.InternalSymbolNameMissing) {
 			return new ValueOk(name, true);
 		} else if (Ast.IsComputedPropertyName(node)) {
-			return c.tryGetNameFromType(c.getTypeOfExpression(node.Expression()));
+			// This is cached so `getTypeOfExpression` isn't constantly reinvoked for every property name lookup
+			final links = c.computedNameLinks.Get(node);
+			if (links != null && !links.hasName.IsUnknown()) {
+				return new ValueOk(links.name, links.hasName.IsTrue());
+			}
+			final r = c.tryGetNameFromType(c.getTypeOfExpression(node.Expression()));
+			links.name = r.value;
+			links.hasName = Core.BoolToTristate(r.ok);
+			return r;
 		}
 		return new ValueOk("", false);
 	}

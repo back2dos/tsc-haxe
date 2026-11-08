@@ -11,7 +11,7 @@ class ParserTest {
 	public static function run() {
 		T.run("FuzzParser", FuzzParser);
 		T.run("TestJSDocImportTypeParentChain", TestJSDocImportTypeParentChain);
-		T.run("TestSourceFileContainsNonASCIIInStringLiteralFastPath", TestSourceFileContainsNonASCIIInStringLiteralFastPath);
+		T.run("TestSourceFilePositionMapWithNonASCIIStringLiteral", TestSourceFilePositionMapWithNonASCIIStringLiteral);
 	}
 
 	// PORT: Go repo.TypeScriptSubmodulePath().
@@ -137,7 +137,7 @@ test("", async function () {
 		}
 	}
 
-	static function TestSourceFileContainsNonASCIIInStringLiteralFastPath() {
+	static function TestSourceFilePositionMapWithNonASCIIStringLiteral() {
 		final sourceText = 'const x = "─";
 
 namespace N {
@@ -150,7 +150,6 @@ namespace N {
 
 		final file = Parser.ParseSourceFile(opts, sourceText, ScriptKindTS);
 
-		T.isTrue(file.ContainsNonASCII);
 		final positionMap = file.GetPositionMap();
 		T.isTrue(!positionMap.IsAsciiOnly());
 		// PORT: Go offsets are UTF-8 byte offsets: strings.Index(sourceText, "─") + len("─").

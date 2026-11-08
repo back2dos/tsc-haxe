@@ -1321,7 +1321,7 @@ class DeclarationTransformer {
 						if (needsDeclare) {
 							nsMods = [Factory().NewModifier(KindDeclareKeyword)];
 						}
-						final nsDecl = Factory().NewModuleDeclaration(Factory().NewModifierList(nsMods), KindNamespaceKeyword, nsName,
+						final nsDecl = Factory().NewModuleDeclaration(Factory().NewModifierList(nsMods), KindNamespaceKeyword, nsName, null,
 							Factory().NewModuleBlock(Factory().NewNodeList([classDecl])));
 
 						var aliasBase = "_exported";
@@ -1464,7 +1464,7 @@ class DeclarationTransformer {
 			nsMods = [Factory().NewModifier(KindDeclareKeyword)];
 		}
 		members = declareStrippingVisitor.VisitSlice(members);
-		return Factory().NewModuleDeclaration(Factory().NewModifierList(nsMods), KindNamespaceKeyword, nsName,
+		return Factory().NewModuleDeclaration(Factory().NewModifierList(nsMods), KindNamespaceKeyword, nsName, null,
 			Factory().NewModuleBlock(Factory().NewNodeList(members)));
 	}
 
@@ -1728,6 +1728,7 @@ class DeclarationTransformer {
 		if (keyword != KindGlobalKeyword && (input.Name() == null || !Ast.IsStringLiteral(input.Name()))) {
 			keyword = KindNamespaceKeyword;
 		}
+		final attributes = Visitor().Visit(input.Attributes);
 
 		if (inner != null && inner.Kind == KindModuleBlock) {
 			final oldNeedsScopeFix = needsScopeFixMarker;
@@ -1759,7 +1760,7 @@ class DeclarationTransformer {
 			needsScopeFixMarker = oldNeedsScopeFix;
 			resultHasScopeMarker = oldHasScopeFix;
 
-			return Factory().UpdateModuleDeclaration(input, mods, keyword, input.Name(), body);
+			return Factory().UpdateModuleDeclaration(input, mods, keyword, input.Name(), attributes, body);
 		}
 		if (inner != null) {
 			// trigger visit. ignore result (is deferred, so is just inner unless elided)
@@ -1769,9 +1770,9 @@ class DeclarationTransformer {
 			final id = Ast.GetNodeId(original);
 			final body = lateStatementReplacementMap.get(id);
 			lateStatementReplacementMap.remove(id);
-			return Factory().UpdateModuleDeclaration(input, mods, keyword, input.Name(), body);
+			return Factory().UpdateModuleDeclaration(input, mods, keyword, input.Name(), attributes, body);
 		}
-		return Factory().UpdateModuleDeclaration(input, mods, keyword, input.Name(), null);
+		return Factory().UpdateModuleDeclaration(input, mods, keyword, input.Name(), attributes, null);
 	}
 
 	function stripExportModifiers(statement:Node):Node {
@@ -2638,7 +2639,7 @@ class DeclarationTransformer {
 			varModifiers = Factory().NewModifierList(Ast.CreateModifiersFromModifierFlags(ModifierFlagsExport, Factory().NewModifier));
 		}
 
-		final synthesizedNamespace = Factory().NewModuleDeclaration(null /*modifiers*/, KindNamespaceKeyword, name,
+		final synthesizedNamespace = Factory().NewModuleDeclaration(null /*modifiers*/, KindNamespaceKeyword, name, null,
 			Factory().NewModuleBlock(Factory().NewNodeList([])));
 		synthesizedNamespace.Parent = enclosingDeclaration;
 		final declarationData = synthesizedNamespace.DeclarationData();
@@ -2801,7 +2802,7 @@ class DeclarationTransformer {
 				host = [n];
 			}
 			if (name != null) {
-				final moduleDecl = Factory().NewModuleDeclaration(modifiers, KindNamespaceKeyword, name, Factory().NewModuleBlock(Factory().NewNodeList(addOns)));
+				final moduleDecl = Factory().NewModuleDeclaration(modifiers, KindNamespaceKeyword, name, null, Factory().NewModuleBlock(Factory().NewNodeList(addOns)));
 				// PORT: Go append may write into the SyntaxList's backing array; copy.
 				final members = host == null ? [] : host.copy();
 				members.push(moduleDecl);

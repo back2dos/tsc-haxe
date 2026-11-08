@@ -126,7 +126,7 @@ class CommonJSModuleTransformer {
 			case KindCaseBlock:
 				node = visitTopLevelNestedCaseBlock(node.AsCaseBlock());
 			case KindCaseClause, KindDefaultClause:
-				node = visitTopLevelNestedCaseOrDefaultClause(node.AsCaseOrDefaultClause());
+				node = visitTopLevelNestedCaseOrDefaultClause(node);
 			case KindTryStatement:
 				node = visitTopLevelNestedTryStatement(node.AsTryStatement());
 			case KindCatchClause:
@@ -1161,7 +1161,10 @@ class CommonJSModuleTransformer {
 	// Visits a top-level nested `case` or `default` clause as it may contain `var` declarations that are hoisted and may
 	// still be exported with `export {}`.
 	function visitTopLevelNestedCaseOrDefaultClause(node:CaseOrDefaultClause):Node {
-		return Factory().UpdateCaseOrDefaultClause(node, Visitor().VisitNode(node.Expression), topLevelNestedVisitor.VisitNodes(node.Statements));
+		if (node.Kind == KindCaseClause) {
+			return Factory().UpdateCaseClause(node.AsCaseClause(), Visitor().VisitNode(node.Expression()), topLevelNestedVisitor.VisitNodes(node.StatementList()));
+		}
+		return Factory().UpdateDefaultClause(node.AsDefaultClause(), topLevelNestedVisitor.VisitNodes(node.StatementList()));
 	}
 
 	// Visits a top-level nested `try` statement as it may contain `var` declarations that are hoisted and may still be
