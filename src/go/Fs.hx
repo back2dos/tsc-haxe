@@ -152,19 +152,24 @@ class Fs {
 		if (name == ".") {
 			return true;
 		}
+		// PORT: perf — scans the elements in place (Go slices the string without copying; substrings here
+		// copied every element and the remaining path)
+		final n = name.length;
+		var start = 0;
 		while (true) {
-			var i = 0;
-			while (i < name.length && StringTools.fastCodeAt(name, i) != '/'.code) {
+			var i = start;
+			while (i < n && StringTools.fastCodeAt(name, i) != '/'.code) {
 				i++;
 			}
-			final elem = name.substring(0, i);
-			if (elem == "" || elem == "." || elem == "..") {
+			final len = i - start;
+			if (len == 0 || (StringTools.fastCodeAt(name, start) == '.'.code
+				&& (len == 1 || (len == 2 && StringTools.fastCodeAt(name, start + 1) == '.'.code)))) {
 				return false;
 			}
-			if (i == name.length) {
+			if (i == n) {
 				return true;
 			}
-			name = name.substring(i + 1);
+			start = i + 1;
 		}
 	}
 
