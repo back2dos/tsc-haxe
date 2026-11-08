@@ -10,7 +10,7 @@ class ExportTest {
 	}
 
 	public static function ParseCommandLineTestWorker(decls:Null<Array<CommandLineOption>>, commandLine:Array<String>, fs:FS,
-			currentDirectory:String):TestCommandLineParser {
+			currentDirectory:RootedDirectoryPath):TestCommandLineParser {
 		final parser = new CommandLineParser();
 		parser.fs = fs;
 		parser.currentDirectory = currentDirectory;

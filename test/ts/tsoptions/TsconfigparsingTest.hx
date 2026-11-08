@@ -61,7 +61,7 @@ class TsconfigparsingTest {
 			])
 		]),
 		new ParseJsonConfigTestCase("generates errors for empty include", false, [
-			new TestConfig("{\n                \"include\": []\n            }", "/apath/tsconfig.json", "tests/cases/unittests", [
+			new TestConfig("{\n                \"include\": []\n            }", "/apath/tsconfig.json", "/tests/cases/unittests", [
 				"/apath/a.ts" => "",
 			])
 		]),
@@ -246,7 +246,9 @@ class TsconfigparsingTest {
 						baselineContent.WriteString("Input::\n");
 						baselineContent.WriteString(jsonText);
 						baselineContent.WriteString("\n");
-						final r = Tsoptions.ParseConfigFileTextToJson("/apath/tsconfig.json", "/apath", jsonText);
+						// PORT: Go's untyped constants → RootedFilePathFromNormalized / PathKeyFromCanonical.
+						final r = Tsoptions.ParseConfigFileTextToJson(Tspath.RootedFilePathFromNormalized("/apath/tsconfig.json"), Tspath.PathKeyFromCanonical("/apath"),
+							jsonText);
 						final parsed = r.a;
 						final errors = r.b;
 						baselineContent.WriteString("Config::\n");
@@ -255,7 +257,8 @@ class TsconfigparsingTest {
 						baselineContent.WriteString("Errors::\n");
 						final fo = new FormattingOptions();
 						fo.NewLine = "\n";
-						fo.ComparePathsOptions = new ComparePathsOptions(true, "/");
+						fo.CurrentDirectory = Tspath.RootedDirectoryPathFromNormalized("/");
+						fo.CaseSensitivity = CaseSensitive;
 						Diagnosticwriter.FormatDiagnosticsWithColorAndContext(baselineContent, Diagnosticwriter.FromASTDiagnostics(errors), fo);
 						baselineContent.WriteString("\n");
 						if (i != rec.input.length - 1) {
@@ -290,13 +293,13 @@ class TsconfigparsingTest {
 				"/project/bad.json" => "{ this is not json",
 				"/project/main.ts" => "export const x = 1;",
 			];
-			final host = Tsoptionstest.NewVFSParseConfigHost(files, "/project", true /*useCaseSensitiveFileNames*/);
-			final configFileName = "/project/tsconfig.json";
-			final configFile = Tsoptions.NewTsconfigSourceFileFromFilePath(configFileName,
-				Tspath.ToPath(configFileName, host.GetCurrentDirectory(), host.FS().UseCaseSensitiveFileNames()), files[configFileName]);
+			final fs = Tsoptionstest.NewVFS(files, CaseSensitive /*caseSensitivity*/);
+			final configFileName = Tspath.RootedFilePathFromNormalized("/project/tsconfig.json");
+			final configFile = Tsoptions.NewTsconfigSourceFileFromFilePath(configFileName, fs.CaseSensitivity().PathKey(configFileName.AsPath()),
+				files[configFileName.AsString()]);
 
-			final parsed = Tsoptions.ParseJsonSourceFileConfigFileContent(configFile, host, host.GetCurrentDirectory(), null, null, configFileName, null, null,
-				null);
+			final parsed = Tsoptions.ParseJsonSourceFileConfigFileContent(configFile, Tsoptions.NewDefaultParseConfigHost(fs),
+				Tspath.RootedDirectoryPathFromNormalized("/project"), null, null, null, null);
 
 			final parseErrors = Core.Filter(parsed.Errors, function(diagnostic:Diagnostic):Bool {
 				return diagnostic.Code() == Diagnostics.X_0_expected.Code();
@@ -309,7 +312,7 @@ class TsconfigparsingTest {
 			}), expectedParseErrorMessages));
 			T.isTrue(Slices.Equal(Core.Map(parseErrors, function(d:Diagnostic):Int return d.Pos()), expectedParseErrorPositions));
 			for (diagnostic in parseErrors) {
-				T.eq("/project/bad.json", diagnostic.File().FileName());
+				T.eq("/project/bad.json", diagnostic.File().FileName().AsString());
 			}
 		});
 
@@ -320,21 +323,21 @@ class TsconfigparsingTest {
 				"/project/base.json" => "",
 				"/project/main.ts" => "export const x = 1;",
 			];
-			final host = Tsoptionstest.NewVFSParseConfigHost(files, "/project", true /*useCaseSensitiveFileNames*/);
-			final configFileName = "/project/tsconfig.json";
-			final configFile = Tsoptions.NewTsconfigSourceFileFromFilePath(configFileName,
-				Tspath.ToPath(configFileName, host.GetCurrentDirectory(), host.FS().UseCaseSensitiveFileNames()), files[configFileName]);
+			final fs = Tsoptionstest.NewVFS(files, CaseSensitive /*caseSensitivity*/);
+			final configFileName = Tspath.RootedFilePathFromNormalized("/project/tsconfig.json");
+			final configFile = Tsoptions.NewTsconfigSourceFileFromFilePath(configFileName, fs.CaseSensitivity().PathKey(configFileName.AsPath()),
+				files[configFileName.AsString()]);
 
-			final parsed = Tsoptions.ParseJsonSourceFileConfigFileContent(configFile, host, host.GetCurrentDirectory(), null, null, configFileName, null, null,
-				null);
+			final parsed = Tsoptions.ParseJsonSourceFileConfigFileContent(configFile, Tsoptions.NewDefaultParseConfigHost(fs),
+				Tspath.RootedDirectoryPathFromNormalized("/project"), null, null, null, null);
 
 			T.isTrue(parsed != null);
-			T.isTrue(Slices.Equal(parsed.FileNames(), ["/project/main.ts"]), Std.string(parsed.FileNames()));
+			T.isTrue(Slices.Equal(parsed.FileNames(), [Tspath.RootedFilePathFromNormalized("/project/main.ts")]), Std.string(parsed.FileNames()));
 		});
 
 		T.run("TestParseJsonSourceFileConfigFileContentDoesNotDuplicateUnquotedKeyDiagnostics", () -> {
-			final parsed = Tsoptionstest.GetParsedCommandLine("{\n  compilerOptions: {\n    strict: true\n  }\n}", ["/main.ts" => "export const x = 1;"], "/",
-				true /*useCaseSensitiveFileNames*/);
+			final parsed = Tsoptionstest.GetParsedCommandLine("{\n  compilerOptions: {\n    strict: true\n  }\n}", ["/main.ts" => "export const x = 1;"],
+	Tspath.RootedDirectoryPathFromNormalized("/"), CaseSensitive /*caseSensitivity*/);
 
 			final diags = parsed.GetConfigFileParsingDiagnostics();
 			T.eq(2, Core.len(diags));
@@ -350,7 +353,7 @@ class TsconfigparsingTest {
 
 		T.run("TestParseJsonSourceFileConfigFileContentReportsQuestionTokenDiagnostics", () -> {
 			final parsed = Tsoptionstest.GetParsedCommandLine("{\n  compilerOptions?: {\n    strict?: true\n  }\n}", ["/main.ts" => "export const x = 1;"],
-				"/", true /*useCaseSensitiveFileNames*/);
+	Tspath.RootedDirectoryPathFromNormalized("/"), CaseSensitive /*caseSensitivity*/);
 
 			final questionTokenDiagnostics:Array<Diagnostic> = [];
 			for (diagnostic in parsed.GetConfigFileParsingDiagnostics()) {
@@ -381,8 +384,8 @@ class TsconfigparsingTest {
 					for (k => v in config.allFileList)
 						allFileLists[k] = v;
 					allFileLists["/tsconfig.json"] = config.jsonText;
-					final host = Tsoptionstest.NewVFSParseConfigHost(allFileLists, config.basePath, true /*useCaseSensitiveFileNames*/);
-					final parsedConfigFileContent = getParsed(config, host, config.basePath);
+					final fs = Tsoptionstest.NewVFS(allFileLists, CaseSensitive /*caseSensitivity*/);
+					final parsedConfigFileContent = getParsed(config, fs, config.basePath);
 					T.eq(0, Core.len(parsedConfigFileContent.Errors));
 				});
 			}
@@ -417,16 +420,15 @@ class TsconfigparsingTest {
 		});
 
 		T.run("TestParseSrcCompiler", () -> {
-			final compilerDir = Tspath.NormalizeSlashes(TsoptionsTestUtil.TypeScriptSubmodulePath() + "/src/compiler");
-			final tsconfigFileName = Tspath.CombinePaths(compilerDir, "tsconfig.json");
+			final compilerDir = Tspath.RootedDirectoryPathFromAbsolute(TsoptionsTestUtil.TypeScriptSubmodulePath() + "/src/compiler");
+			final tsconfigFileName = compilerDir.ResolveFile("tsconfig.json");
 
 			final fs = Osvfs.FS();
-			final host = new VfsParseConfigHost(fs, compilerDir);
 
 			final rf = fs.ReadFile(tsconfigFileName);
 			final jsonText = rf.value;
 			T.isTrue(rf.ok);
-			final tsconfigPath = Tspath.ToPath(tsconfigFileName, compilerDir, fs.UseCaseSensitiveFileNames());
+			final tsconfigPath = fs.CaseSensitivity().PathKey(tsconfigFileName.AsPath());
 			final opts = new SourceFileParseOptions();
 			opts.FileName = tsconfigFileName;
 			opts.Path = tsconfigPath;
@@ -441,8 +443,8 @@ class TsconfigparsingTest {
 
 			final tsConfigSourceFile = new TsConfigSourceFile(parsed);
 
-			final parseConfigFileContent = Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, host, host.GetCurrentDirectory(), null, null,
-				tsconfigFileName, /*resolutionStack*/ null, /*extraFileExtensions*/ null, /*extendedConfigCache*/ null);
+			final parseConfigFileContent = Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, Tsoptions.NewDefaultParseConfigHost(fs),
+				compilerDir, null, null, /*resolutionStack*/ null, /*extendedConfigCache*/ null);
 
 			if (Core.len(parseConfigFileContent.Errors) > 0) {
 				for (error in parseConfigFileContent.Errors) {
@@ -457,7 +459,7 @@ class TsconfigparsingTest {
 			expected.Module = ModuleKindNodeNext;
 			expected.ModuleResolution = ModuleResolutionKindNodeNext;
 			expected.NewLine = NewLineKindLF;
-			expected.OutDir = Tspath.NormalizeSlashes(TsoptionsTestUtil.TypeScriptSubmodulePath() + "/built/local");
+			expected.OutDir = Tspath.RootedDirectoryPathFromAbsolute(TsoptionsTestUtil.TypeScriptSubmodulePath() + "/built/local");
 			expected.Target = ScriptTargetES2020;
 			expected.Types = ["node"];
 			expected.ConfigFilePath = tsconfigFileName;
@@ -469,7 +471,7 @@ class TsconfigparsingTest {
 			expected.IsolatedDeclarations = TSTrue;
 			expected.NoImplicitOverride = TSTrue;
 			expected.PreserveConstEnums = TSTrue;
-			expected.RootDir = Tspath.NormalizeSlashes(TsoptionsTestUtil.TypeScriptSubmodulePath() + "/src");
+			expected.RootDir = Tspath.RootedDirectoryPathFromAbsolute(TsoptionsTestUtil.TypeScriptSubmodulePath() + "/src");
 			expected.SkipLibCheck = TSTrue;
 			expected.Strict = TSTrue;
 			expected.StrictBindCallApply = TSFalse;
@@ -486,7 +488,7 @@ class TsconfigparsingTest {
 					continue;
 				}
 
-				relativePaths.push(Tspath.ConvertToRelativePath_legacy(fileName, new ComparePathsOptions(fs.UseCaseSensitiveFileNames(), compilerDir)));
+				relativePaths.push(Tspath.ConvertToRelativePath(fileName, compilerDir, fs.CaseSensitivity()));
 			}
 
 			final expectedPaths = [
@@ -519,16 +521,16 @@ class TsconfigparsingTest {
 					"/app.ts" => "export {}",
 				];
 
-				final host = Tsoptionstest.NewVFSParseConfigHost(files, "/", true /*useCaseSensitiveFileNames*/);
+				final fs = Tsoptionstest.NewVFS(files, CaseSensitive /*caseSensitivity*/);
 
-				final parseConfig = function(configFileName:String, cache:ExtendedConfigCache):ParsedCommandLine {
-					return parseConfigWithCache(host, configFileName, cache);
+				final parseConfig = function(configFileName:RootedFilePath, cache:ExtendedConfigCache):ParsedCommandLine {
+					return parseConfigWithCache(fs, configFileName, cache);
 				};
 
 				final cache = new MemoCache();
-				final first = parseConfig("/tsconfig.json", cache);
+				final first = parseConfig(Tspath.RootedFilePathFromNormalized("/tsconfig.json"), cache);
 				T.isTrue(Core.len(first.Errors) > 0, "expected diagnostics on first parse, got 0");
-				final second = parseConfig("/tsconfig.json", cache);
+				final second = parseConfig(Tspath.RootedFilePathFromNormalized("/tsconfig.json"), cache);
 				T.isTrue(Core.len(second.Errors) > 0, "expected diagnostics on second parse (cache hit), got 0");
 			});
 
@@ -541,12 +543,12 @@ class TsconfigparsingTest {
 					"/projB/app.ts" => "export {}",
 				];
 
-				final host = Tsoptionstest.NewVFSParseConfigHost(files, "/", true /*useCaseSensitiveFileNames*/);
+				final fs = Tsoptionstest.NewVFS(files, CaseSensitive /*caseSensitivity*/);
 
 				final cache = new MemoCache();
-				final first = parseConfigWithCache(host, "/projA/tsconfig.json", cache);
+				final first = parseConfigWithCache(fs, Tspath.RootedFilePathFromNormalized("/projA/tsconfig.json"), cache);
 				T.isTrue(Core.len(first.Errors) > 0, "expected diagnostics for projA parse, got 0");
-				final second = parseConfigWithCache(host, "/projB/tsconfig.json", cache);
+				final second = parseConfigWithCache(fs, Tspath.RootedFilePathFromNormalized("/projB/tsconfig.json"), cache);
 				T.isTrue(Core.len(second.Errors) > 0, "expected diagnostics for projB parse (cache hit on base), got 0");
 			});
 		});
@@ -560,73 +562,74 @@ class TsconfigparsingTest {
 				"/packages/b/index.ts" => "export {}",
 			];
 
-			final host = Tsoptionstest.NewVFSParseConfigHost(files, "/", true /*useCaseSensitiveFileNames*/);
+			final fs = Tsoptionstest.NewVFS(files, CaseSensitive /*caseSensitivity*/);
 			final cache = new MemoCache();
 
-			final parseConfig = function(configFileName:String):ParsedCommandLine {
-				final r = Tsoptions.GetParsedCommandLineOfConfigFile(configFileName, null, null, host, cache);
+			final parseConfig = function(configFileName:RootedFilePath):ParsedCommandLine {
+				final r = Tsoptions.GetParsedCommandLineOfConfigFile(configFileName, null, null, Tsoptions.NewDefaultParseConfigHost(fs), cache);
 				T.isTrue(Core.len(r.b) == 0, "unexpected errors parsing " + configFileName + ": " + Std.string(r.b));
 				return r.a;
 			};
 
-			parseConfig("/packages/a/tsconfig.json");
-			final paths = parseConfig("/packages/b/tsconfig.json").CompilerOptions().Paths;
+			parseConfig(Tspath.RootedFilePathFromNormalized("/packages/a/tsconfig.json"));
+			final paths = parseConfig(Tspath.RootedFilePathFromNormalized("/packages/b/tsconfig.json")).CompilerOptions().Paths;
 			T.isTrue(Slices.Equal(paths.GetOrZero("@pkg/*"), ["/packages/b/src/*"]), Std.string(paths.GetOrZero("@pkg/*")));
 		});
 	}
 
-	static function parseConfigWithCache(host:VfsParseConfigHost, configFileName:String, cache:ExtendedConfigCache):ParsedCommandLine {
-		final cfgPath = Tspath.ToPath(configFileName, host.GetCurrentDirectory(), host.FS().UseCaseSensitiveFileNames());
-		final rf = host.FS().ReadFile(configFileName);
+	static function parseConfigWithCache(fs:FS, configFileName:RootedFilePath, cache:ExtendedConfigCache):ParsedCommandLine {
+		final cfgPath = fs.CaseSensitivity().PathKey(configFileName.AsPath());
+		final rf = fs.ReadFile(configFileName);
 		T.isTrue(rf.ok, "missing " + configFileName + " in test fs");
 		final opts = new SourceFileParseOptions();
 		opts.FileName = configFileName;
 		opts.Path = cfgPath;
 		final tsConfigSourceFile = new TsConfigSourceFile(Parser.ParseSourceFile(opts, rf.value, ScriptKindJSON));
-		return Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, host, host.GetCurrentDirectory(), null, null, configFileName, null, null,
-			cache);
+		return Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, Tsoptions.NewDefaultParseConfigHost(fs),
+			Tspath.RootedDirectoryPathFromNormalized("/"), null, null, null, cache);
 	}
 
-	static function getParsedWithJsonApi(config:TestConfig, host:ParseConfigHost, basePath:String):ParsedCommandLine {
-		final configFileName = Tspath.GetNormalizedAbsolutePath(config.configFileName, basePath);
-		final path = Tspath.ToPath(config.configFileName, basePath, host.FS().UseCaseSensitiveFileNames());
+	// PORT: Go passes the vfs.FS where tsoptions takes a ParseConfigHost; here NewDefaultParseConfigHost(fs).
+	static function getParsedWithJsonApi(config:TestConfig, fs:FS, basePath:RootedDirectoryPath):ParsedCommandLine {
+		final configFileName = Tspath.ToRootedFilePath(config.configFileName, basePath);
+		final path = fs.CaseSensitivity().PathKey(configFileName.AsPath());
 		final parsed = Tsoptions.ParseConfigFileTextToJson(configFileName, path, config.jsonText).a;
-		return Tsoptions.ParseJsonConfigFileContent(parsed, host, basePath, null, configFileName, /*resolutionStack*/ null, /*extraFileExtensions*/ null,
-			/*extendedConfigCache*/ null);
+		return Tsoptions.ParseJsonConfigFileContent(parsed, Tsoptions.NewDefaultParseConfigHost(fs), basePath, null, configFileName,
+			/*resolutionStack*/ null, /*extendedConfigCache*/ null);
 	}
 
-	static function getParsedWithJsonSourceFileApi(config:TestConfig, host:ParseConfigHost, basePath:String):ParsedCommandLine {
-		final configFileName = Tspath.GetNormalizedAbsolutePath(config.configFileName, basePath);
-		final path = Tspath.ToPath(config.configFileName, basePath, host.FS().UseCaseSensitiveFileNames());
+	static function getParsedWithJsonSourceFileApi(config:TestConfig, fs:FS, basePath:RootedDirectoryPath):ParsedCommandLine {
+		final configFileName = Tspath.ToRootedFilePath(config.configFileName, basePath);
+		final path = fs.CaseSensitivity().PathKey(configFileName.AsPath());
 		final opts = new SourceFileParseOptions();
 		opts.FileName = configFileName;
 		opts.Path = path;
 		final parsed = Parser.ParseSourceFile(opts, config.jsonText, ScriptKindJSON);
 		final tsConfigSourceFile = new TsConfigSourceFile(parsed);
-		return Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, host, host.GetCurrentDirectory(), null, null, configFileName,
-			/*resolutionStack*/ null, /*extraFileExtensions*/ null, /*extendedConfigCache*/ null);
+		return Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, Tsoptions.NewDefaultParseConfigHost(fs), basePath, null, null,
+			/*resolutionStack*/ null, /*extendedConfigCache*/ null);
 	}
 
 	static function baselineParseConfigWith(baselineFileName:String, noSubmoduleBaseline:Bool, input:Array<TestConfig>,
-			getParsed:(config:TestConfig, host:ParseConfigHost, basePath:String) -> ParsedCommandLine):Void {
+			getParsed:(config:TestConfig, fs:FS, basePath:RootedDirectoryPath) -> ParsedCommandLine):Void {
 		noSubmoduleBaseline = true;
 		final baselineContent = new StringWriter();
 		for (i in 0...input.length) {
 			final config = input[i];
 			var basePath = config.basePath;
 			if (basePath == "") {
-				basePath = Tspath.GetNormalizedAbsolutePath(Tspath.GetDirectoryPath(config.configFileName), "");
+				basePath = Tspath.ToRootedFilePath(config.configFileName, Tspath.RootedDirectoryPathFromNormalized("/")).Directory();
 			}
-			final configFileName = Tspath.CombinePaths(basePath, config.configFileName);
+			final configFileName = basePath.ResolveFile(config.configFileName).AsString();
 			final allFileLists = new Map<String, String>();
 			for (k => v in config.allFileList)
 				allFileLists[k] = v;
 			allFileLists[configFileName] = config.jsonText;
-			final host = Tsoptionstest.NewVFSParseConfigHost(allFileLists, config.basePath, true /*useCaseSensitiveFileNames*/);
-			final parsedConfigFileContent = getParsed(config, host, basePath);
+			final fs = Tsoptionstest.NewVFS(allFileLists, CaseSensitive /*caseSensitivity*/);
+			final parsedConfigFileContent = getParsed(config, fs, basePath);
 
 			baselineContent.WriteString("Fs::\n");
-			final err = printFS(baselineContent, host.FS(), "/");
+			final err = printFS(baselineContent, fs, Tspath.RootedDirectoryPathFromNormalized("/"));
 			if (err != null) {
 				T.fail(err.Error());
 				return;
@@ -651,12 +654,15 @@ class TsconfigparsingTest {
 				}
 			}
 			baselineContent.WriteString("FileNames::\n");
-			baselineContent.WriteString(parsedConfigFileContent.ParsedConfig.FileNames.join(","));
+			baselineContent.WriteString(Core.Map(parsedConfigFileContent.ParsedConfig.FileNames, function(fileName:RootedFilePath):String {
+				return fileName.AsString();
+			}).join(","));
 			baselineContent.WriteString("\n");
 			baselineContent.WriteString("Errors::\n");
 			final fo = new FormattingOptions();
 			fo.NewLine = "\r\n";
-			fo.ComparePathsOptions = new ComparePathsOptions(true, basePath);
+			fo.CurrentDirectory = basePath;
+			fo.CaseSensitivity = CaseSensitive;
 			Diagnosticwriter.FormatDiagnosticsWithColorAndContext(baselineContent, Diagnosticwriter.FromASTDiagnostics(parsedConfigFileContent.Errors), fo);
 			baselineContent.WriteString("\n");
 			if (i != input.length - 1) {
@@ -674,13 +680,14 @@ class TsconfigparsingTest {
 		output.WriteString(Json.MarshalIndentOrdered(input, "", "  "));
 	}
 
-	static function printFS(output:StringWriter, files:FS, root:String):Null<Error> {
-		return files.WalkDir(root, function(path:String, d:Null<DirEntry>, err:Null<Error>):Null<Error> {
+	static function printFS(output:StringWriter, files:FS, root:RootedDirectoryPath):Null<Error> {
+		// PORT: FS.WalkDir still walks string paths here; the callback's path is typed with RootedFilePathFromNormalized.
+		return files.WalkDir(root.AsString(), function(path:String, d:Null<DirEntry>, err:Null<Error>):Null<Error> {
 			if (err != null) {
 				return err;
 			}
 			if (d.Type().IsRegular()) {
-				final r = files.ReadFile(path);
+				final r = files.ReadFile(Tspath.RootedFilePathFromNormalized(path));
 				if (!r.ok) {
 					return Errors.New("failed to read file " + path);
 				} else {
@@ -695,13 +702,15 @@ class TsconfigparsingTest {
 class TestConfig {
 	public var jsonText:String;
 	public var configFileName:String;
-	public var basePath:String;
+	public var basePath:RootedDirectoryPath;
 	public var allFileList:Map<String, String>;
 
+	// PORT: Go's table literals give basePath as untyped constants; the constructor converts them with
+	// RootedDirectoryPathFromNormalized ("" stays the zero value).
 	public function new(jsonText:String, configFileName:String, basePath:String, allFileList:Map<String, String>) {
 		this.jsonText = jsonText;
 		this.configFileName = configFileName;
-		this.basePath = basePath;
+		this.basePath = basePath == "" ? cast "" : Tspath.RootedDirectoryPathFromNormalized(basePath);
 		this.allFileList = allFileList;
 	}
 }
@@ -747,14 +756,14 @@ class MemoCache implements ExtendedConfigCache {
 
 	public function new() {}
 
-	public function GetExtendedConfig(fileName:String, path:Path, resolutionStack:Null<Array<Path>>, host:ParseConfigHost):ExtendedConfigCacheEntry {
+	public function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS):ExtendedConfigCacheEntry {
 		if (this.m == null) {
 			this.m = new Map<String, ExtendedConfigCacheEntry>();
 		}
 		if (this.m.exists(path)) {
 			return this.m.get(path);
 		}
-		final e = Tsoptions.ParseExtendedConfig(fileName, path, resolutionStack, host, this);
+		final e = Tsoptions.ParseExtendedConfig(fileName, path, resolutionStack, fs, this);
 		this.m.set(path, e);
 		return e;
 	}

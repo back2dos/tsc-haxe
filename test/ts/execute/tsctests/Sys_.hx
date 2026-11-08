@@ -12,6 +12,9 @@ import ts.execute.tsc.Compile;
 import ts.locale.Locale;
 import ts.tspath.Path;
 import ts.tspath.Tspath;
+import ts.tspath.RootedPath;
+import ts.tspath.PathKey;
+import ts.tspath.CaseSensitivity;
 import ts.vfs.Vfs;
 import ts.vfs.iovfs.Iofs.FsWithSys;
 import ts.vfs.vfstest.Vfstest.Clock;
@@ -57,7 +60,7 @@ class TestSys implements System implements CommandLineTesting {
 
 	public var fs:TestFs = null;
 	public var defaultLibraryPath:String = "";
-	public var cwd:String = "";
+	public var cwd:RootedDirectoryPath = cast "";
 	public var env:Null<Map<String, String>> = null;
 	public var clock:TestClock = null;
 
@@ -90,13 +93,14 @@ class TestSys implements System implements CommandLineTesting {
 	}
 
 	public function ensureLibPathExists(path:String):Void {
-		path = this.defaultLibraryPath + "/" + path;
-		if (!this.fsFromFileMap().ReadFile(path).ok) {
+		// PORT: defaultLibraryPath stays a string (System.DefaultLibraryPath); Go main: defaultLibraryPath.ResolveFile(path).
+		final fileName = Tspath.RootedFilePathFromAbsolute(this.defaultLibraryPath + "/" + path);
+		if (!this.fsFromFileMap().ReadFile(fileName).ok) {
 			if (this.fs.defaultLibs == null) {
 				this.fs.defaultLibs = new SyncSet<String>();
 			}
-			this.fs.defaultLibs.Add(path);
-			final err = this.fsFromFileMap().WriteFile(path, Tsctests.tscDefaultLibContent);
+			this.fs.defaultLibs.Add(fileName.AsString());
+			final err = this.fsFromFileMap().WriteFile(fileName, Tsctests.tscDefaultLibContent);
 			if (err != null) {
 				throw "Failed to write default library file: " + err.Error();
 			}
@@ -151,13 +155,13 @@ class TestSys implements System implements CommandLineTesting {
 
 				// Ensure that the timestamp for emitted files is in the order
 				final now = this.Now();
-				final err = this.fsFromFileMap().Chtimes(file, Time.Zero(), now);
+				final err = this.fsFromFileMap().Chtimes(file.AsPath(), Time.Zero(), now);
 				if (err != null) {
 					throw "Failed to change time for emitted file: " + file + ": " + err.Error();
 				}
 				// Update the mTime cache in --b mode to store the updated timestamp so tests will behave deteministically when finding newest output
 				if (mTimesCache != null) {
-					final path:String = Tspath.ToPath(file, this.GetCurrentDirectory(), this.FS().UseCaseSensitiveFileNames());
+					final path:String = this.FS().CaseSensitivity().PathKey(file.AsPath());
 					if (mTimesCache.Load(path).ok) {
 						mTimesCache.Store(path, now);
 					}
@@ -217,8 +221,12 @@ class TestSys implements System implements CommandLineTesting {
 
 		final configFilePath = program.Options().ConfigFilePath;
 		if (configFilePath != "") {
-			builder.WriteString(Tspath.GetRelativePathFromDirectory_legacy(this.cwd, configFilePath,
-				new ComparePathsOptions(this.FS().UseCaseSensitiveFileNames(), this.GetCurrentDirectory())));
+			final relativePath = this.FS().CaseSensitivity().RelativePathFromDirectory(this.cwd, configFilePath);
+			if (relativePath != null) {
+				builder.WriteString(relativePath.AsString());
+			} else {
+				builder.WriteString(configFilePath.AsString());
+			}
 			builder.WriteString("::\n");
 		}
 	}
@@ -348,21 +356,21 @@ class TestSys implements System implements CommandLineTesting {
 	}
 
 	public function writeFileNoError(path:String, content:String):Void {
-		final err = this.fsFromFileMap().WriteFile(path, content);
+		final err = this.fsFromFileMap().WriteFile(Tspath.ToRootedFilePath(path, this.GetCurrentDirectory()), content);
 		if (err != null) {
 			throw err;
 		}
 	}
 
 	public function removeNoError(path:String):Void {
-		final err = this.fsFromFileMap().Remove(path);
+		final err = this.fsFromFileMap().Remove(Tspath.ToRootedPath(path, this.GetCurrentDirectory()));
 		if (err != null) {
 			throw err;
 		}
 	}
 
 	public function readFileNoError(path:String):String {
-		final r = this.fsFromFileMap().ReadFile(path);
+		final r = this.fsFromFileMap().ReadFile(Tspath.ToRootedFilePath(path, this.GetCurrentDirectory()));
 		if (!r.ok) {
 			throw "File not found: " + path;
 		}

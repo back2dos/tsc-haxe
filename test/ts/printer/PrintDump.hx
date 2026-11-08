@@ -1,5 +1,6 @@
 package ts.printer;
 
+import ts.tspath.Tspath;
 import go.Utf8;
 import ts.ast.Ast;
 import ts.ast.Parseoptions.SourceFileParseOptions;
@@ -61,9 +62,10 @@ class PrintDump {
 		out.add(file);
 		out.addChar("\n".code);
 		final popts = new SourceFileParseOptions();
-		popts.FileName = file;
+		// PORT: the gate passes absolute corpus paths (Go's dumper converts unchecked: RootedFilePath(file)).
+		popts.FileName = Tspath.RootedFilePathFromAbsolute(file);
 		popts.Path = file;
-		final sf = Parser.ParseSourceFile(popts, text, Core.GetScriptKindFromFileName(file));
+		final sf = Parser.ParseSourceFile(popts, text, Core.GetScriptKindFromFileName(popts.FileName));
 		final opts = new PrinterOptions();
 		opts.NewLine = NewLineKind.NewLineKindLF;
 		final p = Printer.NewPrinter(opts, new PrintHandlers(), Printer.NewEmitContext());

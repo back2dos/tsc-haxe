@@ -6,6 +6,9 @@ import ts.vfs.Vfs;
 import ts.vfs.VfsTestUtil.*;
 import ts.vfs.vfsmatch.Vfsmatch;
 import ts.vfs.vfstest.Vfstest;
+import ts.tspath.Tspath;
+import ts.tspath.RootedPath;
+import ts.tspath.CaseSensitivity;
 
 // Port of vfsmatch_test.go. bench_test.go (benchmarks) is not ported.
 // Test cases modeled after TypeScript's matchFiles tests in
@@ -157,11 +160,23 @@ class VfsmatchTest {
 			depth = Vfsmatch.UnlimitedDepth;
 		}
 		final host = tc.host();
-		final got = Vfsmatch.matchFiles(path, tc.extensions, tc.excludes, tc.includes, host.UseCaseSensitiveFileNames(), currentDir, depth, host);
+		final basePath = Tspath.ToRootedDirectoryPath(path, Tspath.RootedDirectoryPathFromAbsolute(currentDir));
+		final got = fileNames(Vfsmatch.matchFileNames(basePath, tc.extensions, tc.excludes, tc.includes, depth, host));
 		tc.expect(got);
 	}
 
 	// Helper functions
+
+	// PORT: Go main maps the RootedFilePath results with core.Map(..., fileName.AsString()).
+	static function dirNames(got:Array<RootedDirectoryPath>):Array<String> {
+		return [for (d in got) d.AsString()];
+	}
+
+	static function fileNames(got:Null<Array<RootedFilePath>>):Null<Array<String>> {
+		return got == null ? null : Core.Map(got, function(fileName:RootedFilePath):String {
+			return fileName.AsString();
+		});
+	}
 	static function contains(s:String, substr:String):Bool {
 		return s.length >= substr.length && (s == substr || substr.length == 0 || (s.length > substr.length && containsAt(s, substr)));
 	}
@@ -1190,54 +1205,54 @@ class VfsmatchTest {
 			final cases:Array<{
 				name:String,
 				specs:Array<String>,
-				basePath:String,
+				basePath:RootedDirectoryPath,
 				usage:Usage,
-				useCaseSensitiveFileNames:Bool,
+				caseSensitivity:CaseSensitivity,
 				matchingPaths:Array<String>,
 				nonMatchingPaths:Array<String>
 			}> = [
 				{
 					name: "simple wildcard",
 					specs: ["*.ts"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					matchingPaths: ["/project/a.ts", "/project/b.ts", "/project/foo.ts"],
 					nonMatchingPaths: ["/project/a.js", "/project/sub/a.ts"],
 				},
 				{
 					name: "recursive wildcard",
 					specs: ["**/*.ts"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					matchingPaths: ["/project/a.ts", "/project/sub/a.ts", "/project/sub/deep/a.ts"],
 					nonMatchingPaths: ["/project/a.js"],
 				},
 				{
 					name: "exclude pattern",
 					specs: ["node_modules"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageExclude,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					matchingPaths: ["/project/node_modules/foo"],
 					nonMatchingPaths: ["/project/node_modules", "/project/src"],
 				},
 				{
 					name: "case insensitive",
 					specs: ["*.ts"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: false,
+					caseSensitivity: CaseInsensitive,
 					matchingPaths: ["/project/A.TS", "/project/B.Ts"],
 					nonMatchingPaths: ["/project/a.js"],
 				},
 				{
 					name: "multiple specs",
 					specs: ["*.ts", "*.tsx"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					matchingPaths: ["/project/a.ts", "/project/b.tsx"],
 					nonMatchingPaths: ["/project/a.js"],
 				},
@@ -1245,7 +1260,7 @@ class VfsmatchTest {
 
 			for (tc in cases) {
 				T.run("TestSpecMatcher/" + tc.name, () -> {
-					final matcher = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.useCaseSensitiveFileNames);
+					final matcher = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.caseSensitivity);
 					if (matcher == null) {
 						T.fail("matcher should not be nil");
 						return;
@@ -1264,36 +1279,36 @@ class VfsmatchTest {
 			final cases:Array<{
 				name:String,
 				specs:Array<String>,
-				basePath:String,
+				basePath:RootedDirectoryPath,
 				usage:Usage,
-				useCaseSensitiveFileNames:Bool,
+				caseSensitivity:CaseSensitivity,
 				paths:Array<String>,
 				expected:Array<Bool>
 			}> = [
 				{
 					name: "simple wildcard files",
 					specs: ["*.ts"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					paths: ["/project/a.ts", "/project/sub/a.ts", "/project/a.js"],
 					expected: [true, false, false],
 				},
 				{
 					name: "recursive wildcard files",
 					specs: ["**/*.ts"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					paths: ["/project/a.ts", "/project/sub/a.ts", "/project/a.js"],
 					expected: [true, true, false],
 				},
 				{
 					name: "exclude pattern matches prefix",
 					specs: ["node_modules"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageExclude,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					paths: ["/project/node_modules", "/project/node_modules/foo", "/project/src"],
 					expected: [false, true, false],
 				},
@@ -1302,7 +1317,7 @@ class VfsmatchTest {
 			for (tc in cases) {
 				T.run("TestSpecMatcher_MatchString/" + tc.name, () -> {
 					T.eq(tc.expected.length, tc.paths.length);
-					final m = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.useCaseSensitiveFileNames);
+					final m = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.caseSensitivity);
 					T.isTrue(m != null);
 					for (i in 0...tc.paths.length) {
 						final path = tc.paths[i];
@@ -1316,27 +1331,27 @@ class VfsmatchTest {
 			final cases:Array<{
 				name:String,
 				spec:String,
-				basePath:String,
+				basePath:RootedDirectoryPath,
 				usage:Usage,
-				useCaseSensitiveFileNames:Bool,
+				caseSensitivity:CaseSensitivity,
 				paths:Array<String>,
 				expected:Array<Bool>
 			}> = [
 				{
 					name: "single spec wildcard",
 					spec: "*.ts",
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					paths: ["/project/a.ts", "/project/sub/a.ts", "/project/a.js"],
 					expected: [true, false, false],
 				},
 				{
 					name: "single spec trailing starstar exclude allowed",
 					spec: "**",
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageExclude,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					paths: ["/project/a.ts", "/project/sub/a.ts"],
 					expected: [true, true],
 				},
@@ -1345,7 +1360,7 @@ class VfsmatchTest {
 			for (tc in cases) {
 				T.run("TestSingleSpecMatcher_MatchString/" + tc.name, () -> {
 					T.eq(tc.expected.length, tc.paths.length);
-					final m = Vfsmatch.NewSpecMatcher([tc.spec], tc.basePath, tc.usage, tc.useCaseSensitiveFileNames);
+					final m = Vfsmatch.NewSpecMatcher([tc.spec], tc.basePath, tc.usage, tc.caseSensitivity);
 					T.isTrue(m != null);
 					for (i in 0...tc.paths.length) {
 						final path = tc.paths[i];
@@ -1359,27 +1374,27 @@ class VfsmatchTest {
 			final cases:Array<{
 				name:String,
 				specs:Array<String>,
-				basePath:String,
+				basePath:RootedDirectoryPath,
 				usage:Usage,
-				useCaseSensitiveFileNames:Bool,
+				caseSensitivity:CaseSensitivity,
 				paths:Array<String>,
 				expected:Array<Int>
 			}> = [
 				{
 					name: "index lookup prefers first match",
 					specs: ["*.ts", "*.tsx"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					paths: ["/project/a.ts", "/project/a.tsx", "/project/a.js"],
 					expected: [0, 1, -1],
 				},
 				{
 					name: "exclude index lookup",
 					specs: ["node_modules", "bower_components"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageExclude,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					paths: [
 						"/project/node_modules",
 						"/project/node_modules/foo",
@@ -1394,7 +1409,7 @@ class VfsmatchTest {
 			for (tc in cases) {
 				T.run("TestSpecMatchers_MatchIndex/" + tc.name, () -> {
 					T.eq(tc.expected.length, tc.paths.length);
-					final m = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.useCaseSensitiveFileNames);
+					final m = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.caseSensitivity);
 					T.isTrue(m != null);
 					for (i in 0...tc.paths.length) {
 						final path = tc.paths[i];
@@ -1408,9 +1423,9 @@ class VfsmatchTest {
 			final cases:Array<{
 				name:String,
 				spec:String,
-				basePath:String,
+				basePath:RootedDirectoryPath,
 				usage:Usage,
-				useCaseSensitiveFileNames:Bool,
+				caseSensitivity:CaseSensitivity,
 				?expectNil:Bool,
 				?matchingPaths:Array<String>,
 				?nonMatchingPaths:Array<String>
@@ -1418,33 +1433,33 @@ class VfsmatchTest {
 				{
 					name: "simple spec",
 					spec: "*.ts",
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					matchingPaths: ["/project/a.ts"],
 					nonMatchingPaths: ["/project/a.js"],
 				},
 				{
 					name: "trailing ** non-exclude returns nil",
 					spec: "**",
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					expectNil: true,
 				},
 				{
 					name: "trailing ** exclude works",
 					spec: "**",
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageExclude,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					matchingPaths: ["/project/anything", "/project/deep/path"],
 				},
 			];
 
 			for (tc in cases) {
 				T.run("TestSingleSpecMatcher/" + tc.name, () -> {
-					final matcher = Vfsmatch.NewSpecMatcher([tc.spec], tc.basePath, tc.usage, tc.useCaseSensitiveFileNames);
+					final matcher = Vfsmatch.NewSpecMatcher([tc.spec], tc.basePath, tc.usage, tc.caseSensitivity);
 					if (tc.expectNil == true) {
 						T.isTrue(matcher == null, "should be nil");
 						return;
@@ -1469,18 +1484,18 @@ class VfsmatchTest {
 			final cases:Array<{
 				name:String,
 				specs:Array<String>,
-				basePath:String,
+				basePath:RootedDirectoryPath,
 				usage:Usage,
-				useCaseSensitiveFileNames:Bool,
+				caseSensitivity:CaseSensitivity,
 				?expectNil:Bool,
 				?pathToIndex:Map<String, Int>
 			}> = [
 				{
 					name: "multiple specs return correct index",
 					specs: ["*.ts", "*.tsx", "*.js"],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					pathToIndex: [
 						"/project/a.ts" => 0,
 						"/project/b.tsx" => 1,
@@ -1491,16 +1506,16 @@ class VfsmatchTest {
 				{
 					name: "empty specs returns nil",
 					specs: [],
-					basePath: "/project",
+					basePath: rd("/project"),
 					usage: UsageFiles,
-					useCaseSensitiveFileNames: true,
+					caseSensitivity: CaseSensitive,
 					expectNil: true,
 				},
 			];
 
 			for (tc in cases) {
 				T.run("TestSpecMatchers/" + tc.name, () -> {
-					final matchers = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.useCaseSensitiveFileNames);
+					final matchers = Vfsmatch.NewSpecMatcher(tc.specs, tc.basePath, tc.usage, tc.caseSensitivity);
 					if (tc.expectNil == true) {
 						T.isTrue(matchers == null, "should be nil");
 						return;
@@ -1611,7 +1626,7 @@ class VfsmatchTest {
 
 		T.run("TestGlobPatternInternals/question mark segment at end of string", () -> {
 			// Create pattern with question mark that should fail when string is exhausted
-			final p = Vfsmatch.compileGlobPattern("a?", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("a?", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			// Should match "ab"
@@ -1623,7 +1638,7 @@ class VfsmatchTest {
 
 		T.run("TestGlobPatternInternals/star segment with complex pattern", () -> {
 			// Pattern like "a*b*c" requires backtracking in star matching
-			final p = Vfsmatch.compileGlobPattern("a*b*c", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("a*b*c", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			// Should match "abc"
@@ -1639,19 +1654,7 @@ class VfsmatchTest {
 			T.isTrue(!p.matches("/aXbY"));
 		});
 
-		T.run("TestGlobPatternInternals/ensureTrailingSlash with existing slash", () -> {
-			// Test that ensureTrailingSlash doesn't double-add slashes
-			var result = Vfsmatch.ensureTrailingSlash("/dev/");
-			T.eq("/dev/", result);
-
-			result = Vfsmatch.ensureTrailingSlash("/");
-			T.eq("/", result);
-		});
-
-		T.run("TestGlobPatternInternals/ensureTrailingSlash with empty string", () -> {
-			final result = Vfsmatch.ensureTrailingSlash("");
-			T.eq("", result);
-		});
+		// PORT: TypeScript main (ed4807212c) removed the ensureTrailingSlash subtests (the helper is gone).
 
 		T.run("TestGlobPatternInternals/literal component with package folder in include", () -> {
 			// When a literal include path goes through a package folder,
@@ -1660,7 +1663,7 @@ class VfsmatchTest {
 			final host = Vfstest.FromMap(["/dev/node_modules/pkg/index.ts" => ""], false);
 
 			// Explicit literal path should work
-			final got = Vfsmatch.matchFiles("/dev", [".ts"], null, ["node_modules/pkg/index.ts"], false, "/", Vfsmatch.UnlimitedDepth, host);
+			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["node_modules/pkg/index.ts"], Vfsmatch.UnlimitedDepth, host));
 			T.isTrue(Slices.Contains(got, "/dev/node_modules/pkg/index.ts"));
 		});
 
@@ -1668,7 +1671,7 @@ class VfsmatchTest {
 		T.run("TestMatchSegmentsEdgeCases/question mark before slash in string", () -> {
 			// This tests the case where question mark encounters a slash character
 			// which should fail since ? doesn't match /
-			final p = Vfsmatch.compileGlobPattern("a?b", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("a?b", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			// "a/b" should not match "a?b" pattern since ? shouldn't match /
@@ -1683,7 +1686,7 @@ class VfsmatchTest {
 
 		T.run("TestMatchSegmentsEdgeCases/star with no trailing content", () -> {
 			// Test that star can match to end of string
-			final p = Vfsmatch.compileGlobPattern("a*", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("a*", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			T.isTrue(p.matches("/a"));
@@ -1693,7 +1696,7 @@ class VfsmatchTest {
 
 		T.run("TestMatchSegmentsEdgeCases/multiple stars in pattern", () -> {
 			// Test patterns with multiple stars that require backtracking
-			final p = Vfsmatch.compileGlobPattern("*a*", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("*a*", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			T.isTrue(p.matches("/a"));
@@ -1708,7 +1711,7 @@ class VfsmatchTest {
 			// A naive greedy algorithm would fail on these.
 
 			// Pattern: *a*a - must find two 'a' characters
-			final p1 = Vfsmatch.compileGlobPattern("*a*a", "/", UsageFiles, true);
+			final p1 = Vfsmatch.compileGlobPattern("*a*a", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p1 != null);
 			T.isTrue(p1.matches("/aa")); // minimal: first * matches "", second * matches ""
 			T.isTrue(p1.matches("/Xaa")); // first * matches "X"
@@ -1721,7 +1724,7 @@ class VfsmatchTest {
 			T.isTrue(!p1.matches("/XaYaZ")); // doesn't end with 'a'
 
 			// Pattern: *a*b*c - must find a, then b, then c in order
-			final p2 = Vfsmatch.compileGlobPattern("*a*b*c", "/", UsageFiles, true);
+			final p2 = Vfsmatch.compileGlobPattern("*a*b*c", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p2 != null);
 			T.isTrue(p2.matches("/abc")); // minimal
 			T.isTrue(p2.matches("/XaYbZc")); // chars between
@@ -1733,7 +1736,7 @@ class VfsmatchTest {
 			T.isTrue(!p2.matches("/abcX")); // doesn't end with c
 
 			// Pattern: *a*a*a - must find three 'a' characters
-			final p3 = Vfsmatch.compileGlobPattern("*a*a*a", "/", UsageFiles, true);
+			final p3 = Vfsmatch.compileGlobPattern("*a*a*a", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p3 != null);
 			T.isTrue(p3.matches("/aaa"));
 			T.isTrue(p3.matches("/aXaYa"));
@@ -1742,7 +1745,7 @@ class VfsmatchTest {
 			T.isTrue(!p3.matches("/aaX")); // doesn't end with 'a'
 
 			// Pattern: a*b*a - starts with a, ends with a, has b in middle
-			final p4 = Vfsmatch.compileGlobPattern("a*b*a", "/", UsageFiles, true);
+			final p4 = Vfsmatch.compileGlobPattern("a*b*a", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p4 != null);
 			T.isTrue(p4.matches("/aba"));
 			T.isTrue(p4.matches("/aXbYa"));
@@ -1756,7 +1759,7 @@ class VfsmatchTest {
 			// This pattern could cause exponential backtracking in naive implementations.
 			// Pattern: *a*a*a*a*b against "aaaaaaaaaaaaaaaa" (no b)
 			// Should return false quickly, not hang.
-			final p = Vfsmatch.compileGlobPattern("*a*a*a*a*b", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("*a*a*a*a*b", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			// These should complete quickly (not hang)
@@ -1768,7 +1771,7 @@ class VfsmatchTest {
 
 		T.run("TestMatchSegmentsEdgeCases/literal segment not matching", () -> {
 			// Test literal segment that's longer than remaining string
-			final p = Vfsmatch.compileGlobPattern("abcdefgh.ts", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("abcdefgh.ts", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			T.isTrue(!p.matches("/abc.ts")); // different literal
@@ -1779,7 +1782,7 @@ class VfsmatchTest {
 			// ? should match one full Unicode codepoint, not one byte.
 			// 'é' is 2 bytes in UTF-8, '🎉' is 4 bytes, '中' is 3 bytes.
 
-			final p1 = Vfsmatch.compileGlobPattern("?.ts", "/", UsageFiles, true);
+			final p1 = Vfsmatch.compileGlobPattern("?.ts", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p1 != null);
 
 			T.isTrue(p1.matches("/a.ts")); // single ASCII char
@@ -1790,7 +1793,7 @@ class VfsmatchTest {
 			T.isTrue(!p1.matches("/ab.ts")); // two chars
 
 			// Two question marks should match exactly two runes
-			final p2 = Vfsmatch.compileGlobPattern("??.ts", "/", UsageFiles, true);
+			final p2 = Vfsmatch.compileGlobPattern("??.ts", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p2 != null);
 
 			T.isTrue(p2.matches("/ab.ts")); // two ASCII chars
@@ -1804,7 +1807,7 @@ class VfsmatchTest {
 			// * should advance by full runes during backtracking.
 
 			// Pattern: *é.ts - anything ending in é.ts
-			final p = Vfsmatch.compileGlobPattern("*é.ts", "/", UsageFiles, true);
+			final p = Vfsmatch.compileGlobPattern("*é.ts", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p != null);
 
 			T.isTrue(p.matches("/é.ts"));
@@ -1812,7 +1815,7 @@ class VfsmatchTest {
 			T.isTrue(!p.matches("/cafe.ts")); // 'e' != 'é'
 
 			// Pattern: *🎉* - contains 🎉 somewhere
-			final p2 = Vfsmatch.compileGlobPattern("*🎉*", "/", UsageFiles, true);
+			final p2 = Vfsmatch.compileGlobPattern("*🎉*", rd("/"), UsageFiles, CaseSensitive);
 			T.isTrue(p2 != null);
 
 			T.isTrue(p2.matches("/🎉"));
@@ -1828,7 +1831,7 @@ class VfsmatchTest {
 			], false);
 
 			// The matchFilesNoRegex function normalizes paths, but we can test internal handling
-			final got = Vfsmatch.matchFiles("/dev", [".ts"], null, ["**/*.ts"], false, "/", Vfsmatch.UnlimitedDepth, host);
+			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["**/*.ts"], Vfsmatch.UnlimitedDepth, host));
 			T.isTrue(Core.len(got) >= 2, "should find files");
 			T.isTrue(Slices.Contains(got, "/dev/a.ts"));
 			T.isTrue(Slices.Contains(got, "/dev/x/b.ts"));
@@ -1842,7 +1845,7 @@ class VfsmatchTest {
 				"/dev/node_modules/b.ts" => "",
 			], false);
 
-			final got = Vfsmatch.matchFiles("/dev", [".ts"], null, ["*/*.ts"], false, "/", Vfsmatch.UnlimitedDepth, host);
+			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["*/*.ts"], Vfsmatch.UnlimitedDepth, host));
 			T.isTrue(!Slices.Contains(got, "/dev/node_modules/b.ts"), "should skip node_modules with wildcard");
 		});
 
@@ -1850,7 +1853,7 @@ class VfsmatchTest {
 			// Explicit literal paths should include package folders
 			final host = Vfstest.FromMap(["/dev/node_modules/b.ts" => ""], false);
 
-			final got = Vfsmatch.matchFiles("/dev", [".ts"], null, ["node_modules/b.ts"], false, "/", Vfsmatch.UnlimitedDepth, host);
+			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["node_modules/b.ts"], Vfsmatch.UnlimitedDepth, host));
 			T.isTrue(Slices.Contains(got, "/dev/node_modules/b.ts"), "should include explicit node_modules path");
 		});
 
@@ -1863,7 +1866,7 @@ class VfsmatchTest {
 			// When they're both included as base paths, they should not be deduplicated.
 			// Use include patterns that point to directories outside the root path so the root
 			// path doesn't subsume them via containsPath.
-			final basePaths = Vfsmatch.getBasePaths("/root", ["../Other/**/*.ts", "../other/**/*.ts"], true /*caseSensitive*/);
+			final basePaths = dirNames(Vfsmatch.getBasePaths(rd("/root"), ["../Other/**/*.ts", "../other/**/*.ts"], CaseSensitive));
 			// Both /Other and /other should appear because they differ by case on a case-sensitive FS.
 			T.isTrue(Slices.Contains(basePaths, "/Other"), 'expected /Other in base paths: ${strs(basePaths)}');
 			T.isTrue(Slices.Contains(basePaths, "/other"), 'expected /other in base paths: ${strs(basePaths)}');
@@ -1872,7 +1875,7 @@ class VfsmatchTest {
 		T.run("TestGetBasePathsCaseSensitivity/case-insensitive dedups differently-cased paths", () -> {
 			// On a case-insensitive file system, /Other and /other refer to the same directory;
 			// only one should appear.
-			final basePaths = Vfsmatch.getBasePaths("/root", ["../Other/**/*.ts", "../other/**/*.ts"], false /*caseSensitive*/);
+			final basePaths = dirNames(Vfsmatch.getBasePaths(rd("/root"), ["../Other/**/*.ts", "../other/**/*.ts"], CaseInsensitive));
 			var count = 0;
 			for (bp in basePaths) {
 				if (bp == "/Other" || bp == "/other") {

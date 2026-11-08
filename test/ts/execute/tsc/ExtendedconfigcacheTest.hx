@@ -2,29 +2,12 @@ package ts.execute.tsc;
 
 import ts.execute.tsc.Extendedconfigcache.ExtendedConfigCache;
 import ts.tsoptions.Parsedcommandline.ParsedCommandLine;
-import ts.tsoptions.Tsconfigparsing.ParseConfigHost;
 import ts.tsoptions.Tsoptions;
+import ts.tspath.Tspath;
 import ts.vfs.Vfs.FS;
 import ts.vfs.vfstest.Vfstest.Vfstest;
 
 // Port of internal/execute/tsc/extendedconfigcache_test.go.
-private class TestParseConfigHost implements ParseConfigHost {
-	final fs:FS;
-	final cwd:String;
-
-	public function new(fs:FS, cwd:String) {
-		this.fs = fs;
-		this.cwd = cwd;
-	}
-
-	public function FS():FS {
-		return this.fs;
-	}
-
-	public function GetCurrentDirectory():RootedDirectoryPath {
-		return this.cwd;
-	}
-}
 
 class ExtendedconfigcacheTest {
 	public static function run() {
@@ -32,11 +15,12 @@ class ExtendedconfigcacheTest {
 		TestExtendedConfigCacheNullExtendsDoesNotPanic();
 	}
 
+	// PORT: the setup each Go subtest repeats (as in TypeScript main: NewDefaultParseConfigHost, no test host).
 	static function parse(files:Map<String, Any>):ParsedCommandLine {
-		final fs = Vfstest.FromMap(files, false /*useCaseSensitiveFileNames*/);
-		final host = new TestParseConfigHost(fs, "/project");
+		final fs = Vfstest.FromMap(files, false /*caseSensitivity: CaseInsensitive*/);
 		final cache = new ExtendedConfigCache();
-		return Tsoptions.GetParsedCommandLineOfConfigFile("/project/tsconfig.json", null, null, host, cache).a;
+		return Tsoptions.GetParsedCommandLineOfConfigFile(Tspath.RootedFilePathFromNormalized("/project/tsconfig.json"), null, null,
+			Tsoptions.NewDefaultParseConfigHost(fs), cache).a;
 	}
 
 	static function TestExtendedConfigCacheExtendsCircularity() {

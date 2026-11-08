@@ -5,12 +5,12 @@ import ts.tsoptions.ExportTest.TestCommandLineParser;
 
 // Port of commandlineparser_test.go.
 class CommandlineparserTest {
-	static function tempDir():String {
+	static function tempDir():RootedDirectoryPath {
 		// PORT: t.TempDir() → an existing scratch directory (the tests only read from it).
 		final dir = Sys.getCwd() + "bin/tsoptions/tmp";
 		if (!sys.FileSystem.exists(dir))
 			sys.FileSystem.createDirectory(dir);
-		return Tspath.NormalizeSlashes(dir);
+		return Tspath.RootedDirectoryPathFromAbsolute(dir);
 	}
 
 	public static function run() {
@@ -94,15 +94,15 @@ class CommandlineparserTest {
 		});
 
 		T.run("TestParseCommandLineTypeRootsRelativePath", () -> {
-			final host = Tsoptionstest.NewVFSParseConfigHost(["/home/project/bug.ts" => "let x = 1;"], "/home/project", true);
+			final fs = Tsoptionstest.NewVFS(["/home/project/bug.ts" => "let x = 1;"], CaseSensitive);
 
-			final cmdLine = Tsoptions.ParseCommandLine(["--typeRoots", "t", "bug.ts"], host);
+			// PORT: Go's untyped constant "/home/project" → RootedDirectoryPathFromNormalized.
+			final cmdLine = Tsoptions.ParseCommandLine(["--typeRoots", "t", "bug.ts"], fs, Tspath.RootedDirectoryPathFromNormalized("/home/project"));
 
 			final typeRoots = cmdLine.CompilerOptions().TypeRoots;
 			T.isTrue(typeRoots != null, "typeRoots should not be nil");
 			T.eq(1, typeRoots.length);
-			T.isTrue(Tspath.IsRootedDiskPath(typeRoots[0]), "typeRoots entry should be an absolute path, got: " + typeRoots[0]);
-			T.isTrue(StringTools.endsWith(typeRoots[0], "/t"), "typeRoots entry should end with '/t', got: " + typeRoots[0]);
+			T.eq("/home/project/t", typeRoots[0].AsString());
 		});
 
 		T.run("TestCustomConditionsNullOverride", () -> {
@@ -115,10 +115,11 @@ class CommandlineparserTest {
 				"/project/index.ts" => 'console.log("Hello, World!");',
 			];
 
-			final host = Tsoptionstest.NewVFSParseConfigHost(files, "/project", true);
+			final fs = Tsoptionstest.NewVFS(files, CaseSensitive);
 
 			// Parse command line with --customConditions null
-			final cmdLine = Tsoptions.ParseCommandLine(["--project", "/project", "--customConditions", "null"], host);
+			final cmdLine = Tsoptions.ParseCommandLine(["--project", "/project", "--customConditions", "null"], fs,
+				Tspath.RootedDirectoryPathFromNormalized("/project"));
 
 			// Check that the raw options contain null for customConditions
 			if (Std.isOfType(cmdLine.Raw, OrderedMap)) {
@@ -135,7 +136,8 @@ class CommandlineparserTest {
 			// Wrap command line options in "compilerOptions" key to match tsconfig.json structure
 			final wrappedRaw = new OrderedMap<String, Dynamic>();
 			wrappedRaw.Set("compilerOptions", (cmdLine.Raw : OrderedMap<String, Dynamic>));
-			final r = Tsoptions.GetParsedCommandLineOfConfigFile("/project/tsconfig.json", cmdLine.CompilerOptions(), wrappedRaw, host, null);
+			final r = Tsoptions.GetParsedCommandLineOfConfigFile(Tspath.RootedFilePathFromNormalized("/project/tsconfig.json"), cmdLine.CompilerOptions(),
+				wrappedRaw, Tsoptions.NewDefaultParseConfigHost(fs), null);
 			final parsedConfig = r.a;
 			final errors = r.b;
 
@@ -362,7 +364,7 @@ class CommandlineparserTest {
 		return result;
 	}
 
-	public static function tempDirFor():String {
+	public static function tempDirFor():RootedDirectoryPath {
 		return tempDir();
 	}
 }
@@ -461,8 +463,8 @@ class CommandLineSubScenario {
 			}
 
 			// f.workerDiagnostic is either defined or set to default pointer in `createSubScenario`
-			final parsed = Tsoptions.ParseBuildCommandLine(f.commandLine,
-				new VfsParseConfigHost(Osvfs.FS(), Tspath.NormalizeSlashes(TsoptionsTestUtil.TypeScriptSubmodulePath())));
+			final parsed = Tsoptions.ParseBuildCommandLine(f.commandLine, Osvfs.FS(),
+				Tspath.RootedDirectoryPathFromAbsolute(TsoptionsTestUtil.TypeScriptSubmodulePath()));
 
 			final newBaselineProjects = parsed.Projects.join(",");
 			if (getTsBaseline != null) {

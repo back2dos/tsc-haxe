@@ -4,6 +4,8 @@ import ts.vfs.vfstest.Vfstest.Vfstest;
 import ts.compiler.Program;
 import ts.bundled.Bundled;
 import ts.tsoptions.Parsedcommandline;
+import ts.tsoptions.Tsoptions;
+import ts.tspath.Tspath;
 import ts.core.Parsedoptions;
 import ts.core.Compileroptions;
 import ts.core.Compileroptions.ScriptTarget.*;
@@ -212,19 +214,18 @@ class CompilerTest {
 					fs = Bundled.WrapFS(fs);
 
 					for (testFile in testCase.files) {
-						fs.WriteFile(testFile[0], testFile[1]);
+						fs.WriteFile(Tspath.RootedFilePathFromNormalized(testFile[0]), testFile[1]);
 					}
 
 					final opts = new CompilerOptions();
 					opts.Target = testCase.target;
 
-					final config = new ParsedCommandLine();
-					config.ParsedConfig = new ParsedOptions();
-					config.ParsedConfig.FileNames = ["c:/dev/src/index.ts"];
-					config.ParsedConfig.CompilerOptions = opts;
+					// PORT: as TypeScript main (typed paths): Config from NewParsedCommandLine with the base directory; Go's
+					// untyped constants → Rooted*FromNormalized. NewCompilerHost still takes the current directory here.
 					final programOptions = new ProgramOptions();
-					programOptions.Config = config;
-					programOptions.Host = Compiler.NewCompilerHost("c:/dev/src", fs, Bundled.LibPath(), null, null);
+					programOptions.Config = Tsoptions.NewParsedCommandLine(opts, [Tspath.RootedFilePathFromNormalized("c:/dev/src/index.ts")], null,
+						Tspath.RootedDirectoryPathFromNormalized("c:/dev/src"), fs.CaseSensitivity());
+					programOptions.Host = Compiler.NewCompilerHost(Tspath.RootedDirectoryPathFromNormalized("c:/dev/src"), fs, Bundled.LibPath(), null, null);
 					final program = Compiler.NewProgram(programOptions);
 
 					final actualFiles:Array<String> = [];
@@ -245,20 +246,20 @@ class CompilerTest {
 			fs = Bundled.WrapFS(fs);
 
 			// Only create the lowercase version; /src/MyFile.ts does not exist.
-			fs.WriteFile("/src/myFile.ts", "export const y = 2;");
+			fs.WriteFile(Tspath.RootedFilePathFromNormalized("/src/myFile.ts"), "export const y = 2;");
 
 			final opts = new CompilerOptions();
 			opts.SkipDefaultLibCheck = TSTrue;
 
 			// List both casings as root files. The first one (/src/MyFile.ts) will fail
 			// to load because it does not exist on the case-sensitive filesystem.
-			final config = new ParsedCommandLine();
-			config.ParsedConfig = new ParsedOptions();
-			config.ParsedConfig.FileNames = ["/src/MyFile.ts", "/src/myFile.ts"];
-			config.ParsedConfig.CompilerOptions = opts;
 			final programOptions = new ProgramOptions();
-			programOptions.Config = config;
-			programOptions.Host = Compiler.NewCompilerHost("/", fs, Bundled.LibPath(), null, null);
+			programOptions.Config = Tsoptions.NewParsedCommandLine(opts,
+				[
+					Tspath.RootedFilePathFromNormalized("/src/MyFile.ts"),
+					Tspath.RootedFilePathFromNormalized("/src/myFile.ts")
+				], null, Tspath.RootedDirectoryPathFromNormalized("/"), fs.CaseSensitivity());
+			programOptions.Host = Compiler.NewCompilerHost(Tspath.RootedDirectoryPathFromNormalized("/"), fs, Bundled.LibPath(), null, null);
 			final program = Compiler.NewProgram(programOptions);
 
 			// GetProgramDiagnostics triggers getDiagnostics which processes all

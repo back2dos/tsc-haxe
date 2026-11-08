@@ -81,7 +81,7 @@ class TscInput {
 		// initial test tsc compile
 		final sys = Tsctests.newTestSys(this, false);
 		baselineBuilder.WriteString("currentDirectory::" + sys.GetCurrentDirectory() + "\nuseCaseSensitiveFileNames::"
-			+ (sys.FS().UseCaseSensitiveFileNames() ? "true" : "false") + "\nInput::\n");
+			+ (sys.FS().CaseSensitivity().IsCaseSensitive() ? "true" : "false") + "\nInput::\n");
 		sys.baselineFSwithDiff(baselineBuilder);
 		final result = this.executeCommand(sys, baselineBuilder, this.commandLineArgs);
 		sys.serializeState(baselineBuilder);

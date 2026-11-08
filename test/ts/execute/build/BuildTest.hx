@@ -93,7 +93,7 @@ class BuildOrderTestCase {
 
 			final sys = Tsctests.NewTscSystem(files, true, "/home/src/workspaces/project");
 			final args = ["--build", "--dry"].concat(this.projects);
-			final buildCommand = Tsoptions.ParseBuildCommandLine(args, sys);
+			final buildCommand = Tsoptions.ParseBuildCommandLine(args, sys.FS(), sys.GetCurrentDirectory());
 			final options = new Options();
 			options.Sys = sys;
 			options.Command = buildCommand;
@@ -124,7 +124,7 @@ class BuildOrderTestCase {
 			T.eq(this.expected.join(","), buildOrder2.join(","));
 
 			final argsWatch = ["--build", "--watch"].concat(this.projects);
-			final buildCommandWatch = Tsoptions.ParseBuildCommandLine(argsWatch, sys);
+			final buildCommandWatch = Tsoptions.ParseBuildCommandLine(argsWatch, sys.FS(), sys.GetCurrentDirectory());
 			final optionsWatch = new Options();
 			optionsWatch.Sys = sys;
 			optionsWatch.Command = buildCommandWatch;

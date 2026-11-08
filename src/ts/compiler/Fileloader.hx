@@ -119,11 +119,8 @@ class FileLoader {
 		}
 	}
 
-	// PORT: main passes the typed root file name and Config.RootFileNameForDiagnostic(index); the root file
-	// names of this port's ParsedCommandLine are still strings, resolved here as before.
-	function addRootFileTask(rootFileName:std.String, libFile:LibFile, includeReason:FileIncludeReason):Void {
-		final fileName = Tspath.ToRootedFilePath(rootFileName, this.currentDirectory);
-		final r = this.getSourceFileFromReference(fileName, rootFileName);
+	function addRootFileTask(fileName:RootedFilePath, referenceText:std.String, libFile:LibFile, includeReason:FileIncludeReason):Void {
+		final r = this.getSourceFileFromReference(fileName, referenceText);
 		final rootTask = new ParseTask();
 		rootTask.normalizedFilePath = r.fileName;
 		rootTask.path = r.path;

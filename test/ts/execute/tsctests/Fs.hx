@@ -33,7 +33,7 @@ class TestFs implements FS {
 		return this.readFileHandlingBuildInfo(path);
 	}
 
-	function readFileHandlingBuildInfo(path:String):ValueOk<String> {
+	function readFileHandlingBuildInfo(path:RootedFilePath):ValueOk<String> {
 		final r = this.FS.ReadFile(path);
 		var contents = r.value;
 		final ok = r.ok;
@@ -55,7 +55,7 @@ class TestFs implements FS {
 		return this.writeFileHandlingBuildInfo(path, data);
 	}
 
-	function writeFileHandlingBuildInfo(path:String, data:String):Null<Error> {
+	function writeFileHandlingBuildInfo(path:RootedFilePath, data:String):Null<Error> {
 		if (Tspath.FileExtensionIs(path, Tspath.ExtensionTsBuildInfo)) {
 			final buildInfo = Incremental.UnmarshalBuildInfo(data);
 			if (buildInfo != null) {
@@ -65,7 +65,7 @@ class TestFs implements FS {
 					data = ts.json.Json.MarshalOrdered(buildInfo);
 				}
 				// Write readable build info version
-				final err = this.WriteFile(path + ".readable.baseline.txt",
+				final err = this.WriteFile(path.AppendSuffix(".readable.baseline.txt"),
 					Readablebuildinfo.toReadableBuildInfo(buildInfo, Fsbaselineutil.SanitizeInternalSymbolName(data)));
 				if (err != null) {
 					return go.Errors.New("testFs.WriteFile: failed to write readable build info: " + err.Error());

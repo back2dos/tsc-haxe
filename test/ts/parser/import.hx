@@ -6,3 +6,4 @@ import ts.ast.Nodeflags.NodeFlags.*;
 import ts.core.Core;
 import ts.core.Scriptkind;
 import ts.core.Scriptkind.ScriptKind.*;
+import ts.tspath.Tspath;

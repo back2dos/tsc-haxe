@@ -153,49 +153,49 @@ class VfstestTest {
 		T.run("TestWritableFS", () -> {
 			final fs = Vfstest.FromMap((null : Map<String, Any>), false);
 
-			var err = fs.WriteFile("/foo/bar/baz", "hello, world");
+			var err = fs.WriteFile(rf("/foo/bar/baz"), "hello, world");
 			nilError(err);
 
-			var content = fs.ReadFile("/foo/bar/baz");
+			var content = fs.ReadFile(rf("/foo/bar/baz"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			err = fs.WriteFile("/foo/bar/baz", "goodbye, world");
+			err = fs.WriteFile(rf("/foo/bar/baz"), "goodbye, world");
 			nilError(err);
 
-			content = fs.ReadFile("/foo/bar/baz");
+			content = fs.ReadFile(rf("/foo/bar/baz"));
 			T.isTrue(content.ok);
 			T.eq("goodbye, world", content.value);
 
-			err = fs.WriteFile("/foo/bar/baz/oops", "goodbye, world");
+			err = fs.WriteFile(rf("/foo/bar/baz/oops"), "goodbye, world");
 			errorContains(err, 'mkdir "foo/bar/baz": path exists but is not a directory');
 		});
 
 		T.run("TestWritableFSDelete", () -> {
 			final fs = Vfstest.FromMap((null : Map<String, Any>), false);
 
-			fs.WriteFile("/foo/bar/file.ts", "remove");
-			T.isTrue(fs.FileExists("/foo/bar/file.ts"));
-			var err = fs.Remove("/foo/bar/file.ts");
+			fs.WriteFile(rf("/foo/bar/file.ts"), "remove");
+			T.isTrue(fs.FileExists(rf("/foo/bar/file.ts")));
+			var err = fs.Remove(rp("/foo/bar/file.ts"));
 			nilError(err);
-			T.isTrue(!fs.FileExists("/foo/bar/file.ts"));
+			T.isTrue(!fs.FileExists(rf("/foo/bar/file.ts")));
 
-			fs.WriteFile("/foo/bar/test/remove2.ts", "remove2");
-			T.isTrue(fs.DirectoryExists("/foo/bar/test"));
-			err = fs.Remove("/foo/bar/test");
+			fs.WriteFile(rf("/foo/bar/test/remove2.ts"), "remove2");
+			T.isTrue(fs.DirectoryExists(rd("/foo/bar/test")));
+			err = fs.Remove(rp("/foo/bar/test"));
 			nilError(err);
-			T.isTrue(!fs.FileExists("/foo/bar/test/remove2.ts"));
-			T.isTrue(!fs.DirectoryExists("/foo/bar/test"));
+			T.isTrue(!fs.FileExists(rf("/foo/bar/test/remove2.ts")));
+			T.isTrue(!fs.DirectoryExists(rd("/foo/bar/test")));
 
 			// no errors when removing file/dir that does not exist
-			err = fs.Remove("/foo/bar/test");
+			err = fs.Remove(rp("/foo/bar/test"));
 			nilError(err);
-			err = fs.Remove("/foo/bar/file.ts");
+			err = fs.Remove(rp("/foo/bar/file.ts"));
 			nilError(err);
 
-			fs.WriteFile("/foo/barbar", "remove2");
-			fs.Remove("/foo/bar");
-			T.isTrue(fs.FileExists("/foo/barbar"));
+			fs.WriteFile(rf("/foo/barbar"), "remove2");
+			fs.Remove(rp("/foo/bar"));
+			T.isTrue(fs.FileExists(rf("/foo/barbar")));
 		});
 
 		T.run("TestStress", () -> {
@@ -203,25 +203,25 @@ class VfstestTest {
 
 			final ops:Array<() -> Void> = [
 				() -> {
-					fs.WriteFile("/foo/bar/baz.txt", "hello, world");
+					fs.WriteFile(rf("/foo/bar/baz.txt"), "hello, world");
 				},
 				() -> {
-					fs.ReadFile("/foo/bar/baz.txt");
+					fs.ReadFile(rf("/foo/bar/baz.txt"));
 				},
 				() -> {
-					fs.DirectoryExists("/foo/bar");
+					fs.DirectoryExists(rd("/foo/bar"));
 				},
 				() -> {
-					fs.FileExists("/foo/bar");
+					fs.FileExists(rf("/foo/bar"));
 				},
 				() -> {
-					fs.FileExists("/foo/bar/baz.txt");
+					fs.FileExists(rf("/foo/bar/baz.txt"));
 				},
 				() -> {
-					fs.GetAccessibleEntries("/foo/bar");
+					fs.GetAccessibleEntries(rd("/foo/bar"));
 				},
 				() -> {
-					fs.Realpath("/foo/bar/baz.txt");
+					fs.Realpath(rp("/foo/bar/baz.txt"));
 				},
 				() -> {
 					fs.WalkDir("/", (path, d, err) -> {
@@ -271,15 +271,15 @@ class VfstestTest {
 			];
 			final fs = Vfstest.FromMap(m, false);
 
-			var content = fs.ReadFile("/string");
+			var content = fs.ReadFile(rf("/string"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			content = fs.ReadFile("/bytes");
+			content = fs.ReadFile(rf("/bytes"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			content = fs.ReadFile("/mapfile");
+			content = fs.ReadFile(rf("/mapfile"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 		});
@@ -292,15 +292,15 @@ class VfstestTest {
 			];
 			final fs = Vfstest.FromMap(m, false);
 
-			var content = fs.ReadFile("c:/string");
+			var content = fs.ReadFile(rf("c:/string"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			content = fs.ReadFile("d:/bytes");
+			content = fs.ReadFile(rf("d:/bytes"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			content = fs.ReadFile("e:/mapfile");
+			content = fs.ReadFile(rf("e:/mapfile"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 		});
@@ -352,28 +352,28 @@ class VfstestTest {
 			], false /*useCaseSensitiveFileNames*/);
 
 			T.run("TestVFSTestMapFS/ReadFile", () -> {
-				var content = fs.ReadFile("/foo.ts");
+				var content = fs.ReadFile(rf("/foo.ts"));
 				T.isTrue(content.ok);
 				T.eq("hello, world", content.value);
 
-				content = fs.ReadFile("/does/not/exist.ts");
+				content = fs.ReadFile(rf("/does/not/exist.ts"));
 				T.isTrue(!content.ok);
 				T.eq("", content.value);
 			});
 
 			T.run("TestVFSTestMapFS/Realpath", () -> {
-				var realpath = fs.Realpath("/foo.ts");
-				T.eq("/foo.ts", realpath);
+				var realpath = fs.Realpath(rp("/foo.ts"));
+				T.eq("/foo.ts", realpath.AsString());
 
-				realpath = fs.Realpath("/Foo.ts");
-				T.eq("/foo.ts", realpath);
+				realpath = fs.Realpath(rp("/Foo.ts"));
+				T.eq("/foo.ts", realpath.AsString());
 
-				realpath = fs.Realpath("/does/not/exist.ts");
-				T.eq("/does/not/exist.ts", realpath);
+				realpath = fs.Realpath(rp("/does/not/exist.ts"));
+				T.eq("/does/not/exist.ts", realpath.AsString());
 			});
 
-			T.run("TestVFSTestMapFS/UseCaseSensitiveFileNames", () -> {
-				T.isTrue(!fs.UseCaseSensitiveFileNames());
+			T.run("TestVFSTestMapFS/CaseSensitivity", () -> {
+				T.isTrue(fs.CaseSensitivity().IsCaseInsensitive());
 			});
 		}
 
@@ -386,24 +386,24 @@ class VfstestTest {
 			], false);
 
 			T.run("TestVFSTestMapFSWindows/ReadFile", () -> {
-				var content = fs.ReadFile("c:/foo.ts");
+				var content = fs.ReadFile(rf("c:/foo.ts"));
 				T.isTrue(content.ok);
 				T.eq("hello, world", content.value);
 
-				content = fs.ReadFile("c:/does/not/exist.ts");
+				content = fs.ReadFile(rf("c:/does/not/exist.ts"));
 				T.isTrue(!content.ok);
 				T.eq("", content.value);
 			});
 
 			T.run("TestVFSTestMapFSWindows/Realpath", () -> {
-				var realpath = fs.Realpath("c:/foo.ts");
-				T.eq("c:/foo.ts", realpath);
+				var realpath = fs.Realpath(rp("c:/foo.ts"));
+				T.eq("c:/foo.ts", realpath.AsString());
 
-				realpath = fs.Realpath("c:/Foo.ts");
-				T.eq("c:/foo.ts", realpath);
+				realpath = fs.Realpath(rp("c:/Foo.ts"));
+				T.eq("c:/foo.ts", realpath.AsString());
 
-				realpath = fs.Realpath("c:/does/not/exist.ts");
-				T.eq("c:/does/not/exist.ts", realpath);
+				realpath = fs.Realpath(rp("c:/does/not/exist.ts"));
+				T.eq("c:/does/not/exist.ts", realpath.AsString());
 			});
 		}
 
@@ -440,7 +440,7 @@ class VfstestTest {
 
 					final fs = Vfstest.FromMap(["/foo.ts" => buf.getBytes()], true);
 
-					final content = fs.ReadFile("/foo.ts");
+					final content = fs.ReadFile(rf("/foo.ts"));
 					T.isTrue(content.ok);
 					T.eq(expected, content.value);
 				});
@@ -454,7 +454,7 @@ class VfstestTest {
 				buf.add(b(expected));
 				final fs = Vfstest.FromMap(["/foo.ts" => buf.getBytes()], true);
 
-				final content = fs.ReadFile("/foo.ts");
+				final content = fs.ReadFile(rf("/foo.ts"));
 				T.isTrue(content.ok);
 				T.eq(expected, content.value);
 			});
@@ -474,42 +474,42 @@ class VfstestTest {
 			final fs = Vfstest.FromMap(m, false);
 
 			T.run("TestSymlink/ReadFile", () -> {
-				var content = fs.ReadFile("/symlink.ts");
+				var content = fs.ReadFile(rf("/symlink.ts"));
 				T.isTrue(content.ok);
 				T.eq("hello, world", content.value);
 
-				content = fs.ReadFile("/some/dirlink/file.ts");
+				content = fs.ReadFile(rf("/some/dirlink/file.ts"));
 				T.isTrue(content.ok);
 				T.eq("hello, world", content.value);
 
-				content = fs.ReadFile("/a/existing.ts");
+				content = fs.ReadFile(rf("/a/existing.ts"));
 				T.isTrue(content.ok);
 				T.eq("this is existing.ts", content.value);
 			});
 
 			T.run("TestSymlink/Realpath", () -> {
-				var realpath = fs.Realpath("/symlink.ts");
-				T.eq("/foo.ts", realpath);
+				var realpath = fs.Realpath(rp("/symlink.ts"));
+				T.eq("/foo.ts", realpath.AsString());
 
-				realpath = fs.Realpath("/some/dirlink");
-				T.eq("/some/dir", realpath);
+				realpath = fs.Realpath(rp("/some/dirlink"));
+				T.eq("/some/dir", realpath.AsString());
 
-				realpath = fs.Realpath("/some/dirlink/file.ts");
-				T.eq("/some/dir/file.ts", realpath);
+				realpath = fs.Realpath(rp("/some/dirlink/file.ts"));
+				T.eq("/some/dir/file.ts", realpath.AsString());
 			});
 
 			T.run("TestSymlink/FileExists", () -> {
-				T.isTrue(fs.FileExists("/symlink.ts"));
-				T.isTrue(fs.FileExists("/some/dirlink/file.ts"));
-				T.isTrue(fs.FileExists("/a/existing.ts"));
+				T.isTrue(fs.FileExists(rf("/symlink.ts")));
+				T.isTrue(fs.FileExists(rf("/some/dirlink/file.ts")));
+				T.isTrue(fs.FileExists(rf("/a/existing.ts")));
 			});
 
 			T.run("TestSymlink/DirectoryExists", () -> {
-				T.isTrue(fs.DirectoryExists("/some/dirlink"));
-				T.isTrue(fs.DirectoryExists("/d"));
-				T.isTrue(fs.DirectoryExists("/c"));
-				T.isTrue(fs.DirectoryExists("/b"));
-				T.isTrue(fs.DirectoryExists("/a"));
+				T.isTrue(fs.DirectoryExists(rd("/some/dirlink")));
+				T.isTrue(fs.DirectoryExists(rd("/d")));
+				T.isTrue(fs.DirectoryExists(rd("/c")));
+				T.isTrue(fs.DirectoryExists(rd("/b")));
+				T.isTrue(fs.DirectoryExists(rd("/a")));
 			});
 		}
 
@@ -526,52 +526,52 @@ class VfstestTest {
 			];
 			final fs = Vfstest.FromMap(m, false);
 
-			var err = fs.WriteFile("/some/dirlink/file.ts", "hello, world");
+			var err = fs.WriteFile(rf("/some/dirlink/file.ts"), "hello, world");
 			nilError(err);
 
-			var content = fs.ReadFile("/some/dirlink/file.ts");
+			var content = fs.ReadFile(rf("/some/dirlink/file.ts"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			content = fs.ReadFile("/some/dir/file.ts");
+			content = fs.ReadFile(rf("/some/dir/file.ts"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			err = fs.WriteFile("/some/dirlink/file.ts", "goodbye, world");
+			err = fs.WriteFile(rf("/some/dirlink/file.ts"), "goodbye, world");
 			nilError(err);
 
-			content = fs.ReadFile("/some/dirlink/file.ts");
+			content = fs.ReadFile(rf("/some/dirlink/file.ts"));
 			T.isTrue(content.ok);
 			T.eq("goodbye, world", content.value);
 
-			err = fs.WriteFile("/other.ts", "hello, world");
+			err = fs.WriteFile(rf("/other.ts"), "hello, world");
 			nilError(err);
 
-			content = fs.ReadFile("/other.ts");
+			content = fs.ReadFile(rf("/other.ts"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			content = fs.ReadFile("/some/dir/other.ts");
+			content = fs.ReadFile(rf("/some/dir/other.ts"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			err = fs.WriteFile("/some/dirlink", "hello, world");
+			err = fs.WriteFile(rf("/some/dirlink"), "hello, world");
 			error(err, 'write "some/dirlink": path exists but is not a regular file');
 
 			// Can't write inside a broken dir symlink
-			err = fs.WriteFile("/brokenlink/file.ts", "hello, world");
+			err = fs.WriteFile(rf("/brokenlink/file.ts"), "hello, world");
 			error(err, 'broken symlink "brokenlink" -> "does/not/exist"');
 
-			err = fs.WriteFile("/brokenlink/also/wrong/file.ts", "hello, world");
+			err = fs.WriteFile(rf("/brokenlink/also/wrong/file.ts"), "hello, world");
 			error(err, 'broken symlink "brokenlink" -> "does/not/exist"');
 
 			// But we can write to a broken file symlink
-			err = fs.WriteFile("/brokenlink", "hello, world");
+			err = fs.WriteFile(rf("/brokenlink"), "hello, world");
 			nilError(err);
-			content = fs.ReadFile("/brokenlink");
+			content = fs.ReadFile(rf("/brokenlink"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
-			content = fs.ReadFile("/does/not/exist");
+			content = fs.ReadFile(rf("/does/not/exist"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 		});
@@ -585,15 +585,15 @@ class VfstestTest {
 			];
 			final fs = Vfstest.FromMap(m, false);
 
-			final err = fs.WriteFile("/a/foo/bar/new.ts", "this is new.ts");
+			final err = fs.WriteFile(rf("/a/foo/bar/new.ts"), "this is new.ts");
 			nilError(err);
-			var content = fs.ReadFile("/a/foo/bar/new.ts");
+			var content = fs.ReadFile(rf("/a/foo/bar/new.ts"));
 			T.isTrue(content.ok);
 			T.eq("this is new.ts", content.value);
-			content = fs.ReadFile("/b/foo/bar/new.ts");
+			content = fs.ReadFile(rf("/b/foo/bar/new.ts"));
 			T.isTrue(content.ok);
 			T.eq("this is new.ts", content.value);
-			content = fs.ReadFile("/d/foo/bar/new.ts");
+			content = fs.ReadFile(rf("/d/foo/bar/new.ts"));
 			T.isTrue(content.ok);
 			T.eq("this is new.ts", content.value);
 		});
@@ -607,7 +607,7 @@ class VfstestTest {
 			];
 			final fs = Vfstest.FromMap(m, false);
 
-			final err = fs.WriteFile("/a/foo/bar/new.ts", "this is new.ts");
+			final err = fs.WriteFile(rf("/a/foo/bar/new.ts"), "this is new.ts");
 			error(err, 'mkdir "d": path exists but is not a directory');
 		});
 
@@ -624,36 +624,36 @@ class VfstestTest {
 			];
 			final fs = Vfstest.FromMap(m, false);
 
-			var err = fs.Remove("/a");
+			var err = fs.Remove(rp("/a"));
 			nilError(err);
-			T.isTrue(!fs.DirectoryExists("/a"));
-			T.isTrue(fs.DirectoryExists("/b"));
-			T.isTrue(fs.DirectoryExists("/c"));
-			T.isTrue(fs.FileExists("/d/existing.ts"));
+			T.isTrue(!fs.DirectoryExists(rd("/a")));
+			T.isTrue(fs.DirectoryExists(rd("/b")));
+			T.isTrue(fs.DirectoryExists(rd("/c")));
+			T.isTrue(fs.FileExists(rf("/d/existing.ts")));
 
 			// symlinks should still exist even if underlying file/dir is deleted
-			err = fs.Remove("/d");
+			err = fs.Remove(rp("/d"));
 			nilError(err);
-			T.isTrue(!fs.DirectoryExists("/b"));
-			T.isTrue(!fs.DirectoryExists("/c"));
-			T.isTrue(!fs.DirectoryExists("/d"));
-			T.isTrue(!fs.FileExists("/d/again.ts"));
-			err = fs.WriteFile("/d/again.ts", "d exists again");
+			T.isTrue(!fs.DirectoryExists(rd("/b")));
+			T.isTrue(!fs.DirectoryExists(rd("/c")));
+			T.isTrue(!fs.DirectoryExists(rd("/d")));
+			T.isTrue(!fs.FileExists(rf("/d/again.ts")));
+			err = fs.WriteFile(rf("/d/again.ts"), "d exists again");
 			nilError(err);
-			T.isTrue(fs.DirectoryExists("/b"));
-			T.isTrue(fs.DirectoryExists("/c"));
-			final content = fs.ReadFile("/b/again.ts");
+			T.isTrue(fs.DirectoryExists(rd("/b")));
+			T.isTrue(fs.DirectoryExists(rd("/c")));
+			final content = fs.ReadFile(rf("/b/again.ts"));
 			T.eq("d exists again", content.value);
 
-			T.isTrue(!fs.FileExists("/brokenlink"));
-			T.isTrue(!fs.DirectoryExists("/brokenlink"));
-			err = fs.Remove("/does/not/exist"); // should do nothing
+			T.isTrue(!fs.FileExists(rf("/brokenlink")));
+			T.isTrue(!fs.DirectoryExists(rd("/brokenlink")));
+			err = fs.Remove(rp("/does/not/exist")); // should do nothing
 			nilError(err);
-			T.isTrue(!fs.FileExists("/brokenlink"));
-			T.isTrue(!fs.DirectoryExists("/brokenlink"));
-			err = fs.WriteFile("/does/not/exist", "hello, world");
+			T.isTrue(!fs.FileExists(rf("/brokenlink")));
+			T.isTrue(!fs.DirectoryExists(rd("/brokenlink")));
+			err = fs.WriteFile(rf("/does/not/exist"), "hello, world");
 			nilError(err);
-			T.isTrue(fs.FileExists("/brokenlink"));
+			T.isTrue(fs.FileExists(rf("/brokenlink")));
 		});
 	}
 }

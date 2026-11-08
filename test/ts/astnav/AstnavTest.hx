@@ -16,7 +16,8 @@ class AstnavTest {
 
 	static function parse(fileName:String, text:String, scriptKind:ScriptKind):SourceFile {
 		final opts = new SourceFileParseOptions();
-		opts.FileName = fileName;
+		// PORT: Go's untyped constants (FileName: "/test.js") → RootedFilePathFromNormalized.
+		opts.FileName = Tspath.RootedFilePathFromNormalized(fileName);
 		opts.Path = fileName;
 		return Parser.ParseSourceFile(opts, text, scriptKind);
 	}

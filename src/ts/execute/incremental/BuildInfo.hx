@@ -770,6 +770,19 @@ class BuildInfo implements OrderedMarshaler {
 		final options = new CompilerOptions();
 		if (this.Options != null) {
 			for (option => value in this.Options.Entries()) {
+				final optionDeclaration = Tsoptions.CommandLineCompilerOptionsMap.Get(option);
+				if (buildInfoDirectory == "" && optionDeclaration != null) {
+					var pathKind = optionDeclaration.PathKind;
+					if (optionDeclaration.Kind == CommandLineOptionTypeList) {
+						final element = optionDeclaration.Elements();
+						if (element != null) {
+							pathKind = element.PathKind;
+						}
+					}
+					if (pathKind.IsRooted()) {
+						continue;
+					}
+				}
 				if (buildInfoDirectory != "") {
 					final r = Tsoptions.ConvertOptionToAbsolutePath(option, value, Tsoptions.CommandLineCompilerOptionsMap,
 						/* PORT: transitional (main: typed buildInfoDirectory) */ Tspath.RootedDirectoryPathFromAbsolute(buildInfoDirectory));

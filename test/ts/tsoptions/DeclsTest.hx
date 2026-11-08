@@ -55,6 +55,50 @@ class DeclsTest {
 				T.fail('Option declaration ${decl.Name} is not present in CompilerOptions');
 			}
 		});
+
+		// PORT: from TypeScript main (ed4807212c, typed paths).
+		T.run("TestCommandLineOptionPathKinds", () -> {
+			final expected:Map<String, CommandLineOptionPathKind> = [
+				"baseUrl" => CommandLineOptionPathKindDirectory,
+				"declarationDir" => CommandLineOptionPathKindDirectory,
+				"generateCpuProfile" => CommandLineOptionPathKindFile,
+				"generateTrace" => CommandLineOptionPathKindDirectory,
+				"mapRoot" => CommandLineOptionPathKindSourceMapLocation,
+				"outDir" => CommandLineOptionPathKindDirectory,
+				"outFile" => CommandLineOptionPathKindFile,
+				"pprofDir" => CommandLineOptionPathKindDirectory,
+				"project" => CommandLineOptionPathKindFileOrDirectory,
+				"rootDir" => CommandLineOptionPathKindDirectory,
+				"sourceRoot" => CommandLineOptionPathKindSourceMapLocation,
+				"tsBuildInfoFile" => CommandLineOptionPathKindFile,
+			];
+
+			for (option in Tsoptions.OptionsDeclarations) {
+				T.checks++;
+				if (!expected.exists(option.Name)) {
+					if (option.PathKind != CommandLineOptionPathKindNone) {
+						T.fail('${option.Name} has unexpected path kind ${(option.PathKind : Int)}');
+					}
+					continue;
+				}
+				final pathKind = expected.get(option.Name);
+				if (option.PathKind != pathKind) {
+					T.fail('${option.Name} has path kind ${(option.PathKind : Int)}, want ${(pathKind : Int)}');
+				}
+				expected.remove(option.Name);
+			}
+			for (optionName in expected.keys()) {
+				T.fail('$optionName was not found in option declarations');
+			}
+
+			for (optionName in ["rootDirs", "typeRoots"]) {
+				final option = Tsoptions.CompilerNameMap.GetOptionDeclarationFromName(optionName, false);
+				T.checks++;
+				if (option == null || option.Elements().PathKind != CommandLineOptionPathKindDirectory) {
+					T.fail('$optionName element is not classified as a directory');
+				}
+			}
+		});
 	}
 
 	static function checkCompilerOptionJsonTagName(field:CompilerOptionsField, name:String) {

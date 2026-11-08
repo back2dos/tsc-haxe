@@ -5,6 +5,7 @@ import ts.vfs.cachedvfs.Cachedvfs;
 import ts.vfs.vfsmock.MockGenerated;
 import ts.vfs.vfsmock.Vfsmock;
 import ts.vfs.vfstest.Vfstest;
+import ts.vfs.VfsTestUtil.*;
 
 // Port of cachedvfs_test.go.
 class CachedvfsTest {
@@ -17,31 +18,31 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.DirectoryExists("/some/path");
+			cached.DirectoryExists(rd("/some/path"));
 			T.eq(1, underlying.DirectoryExistsCalls().length);
 
-			cached.DirectoryExists("/some/path");
+			cached.DirectoryExists(rd("/some/path"));
 			T.eq(1, underlying.DirectoryExistsCalls().length);
 
 			cached.ClearCache();
-			cached.DirectoryExists("/some/path");
+			cached.DirectoryExists(rd("/some/path"));
 			T.eq(2, underlying.DirectoryExistsCalls().length);
 
-			cached.DirectoryExists("/other/path");
+			cached.DirectoryExists(rd("/other/path"));
 			T.eq(3, underlying.DirectoryExistsCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.DirectoryExists("/some/path");
+			cached.DirectoryExists(rd("/some/path"));
 			T.eq(4, underlying.DirectoryExistsCalls().length);
 
-			cached.DirectoryExists("/some/path");
+			cached.DirectoryExists(rd("/some/path"));
 			T.eq(5, underlying.DirectoryExistsCalls().length);
 
 			cached.Enable();
-			cached.DirectoryExists("/some/path");
+			cached.DirectoryExists(rd("/some/path"));
 			T.eq(6, underlying.DirectoryExistsCalls().length);
 
-			cached.DirectoryExists("/some/path");
+			cached.DirectoryExists(rd("/some/path"));
 			T.eq(6, underlying.DirectoryExistsCalls().length);
 		});
 
@@ -49,31 +50,31 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.FileExists("/some/path/file.txt");
+			cached.FileExists(rf("/some/path/file.txt"));
 			T.eq(1, underlying.FileExistsCalls().length);
 
-			cached.FileExists("/some/path/file.txt");
+			cached.FileExists(rf("/some/path/file.txt"));
 			T.eq(1, underlying.FileExistsCalls().length);
 
 			cached.ClearCache();
-			cached.FileExists("/some/path/file.txt");
+			cached.FileExists(rf("/some/path/file.txt"));
 			T.eq(2, underlying.FileExistsCalls().length);
 
-			cached.FileExists("/other/path/file.txt");
+			cached.FileExists(rf("/other/path/file.txt"));
 			T.eq(3, underlying.FileExistsCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.FileExists("/some/path/file.txt");
+			cached.FileExists(rf("/some/path/file.txt"));
 			T.eq(4, underlying.FileExistsCalls().length);
 
-			cached.FileExists("/some/path/file.txt");
+			cached.FileExists(rf("/some/path/file.txt"));
 			T.eq(5, underlying.FileExistsCalls().length);
 
 			cached.Enable();
-			cached.FileExists("/some/path/file.txt");
+			cached.FileExists(rf("/some/path/file.txt"));
 			T.eq(6, underlying.FileExistsCalls().length);
 
-			cached.FileExists("/some/path/file.txt");
+			cached.FileExists(rf("/some/path/file.txt"));
 			T.eq(6, underlying.FileExistsCalls().length);
 		});
 
@@ -81,31 +82,31 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.GetAccessibleEntries("/some/path");
+			cached.GetAccessibleEntries(rd("/some/path"));
 			T.eq(1, underlying.GetAccessibleEntriesCalls().length);
 
-			cached.GetAccessibleEntries("/some/path");
+			cached.GetAccessibleEntries(rd("/some/path"));
 			T.eq(1, underlying.GetAccessibleEntriesCalls().length);
 
 			cached.ClearCache();
-			cached.GetAccessibleEntries("/some/path");
+			cached.GetAccessibleEntries(rd("/some/path"));
 			T.eq(2, underlying.GetAccessibleEntriesCalls().length);
 
-			cached.GetAccessibleEntries("/other/path");
+			cached.GetAccessibleEntries(rd("/other/path"));
 			T.eq(3, underlying.GetAccessibleEntriesCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.GetAccessibleEntries("/some/path");
+			cached.GetAccessibleEntries(rd("/some/path"));
 			T.eq(4, underlying.GetAccessibleEntriesCalls().length);
 
-			cached.GetAccessibleEntries("/some/path");
+			cached.GetAccessibleEntries(rd("/some/path"));
 			T.eq(5, underlying.GetAccessibleEntriesCalls().length);
 
 			cached.Enable();
-			cached.GetAccessibleEntries("/some/path");
+			cached.GetAccessibleEntries(rd("/some/path"));
 			T.eq(6, underlying.GetAccessibleEntriesCalls().length);
 
-			cached.GetAccessibleEntries("/some/path");
+			cached.GetAccessibleEntries(rd("/some/path"));
 			T.eq(6, underlying.GetAccessibleEntriesCalls().length);
 		});
 
@@ -113,31 +114,31 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.Realpath("/some/path");
+			cached.Realpath(rp("/some/path"));
 			T.eq(1, underlying.RealpathCalls().length);
 
-			cached.Realpath("/some/path");
+			cached.Realpath(rp("/some/path"));
 			T.eq(1, underlying.RealpathCalls().length);
 
 			cached.ClearCache();
-			cached.Realpath("/some/path");
+			cached.Realpath(rp("/some/path"));
 			T.eq(2, underlying.RealpathCalls().length);
 
-			cached.Realpath("/other/path");
+			cached.Realpath(rp("/other/path"));
 			T.eq(3, underlying.RealpathCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.Realpath("/some/path");
+			cached.Realpath(rp("/some/path"));
 			T.eq(4, underlying.RealpathCalls().length);
 
-			cached.Realpath("/some/path");
+			cached.Realpath(rp("/some/path"));
 			T.eq(5, underlying.RealpathCalls().length);
 
 			cached.Enable();
-			cached.Realpath("/some/path");
+			cached.Realpath(rp("/some/path"));
 			T.eq(6, underlying.RealpathCalls().length);
 
-			cached.Realpath("/some/path");
+			cached.Realpath(rp("/some/path"));
 			T.eq(6, underlying.RealpathCalls().length);
 		});
 
@@ -145,31 +146,31 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.Stat("/some/path");
+			cached.Stat(rp("/some/path"));
 			T.eq(1, underlying.StatCalls().length);
 
-			cached.Stat("/some/path");
+			cached.Stat(rp("/some/path"));
 			T.eq(1, underlying.StatCalls().length);
 
 			cached.ClearCache();
-			cached.Stat("/some/path");
+			cached.Stat(rp("/some/path"));
 			T.eq(2, underlying.StatCalls().length);
 
-			cached.Stat("/other/path");
+			cached.Stat(rp("/other/path"));
 			T.eq(3, underlying.StatCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.Stat("/some/path");
+			cached.Stat(rp("/some/path"));
 			T.eq(4, underlying.StatCalls().length);
 
-			cached.Stat("/some/path");
+			cached.Stat(rp("/some/path"));
 			T.eq(5, underlying.StatCalls().length);
 
 			cached.Enable();
-			cached.Stat("/some/path");
+			cached.Stat(rp("/some/path"));
 			T.eq(6, underlying.StatCalls().length);
 
-			cached.Stat("/some/path");
+			cached.Stat(rp("/some/path"));
 			T.eq(6, underlying.StatCalls().length);
 		});
 
@@ -177,58 +178,58 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.ReadFile("/some/path/file.txt");
+			cached.ReadFile(rf("/some/path/file.txt"));
 			T.eq(1, underlying.ReadFileCalls().length);
 
-			cached.ReadFile("/some/path/file.txt");
+			cached.ReadFile(rf("/some/path/file.txt"));
 			T.eq(2, underlying.ReadFileCalls().length);
 
 			cached.ClearCache();
-			cached.ReadFile("/some/path/file.txt");
+			cached.ReadFile(rf("/some/path/file.txt"));
 			T.eq(3, underlying.ReadFileCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.ReadFile("/some/path/file.txt");
+			cached.ReadFile(rf("/some/path/file.txt"));
 			T.eq(4, underlying.ReadFileCalls().length);
 
-			cached.ReadFile("/some/path/file.txt");
+			cached.ReadFile(rf("/some/path/file.txt"));
 			T.eq(5, underlying.ReadFileCalls().length);
 
 			cached.Enable();
-			cached.ReadFile("/some/path/file.txt");
+			cached.ReadFile(rf("/some/path/file.txt"));
 			T.eq(6, underlying.ReadFileCalls().length);
 
-			cached.ReadFile("/some/path/file.txt");
+			cached.ReadFile(rf("/some/path/file.txt"));
 			T.eq(7, underlying.ReadFileCalls().length);
 		});
 
-		T.run("TestUseCaseSensitiveFileNames", () -> {
+		T.run("TestCaseSensitivity", () -> {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.UseCaseSensitiveFileNames();
-			T.eq(1, underlying.UseCaseSensitiveFileNamesCalls().length);
+			cached.CaseSensitivity();
+			T.eq(1, underlying.CaseSensitivityCalls().length);
 
-			cached.UseCaseSensitiveFileNames();
-			T.eq(2, underlying.UseCaseSensitiveFileNamesCalls().length);
+			cached.CaseSensitivity();
+			T.eq(2, underlying.CaseSensitivityCalls().length);
 
 			cached.ClearCache();
-			cached.UseCaseSensitiveFileNames();
-			T.eq(3, underlying.UseCaseSensitiveFileNamesCalls().length);
+			cached.CaseSensitivity();
+			T.eq(3, underlying.CaseSensitivityCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.UseCaseSensitiveFileNames();
-			T.eq(4, underlying.UseCaseSensitiveFileNamesCalls().length);
+			cached.CaseSensitivity();
+			T.eq(4, underlying.CaseSensitivityCalls().length);
 
-			cached.UseCaseSensitiveFileNames();
-			T.eq(5, underlying.UseCaseSensitiveFileNamesCalls().length);
+			cached.CaseSensitivity();
+			T.eq(5, underlying.CaseSensitivityCalls().length);
 
 			cached.Enable();
-			cached.UseCaseSensitiveFileNames();
-			T.eq(6, underlying.UseCaseSensitiveFileNamesCalls().length);
+			cached.CaseSensitivity();
+			T.eq(6, underlying.CaseSensitivityCalls().length);
 
-			cached.UseCaseSensitiveFileNames();
-			T.eq(7, underlying.UseCaseSensitiveFileNamesCalls().length);
+			cached.CaseSensitivity();
+			T.eq(7, underlying.CaseSensitivityCalls().length);
 		});
 
 		T.run("TestWalkDir", () -> {
@@ -268,28 +269,28 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.Remove("/some/path/file.txt");
+			cached.Remove(rp("/some/path/file.txt"));
 			T.eq(1, underlying.RemoveCalls().length);
 
-			cached.Remove("/some/path/file.txt");
+			cached.Remove(rp("/some/path/file.txt"));
 			T.eq(2, underlying.RemoveCalls().length);
 
 			cached.ClearCache();
-			cached.Remove("/some/path/file.txt");
+			cached.Remove(rp("/some/path/file.txt"));
 			T.eq(3, underlying.RemoveCalls().length);
 
 			cached.DisableAndClearCache();
-			cached.Remove("/some/path/file.txt");
+			cached.Remove(rp("/some/path/file.txt"));
 			T.eq(4, underlying.RemoveCalls().length);
 
-			cached.Remove("/some/path/file.txt");
+			cached.Remove(rp("/some/path/file.txt"));
 			T.eq(5, underlying.RemoveCalls().length);
 
 			cached.Enable();
-			cached.Remove("/some/path/file.txt");
+			cached.Remove(rp("/some/path/file.txt"));
 			T.eq(6, underlying.RemoveCalls().length);
 
-			cached.Remove("/some/path/file.txt");
+			cached.Remove(rp("/some/path/file.txt"));
 			T.eq(7, underlying.RemoveCalls().length);
 		});
 
@@ -297,14 +298,14 @@ class CachedvfsTest {
 			final underlying = createMockFS();
 			final cached = Cachedvfs.From(underlying);
 
-			cached.WriteFile("/some/path/file.txt", "new content");
+			cached.WriteFile(rf("/some/path/file.txt"), "new content");
 			T.eq(1, underlying.WriteFileCalls().length);
 
-			cached.WriteFile("/some/path/file.txt", "another content");
+			cached.WriteFile(rf("/some/path/file.txt"), "another content");
 			T.eq(2, underlying.WriteFileCalls().length);
 
 			cached.ClearCache();
-			cached.WriteFile("/some/path/file.txt", "third content");
+			cached.WriteFile(rf("/some/path/file.txt"), "third content");
 			T.eq(3, underlying.WriteFileCalls().length);
 
 			final call = underlying.WriteFileCalls()[2];
@@ -312,17 +313,17 @@ class CachedvfsTest {
 			T.eq("third content", call.Data);
 
 			cached.DisableAndClearCache();
-			cached.WriteFile("/some/path/file.txt", "fourth content");
+			cached.WriteFile(rf("/some/path/file.txt"), "fourth content");
 			T.eq(4, underlying.WriteFileCalls().length);
 
-			cached.WriteFile("/some/path/file.txt", "fifth content");
+			cached.WriteFile(rf("/some/path/file.txt"), "fifth content");
 			T.eq(5, underlying.WriteFileCalls().length);
 
 			cached.Enable();
-			cached.WriteFile("/some/path/file.txt", "sixth content");
+			cached.WriteFile(rf("/some/path/file.txt"), "sixth content");
 			T.eq(6, underlying.WriteFileCalls().length);
 
-			cached.WriteFile("/some/path/file.txt", "seventh content");
+			cached.WriteFile(rf("/some/path/file.txt"), "seventh content");
 			T.eq(7, underlying.WriteFileCalls().length);
 		});
 	}

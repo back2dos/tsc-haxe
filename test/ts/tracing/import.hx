@@ -14,3 +14,4 @@ import ts.parser.Parser;
 import ts.vfs.Vfs;
 import ts.vfs.vfstest.Vfstest;
 import ts.tracing.Tracing;
+import ts.tspath.Tspath;

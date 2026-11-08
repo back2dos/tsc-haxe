@@ -85,9 +85,10 @@ class BindDump {
 		flowIds = new ObjectMap();
 		flows = [];
 		final opts = new SourceFileParseOptions();
-		opts.FileName = file;
+		// PORT: the gate passes absolute corpus paths (Go's dumper converts unchecked: RootedFilePath(file)).
+		opts.FileName = Tspath.RootedFilePathFromAbsolute(file);
 		opts.Path = file;
-		sf = Parser.ParseSourceFile(opts, text, Core.GetScriptKindFromFileName(file));
+		sf = Parser.ParseSourceFile(opts, text, Core.GetScriptKindFromFileName(opts.FileName));
 		final t0 = haxe.Timer.stamp();
 		Binder.BindSourceFile(sf);
 		bindMs += (haxe.Timer.stamp() - t0) * 1000;

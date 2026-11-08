@@ -11,8 +11,8 @@ class VfsmockTest {
 		T.run("TestWrap", () -> {
 			final wrapper = Vfsmock.Wrap(Vfstest.FromMap(new Map<String, String>(), true));
 
-			final names = ["AppendFileFunc", "ChtimesFunc", "DirectoryExistsFunc", "FileExistsFunc", "GetAccessibleEntriesFunc", "ReadFileFunc",
-				"RealpathFunc", "RemoveFunc", "StatFunc", "UseCaseSensitiveFileNamesFunc", "WalkDirFunc", "WriteFileFunc"];
+			final names = ["AppendFileFunc", "CaseSensitivityFunc", "ChtimesFunc", "DirectoryExistsFunc", "FileExistsFunc", "GetAccessibleEntriesFunc", "ReadFileFunc",
+				"RealpathFunc", "RemoveFunc", "StatFunc", "WalkDirFunc", "WriteFileFunc"];
 			for (name in names) {
 				final fieldValue = Reflect.getProperty(wrapper, name);
 				T.isTrue(fieldValue != null, 'field $name should not be zero; update Wrap');

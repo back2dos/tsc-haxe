@@ -8,3 +8,4 @@ import ts.core.Scriptkind;
 import ts.core.Scriptkind.ScriptKind.*;
 import ts.parser.Parser;
 import ts.astnav.Astnav;
+import ts.tspath.Tspath;

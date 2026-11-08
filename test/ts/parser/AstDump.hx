@@ -61,9 +61,10 @@ class AstDump {
 		out.add(file);
 		out.addChar("\n".code);
 		final opts = new SourceFileParseOptions();
-		opts.FileName = file;
+		// PORT: the gate passes absolute corpus paths (Go's dumper converts unchecked: RootedFilePath(file)).
+		opts.FileName = Tspath.RootedFilePathFromAbsolute(file);
 		opts.Path = file;
-		sf = Parser.ParseSourceFile(opts, text, Core.GetScriptKindFromFileName(file));
+		sf = Parser.ParseSourceFile(opts, text, Core.GetScriptKindFromFileName(opts.FileName));
 		if (walkChild == null) {
 			walkChild = function(child:Node):Bool {
 				depth++;

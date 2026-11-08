@@ -55,8 +55,10 @@ class ShowconfigGoldenTest {
 							files[v.Names[j]] = v.Members[j].Str;
 				}
 			}
-			final host = Tsoptionstest.NewVFSParseConfigHost(files, cwd, true);
-			final r = Tsoptions.GetParsedCommandLineOfConfigFile(config, null, null, host, null);
+			// PORT: typed paths (as TypeScript main's tests after ed4807212c): the config name is resolved against cwd.
+			final fs = Tsoptionstest.NewVFS(files, CaseSensitive);
+			final configFileName = Tspath.ToRootedFilePath(config, Tspath.RootedDirectoryPathFromAbsolute(cwd));
+			final r = Tsoptions.GetParsedCommandLineOfConfigFile(configFileName, null, null, Tsoptions.NewDefaultParseConfigHost(fs), null);
 			final parsed = r.a;
 			out.add("### " + name + "\n");
 			if (r.b != null)
@@ -65,15 +67,15 @@ class ShowconfigGoldenTest {
 			if (parsed.Errors != null)
 				for (e in parsed.Errors)
 					out.add("error: " + e.Code() + "\n");
-			final cfg = Tsoptions.ConvertToTSConfig(parsed, config);
+			final cfg = Tsoptions.ConvertToTSConfig(parsed, configFileName);
 			out.add(Json.MarshalIndentOrdered(cfg, "", "    "));
 			out.add("\n");
 			final wd = parsed.WildcardDirectories();
 			if (wd != null) {
-				final keys = [for (k in wd.keys()) k];
+				final keys = [for (k in wd.Keys()) k.AsString()];
 				keys.sort(go.Strings.Compare);
 				for (k in keys)
-					out.add("wildcard: " + k + " " + (wd.get(k) ? "true" : "false") + "\n");
+					out.add("wildcard: " + k + " " + (wd.GetOrZero(Tspath.RootedDirectoryPathFromNormalized(k)) ? "true" : "false") + "\n");
 			}
 		}
 		out.add("### json values\n");

@@ -1,5 +1,7 @@
 package ts.vfs;
 
+import ts.tspath.RootedPath;
+
 // Helpers shared by the vfs package tests (gotest.tools assert equivalents).
 class VfsTestUtil {
 	// Go-like rendering of a []string: nil → "nil", else [a b c] (elements quoted).
@@ -48,6 +50,20 @@ class VfsTestUtil {
 		T.isTrue(got != null, "did not panic", pos);
 		if (got != null)
 			T.eq(expected, Std.isOfType(got, go.Errors.Error) ? (got : go.Errors.Error).Error() : Std.string(got), pos);
+	}
+
+	// PORT: Go converts untyped string constants to the tspath path types without a check
+	// (tspath.RootedFilePath("/a.ts")); these are the same unchecked conversions.
+	public static inline function rf(s:String):RootedFilePath {
+		return cast s;
+	}
+
+	public static inline function rd(s:String):RootedDirectoryPath {
+		return cast s;
+	}
+
+	public static inline function rp(s:String):RootedPath {
+		return cast s;
 	}
 
 	// Go string(bytes) for test data.

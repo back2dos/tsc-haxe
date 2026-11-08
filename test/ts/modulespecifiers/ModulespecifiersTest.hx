@@ -13,16 +13,27 @@ import ts.tsoptions.Parsedcommandline.SourceOutputAndProjectReference;
 
 // Mock host for testing
 class MockModuleSpecifierGenerationHost implements ModuleSpecifierGenerationHost {
-	public var currentDir:String = "";
+	public var currentDir:RootedDirectoryPath = cast "";
 	public var useCaseSensitiveFileNames:Bool = false;
 	public var symlinkCache:KnownSymlinks = null;
 
+	// PORT: Go's untyped constant currentDir ("/project") → RootedDirectoryPathFromNormalized ("" stays the zero value).
 	public function new(currentDir:String = "", useCaseSensitiveFileNames:Bool = false, ?symlinkCache:KnownSymlinks) {
-		this.currentDir = currentDir;
+		this.currentDir = currentDir == "" ? cast "" : Tspath.RootedDirectoryPathFromNormalized(currentDir);
 		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
 		this.symlinkCache = symlinkCache;
 	}
 
+	// As TypeScript main's mock (typed paths): BaseDirectory and CaseSensitivity.
+	public function BaseDirectory():RootedDirectoryPath {
+		return this.currentDir;
+	}
+
+	public function CaseSensitivity():CaseSensitivity {
+		return this.useCaseSensitiveFileNames ? CaseSensitive : CaseInsensitive;
+	}
+
+	// PORT: transitional members of the Haxe host interface (see ModuleSpecifierGenerationHost).
 	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.currentDir;
 	}
@@ -43,7 +54,7 @@ class MockModuleSpecifierGenerationHost implements ModuleSpecifierGenerationHost
 		return "";
 	}
 
-	public function CommonSourceDirectory():String {
+	public function CommonSourceDirectory():RootedDirectoryPath {
 		return this.currentDir;
 	}
 

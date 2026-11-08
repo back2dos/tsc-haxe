@@ -6,6 +6,7 @@ import ts.execute.incremental.Snapshot;
 import ts.execute.incremental.Snapshot.FileEmitKind.*;
 import ts.execute.tsctests.Readablebuildinfo;
 import ts.json.Json;
+import ts.tspath.Tspath;
 
 // Unit tests for the incremental port (no upstream *_test.go exists for this package).
 class IncrementalTest {
@@ -107,8 +108,10 @@ class IncrementalTest {
 		files.set("/p/b.ts", "import { a } from \"./a\";\nexport const b = a + 1;\nconst c: string = 1;");
 		final fs = ts.bundled.Bundled.WrapFS(ts.vfs.vfstest.Vfstest.Vfstest.FromMap(files, true));
 		function compile():Program {
-			final host = ts.compiler.Compiler.NewCachedFSCompilerHost("/p", fs, ts.bundled.Bundled.LibPath(), null, null);
-			final config = ts.tsoptions.Tsoptions.GetParsedCommandLineOfConfigFile("/p/tsconfig.json", null, null, cast host, null).a;
+			final host = ts.compiler.Compiler.NewCachedFSCompilerHost(Tspath.RootedDirectoryPathFromNormalized("/p"), fs, ts.bundled.Bundled.LibPath(), null,
+				null);
+			final config = ts.tsoptions.Tsoptions.GetParsedCommandLineOfConfigFile(Tspath.RootedFilePathFromNormalized("/p/tsconfig.json"), null, null,
+				ts.tsoptions.Tsoptions.NewDefaultParseConfigHost(host.FS()), null).a;
 			final old = Incremental.ReadBuildInfoProgram(config, Incremental.NewBuildInfoReader(host), host);
 			final po = new ts.compiler.Program.ProgramOptions();
 			po.Config = config;
@@ -122,7 +125,7 @@ class IncrementalTest {
 			return p;
 		}
 		final p1 = compile();
-		final text1 = fs.ReadFile("/p/tsconfig.tsbuildinfo");
+		final text1 = fs.ReadFile(Tspath.RootedFilePathFromNormalized("/p/tsconfig.tsbuildinfo"));
 		T.isTrue(text1.ok);
 		final b1 = Incremental.UnmarshalBuildInfo(text1.value);
 		T.isTrue(b1 != null && b1.IsIncremental());
@@ -138,13 +141,13 @@ class IncrementalTest {
 				refreshed++;
 		}
 		T.eq(0, refreshed);
-		T.eq(text1.value, fs.ReadFile("/p/tsconfig.tsbuildinfo").value);
+		T.eq(text1.value, fs.ReadFile(Tspath.RootedFilePathFromNormalized("/p/tsconfig.tsbuildinfo")).value);
 		// Edit a.ts: its signature changes, b.ts is re-checked.
-		fs.WriteFile("/p/a.ts", "export const a: string = \"x\";");
+		fs.WriteFile(Tspath.RootedFilePathFromNormalized("/p/a.ts"), "export const a: string = \"x\";");
 		final p3 = compile();
 		final kinds = p3.GetTestingData().UpdatedSignatureKinds;
 		T.isTrue(kinds.exists("/p/a.ts"));
-		T.isTrue(fs.ReadFile("/p/tsconfig.tsbuildinfo").value != text1.value);
+		T.isTrue(fs.ReadFile(Tspath.RootedFilePathFromNormalized("/p/tsconfig.tsbuildinfo")).value != text1.value);
 	}
 
 	static function listFiles(dir:String):Array<String> {

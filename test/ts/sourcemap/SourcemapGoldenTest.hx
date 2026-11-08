@@ -10,9 +10,9 @@ import ts.sourcemap.SourceMapper.DocumentPosition;
 class SourcemapGoldenTest {
 	public static function run() {
 		T.run("GoldenGeneratorJSON", () -> {
-			final gen = Sourcemap.NewGenerator("ma\"in\\.js", "/r\x01oot\x1f<>&  \x7f", "/", new ComparePathsOptions());
-			final i0 = gen.AddSource("/a\tb\nc\rd\x08e\x0Cf.ts");
-			final i1 = gen.AddSource("/ü\u{1F600}.ts");
+			final gen = Sourcemap.NewGenerator("ma\"in\\.js", "/r\x01oot\x1f<>&  \x7f", Tspath.RootedDirectoryPathFromNormalized("/"), CaseInsensitive);
+			final i0 = gen.AddSource(Tspath.RootedFilePathFromNormalized("/a\tb\nc\rd\x08e\x0Cf.ts"));
+			final i1 = gen.AddSource(Tspath.RootedFilePathFromNormalized("/ü\u{1F600}.ts"));
 			gen.AddName("n1");
 			final n2 = gen.AddName("n\u{1F600}");
 			gen.SetSourceContent(i1, "let x = '\u{1F600}';\n\x00");
@@ -42,8 +42,8 @@ class SourcemapGoldenTest {
 			h.files.set("/out/a.js", "const \u{1F600} = 1;\nlet y = 2;\n//# sourceMappingURL=a.js.map\n");
 			h.files.set("/out/a.js.map",
 				'{"version":3,"file":"a.js","sourceRoot":"","sources":["../src/a.ts"],"names":[],"mappings":"AAAA,MAAM,EAAE,GAAG;AACX,IAAI"}');
-			final gen = Sourcemap.NewGenerator("x.js", "", "/", new ComparePathsOptions());
-			gen.AddSource("/x.ts");
+			final gen = Sourcemap.NewGenerator("x.js", "", Tspath.RootedDirectoryPathFromNormalized("/"), CaseInsensitive);
+			gen.AddSource(Tspath.RootedFilePathFromNormalized("/x.ts"));
 			gen.SetSourceContent(0, "x");
 			h.files.set("/out/b.js", "x;\n//# sourceMappingURL=" + gen.Base64DataURL());
 			final dm = Sourcemap.GetDocumentPositionMapper(h, "/out/a.js");

@@ -122,7 +122,8 @@ class PrinterTest {
 	// Go `ast.SourceFileParseOptions{FileName: "/file.ts", Path: "/file.ts"}`.
 	static function fileOpts():SourceFileParseOptions {
 		final opts = new SourceFileParseOptions();
-		opts.FileName = "/file.ts";
+		// PORT: Go's untyped constant → RootedFilePathFromNormalized.
+		opts.FileName = Tspath.RootedFilePathFromNormalized("/file.ts");
 		opts.Path = "/file.ts";
 		return opts;
 	}

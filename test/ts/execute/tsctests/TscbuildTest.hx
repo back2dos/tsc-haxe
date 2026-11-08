@@ -4,6 +4,7 @@ import ts.core.Compileroptions.CompilerOptions;
 import ts.execute.tsctests.Runner.FileMap;
 import ts.testutil.harnessutil.Harnessutil.Harnessutil;
 import ts.tsoptions.Tsoptions.Tsoptions;
+import ts.tspath.Tspath;
 import go.Time;
 
 // Port of internal/execute/tsctests/tscbuild_test.go (scenario data).
@@ -2070,8 +2071,10 @@ public static function TestBuildOutputPaths() {
 		if (Gate.Filter == null || Gate.Filter("GetOutputFileNames/" + s.subScenario)) {
 			T.run("GetOutputFileNames/" + s.subScenario, function() {
 				var sys = Tsctests.newTestSys(input, false);
-				var config = Tsoptions.GetParsedCommandLineOfConfigFile("/home/src/workspaces/project/tsconfig.json", new CompilerOptions(), null, sys, null).a;
-				T.eq((s.expectedDtsNames == null ? [] : s.expectedDtsNames).join("\n"), [for (f in config.GetOutputFileNames()) f].join("\n"));
+				// PORT: as TypeScript main (typed paths): NewDefaultParseConfigHost(sys.FS()); Go's untyped constant → RootedFilePathFromNormalized.
+				var config = Tsoptions.GetParsedCommandLineOfConfigFile(Tspath.RootedFilePathFromNormalized("/home/src/workspaces/project/tsconfig.json"),
+					new CompilerOptions(), null, Tsoptions.NewDefaultParseConfigHost(sys.FS()), null).a;
+				T.eq((s.expectedDtsNames == null ? [] : s.expectedDtsNames).join("\n"), [for (f in config.GetOutputFileNames()) f.AsString()].join("\n"));
 			});
 		}
 	};
@@ -3783,7 +3786,7 @@ class someClass2 { }"
 				{
 					caption: "upstream project changes without changing file text",
 					edit: function(sys:TestSys) {
-						var err = sys.FS().Chtimes("/user/username/projects/sample1/core/index.ts", Time.Zero(), sys.Now());
+						var err = sys.FS().Chtimes(Tspath.RootedPathFromNormalized("/user/username/projects/sample1/core/index.ts"), Time.Zero(), sys.Now());
 						if (err != null) {
 							throw(err);
 						}

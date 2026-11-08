@@ -4,10 +4,10 @@ package ts.printer;
 class Parsetestutil {
 	// Simplifies parsing an input string into a SourceFile for testing purposes.
 	public static function ParseTypeScript(text:std.String, jsx:Bool):SourceFile {
-		final fileName = Core.IfElse(jsx, "/main.tsx", "/main.ts");
+		final fileName = Tspath.RootedFilePathFromNormalized(Core.IfElse(jsx, "/main.tsx", "/main.ts"));
 		final opts = new SourceFileParseOptions();
 		opts.FileName = fileName;
-		opts.Path = fileName;
+		opts.Path = CaseSensitivity.CaseSensitive.PathKey(fileName.AsPath());
 		final file = Parser.ParseSourceFile(opts, text, Core.GetScriptKindFromFileName(fileName));
 		return file;
 	}

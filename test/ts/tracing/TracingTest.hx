@@ -48,7 +48,7 @@ class TracingTest {
 
 		T.isTrue(tr.StopTracing() == null);
 
-		final traceText = fsys.ReadFile("/trace/trace.json");
+		final traceText = fsys.ReadFile(Tspath.RootedFilePathFromNormalized("/trace/trace.json"));
 		T.isTrue(traceText.ok);
 
 		final events = parseEvents(traceText.value);
@@ -100,7 +100,7 @@ class TracingTest {
 
 		T.isTrue(tr.StopTracing() == null);
 
-		final traceText = fsys.ReadFile("/trace/trace.json");
+		final traceText = fsys.ReadFile(Tspath.RootedFilePathFromNormalized("/trace/trace.json"));
 		T.isTrue(traceText.ok);
 
 		final events = parseEvents(traceText.value);
@@ -211,7 +211,7 @@ class TracingTest {
 		]));
 
 		final opts = new SourceFileParseOptions();
-		opts.FileName = "/src/a.ts";
+		opts.FileName = Tspath.RootedFilePathFromNormalized("/src/a.ts");
 		opts.Path = "/src/a.ts";
 		final file = Parser.ParseSourceFile(opts, "let x = 1;\n  let y: string = 'é😀';\n", ScriptKindTS);
 		final s0 = file.Statements.Nodes[0];
@@ -271,8 +271,8 @@ class TracingTest {
 		T.isTrue(tr.StopTracing() == null);
 		final sb = new StringBuf();
 		for (p in ["/trace/trace.json", "/trace/legend.json", "/trace/types_1.json"]) {
-			final text = fsys.ReadFile(p);
-			final ok0 = fsys.ReadFile("/trace/types_0.json").ok;
+			final text = fsys.ReadFile(Tspath.RootedFilePathFromNormalized(p));
+			final ok0 = fsys.ReadFile(Tspath.RootedFilePathFromNormalized("/trace/types_0.json")).ok;
 			sb.add('=== $p ${text.ok} ${ok0}\n${text.value}<<<\n');
 		}
 		final expected = sys.io.File.getContent("test/ts/tracing/tracing.golden.txt");

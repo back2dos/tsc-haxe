@@ -459,7 +459,8 @@ class Compiler {
 		try {
 			if (rootFiles != null) {
 				for (index in 0...rootFiles.length) {
-					loader.addRootFileTask(rootFiles[index], null, new FileIncludeReason(fileIncludeKindRootFile, index));
+					loader.addRootFileTask(rootFiles[index], opts.Config.RootFileNameForDiagnostic(index), null,
+						new FileIncludeReason(fileIncludeKindRootFile, index));
 				}
 			}
 			if (Core.len(rootFiles) > 0 && compilerOptions.NoLib.IsFalseOrUnknown()) {

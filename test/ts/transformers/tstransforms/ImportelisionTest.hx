@@ -31,8 +31,24 @@ private class FakeProgram implements Program {
 	}
 
 	// CommonSourceDirectory implements checker.Program.
-	public function CommonSourceDirectory():std.String {
+	public function CommonSourceDirectory():RootedDirectoryPath {
 		throw "unimplemented";
+	}
+
+	public function ContentMapperExtensions():Null<Array<std.String>> {
+		return null;
+	}
+
+	public function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>> {
+		return null;
+	}
+
+	public function BaseDirectory():RootedDirectoryPath {
+		return cast "";
+	}
+
+	public function CaseSensitivity():CaseSensitivity {
+		return CaseSensitive;
 	}
 
 	public function GetResolvedModuleFromModuleSpecifier(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolvedModule {
@@ -44,7 +60,7 @@ private class FakeProgram implements Program {
 	}
 
 	public function GetCurrentDirectory():RootedDirectoryPath {
-		return "";
+		return cast "";
 	}
 
 	public function GetGlobalTypingsCacheLocation():std.String {
@@ -230,7 +246,8 @@ class ImportelisionTest {
 					return null;
 				};
 				program.getSourceFileForResolvedModule = function(fileName:std.String):SourceFile {
-					if (fileName == "other.ts") {
+					// As TypeScript main (typed paths): the resolved file name is rooted.
+					if (fileName == "/other.ts") {
 						return other;
 					}
 					return null;
@@ -240,7 +257,7 @@ class ImportelisionTest {
 					// PORT: a SourceFile passed as ast.HasFileName is its cached adapter.
 					if (currentSourceFile == ts.modulespecifiers.Types.SourceFileAdapter.Of(originalFile) && moduleReference == "other") {
 						final r = new ResolvedModule();
-						r.ResolvedFileName = "other.ts";
+						r.ResolvedFileName = Tspath.RootedFilePathFromNormalized("/other.ts");
 						r.Extension = Tspath.ExtensionTs;
 						return r;
 					}

@@ -53,7 +53,7 @@ class OsvfsTest {
 
 		T.run("TestOS/ReadFile", () -> {
 			final goMod = Filepath.Join([go.Os.Getwd().value, T.UPSTREAM, "go.mod"]);
-			final goModPath = Tspath.NormalizePath(goMod);
+			final goModPath = Tspath.RootedFilePathFromAbsolute(goMod);
 
 			final expectedRaw = go.Os.ReadFile(goMod);
 			nilError(expectedRaw.err);
@@ -70,22 +70,23 @@ class OsvfsTest {
 				return; // t.Skip(err)
 			}
 			final home = Tspath.NormalizePath(h.value);
+			final homePath = Tspath.RootedDirectoryPathFromAbsolute(home);
 
 			final expected = home;
 			// PORT: the Windows drive-letter case is not applicable (POSIX only).
-			final realpath = fs.Realpath(home);
-			T.eq(expected, realpath);
+			final realpath = fs.Realpath(homePath.AsPath());
+			T.eq(expected, realpath.AsString());
 		});
 
-		T.run("TestOS/UseCaseSensitiveFileNames", () -> {
+		T.run("TestOS/CaseSensitivity", () -> {
 			// Just check that it works.
-			fs.UseCaseSensitiveFileNames();
+			fs.CaseSensitivity();
 
 			switch (Sys.systemName()) {
 				case "Windows":
-					T.isTrue(!fs.UseCaseSensitiveFileNames());
+					T.isTrue(fs.CaseSensitivity().IsCaseInsensitive());
 				case "Linux":
-					T.isTrue(fs.UseCaseSensitiveFileNames());
+					T.isTrue(fs.CaseSensitivity().IsCaseSensitive());
 			}
 		});
 
@@ -102,8 +103,8 @@ class OsvfsTest {
 
 			final fs = Osvfs.FS();
 
-			final targetRealpath = fs.Realpath(Tspath.NormalizePath(targetFile));
-			final linkRealpath = fs.Realpath(Tspath.NormalizePath(linkFile));
+			final targetRealpath = fs.Realpath(Tspath.RootedFilePathFromAbsolute(targetFile).AsPath());
+			final linkRealpath = fs.Realpath(Tspath.RootedFilePathFromAbsolute(linkFile).AsPath());
 
 			if (targetRealpath != linkRealpath) {
 				T.fail('expected realpath of target and link to be equal, got ${go.Strconv.Quote(targetRealpath)} and ${go.Strconv.Quote(linkRealpath)}');
@@ -137,7 +138,7 @@ class OsvfsTest {
 
 			final fs = Osvfs.FS();
 
-			var entries = fs.GetAccessibleEntries(Tspath.NormalizePath(link));
+			var entries = fs.GetAccessibleEntries(Tspath.RootedDirectoryPathFromAbsolute(link));
 
 			eqStrings(["dir1", "dir2"], entries.Directories);
 			eqStrings(["file1", "file2"], entries.Files);
@@ -149,7 +150,7 @@ class OsvfsTest {
 			}
 
 			// Non-symlink directory should have empty Symlinks.
-			entries = fs.GetAccessibleEntries(Tspath.NormalizePath(target));
+			entries = fs.GetAccessibleEntries(Tspath.RootedDirectoryPathFromAbsolute(target));
 			eqStrings(["dir1", "dir2"], entries.Directories);
 			eqStrings(["file1", "file2"], entries.Files);
 			T.isTrue(entries.Symlinks != null, "expected Symlinks to be non-nil for directory without symlinks");

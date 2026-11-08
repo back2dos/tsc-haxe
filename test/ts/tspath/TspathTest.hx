@@ -529,26 +529,26 @@ class TspathTest {
 			// !!!
 			// Based on tests for `getRelativePathFromDirectory`.
 
-			T.eq("", GetRelativePathToDirectoryOrUrl("/", "/", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("", GetRelativePathToDirectoryOrUrl("/a", "/a", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("", GetRelativePathToDirectoryOrUrl("/a/", "/a", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("..", GetRelativePathToDirectoryOrUrl("/a", "/", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../b", GetRelativePathToDirectoryOrUrl("/a", "/b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../../b", GetRelativePathToDirectoryOrUrl("/a/b", "/b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../../../b", GetRelativePathToDirectoryOrUrl("/a/b/c", "/b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../../../b/c", GetRelativePathToDirectoryOrUrl("/a/b/c", "/b/c", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("..", GetRelativePathToDirectoryOrUrl("/a/b/c", "/a/b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("d:/", GetRelativePathToDirectoryOrUrl("c:", "d:", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("", GetRelativePathToDirectoryOrUrl("file:///", "file:///", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("", GetRelativePathToDirectoryOrUrl("file:///a", "file:///a", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("", GetRelativePathToDirectoryOrUrl("file:///a/", "file:///a", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("..", GetRelativePathToDirectoryOrUrl("file:///a", "file:///", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../b", GetRelativePathToDirectoryOrUrl("file:///a", "file:///b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../../b", GetRelativePathToDirectoryOrUrl("file:///a/b", "file:///b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../../../b", GetRelativePathToDirectoryOrUrl("file:///a/b/c", "file:///b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("../../../b/c", GetRelativePathToDirectoryOrUrl("file:///a/b/c", "file:///b/c", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("..", GetRelativePathToDirectoryOrUrl("file:///a/b/c", "file:///a/b", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
-			T.eq("file:///d:/", GetRelativePathToDirectoryOrUrl("file:///c:", "file:///d:", false /*isAbsolutePathAnUrl*/, new ComparePathsOptions()));
+			T.eq("", GetRelativePathToDirectoryOrUrl("/", "/", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("", GetRelativePathToDirectoryOrUrl("/a", "/a", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("", GetRelativePathToDirectoryOrUrl("/a/", "/a", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("..", GetRelativePathToDirectoryOrUrl("/a", "/", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../b", GetRelativePathToDirectoryOrUrl("/a", "/b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../../b", GetRelativePathToDirectoryOrUrl("/a/b", "/b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../../../b", GetRelativePathToDirectoryOrUrl("/a/b/c", "/b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../../../b/c", GetRelativePathToDirectoryOrUrl("/a/b/c", "/b/c", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("..", GetRelativePathToDirectoryOrUrl("/a/b/c", "/a/b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("d:/", GetRelativePathToDirectoryOrUrl("c:", "d:", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("", GetRelativePathToDirectoryOrUrl("file:///", "file:///", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("", GetRelativePathToDirectoryOrUrl("file:///a", "file:///a", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("", GetRelativePathToDirectoryOrUrl("file:///a/", "file:///a", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("..", GetRelativePathToDirectoryOrUrl("file:///a", "file:///", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../b", GetRelativePathToDirectoryOrUrl("file:///a", "file:///b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../../b", GetRelativePathToDirectoryOrUrl("file:///a/b", "file:///b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../../../b", GetRelativePathToDirectoryOrUrl("file:///a/b/c", "file:///b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("../../../b/c", GetRelativePathToDirectoryOrUrl("file:///a/b/c", "file:///b/c", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("..", GetRelativePathToDirectoryOrUrl("file:///a/b/c", "file:///a/b", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
+			T.eq("file:///d:/", GetRelativePathToDirectoryOrUrl("file:///c:", "file:///d:", false /*isAbsolutePathAnUrl*/, CaseInsensitive));
 		});
 
 		T.run("TestToFileNameLowerCase", () -> {
@@ -613,12 +613,12 @@ class TspathTest {
 		// BenchmarkPathIsRelative: not ported (benchmark).
 
 		T.run("TestGetCommonParents", () -> {
-			final opts = new ComparePathsOptions();
+			final opts = CaseInsensitive; // PORT: as TypeScript main (ed4807212c): getCommonParents with a CaseSensitivity.
 
 			// "empty input"
 			{
 				final paths:Array<String> = null;
-				final r = GetCommonParents(paths, 1, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 1, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq(null, r.a);
 			}
@@ -626,7 +626,7 @@ class TspathTest {
 			// "single path returns itself"
 			{
 				final paths = ["/a/b/c/d"];
-				final r = GetCommonParents(paths, 1, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 1, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq([paths[0]], r.a);
 			}
@@ -634,7 +634,7 @@ class TspathTest {
 			// "paths shorter than minComponents are ignored"
 			{
 				final paths = ["/a/b/c/d", "/a/b/c/e", "/a/b/f/g", "/x/y"];
-				final r = GetCommonParents(paths, 4, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 4, GetPathComponents, opts);
 				T.eq(1, Lambda.count(r.b));
 				T.isTrue(r.b.exists("/x/y"));
 				deq(["/a/b/c", "/a/b/f/g"], r.a);
@@ -643,7 +643,7 @@ class TspathTest {
 			// "three paths share /a/b"
 			{
 				final paths = ["/a/b/c/d", "/a/b/c/e", "/a/b/f/g"];
-				final r = GetCommonParents(paths, 1, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 1, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq(["/a/b"], r.a);
 			}
@@ -651,7 +651,7 @@ class TspathTest {
 			// "mixed with short path collapses to root when minComponents=1"
 			{
 				final paths = ["/a/b/c/d", "/a/b/c/e", "/a/b/f/g", "/x/y/z"];
-				final r = GetCommonParents(paths, 1, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 1, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq(["/"], r.a);
 			}
@@ -659,7 +659,7 @@ class TspathTest {
 			// "mixed with short path preserves both when minComponents=3"
 			{
 				final paths = ["/a/b/c/d", "/a/b/c/e", "/a/b/f/g", "/x/y/z"];
-				final r = GetCommonParents(paths, 3, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 3, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq(["/a/b", "/x/y/z"], r.a);
 			}
@@ -667,7 +667,7 @@ class TspathTest {
 			// "different volumes are returned individually"
 			{
 				final paths = ["c:/a/b/c/d", "d:/a/b/c/d"];
-				final r = GetCommonParents(paths, 1, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 1, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq([paths[0], paths[1]], r.a);
 			}
@@ -675,7 +675,7 @@ class TspathTest {
 			// "duplicate paths deduplicate result"
 			{
 				final paths = ["/a/b/c/d", "/a/b/c/d"];
-				final r = GetCommonParents(paths, 1, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 1, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq([paths[0]], r.a);
 			}
@@ -683,7 +683,7 @@ class TspathTest {
 			// "paths with few components are returned as-is when minComponents met"
 			{
 				final paths = ["/a/b/c/d", "/x/y"];
-				final r = GetCommonParents(paths, 2, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 2, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq(["/a/b/c/d", "/x/y"], r.a);
 			}
@@ -691,7 +691,7 @@ class TspathTest {
 			// "minComponents=2"
 			{
 				final paths = ["/a/b/c/d", "/a/z/c/e", "/a/aaa/f/g", "/x/y/z"];
-				final r = GetCommonParents(paths, 2, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 2, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq(["/a", "/x/y/z"], r.a);
 			}
@@ -699,7 +699,7 @@ class TspathTest {
 			// "trailing separators are handled"
 			{
 				final paths = ["/a/b/", "/a/b/c"];
-				final r = GetCommonParents(paths, 1, GetPathComponents, opts);
+				final r = Tspath.getCommonParents(paths, 1, GetPathComponents, opts);
 				T.eq(0, r.b == null ? 0 : Lambda.count(r.b));
 				deq(["/a/b"], r.a);
 			}
@@ -754,37 +754,37 @@ class TspathTest {
 
 		T.run("TestStartsWithDirectory", () -> {
 			final tests:Array<StartsWithDirectoryTest> = [
-				new StartsWithDirectoryTest("exact match case sensitive", "/project/src/file.ts", "/project/src", true, true),
-				new StartsWithDirectoryTest("exact match case insensitive", "/project/src/file.ts", "/PROJECT/SRC", false, true),
-				new StartsWithDirectoryTest("case sensitive mismatch", "/project/src/file.ts", "/PROJECT/SRC", true, false),
-				new StartsWithDirectoryTest("file not in directory", "/project/lib/file.ts", "/project/src", true, false),
-				new StartsWithDirectoryTest("file in subdirectory", "/project/src/components/Button.tsx", "/project/src", true, true),
-				new StartsWithDirectoryTest("file in parent directory", "/project/file.ts", "/project/src", true, false),
-				new StartsWithDirectoryTest("windows style separators", "C:\\project\\src\\file.ts", "C:\\project\\src", true, true),
-				new StartsWithDirectoryTest("mixed separators", "/project/src/file.ts", "\\project\\src", true, false),
-				new StartsWithDirectoryTest("empty directory name", "/project/src/file.ts", "", true, false),
-				new StartsWithDirectoryTest("empty file name", "", "/project/src", true, false),
+				new StartsWithDirectoryTest("exact match case sensitive", "/project/src/file.ts", "/project/src", CaseSensitive, true),
+				new StartsWithDirectoryTest("exact match case insensitive", "/project/src/file.ts", "/PROJECT/SRC", CaseInsensitive, true),
+				new StartsWithDirectoryTest("case sensitive mismatch", "/project/src/file.ts", "/PROJECT/SRC", CaseSensitive, false),
+				new StartsWithDirectoryTest("file not in directory", "/project/lib/file.ts", "/project/src", CaseSensitive, false),
+				new StartsWithDirectoryTest("file in subdirectory", "/project/src/components/Button.tsx", "/project/src", CaseSensitive, true),
+				new StartsWithDirectoryTest("file in parent directory", "/project/file.ts", "/project/src", CaseSensitive, false),
+				new StartsWithDirectoryTest("windows style separators", "C:\\project\\src\\file.ts", "C:\\project\\src", CaseSensitive, true),
+				new StartsWithDirectoryTest("mixed separators", "/project/src/file.ts", "\\project\\src", CaseSensitive, false),
+				new StartsWithDirectoryTest("empty directory name", "/project/src/file.ts", "", CaseSensitive, false),
+				new StartsWithDirectoryTest("empty file name", "", "/project/src", CaseSensitive, false),
 				// File name doesn't start with directory + separator
-				new StartsWithDirectoryTest("identical paths", "/project/src", "/project/src", true, false),
-				new StartsWithDirectoryTest("directory with trailing separator", "/project/src/file.ts", "/project/src/", true, true),
-				new StartsWithDirectoryTest("unicode characters", "/project/测试/file.ts", "/project/测试", true, true),
-				new StartsWithDirectoryTest("unicode case insensitive", "/project/测试/file.ts", "/PROJECT/测试", false, true),
+				new StartsWithDirectoryTest("identical paths", "/project/src", "/project/src", CaseSensitive, false),
+				new StartsWithDirectoryTest("directory with trailing separator", "/project/src/file.ts", "/project/src/", CaseSensitive, true),
+				new StartsWithDirectoryTest("unicode characters", "/project/测试/file.ts", "/project/测试", CaseSensitive, true),
+				new StartsWithDirectoryTest("unicode case insensitive", "/project/测试/file.ts", "/PROJECT/测试", CaseInsensitive, true),
 			];
 			for (tt in tests) {
-				final result = StartsWithDirectory(tt.fileName, tt.directoryName, tt.useCaseSensitiveFileNames);
+				final result = StartsWithDirectory(tt.fileName, tt.directoryName, tt.caseSensitivity);
 				T.isTrue(result == tt.expected, tt.name);
 			}
 		});
 
 		T.run("TestStartsWithDirectoryEdgeCases", () -> {
 			final tests:Array<StartsWithDirectoryTest> = [
-				new StartsWithDirectoryTest("file name shorter than directory", "/proj", "/project", true, false),
-				new StartsWithDirectoryTest("file name starts with directory but no separator", "/projectsrc/file.ts", "/project", true, false),
-				new StartsWithDirectoryTest("relative paths", "src/file.ts", "src", true, true),
-				new StartsWithDirectoryTest("absolute vs relative", "/project/src/file.ts", "project/src", true, false),
+				new StartsWithDirectoryTest("file name shorter than directory", "/proj", "/project", CaseSensitive, false),
+				new StartsWithDirectoryTest("file name starts with directory but no separator", "/projectsrc/file.ts", "/project", CaseSensitive, false),
+				new StartsWithDirectoryTest("relative paths", "src/file.ts", "src", CaseSensitive, true),
+				new StartsWithDirectoryTest("absolute vs relative", "/project/src/file.ts", "project/src", CaseSensitive, false),
 			];
 			for (tt in tests) {
-				final result = StartsWithDirectory(tt.fileName, tt.directoryName, tt.useCaseSensitiveFileNames);
+				final result = StartsWithDirectory(tt.fileName, tt.directoryName, tt.caseSensitivity);
 				T.isTrue(result == tt.expected, tt.name);
 			}
 		});
@@ -841,14 +841,14 @@ private class StartsWithDirectoryTest {
 	public final name:String;
 	public final fileName:String;
 	public final directoryName:String;
-	public final useCaseSensitiveFileNames:Bool;
+	public final caseSensitivity:CaseSensitivity;
 	public final expected:Bool;
 
-	public function new(name:String, fileName:String, directoryName:String, useCaseSensitiveFileNames:Bool, expected:Bool) {
+	public function new(name:String, fileName:String, directoryName:String, caseSensitivity:CaseSensitivity, expected:Bool) {
 		this.name = name;
 		this.fileName = fileName;
 		this.directoryName = directoryName;
-		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+		this.caseSensitivity = caseSensitivity;
 		this.expected = expected;
 	}
 }

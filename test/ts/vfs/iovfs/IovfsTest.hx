@@ -4,6 +4,7 @@ import go.Fstest.MapFile;
 import ts.vfs.Vfs;
 import ts.vfs.VfsTestUtil.*;
 import ts.vfs.iovfs.Iovfs;
+import ts.tspath.Tspath;
 
 // Port of iofs_test.go.
 class IovfsTest {
@@ -14,39 +15,36 @@ class IovfsTest {
 		testfs.set("dir1/file2.ts", new MapFile(go.Utf8.StringToBytes("export const foo = 42;")));
 		testfs.set("dir2/file1.ts", new MapFile(go.Utf8.StringToBytes("export const foo = 42;")));
 
-		final fs = Iovfs.From(testfs, true);
+		final fs = Iovfs.From(testfs, true /*tspath.CaseSensitive*/);
 
 		T.run("TestIOFS/ReadFile", () -> {
-			var content = fs.ReadFile("/foo.ts");
+			var content = fs.ReadFile(rf("/foo.ts"));
 			T.isTrue(content.ok);
 			T.eq("hello, world", content.value);
 
-			content = fs.ReadFile("/does/not/exist.ts");
+			content = fs.ReadFile(rf("/does/not/exist.ts"));
 			T.isTrue(!content.ok);
 			T.eq("", content.value);
 		});
 
-		T.run("TestIOFS/ReadFileUnrooted", () -> {
-			assertPanics(() -> {
-				fs.ReadFile("bar");
-			}, 'vfs: path "bar" is not absolute');
-		});
+		// PORT: TypeScript main (ed4807212c) dropped ReadFileUnrooted: ReadFile takes a RootedFilePath, an unrooted
+		// name no longer type checks.
 
 		T.run("TestIOFS/FileExists", () -> {
-			T.isTrue(fs.FileExists("/foo.ts"));
-			T.isTrue(!fs.FileExists("/bar"));
+			T.isTrue(fs.FileExists(rf("/foo.ts")));
+			T.isTrue(!fs.FileExists(rf("/bar")));
 		});
 
 		T.run("TestIOFS/DirectoryExists", () -> {
-			T.isTrue(fs.DirectoryExists("/"));
-			T.isTrue(fs.DirectoryExists("/dir1"));
-			T.isTrue(fs.DirectoryExists("/dir1/"));
-			T.isTrue(fs.DirectoryExists("/dir1/./"));
-			T.isTrue(!fs.DirectoryExists("/bar"));
+			T.isTrue(fs.DirectoryExists(rd("/")));
+			T.isTrue(fs.DirectoryExists(rd("/dir1")));
+			T.isTrue(fs.DirectoryExists(Tspath.RootedDirectoryPathFromAbsolute("/dir1/")));
+			T.isTrue(fs.DirectoryExists(Tspath.RootedDirectoryPathFromAbsolute("/dir1/./")));
+			T.isTrue(!fs.DirectoryExists(rd("/bar")));
 		});
 
 		T.run("TestIOFS/GetAccessibleEntries", () -> {
-			final entries = fs.GetAccessibleEntries("/");
+			final entries = fs.GetAccessibleEntries(rd("/"));
 			eqStrings(["dir1", "dir2"], entries.Directories);
 			eqStrings(["foo.ts"], entries.Files);
 		});
@@ -97,12 +95,12 @@ class IovfsTest {
 		});
 
 		T.run("TestIOFS/Realpath", () -> {
-			final realpath = fs.Realpath("/foo.ts");
-			T.eq("/foo.ts", realpath);
+			final realpath = fs.Realpath(rp("/foo.ts"));
+			T.eq("/foo.ts", realpath.AsString());
 		});
 
-		T.run("TestIOFS/UseCaseSensitiveFileNames", () -> {
-			T.isTrue(fs.UseCaseSensitiveFileNames());
+		T.run("TestIOFS/CaseSensitivity", () -> {
+			T.isTrue(fs.CaseSensitivity().IsCaseSensitive());
 		});
 	}
 }

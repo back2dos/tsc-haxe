@@ -74,8 +74,8 @@ class ParserTest {
 				continue; // t.Skip()
 			}
 
-			final fileName = "/index" + seed.extension;
-			final path = fileName;
+			final fileName = Tspath.RootedFilePathFromNormalized("/index" + seed.extension);
+			final path = Tspath.PathKeyFromCanonical(fileName.AsString());
 
 			final opts = new SourceFileParseOptions();
 			opts.FileName = fileName;
@@ -114,7 +114,7 @@ test("", async function () {
 })
 ';
 		final opts = new SourceFileParseOptions();
-		opts.FileName = "/index.js";
+		opts.FileName = Tspath.RootedFilePathFromNormalized("/index.js");
 		opts.Path = "/index.js";
 
 		final file = Parser.ParseSourceFile(opts, sourceText, ScriptKindJS);
@@ -145,7 +145,7 @@ namespace N {
 }
 ';
 		final opts = new SourceFileParseOptions();
-		opts.FileName = "/index.ts";
+		opts.FileName = Tspath.RootedFilePathFromNormalized("/index.ts");
 		opts.Path = "/index.ts";
 
 		final file = Parser.ParseSourceFile(opts, sourceText, ScriptKindTS);

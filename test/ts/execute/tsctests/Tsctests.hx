@@ -66,7 +66,7 @@ declare const console: { log(msg: any): void; };
 		final clock = new TestClock(Time.Now());
 		final sys = new TestSys();
 		sys.fs = new TestFs(Vfstest.FromMapWithClock(files, useCaseSensitiveFileNames, clock));
-		sys.cwd = cwd;
+		sys.cwd = Tspath.RootedDirectoryPathFromNormalized(cwd);
 		sys.clock = clock;
 		return sys;
 	}
@@ -76,7 +76,7 @@ declare const console: { log(msg: any): void; };
 		final sys = newTestSys(input, false);
 		Execute.CommandLine(go.Context.Background(), sys, commandLineArgs, sys);
 		sys.fs.writtenFiles.Range(function(key:String):Bool {
-			final r = sys.fsFromFileMap().ReadFile(key);
+			final r = sys.fsFromFileMap().ReadFile(Tspath.RootedFilePathFromNormalized(key));
 			if (r.ok) {
 				files.set(key, r.value);
 			}
@@ -178,17 +178,17 @@ declare const console: { log(msg: any): void; };
 			if (Tspath.FileExtensionIs(nonIncrementalOutput, Tspath.ExtensionTsBuildInfo)
 				|| StringTools.endsWith(nonIncrementalOutput, ".readable.baseline.txt")) {
 				// Just check existence
-				if (!incrementalSys.fsFromFileMap().FileExists(nonIncrementalOutput)) {
+				if (!incrementalSys.fsFromFileMap().FileExists(Tspath.RootedFilePathFromNormalized(nonIncrementalOutput))) {
 					diffBuilder.WriteString(DiffText("nonIncremental " + nonIncrementalOutput, "incremental " + nonIncrementalOutput, "Exists", ""));
 					diffBuilder.WriteString("\n");
 				}
 			} else {
-				final r = nonIncrementalSys.fsFromFileMap().ReadFile(nonIncrementalOutput);
+				final r = nonIncrementalSys.fsFromFileMap().ReadFile(Tspath.RootedFilePathFromNormalized(nonIncrementalOutput));
 				if (!r.ok) {
 					throw "Written file not found " + nonIncrementalOutput;
 				}
 				final nonIncrementalText = r.value;
-				final r2 = incrementalSys.fsFromFileMap().ReadFile(nonIncrementalOutput);
+				final r2 = incrementalSys.fsFromFileMap().ReadFile(Tspath.RootedFilePathFromNormalized(nonIncrementalOutput));
 				final incrementalText = r2.value;
 				if (!r2.ok || incrementalText != nonIncrementalText) {
 					diffBuilder.WriteString(DiffText("nonIncremental " + nonIncrementalOutput, "incremental " + nonIncrementalOutput, nonIncrementalText,

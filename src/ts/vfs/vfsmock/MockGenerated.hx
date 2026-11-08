@@ -11,21 +11,21 @@ import ts.vfs.Vfs;
 // the sync.RWMutex locks are dropped (single-threaded port).
 
 class FSMockAppendFileCall {
-	public final Path:String;
+	public final Path:RootedFilePath;
 	public final Data:String;
 
-	public function new(path:String, data:String) {
+	public function new(path:RootedFilePath, data:String) {
 		this.Path = path;
 		this.Data = data;
 	}
 }
 
 class FSMockChtimesCall {
-	public final Path:String;
+	public final Path:RootedPath;
 	public final ATime:Time;
 	public final MTime:Time;
 
-	public function new(path:String, aTime:Time, mTime:Time) {
+	public function new(path:RootedPath, aTime:Time, mTime:Time) {
 		this.Path = path;
 		this.ATime = aTime;
 		this.MTime = mTime;
@@ -33,57 +33,57 @@ class FSMockChtimesCall {
 }
 
 class FSMockDirectoryExistsCall {
-	public final Path:String;
+	public final Path:RootedDirectoryPath;
 
-	public function new(path:String) {
+	public function new(path:RootedDirectoryPath) {
 		this.Path = path;
 	}
 }
 
 class FSMockFileExistsCall {
-	public final Path:String;
+	public final Path:RootedFilePath;
 
-	public function new(path:String) {
+	public function new(path:RootedFilePath) {
 		this.Path = path;
 	}
 }
 
 class FSMockGetAccessibleEntriesCall {
-	public final Path:String;
+	public final Path:RootedDirectoryPath;
 
-	public function new(path:String) {
+	public function new(path:RootedDirectoryPath) {
 		this.Path = path;
 	}
 }
 
 class FSMockReadFileCall {
-	public final Path:String;
+	public final Path:RootedFilePath;
 
-	public function new(path:String) {
+	public function new(path:RootedFilePath) {
 		this.Path = path;
 	}
 }
 
 class FSMockRealpathCall {
-	public final Path:String;
+	public final Path:RootedPath;
 
-	public function new(path:String) {
+	public function new(path:RootedPath) {
 		this.Path = path;
 	}
 }
 
 class FSMockRemoveCall {
-	public final Path:String;
+	public final Path:RootedPath;
 
-	public function new(path:String) {
+	public function new(path:RootedPath) {
 		this.Path = path;
 	}
 }
 
 class FSMockStatCall {
-	public final Path:String;
+	public final Path:RootedPath;
 
-	public function new(path:String) {
+	public function new(path:RootedPath) {
 		this.Path = path;
 	}
 }
@@ -105,10 +105,10 @@ class FSMockWalkDirCall {
 }
 
 class FSMockWriteFileCall {
-	public final Path:String;
+	public final Path:RootedFilePath;
 	public final Data:String;
 
-	public function new(path:String, data:String) {
+	public function new(path:RootedFilePath, data:String) {
 		this.Path = path;
 		this.Data = data;
 	}
@@ -117,31 +117,31 @@ class FSMockWriteFileCall {
 // FSMock is a mock implementation of vfs.FS.
 class FSMock implements FS {
 	// AppendFileFunc mocks the AppendFile method.
-	public var AppendFileFunc:Null<(String, String) -> Null<Error>> = null;
+	public var AppendFileFunc:Null<(RootedFilePath, String) -> Null<Error>> = null;
 
 	// ChtimesFunc mocks the Chtimes method.
-	public var ChtimesFunc:Null<(String, Time, Time) -> Null<Error>> = null;
+	public var ChtimesFunc:Null<(RootedPath, Time, Time) -> Null<Error>> = null;
 
 	// DirectoryExistsFunc mocks the DirectoryExists method.
-	public var DirectoryExistsFunc:Null<(String) -> Bool> = null;
+	public var DirectoryExistsFunc:Null<(RootedDirectoryPath) -> Bool> = null;
 
 	// FileExistsFunc mocks the FileExists method.
-	public var FileExistsFunc:Null<(String) -> Bool> = null;
+	public var FileExistsFunc:Null<(RootedFilePath) -> Bool> = null;
 
 	// GetAccessibleEntriesFunc mocks the GetAccessibleEntries method.
-	public var GetAccessibleEntriesFunc:Null<(String) -> Entries> = null;
+	public var GetAccessibleEntriesFunc:Null<(RootedDirectoryPath) -> Entries> = null;
 
 	// ReadFileFunc mocks the ReadFile method.
-	public var ReadFileFunc:Null<(String) -> ValueOk<String>> = null;
+	public var ReadFileFunc:Null<(RootedFilePath) -> ValueOk<String>> = null;
 
 	// RealpathFunc mocks the Realpath method.
-	public var RealpathFunc:Null<(String) -> String> = null;
+	public var RealpathFunc:Null<(RootedPath) -> RootedPath> = null;
 
 	// RemoveFunc mocks the Remove method.
-	public var RemoveFunc:Null<(String) -> Null<Error>> = null;
+	public var RemoveFunc:Null<(RootedPath) -> Null<Error>> = null;
 
 	// StatFunc mocks the Stat method.
-	public var StatFunc:Null<(String) -> Null<FileInfo>> = null;
+	public var StatFunc:Null<(RootedPath) -> Null<FileInfo>> = null;
 
 	// CaseSensitivityFunc mocks the CaseSensitivity method.
 	public var CaseSensitivityFunc:Null<() -> ts.tspath.CaseSensitivity> = null;
@@ -150,7 +150,7 @@ class FSMock implements FS {
 	public var WalkDirFunc:Null<(String, WalkDirFunc) -> Null<Error>> = null;
 
 	// WriteFileFunc mocks the WriteFile method.
-	public var WriteFileFunc:Null<(String, String) -> Null<Error>> = null;
+	public var WriteFileFunc:Null<(RootedFilePath, String) -> Null<Error>> = null;
 
 	// calls tracks calls to the methods.
 	final callsAppendFile:Array<FSMockAppendFileCall> = [];
