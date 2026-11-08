@@ -2933,7 +2933,7 @@ class CheckerPart5 {
 				final index:Null<Int> = s.lazy.layout.index.get(symbol.Name);
 				if (index != null) {
 					if (s.properties == null) {
-						s.properties = [for (_ in 0...s.lazy.layout.symbols.length) null];
+						s.properties = Core.nilSlice(s.lazy.layout.symbols.length);
 					}
 					s.properties[index] = symbol;
 				}

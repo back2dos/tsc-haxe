@@ -1194,7 +1194,7 @@ class StructuredType extends ConstrainedType {
 			return properties[index];
 		}
 		if (properties == null) {
-			properties = [for (_ in 0...lazy.layout.symbols.length) null];
+			properties = Core.nilSlice(lazy.layout.symbols.length);
 		}
 		var member = properties[index];
 		if (member == null) {

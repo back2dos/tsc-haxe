@@ -31,6 +31,14 @@ class Core {
 		return s == null ? 0 : s.length;
 	}
 
+	// PORT: Go `make([]T, n)` of a pointer type: n nils, the storage allocated at once at its exact size (a
+	// comprehension grows it by pushes: up to twice the room)
+	public static inline function nilSlice<T>(n:Int):Array<T> {
+		final a:Array<T> = [];
+		a.resize(n);
+		return a;
+	}
+
 	// ---- PORT: perf — the helpers over haxe.ds.Vector (an immutable list: one object, no header, the
 	// empty vector a shared constant: no null). Same results as the Array versions; Filter and SameMap
 	// return the same vector when nothing changes (Same compares identity).
