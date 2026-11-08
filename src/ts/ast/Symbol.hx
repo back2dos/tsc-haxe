@@ -22,7 +22,6 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	public var Flags:SymbolFlags = 0;
 	public var CheckFlags:CheckFlags = 0; // Non-zero only in transient symbols created by Checker
 	// PORT: perf — no id field: Go's `id` is an entry of the links (Ast.GetSymbolId)
-	var dataShared:Bool = false; // data is another symbol's
 	var data:SymbolWithData = null;
 	public var Name(get, set):String;
 	public var Declarations(get, set):haxe.ds.Vector<Node>; // PORT: perf — a Vector (one exact-size object; an append makes a new one)
@@ -40,13 +39,25 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	public static function NewSharedData(other:Symbol):Symbol {
 		final s = new Symbol();
 		s.data = other.data;
-		s.dataShared = true;
 		return s;
+	}
+
+	// PORT: perf — no dataShared field (one Int fewer: Symbol 40 -> 32 B, SymbolWithData 80 -> 72): the data is
+	// this symbol's when it is the symbol itself (a SymbolWithData) or the copy made for it (detach: a
+	// DetachedSymbolData, which knows its owner; another symbol may share it)
+	inline function dataShared():Bool {
+		final d = data;
+		return d != this && !isOwnCopy(d);
+	}
+
+	function isOwnCopy(d:SymbolWithData):Bool {
+		final c = Std.downcast(d, DetachedSymbolData);
+		return c != null && c.owner == this;
 	}
 
 	// the data to write to: a copy of the shared data's four fields first, for a symbol whose data is shared
 	inline function own():SymbolWithData {
-		if (dataShared) {
+		if (dataShared()) {
 			detach();
 		}
 		return data;
@@ -54,13 +65,12 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 
 	function detach():Void {
 		final o = data;
-		final d = new SymbolWithData();
+		final d = new DetachedSymbolData(this);
 		d.name = o.name;
 		d.declarations = o.declarations;
 		d.valueDeclaration = o.valueDeclaration;
 		d.parent = o.parent;
 		data = d;
-		dataShared = false;
 	}
 
 	inline function get_Name():String {
@@ -97,22 +107,22 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 
 	inline function get_Members():SymbolTable {
 		final x = data.extra;
-		return x == null || dataShared ? null : x.members;
+		return x == null || dataShared() ? null : x.members;
 	}
 
 	inline function get_Exports():SymbolTable {
 		final x = data.extra;
-		return x == null || dataShared ? null : x.exports;
+		return x == null || dataShared() ? null : x.exports;
 	}
 
 	inline function get_ExportSymbol():Symbol {
 		final x = data.extra;
-		return x == null || dataShared ? null : x.exportSymbol;
+		return x == null || dataShared() ? null : x.exportSymbol;
 	}
 
 	// the extra record to write to (null when v is nil and there is none: nothing to write)
 	function extraFor(v:Dynamic):SymbolExtra {
-		if (dataShared) {
+		if (dataShared()) {
 			if (v == null) {
 				return null;
 			}
@@ -184,6 +194,17 @@ class SymbolWithData extends Symbol {
 	public function new() {
 		super();
 		data = this;
+	}
+}
+
+// The data a symbol whose data was shared made for itself (Symbol.detach) and its owner (Symbol.dataShared).
+@:allow(ts.ast.Symbol)
+class DetachedSymbolData extends SymbolWithData {
+	final owner:Symbol;
+
+	public function new(owner:Symbol) {
+		super();
+		this.owner = owner;
 	}
 }
 
