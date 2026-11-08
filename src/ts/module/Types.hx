@@ -4,7 +4,7 @@ package ts.module;
 
 interface ResolutionHost {
 	function FS():FS;
-	function GetCurrentDirectory():String;
+	function GetCurrentDirectory():RootedDirectoryPath;
 }
 
 // PORT: Go struct used as a map key (ModeAwareCache). Immutable value type.

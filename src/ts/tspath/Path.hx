@@ -8,6 +8,15 @@ abstract Path(String) from String to String {
 		this = s;
 	}
 
+	// PORT: transitional — Path is main's PathKey (a canonical key); interchangeable until all uses are typed.
+	@:from static inline function fromPathKey(k:PathKey):Path {
+		return new Path(k.AsString());
+	}
+
+	@:to inline function toPathKey():PathKey {
+		return cast this;
+	}
+
 	public inline function GetDirectoryPath():Path {
 		return Tspath.GetDirectoryPath(this);
 	}

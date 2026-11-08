@@ -43,7 +43,7 @@ private class FakeProgram implements Program {
 		return false;
 	}
 
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return "";
 	}
 

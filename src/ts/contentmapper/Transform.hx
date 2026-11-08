@@ -52,7 +52,7 @@ class Transform {
 			return new ValueError(new SourceFiles(), Contentmapper.NewTransformError(TransformErrorKindResponse, null));
 		}
 		final baseParseOptions = parseOptions;
-		final virtualFileName = baseParseOptions.FileName + virtualExtension;
+		final virtualFileName = baseParseOptions.FileName.AppendSuffix(virtualExtension);
 		parseOptions = baseParseOptions.copy();
 		if (isModuleVirtualExtension(virtualExtension)) {
 			parseOptions.ExternalModuleIndicatorOptions.Force = true;
@@ -87,7 +87,7 @@ class Transform {
 					return new ValueError(new SourceFiles(), Contentmapper.NewTransformError(TransformErrorKindResponse, null));
 				}
 				final suffix = "." + i + supplemental.VirtualExtension;
-				supplementalOptions.FileName = supplementalOptions.FileName + suffix;
+				supplementalOptions.FileName = supplementalOptions.FileName.AppendSuffix(suffix);
 				// PORT: PathKey.AppendCanonicalSuffix: the suffix is ASCII digits and an extension, canonical as is
 				// unless the path is case-folded.
 				supplementalOptions.Path = cast((parseOptions.Path : String) + appendCanonicalSuffix(parseOptions.Path, parseOptions.FileName, suffix));

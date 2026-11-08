@@ -17,7 +17,7 @@ class ProjectReferenceDtsFakingHost implements ResolutionHost {
 	}
 
 	// GetCurrentDirectory implements module.ResolutionHost.
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.host.GetCurrentDirectory();
 	}
 }

@@ -3747,7 +3747,7 @@ class NodeBuilderSpecifierHostAdapter implements ModuleSpecifierGenerationHost {
 		return h.ContentMapperExtensionRewrites();
 	}
 
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return h.GetCurrentDirectory();
 	}
 

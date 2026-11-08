@@ -49,7 +49,7 @@ class SourceFileAdapter implements SourceFileForSpecifierGeneration {
 		return a;
 	}
 
-	public function FileName():String {
+	public function FileName():RootedFilePath {
 		return File.FileName();
 	}
 

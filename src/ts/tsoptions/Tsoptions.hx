@@ -2054,7 +2054,7 @@ class Tsoptions {
 	// GetPathsBasePath(""), which is not an option declaration.
 	static function pathsBasePathChanged(oldOptions:Null<CompilerOptions>, newOptions:Null<CompilerOptions>):Bool {
 		return oldOptions != null && newOptions != null && oldOptions != newOptions
-			&& oldOptions.GetPathsBasePath("") != newOptions.GetPathsBasePath("");
+			&& oldOptions.GetPathsBasePath(cast "") != newOptions.GetPathsBasePath(cast "");
 	}
 
 	public static function CompilerOptionsAffectSemanticDiagnostics(oldOptions:Null<CompilerOptions>, newOptions:Null<CompilerOptions>):Bool {
@@ -2868,6 +2868,25 @@ class Tsoptions {
 		return "";
 	}
 
+	// PORT: transitional — main validates with Rooted*FromNormalized (its tsconfig parsing keeps unresolved
+	// option paths apart); this port still parses path options before they are made absolute, so the value
+	// is taken as is (unchecked) until tsconfigparsing is ported.
+	static function parseFileName(value:Dynamic):RootedFilePath {
+		return cast ParseString(value);
+	}
+
+	static function parseDirectoryName(value:Dynamic):RootedDirectoryPath {
+		return cast ParseString(value);
+	}
+
+	static function parseFileOrDirectoryName(value:Dynamic):RootedPath {
+		return cast ParseString(value);
+	}
+
+	static function parseDirectoryNames(value:Dynamic):Null<Array<RootedDirectoryPath>> {
+		return cast ParseStringArray(value);
+	}
+
 	// PORT: *int → Null<Int>. Go tells int from float64; both are numbers here and give the
 	// same result (int(num) truncates).
 	static function parseNumber(value:Dynamic):Null<Int> {
@@ -3012,7 +3031,7 @@ class Tsoptions {
 		final fs = host.FS();
 		final resolverOptions = new CompilerOptions();
 		resolverOptions.ModuleResolution = ModuleResolutionKindBundler;
-		final resolver = ts.module.Module.NewResolver(new ResolverHost(new ContentMapperResolutionHost(fs, Tspath.GetDirectoryPath(containingFile))),
+		final resolver = ts.module.Module.NewResolver(new ResolverHost(new ContentMapperResolutionHost(fs, /* PORT: transitional, unchecked */ cast Tspath.GetDirectoryPath(containingFile))),
 			resolverOptions, "", "");
 		final resolved = resolver.ResolvePackageDirectory(packageName, containingFile, ts.core.Core.ResolutionModeNone, null);
 		if (resolved == null || resolved.ResolvedFileName == "") {
@@ -3277,7 +3296,7 @@ class Tsoptions {
 			case "assumeChangesOnlyAffectDirectDependencies":
 				allOptions.AssumeChangesOnlyAffectDirectDependencies = ParseTristate(value);
 			case "baseUrl":
-				allOptions.BaseUrl = ParseString(value);
+				allOptions.BaseUrl = parseDirectoryName(value);
 			case "build":
 				allOptions.Build = ParseTristate(value);
 			case "checkJs":
@@ -3287,7 +3306,7 @@ class Tsoptions {
 			case "composite":
 				allOptions.Composite = ParseTristate(value);
 			case "declarationDir":
-				allOptions.DeclarationDir = ParseString(value);
+				allOptions.DeclarationDir = parseDirectoryName(value);
 			case "deduplicatePackages":
 				allOptions.DeduplicatePackages = ParseTristate(value);
 			case "diagnostics":
@@ -3327,9 +3346,9 @@ class Tsoptions {
 			case "forceConsistentCasingInFileNames":
 				allOptions.ForceConsistentCasingInFileNames = ParseTristate(value);
 			case "generateCpuProfile":
-				allOptions.GenerateCpuProfile = ParseString(value);
+				allOptions.GenerateCpuProfile = parseFileName(value);
 			case "generateTrace":
-				allOptions.GenerateTrace = ParseString(value);
+				allOptions.GenerateTrace = parseDirectoryName(value);
 			case "isolatedModules":
 				allOptions.IsolatedModules = ParseTristate(value);
 			case "ignoreConfig":
@@ -3374,7 +3393,7 @@ class Tsoptions {
 			case "locale":
 				allOptions.Locale = ParseString(value);
 			case "mapRoot":
-				allOptions.MapRoot = ParseString(value);
+				allOptions.MapRoot = Tspath.ToSourceMapLocation(ParseString(value));
 			case "module":
 				allOptions.Module = floatOrInt32ToFlag(value);
 			case "moduleDetectionKind":
@@ -3418,7 +3437,7 @@ class Tsoptions {
 			case "noUncheckedSideEffectImports":
 				allOptions.NoUncheckedSideEffectImports = ParseTristate(value);
 			case "outFile":
-				allOptions.OutFile = ParseString(value);
+				allOptions.OutFile = parseFileName(value);
 			case "noResolve":
 				allOptions.NoResolve = ParseTristate(value);
 			case "paths":
@@ -3430,7 +3449,7 @@ class Tsoptions {
 			case "preserveSymlinks":
 				allOptions.PreserveSymlinks = ParseTristate(value);
 			case "project":
-				allOptions.Project = ParseString(value);
+				allOptions.Project = parseFileOrDirectoryName(value);
 			case "pretty":
 				allOptions.Pretty = ParseTristate(value);
 			case "resolveJsonModule":
@@ -3446,9 +3465,9 @@ class Tsoptions {
 			case "rewriteRelativeImportExtensions":
 				allOptions.RewriteRelativeImportExtensions = ParseTristate(value);
 			case "rootDir":
-				allOptions.RootDir = ParseString(value);
+				allOptions.RootDir = parseDirectoryName(value);
 			case "rootDirs":
-				allOptions.RootDirs = ParseStringArray(value);
+				allOptions.RootDirs = parseDirectoryNames(value);
 			case "removeComments":
 				allOptions.RemoveComments = ParseTristate(value);
 			case "stableTypeOrdering":
@@ -3470,7 +3489,7 @@ class Tsoptions {
 			case "sourceMap":
 				allOptions.SourceMap = ParseTristate(value);
 			case "sourceRoot":
-				allOptions.SourceRoot = ParseString(value);
+				allOptions.SourceRoot = Tspath.ToSourceMapLocation(ParseString(value));
 			case "stripInternal":
 				allOptions.StripInternal = ParseTristate(value);
 			case "suppressOutputPathCheck":
@@ -3480,9 +3499,9 @@ class Tsoptions {
 			case "traceResolution":
 				allOptions.TraceResolution = ParseTristate(value);
 			case "tsBuildInfoFile":
-				allOptions.TsBuildInfoFile = ParseString(value);
+				allOptions.TsBuildInfoFile = parseFileName(value);
 			case "typeRoots":
-				allOptions.TypeRoots = ParseStringArray(value);
+				allOptions.TypeRoots = parseDirectoryNames(value);
 			case "types":
 				allOptions.Types = ParseStringArray(value);
 			case "useDefineForClassFields":
@@ -3506,19 +3525,19 @@ class Tsoptions {
 			case "showConfig":
 				allOptions.ShowConfig = ParseTristate(value);
 			case "configFilePath":
-				allOptions.ConfigFilePath = ParseString(value);
+				allOptions.ConfigFilePath = parseFileName(value);
 			case "noDtsResolution":
 				allOptions.NoDtsResolution = ParseTristate(value);
 			case "pathsBasePath":
-				allOptions.PathsBasePath = ParseString(value);
+				allOptions.PathsBasePath = parseDirectoryName(value);
 			case "outDir":
-				allOptions.OutDir = ParseString(value);
+				allOptions.OutDir = parseDirectoryName(value);
 			case "newLine":
 				allOptions.NewLine = floatOrInt32ToFlag(value);
 			case "watch":
 				allOptions.Watch = ParseTristate(value);
 			case "pprofDir":
-				allOptions.PprofDir = ParseString(value);
+				allOptions.PprofDir = parseDirectoryName(value);
 			case "singleThreaded":
 				allOptions.SingleThreaded = ParseTristate(value);
 			case "quiet":
@@ -4270,7 +4289,7 @@ class Tsoptions {
 
 	public static function NewTsconfigSourceFileFromFilePath(configFileName:std.String, configPath:Path, configSourceText:std.String):TsConfigSourceFile {
 		final opts = new SourceFileParseOptions();
-		opts.FileName = configFileName;
+		opts.FileName = /* PORT: transitional, unchecked */ cast configFileName;
 		opts.Path = configPath;
 		final sourceFile = Parser.ParseSourceFile(opts, configSourceText, ScriptKindJSON);
 		return new TsConfigSourceFile(sourceFile);
@@ -4677,7 +4696,7 @@ class Tsoptions {
 	// jsonText is the text of the config file
 	public static function ParseConfigFileTextToJson(fileName:std.String, path:Path, jsonText:std.String):Pair<Dynamic, Null<Array<Diagnostic>>> {
 		final opts = new SourceFileParseOptions();
-		opts.FileName = fileName;
+		opts.FileName = /* PORT: transitional, unchecked */ cast fileName;
 		opts.Path = path;
 		final jsonSourceFile = Parser.ParseSourceFile(opts, jsonText, ScriptKindJSON);
 		final r = convertConfigFileToObject(jsonSourceFile /*jsonConversionNotifier*/, null);
@@ -4880,7 +4899,7 @@ class Tsoptions {
 		final options = getDefaultCompilerOptions(configFileName);
 		final errors = convertOptionsFromJson(CommandLineCompilerOptionsMap, jsonOptions, basePath, new CompilerOptionsParser(options)).b;
 		if (configFileName != "") {
-			options.ConfigFilePath = Tspath.NormalizeSlashes(configFileName);
+			options.ConfigFilePath = /* PORT: transitional, unchecked */ cast Tspath.NormalizeSlashes(configFileName);
 		}
 		return new Pair<CompilerOptions, Null<Array<Diagnostic>>>(options, errors);
 	}
@@ -4940,14 +4959,14 @@ class Tsoptions {
 		final diagnostic = r.b;
 		if (text != "") {
 			final opts = new SourceFileParseOptions();
-			opts.FileName = fileName;
+			opts.FileName = /* PORT: transitional, unchecked */ cast fileName;
 			opts.Path = path;
 			return new Pair<TsConfigSourceFile, Null<Array<Diagnostic>>>(new TsConfigSourceFile(Parser.ParseSourceFile(opts, text, ScriptKindJSON)),
 				diagnostic);
 		} else {
 			final factory = new NodeFactory();
 			final opts = new SourceFileParseOptions();
-			opts.FileName = fileName;
+			opts.FileName = /* PORT: transitional, unchecked */ cast fileName;
 			opts.Path = path;
 			final file = new TsConfigSourceFile(factory.NewSourceFile(opts, "", factory.NewNodeList([]), factory.NewToken(KindEndOfFile)).AsSourceFile());
 			file.SourceFile.SetDiagnostics(diagnostic);
@@ -5058,7 +5077,7 @@ class Tsoptions {
 			// the config file location, we'll need to know where that config file was.
 			// Since 'paths' can be inherited from an extended config in another directory,
 			// we wouldn't know which directory to use unless we store it here.
-			ownConfig.options.PathsBasePath = basePath;
+			ownConfig.options.PathsBasePath = /* PORT: transitional, unchecked */ cast basePath;
 		}
 
 		final applyExtendedConfig = function(result:ExtendsResult, extendedConfigPath:std.String):Void {
@@ -5200,7 +5219,7 @@ class Tsoptions {
 		handleOptionConfigDirTemplateSubstitution(parsedConfig.options, basePathForFileNames);
 		final rawConfig = parseJsonToStringKey(parsedConfig.raw);
 		if (configFileName != "" && parsedConfig.options != null) {
-			parsedConfig.options.ConfigFilePath = Tspath.NormalizeSlashes(configFileName);
+			parsedConfig.options.ConfigFilePath = /* PORT: transitional, unchecked */ cast Tspath.NormalizeSlashes(configFileName);
 		}
 		final getPropFromRaw = function(prop:std.String, validateElement:(value:Dynamic) -> Bool, elementTypeName:std.String):PropOfRaw {
 			final g = rawConfig.Get(prop);
@@ -5532,7 +5551,7 @@ class Tsoptions {
 						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "circular", Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "reference.circular", "boolean"));
 					}
 					final pr = new ProjectReference();
-					pr.Path = Tspath.GetNormalizedAbsolutePath(ref.reference.Path, basePath);
+					pr.Path = /* PORT: transitional, unchecked */ cast Tspath.GetNormalizedAbsolutePath(ref.reference.Path, basePath);
 					pr.OriginalPath = ref.reference.Path;
 					pr.Circular = ref.reference.Circular;
 					projectReferences.push(pr);
@@ -5804,35 +5823,35 @@ class Tsoptions {
 
 		final rootDirs = getSubstitutedStringArrayWithConfigDirTemplate(compilerOptions.RootDirs, basePath);
 		if (rootDirs != null) {
-			compilerOptions.RootDirs = rootDirs;
+			compilerOptions.RootDirs = /* PORT: transitional, unchecked */ cast rootDirs;
 		}
 		final typeRoots = getSubstitutedStringArrayWithConfigDirTemplate(compilerOptions.TypeRoots, basePath);
 		if (typeRoots != null) {
-			compilerOptions.TypeRoots = typeRoots;
+			compilerOptions.TypeRoots = /* PORT: transitional, unchecked */ cast typeRoots;
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.GenerateCpuProfile)) {
-			compilerOptions.GenerateCpuProfile = getSubstitutedPathWithConfigDirTemplate(compilerOptions.GenerateCpuProfile, basePath);
+			compilerOptions.GenerateCpuProfile = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.GenerateCpuProfile, basePath);
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.GenerateTrace)) {
-			compilerOptions.GenerateTrace = getSubstitutedPathWithConfigDirTemplate(compilerOptions.GenerateTrace, basePath);
+			compilerOptions.GenerateTrace = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.GenerateTrace, basePath);
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.OutFile)) {
-			compilerOptions.OutFile = getSubstitutedPathWithConfigDirTemplate(compilerOptions.OutFile, basePath);
+			compilerOptions.OutFile = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.OutFile, basePath);
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.OutDir)) {
-			compilerOptions.OutDir = getSubstitutedPathWithConfigDirTemplate(compilerOptions.OutDir, basePath);
+			compilerOptions.OutDir = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.OutDir, basePath);
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.RootDir)) {
-			compilerOptions.RootDir = getSubstitutedPathWithConfigDirTemplate(compilerOptions.RootDir, basePath);
+			compilerOptions.RootDir = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.RootDir, basePath);
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.TsBuildInfoFile)) {
-			compilerOptions.TsBuildInfoFile = getSubstitutedPathWithConfigDirTemplate(compilerOptions.TsBuildInfoFile, basePath);
+			compilerOptions.TsBuildInfoFile = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.TsBuildInfoFile, basePath);
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.BaseUrl)) {
-			compilerOptions.BaseUrl = getSubstitutedPathWithConfigDirTemplate(compilerOptions.BaseUrl, basePath);
+			compilerOptions.BaseUrl = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.BaseUrl, basePath);
 		}
 		if (startsWithConfigDirTemplate(compilerOptions.DeclarationDir)) {
-			compilerOptions.DeclarationDir = getSubstitutedPathWithConfigDirTemplate(compilerOptions.DeclarationDir, basePath);
+			compilerOptions.DeclarationDir = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.DeclarationDir, basePath);
 		}
 	}
 

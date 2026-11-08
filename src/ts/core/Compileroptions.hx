@@ -25,7 +25,7 @@ class CompilerOptions {
 	public var EmitBOM:Tristate = TSUnknown; // json:"emitBOM,omitzero"
 	public var EmitDecoratorMetadata:Tristate = TSUnknown; // json:"emitDecoratorMetadata,omitzero"
 	public var Declaration:Tristate = TSUnknown; // json:"declaration,omitzero"
-	public var DeclarationDir:String = ""; // json:"declarationDir,omitzero"
+	public var DeclarationDir:RootedDirectoryPath = cast ""; // json:"declarationDir,omitzero"
 	public var DeclarationMap:Tristate = TSUnknown; // json:"declarationMap,omitzero"
 	public var DeduplicatePackages:Tristate = TSUnknown; // json:"deduplicatePackages,omitzero"
 	public var DisableSizeLimit:Tristate = TSUnknown; // json:"disableSizeLimit,omitzero"
@@ -52,7 +52,7 @@ class CompilerOptions {
 	public var Lib:Null<Array<String>> = null; // json:"lib,omitzero"
 	public var LibReplacement:Tristate = TSUnknown; // json:"libReplacement,omitzero"
 	public var Locale:String = ""; // json:"locale,omitzero"
-	public var MapRoot:String = ""; // json:"mapRoot,omitzero"
+	public var MapRoot:SourceMapLocation = cast ""; // json:"mapRoot,omitzero"
 	public var Module:ModuleKind = ModuleKindNone; // json:"module,omitzero"
 	public var ModuleResolution:ModuleResolutionKind = ModuleResolutionKindUnknown; // json:"moduleResolution,omitzero"
 	public var ModuleSuffixes:Null<Array<String>> = null; // json:"moduleSuffixes,omitzero"
@@ -75,11 +75,11 @@ class CompilerOptions {
 	public var NoResolve:Tristate = TSUnknown; // json:"noResolve,omitzero"
 	public var NoImplicitOverride:Tristate = TSUnknown; // json:"noImplicitOverride,omitzero"
 	public var NoUncheckedSideEffectImports:Tristate = TSUnknown; // json:"noUncheckedSideEffectImports,omitzero"
-	public var OutDir:String = ""; // json:"outDir,omitzero"
+	public var OutDir:RootedDirectoryPath = cast ""; // json:"outDir,omitzero"
 	public var Paths:Null<OrderedMap<String, Array<String>>> = null; // json:"paths,omitzero"
 	public var PreserveConstEnums:Tristate = TSUnknown; // json:"preserveConstEnums,omitzero"
 	public var PreserveSymlinks:Tristate = TSUnknown; // json:"preserveSymlinks,omitzero"
-	public var Project:String = ""; // json:"project,omitzero"
+	public var Project:RootedPath = cast ""; // json:"project,omitzero"
 	public var ResolveJsonModule:Tristate = TSUnknown; // json:"resolveJsonModule,omitzero"
 	public var ResolvePackageJsonExports:Tristate = TSUnknown; // json:"resolvePackageJsonExports,omitzero"
 	public var ResolvePackageJsonImports:Tristate = TSUnknown; // json:"resolvePackageJsonImports,omitzero"
@@ -87,8 +87,8 @@ class CompilerOptions {
 	public var DisableDynamicImportExtensionRewriting:Tristate = TSUnknown; // json:"disableDynamicImportExtensionRewriting,omitzero"
 	public var RewriteRelativeImportExtensions:Tristate = TSUnknown; // json:"rewriteRelativeImportExtensions,omitzero"
 	public var ReactNamespace:String = ""; // json:"reactNamespace,omitzero"
-	public var RootDir:String = ""; // json:"rootDir,omitzero"
-	public var RootDirs:Null<Array<String>> = null; // json:"rootDirs,omitzero"
+	public var RootDir:RootedDirectoryPath = cast ""; // json:"rootDir,omitzero"
+	public var RootDirs:Null<Array<RootedDirectoryPath>> = null; // json:"rootDirs,omitzero"
 	public var SkipLibCheck:Tristate = TSUnknown; // json:"skipLibCheck,omitzero"
 	public var StableTypeOrdering:Tristate = TSUnknown; // json:"stableTypeOrdering,omitzero"
 	public var Strict:Tristate = TSUnknown; // json:"strict,omitzero"
@@ -100,12 +100,12 @@ class CompilerOptions {
 	public var StripInternal:Tristate = TSUnknown; // json:"stripInternal,omitzero"
 	public var SkipDefaultLibCheck:Tristate = TSUnknown; // json:"skipDefaultLibCheck,omitzero"
 	public var SourceMap:Tristate = TSUnknown; // json:"sourceMap,omitzero"
-	public var SourceRoot:String = ""; // json:"sourceRoot,omitzero"
+	public var SourceRoot:SourceMapLocation = cast ""; // json:"sourceRoot,omitzero"
 	public var SuppressOutputPathCheck:Tristate = TSUnknown; // json:"suppressOutputPathCheck,omitzero"
 	public var Target:ScriptTarget = ScriptTargetNone; // json:"target,omitzero"
 	public var TraceResolution:Tristate = TSUnknown; // json:"traceResolution,omitzero"
-	public var TsBuildInfoFile:String = ""; // json:"tsBuildInfoFile,omitzero"
-	public var TypeRoots:Null<Array<String>> = null; // json:"typeRoots,omitzero"
+	public var TsBuildInfoFile:RootedFilePath = cast ""; // json:"tsBuildInfoFile,omitzero"
+	public var TypeRoots:Null<Array<RootedDirectoryPath>> = null; // json:"typeRoots,omitzero"
 	public var Types:Null<Array<String>> = null; // json:"types,omitzero"
 	public var UseDefineForClassFields:Tristate = TSUnknown; // json:"useDefineForClassFields,omitzero"
 	public var UseUnknownInCatchVariables:Tristate = TSUnknown; // json:"useUnknownInCatchVariables,omitzero"
@@ -117,22 +117,22 @@ class CompilerOptions {
 	// Deprecated: Do not use outside of options parsing and validation.
 	public var AlwaysStrict:Tristate = TSUnknown; // json:"alwaysStrict,omitzero"
 	// Deprecated: Do not use outside of options parsing and validation.
-	public var BaseUrl:String = ""; // json:"baseUrl,omitzero"
+	public var BaseUrl:RootedDirectoryPath = cast ""; // json:"baseUrl,omitzero"
 	// Deprecated: Do not use outside of options parsing and validation.
 	public var DownlevelIteration:Tristate = TSUnknown; // json:"downlevelIteration,omitzero"
 	// Deprecated: Do not use outside of options parsing and validation.
 	public var ESModuleInterop:Tristate = TSUnknown; // json:"esModuleInterop,omitzero"
 	// Deprecated: Do not use outside of options parsing and validation.
-	public var OutFile:String = ""; // json:"outFile,omitzero"
+	public var OutFile:RootedFilePath = cast ""; // json:"outFile,omitzero"
 
 	// Internal fields
-	public var ConfigFilePath:String = ""; // json:"configFilePath,omitzero"
+	public var ConfigFilePath:RootedFilePath = cast ""; // json:"configFilePath,omitzero"
 	public var NoDtsResolution:Tristate = TSUnknown; // json:"noDtsResolution,omitzero"
-	public var PathsBasePath:String = ""; // json:"pathsBasePath,omitzero"
+	public var PathsBasePath:RootedDirectoryPath = cast ""; // json:"pathsBasePath,omitzero"
 	public var Diagnostics:Tristate = TSUnknown; // json:"diagnostics,omitzero"
 	public var ExtendedDiagnostics:Tristate = TSUnknown; // json:"extendedDiagnostics,omitzero"
-	public var GenerateCpuProfile:String = ""; // json:"generateCpuProfile,omitzero"
-	public var GenerateTrace:String = ""; // json:"generateTrace,omitzero"
+	public var GenerateCpuProfile:RootedFilePath = cast ""; // json:"generateCpuProfile,omitzero"
+	public var GenerateTrace:RootedDirectoryPath = cast ""; // json:"generateTrace,omitzero"
 	public var ListEmittedFiles:Tristate = TSUnknown; // json:"listEmittedFiles,omitzero"
 	public var ListFiles:Tristate = TSUnknown; // json:"listFiles,omitzero"
 	public var ExplainFiles:Tristate = TSUnknown; // json:"explainFiles,omitzero"
@@ -148,7 +148,7 @@ class CompilerOptions {
 	public var All:Tristate = TSUnknown; // json:"all,omitzero"
 	public var RunExternalCode:Tristate = TSUnknown; // json:"runExternalCode,omitzero"
 
-	public var PprofDir:String = ""; // json:"pprofDir,omitzero"
+	public var PprofDir:RootedDirectoryPath = cast ""; // json:"pprofDir,omitzero"
 	public var SingleThreaded:Tristate = TSUnknown; // json:"singleThreaded,omitzero"
 	public var Quiet:Tristate = TSUnknown; // json:"quiet,omitzero"
 	public var Checkers:Null<Int> = null; // json:"checkers,omitzero"
@@ -364,8 +364,8 @@ class CompilerOptions {
 		return this.AllowImportingTsExtensions.IsTrue() || this.RewriteRelativeImportExtensions.IsTrue();
 	}
 
-	public function AllowImportingTsExtensionsFrom(fileName:String):Bool {
-		return this.GetAllowImportingTsExtensions() || Tspath.IsDeclarationFileName(fileName);
+	public function AllowImportingTsExtensionsFrom(fileName:RootedFilePath):Bool {
+		return this.GetAllowImportingTsExtensions() || fileName.IsDeclarationFile();
 	}
 
 	public function GetResolveJsonModule():Bool {
@@ -405,13 +405,13 @@ class CompilerOptions {
 	}
 
 	// PORT: (result []string, fromConfig bool) → ValueOk (value = result, ok = fromConfig).
-	public function GetEffectiveTypeRoots(currentDirectory:String):ValueOk<Null<Array<String>>> {
+	public function GetEffectiveTypeRoots(currentDirectory:RootedDirectoryPath):ValueOk<Null<Array<RootedDirectoryPath>>> {
 		if (this.TypeRoots != null) {
-			return new ValueOk<Null<Array<String>>>(this.TypeRoots, true);
+			return new ValueOk<Null<Array<RootedDirectoryPath>>>(this.TypeRoots, true);
 		}
-		var baseDir:String;
+		var baseDir:RootedDirectoryPath;
 		if (this.ConfigFilePath != "") {
-			baseDir = Tspath.GetDirectoryPath(this.ConfigFilePath);
+			baseDir = this.ConfigFilePath.Directory();
 		} else {
 			baseDir = currentDirectory;
 			if (baseDir == "") {
@@ -421,12 +421,12 @@ class CompilerOptions {
 			}
 		}
 
-		final typeRoots:Array<String> = [];
-		Tspath.ForEachAncestorDirectory(baseDir, function(dir:String):ValueOk<Any> {
-			typeRoots.push(Tspath.CombinePaths(dir, "node_modules", "@types"));
+		final typeRoots:Array<RootedDirectoryPath> = [];
+		baseDir.ForEachAncestorDirectory(function(dir:RootedDirectoryPath):ValueOk<Any> {
+			typeRoots.push(dir.ResolveDirectory("node_modules/@types"));
 			return new ValueOk<Any>(null, false);
 		});
-		return new ValueOk<Null<Array<String>>>(typeRoots, false);
+		return new ValueOk<Null<Array<RootedDirectoryPath>>>(typeRoots, false);
 	}
 
 	// UsesWildcardTypes returns true if this option's types array includes "*"
@@ -470,9 +470,13 @@ class CompilerOptions {
 		return true;
 	}
 
-	public function GetPathsBasePath(currentDirectory:String):String {
+	public function GetEffectiveRootDirs():Null<Array<RootedDirectoryPath>> {
+		return this.RootDirs;
+	}
+
+	public function GetPathsBasePath(currentDirectory:RootedDirectoryPath):RootedDirectoryPath {
 		if (this.Paths.Size() == 0) {
-			return "";
+			return cast "";
 		}
 		if (this.PathsBasePath != "") {
 			return this.PathsBasePath;

@@ -6,7 +6,7 @@ class OsSys implements System {
 	public var writer:Writer = null;
 	public var fs:FS = null;
 	public var defaultLibraryPath:std.String = "";
-	public var cwd:std.String = "";
+	public var cwd:RootedDirectoryPath = cast "";
 	public var start:Time = null;
 
 	public function new() {}
@@ -27,7 +27,7 @@ class OsSys implements System {
 		return this.defaultLibraryPath;
 	}
 
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.cwd;
 	}
 
@@ -75,7 +75,7 @@ class Sys_ {
 		}
 
 		final s = new OsSys();
-		s.cwd = Tspath.NormalizePath(cwd);
+		s.cwd = Tspath.RootedDirectoryPathFromAbsolute(cwd);
 		s.fs = Bundled.WrapFS(Osvfs.FS());
 		s.defaultLibraryPath = Bundled.LibPath();
 		s.writer = new StdoutWriter();

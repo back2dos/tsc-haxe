@@ -27,7 +27,7 @@ class ParsedBuildCommandLine {
 		if (!this.resolvedProjectPathsOnce) {
 			this.resolvedProjectPathsOnce = true;
 			this.resolvedProjectPaths = Core.Map(this.Projects, function(project:std.String):std.String {
-				return Core.ResolveConfigFileNameOfProjectReference(Tspath.ResolvePath(this.comparePathsOptions.CurrentDirectory, project));
+				return Core.ResolveConfigFileNameOfProjectReference(/* PORT: transitional, unchecked */ cast Tspath.ResolvePath(this.comparePathsOptions.CurrentDirectory, project));
 			});
 		}
 		return this.resolvedProjectPaths;

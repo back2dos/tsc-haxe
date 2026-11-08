@@ -14,7 +14,16 @@ import ts.stringutil.Stringutil;
 // exists.
 // PORT: an abstract over String (no runtime cost); converts to String implicitly (Go: AsString()), never
 // from String: use CaseSensitivity.PathKey or Tspath.PathKeyFromCanonical.
+// PORT: read-only String methods forwarded (Go reads the string with AsString()).
+@:forward(indexOf, lastIndexOf, substring, substr, charCodeAt, charAt, split, toLowerCase)
 abstract PathKey(String) to String {
+	// PORT: Go len(p).
+	public var length(get, never):Int;
+
+	inline function get_length():Int {
+		return this.length;
+	}
+
 	@:allow(ts.tspath)
 	inline function new(s:String) {
 		this = s;

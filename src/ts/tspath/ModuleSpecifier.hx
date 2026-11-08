@@ -3,7 +3,16 @@ package ts.tspath;
 // Port of internal/tspath/module_specifier.go (type and methods).
 
 // PORT: an abstract over String; see RootedPath.hx.
+// PORT: read-only String methods forwarded (Go reads the string with AsString()).
+@:forward(indexOf, lastIndexOf, substring, substr, charCodeAt, charAt, split, toLowerCase)
 abstract ModuleSpecifier(String) to String {
+	// PORT: Go len(p).
+	public var length(get, never):Int;
+
+	inline function get_length():Int {
+		return this.length;
+	}
+
 	@:allow(ts.tspath)
 	inline function new(s:String) {
 		this = s;

@@ -21,7 +21,7 @@ private class TestParseConfigHost implements ParseConfigHost {
 		return this.fs;
 	}
 
-	public function GetCurrentDirectory():String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.cwd;
 	}
 }

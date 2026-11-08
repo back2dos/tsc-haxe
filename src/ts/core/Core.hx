@@ -1059,10 +1059,10 @@ class Core {
 		}
 	}
 
-	public static function GetScriptKindFromFileName(fileName:String):ScriptKind {
-		final dotPos = fileName.lastIndexOf(".");
-		if (dotPos >= 0) {
-			switch (Strings.ToLower(fileName.substring(dotPos))) {
+	public static function GetScriptKindFromFileName(fileName:RootedFilePath):ScriptKind {
+		final extension = fileName.AnyExtension(null, Tspath.CaseSensitive);
+		if (extension != "") {
+			switch (Strings.ToLower(extension)) {
 				case Tspath.ExtensionJs, Tspath.ExtensionCjs, Tspath.ExtensionMjs:
 					return ScriptKindJS;
 				case Tspath.ExtensionJsx:
@@ -1082,7 +1082,7 @@ class Core {
 	// EnsureScriptKindFromFileName is like GetScriptKindFromFileName, but defaults to
 	// ScriptKindTS when the file name has no recognized extension (e.g. files included
 	// with allowNonTsExtensions), so the result is always safe to hand to the parser.
-	public static function EnsureScriptKindFromFileName(fileName:String):ScriptKind {
+	public static function EnsureScriptKindFromFileName(fileName:RootedFilePath):ScriptKind {
 		final kind = GetScriptKindFromFileName(fileName);
 		if (kind != ScriptKindUnknown) {
 			return kind;
@@ -1540,15 +1540,16 @@ class Core {
 
 	// --- projectreference.go ---
 
-	public static function ResolveProjectReferencePath(ref:ProjectReference):String {
+	public static function ResolveProjectReferencePath(ref:ProjectReference):RootedFilePath {
 		return ResolveConfigFileNameOfProjectReference(ref.Path);
 	}
 
-	public static function ResolveConfigFileNameOfProjectReference(path:String):String {
-		if (Tspath.FileExtensionIs(path, Tspath.ExtensionJson)) {
-			return path;
+	public static function ResolveConfigFileNameOfProjectReference(path:RootedPath):RootedFilePath {
+		final fileName = Tspath.RootedFilePathFromPath(path);
+		if (fileName.ExtensionIs(Tspath.ExtensionJson)) {
+			return fileName;
 		}
-		return Tspath.CombinePaths(path, "tsconfig.json");
+		return Tspath.RootedDirectoryPathFromPath(path).ResolveFile("tsconfig.json");
 	}
 
 	// --- semaphore.go ---

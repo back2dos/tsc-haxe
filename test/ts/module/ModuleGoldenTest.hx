@@ -133,9 +133,9 @@ class ModuleGoldenTest {
 				for (i in 0...paths.Names.length)
 					o.Paths.Set(paths.Names[i], strings(paths.Members[i]));
 			}
-			o.PathsBasePath = str(get(ov, "pathsBasePath"));
-			o.RootDirs = strings(get(ov, "rootDirs"));
-			o.TypeRoots = strings(get(ov, "typeRoots"));
+			o.PathsBasePath = cast str(get(ov, "pathsBasePath"));
+			o.RootDirs = cast strings(get(ov, "rootDirs"));
+			o.TypeRoots = cast strings(get(ov, "typeRoots"));
 			o.Types = strings(get(ov, "types"));
 			o.CustomConditions = strings(get(ov, "customConditions"));
 			o.ModuleSuffixes = strings(get(ov, "moduleSuffixes"));
@@ -145,10 +145,10 @@ class ModuleGoldenTest {
 			o.ResolvePackageJsonExports = tri(get(ov, "resolvePackageJsonExports"));
 			o.ResolvePackageJsonImports = tri(get(ov, "resolvePackageJsonImports"));
 			o.PreserveSymlinks = tri(get(ov, "preserveSymlinks"));
-			o.OutDir = str(get(ov, "outDir"));
-			o.DeclarationDir = str(get(ov, "declarationDir"));
-			o.RootDir = str(get(ov, "rootDir"));
-			o.ConfigFilePath = str(get(ov, "configFilePath"));
+			o.OutDir = cast str(get(ov, "outDir"));
+			o.DeclarationDir = cast str(get(ov, "declarationDir"));
+			o.RootDir = cast str(get(ov, "rootDir"));
+			o.ConfigFilePath = cast str(get(ov, "configFilePath"));
 
 			final resolver = Module.NewResolver(host, o, str(get(s, "typingsLocation")), str(get(s, "projectName")));
 			for (op in get(s, "ops").Items) {

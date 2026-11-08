@@ -187,7 +187,7 @@ class BuildTask {
 					}
 				} else if (kind == upToDateStatusTypeUpstreamErrors) {
 					final upstreamErrors = downStream.status.upstreamErrors();
-					final refConfig = Core.ResolveConfigFileNameOfProjectReference(upstreamErrors.ref);
+					final refConfig = Core.ResolveConfigFileNameOfProjectReference(/* PORT: transitional, unchecked */ cast upstreamErrors.ref);
 					if (orchestrator.toPath(refConfig) == path) {
 						downStream.resetStatus();
 					}

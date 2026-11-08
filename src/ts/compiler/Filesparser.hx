@@ -4,7 +4,7 @@ package ts.compiler;
 
 @:allow(ts.compiler)
 class ParseTask implements HasFileName {
-	var normalizedFilePath:std.String = "";
+	var normalizedFilePath:RootedFilePath = cast "";
 	var path:Path = "";
 	var file:SourceFile = null;
 	var libFile:LibFile = null;
@@ -36,7 +36,7 @@ class ParseTask implements HasFileName {
 
 	public function new() {}
 
-	public function FileName():std.String {
+	public function FileName():RootedFilePath {
 		return this.normalizedFilePath;
 	}
 
@@ -171,6 +171,7 @@ class ParseTask implements HasFileName {
 						final libFile = loader.pathForLibFile(n.value);
 						final r = new ResolvedRef();
 						r.fileName = libFile.path;
+						r.path = libFile.pathKey;
 						r.includeReason = includeReason;
 						this.addSubTask(r, libFile);
 					} else {
@@ -188,6 +189,7 @@ class ParseTask implements HasFileName {
 			for (supplemental in supplementalFiles) {
 				final t = new ParseTask();
 				t.normalizedFilePath = supplemental.FileName();
+				t.path = loader.caseSensitivity.PathKey(supplemental.FileName().AsPath());
 				t.file = supplemental;
 				t.isContentMapperSupplemental = true;
 				t.includeReason = new FileIncludeReason(fileIncludeKindContentMapperSupplemental, this.path);
@@ -196,9 +198,13 @@ class ParseTask implements HasFileName {
 		}
 	}
 
-	function redirect(loader:FileLoader, fileName:std.String):Void {
+	// PORT: main gets the redirect's typed file name and path key from getParseFileRedirect; its result is a
+	// string here until projectreferencefilemapper is ported.
+	function redirect(loader:FileLoader, redirectFileName:std.String):Void {
+		final fileName = Tspath.RootedFilePathFromAbsolute(redirectFileName);
 		this.redirectedParseTask = new ParseTask();
-		this.redirectedParseTask.normalizedFilePath = Tspath.NormalizePath(fileName);
+		this.redirectedParseTask.normalizedFilePath = fileName;
+		this.redirectedParseTask.path = loader.caseSensitivity.PathKey(fileName.AsPath());
 		this.redirectedParseTask.libFile = this.libFile;
 		this.redirectedParseTask.includeReason = this.includeReason;
 		// increaseDepth and elideOnDepth are not copied to redirects, otherwise their depth would be double counted.
@@ -235,9 +241,9 @@ class ParseTask implements HasFileName {
 	}
 
 	function addSubTask(ref:ResolvedRef, libFile:LibFile):Void {
-		final normalizedFilePath = Tspath.NormalizePath(ref.fileName);
 		final subTask = new ParseTask();
-		subTask.normalizedFilePath = normalizedFilePath;
+		subTask.normalizedFilePath = ref.fileName;
+		subTask.path = ref.path;
 		subTask.libFile = libFile;
 		subTask.increaseDepth = ref.increaseDepth;
 		subTask.elideOnDepth = ref.elideOnDepth;
@@ -251,7 +257,8 @@ class ParseTask implements HasFileName {
 
 @:allow(ts.compiler)
 class ResolvedRef {
-	var fileName:std.String = "";
+	var fileName:RootedFilePath = cast "";
+	var path:PathKey = cast "";
 	var increaseDepth:Bool = false;
 	var elideOnDepth:Bool = false;
 	var includeReason:FileIncludeReason = null;
@@ -288,7 +295,9 @@ class FilesParser {
 		#end
 		for (i in 0...tasks.length) {
 			final task = tasks[i];
-			task.path = loader.toPath(task.normalizedFilePath);
+			if (task.path == "") {
+				throw "parse task must have a path key: " + task.normalizedFilePath.AsString();
+			}
 			// PORT: perf — Go takes the candidate from a sync.Pool and puts it back when the path is loaded
 			// already; here it is made only when it is stored (most tasks find their file's data: t3code-server
 			// 218k tasks, 3k files; each candidate a map and, with -D tshx-parallel, a mutex)
@@ -431,7 +440,7 @@ class FilesParser {
 		// stores 'filename -> file association' ignoring case
 		// used to track cases when two file names differ only in casing
 		var tasksSeenByNameIgnoreCase:StringMap<ParseTask> = null;
-		if (loader.comparePathsOptions.UseCaseSensitiveFileNames) {
+		if (loader.caseSensitivity.IsCaseSensitive()) {
 			tasksSeenByNameIgnoreCase = new StringMap();
 		}
 
@@ -487,7 +496,7 @@ class FilesParser {
 
 				// ensure we only walk each task once
 				if (seen.exists(data)) {
-					final checkedName = seen.get(data);
+					final checkedName:RootedFilePath = cast seen.get(data);
 					if (task.file != null && checkedName != task.normalizedFilePath) {
 						if (recordedDuplicates == null) {
 							recordedDuplicates = new IdentityMap();
@@ -512,8 +521,8 @@ class FilesParser {
 					// normalization; here both are normalized again)
 					if (checkedName != task.normalizedFilePath && !loader.opts.Config.CompilerOptions().ForceConsistentCasingInFileNames.IsFalse()) {
 						// Check if it differs only in drive letters its ok to ignore that error:
-						final checkedAbsolutePath = Tspath.GetNormalizedAbsolutePathWithoutRoot(checkedName, loader.comparePathsOptions.CurrentDirectory);
-						final inputAbsolutePath = Tspath.GetNormalizedAbsolutePathWithoutRoot(task.normalizedFilePath, loader.comparePathsOptions.CurrentDirectory);
+						final checkedAbsolutePath = checkedName.WithoutRoot();
+						final inputAbsolutePath = task.normalizedFilePath.WithoutRoot();
 						if (checkedAbsolutePath != inputAbsolutePath) {
 							includeProcessor.addProcessingDiagnosticsForFileCasing(task.path, checkedName, task.normalizedFilePath, includeReason);
 						}

@@ -23,7 +23,7 @@ class MockModuleSpecifierGenerationHost implements ModuleSpecifierGenerationHost
 		this.symlinkCache = symlinkCache;
 	}
 
-	public function GetCurrentDirectory():String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.currentDir;
 	}
 

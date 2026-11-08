@@ -6790,7 +6790,7 @@ class Ast {
 
 	// type hasFileNameImpl → class HasFileNameImpl in Utilities.hx (with its FileName()/Path() methods).
 
-	public static function NewHasFileName(fileName:String, path:Path):HasFileName {
+	public static function NewHasFileName(fileName:RootedFilePath, path:Path):HasFileName {
 		final h = new HasFileNameImpl();
 		h.fileName = fileName;
 		h.path = path;
@@ -12570,7 +12570,7 @@ class CheckJsDirective {
 }
 
 interface HasFileName {
-	function FileName():String;
+	function FileName():RootedFilePath;
 	function Path():Path;
 }
 
@@ -12715,7 +12715,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return text;
 	}
 
-	public function FileName():String {
+	public function FileName():RootedFilePath {
 		return parseOptions.FileName;
 	}
 
@@ -12728,7 +12728,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	}
 
 	// OriginalFileName returns the canonical filename associated with a supplemental source file, or FileName() otherwise.
-	public function OriginalFileName():String {
+	public function OriginalFileName():RootedFilePath {
 		final canonical = CanonicalSourceFile();
 		if (canonical != null) {
 			return canonical.FileName();
@@ -12767,9 +12767,9 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return contentMapperInfo.TransformIdentity;
 	}
 
-	public function VirtualFileName():String {
+	public function VirtualFileName():RootedFilePath {
 		if (contentMapperInfo == null) {
-			return "";
+			return cast "";
 		}
 		return contentMapperInfo.VirtualFileName;
 	}
@@ -13377,7 +13377,7 @@ class ContentMapperSourceFileInfo {
 	public var ContentMapper:String = "";
 	public var TransformIdentity:String = "";
 	public var ParseOptions:SourceFileParseOptions = new SourceFileParseOptions();
-	public var VirtualFileName:String = "";
+	public var VirtualFileName:RootedFilePath = cast "";
 	public var OriginalText:String = "";
 	public var SpanMap:ts.spanmap.Spanmap = null;
 	public var DiagnosticDirectives:Array<MappedDiagnosticDirective> = null;

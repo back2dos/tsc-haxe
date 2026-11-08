@@ -425,7 +425,7 @@ interface SourceFileMayBeEmittedHost {
 	function Options():CompilerOptions;
 	function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference;
 	function IsSourceFileFromExternalLibrary(file:SourceFile):Bool;
-	function GetCurrentDirectory():std.String;
+	function GetCurrentDirectory():RootedDirectoryPath;
 	function UseCaseSensitiveFileNames():Bool;
 	function SourceFiles():Array<SourceFile>;
 }

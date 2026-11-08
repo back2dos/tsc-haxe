@@ -313,7 +313,7 @@ interface OutputPathsHost {
 	function CommonSourceDirectory():String;
 	function ContentMapperExtensions():Null<Array<String>>;
 	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
-	function GetCurrentDirectory():String;
+	function GetCurrentDirectory():RootedDirectoryPath;
 	function UseCaseSensitiveFileNames():Bool;
 }
 

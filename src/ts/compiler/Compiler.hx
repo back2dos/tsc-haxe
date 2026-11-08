@@ -433,8 +433,10 @@ class Compiler {
 		}
 		final loader = new FileLoader();
 		loader.opts = opts;
-		loader.defaultLibraryPath = Tspath.GetNormalizedAbsolutePath(opts.Host.DefaultLibraryPath(), opts.Host.GetCurrentDirectory());
-		loader.comparePathsOptions = new ComparePathsOptions(opts.Host.FS().UseCaseSensitiveFileNames(), opts.Host.GetCurrentDirectory());
+		// PORT: main's host returns a typed DefaultLibraryPath; here it is still a string, resolved as before.
+		loader.defaultLibraryPath = Tspath.ToRootedDirectoryPath(opts.Host.DefaultLibraryPath(), opts.Host.GetCurrentDirectory());
+		loader.caseSensitivity = Tspath.caseSensitivityOf(opts.Host.FS().UseCaseSensitiveFileNames());
+		loader.currentDirectory = opts.Host.GetCurrentDirectory();
 		loader.filesParser = new FilesParser();
 		#if tshx_parallel
 		// PORT: hxmc (-D tshx-parallel) — the files are loaded and parsed on threads, as in Go
@@ -524,14 +526,15 @@ class Compiler {
 		return path.toString();
 	}
 
-	static function getInferredLibraryNameResolveFrom(options:CompilerOptions, currentDirectory:std.String, libFileName:std.String):std.String {
-		var containingDirectory:std.String;
+	// PORT: main takes Config.BaseDirectory(); computed from the options as before.
+	static function getInferredLibraryNameResolveFrom(options:CompilerOptions, currentDirectory:RootedDirectoryPath, libFileName:std.String):RootedFilePath {
+		var containingDirectory:RootedDirectoryPath;
 		if (options.ConfigFilePath != "") {
-			containingDirectory = Tspath.GetDirectoryPath(options.ConfigFilePath);
+			containingDirectory = options.ConfigFilePath.Directory();
 		} else {
 			containingDirectory = currentDirectory;
 		}
-		return Tspath.CombinePaths(containingDirectory, "__lib_node_modules_lookup_" + libFileName + "__.ts");
+		return containingDirectory.ResolveFile("__lib_node_modules_lookup_" + libFileName + "__.ts");
 	}
 
 	static function getModeForTypeReferenceDirectiveInFile(ref:FileReference, file:SourceFile, meta:SourceFileMetaData, options:CompilerOptions):ResolutionMode {
@@ -1110,12 +1113,12 @@ class Compiler {
 	// --- host.go ---
 
 	// PORT: contentMapperProject (TypeScript main) is an optional trailing parameter.
-	public static function NewCachedFSCompilerHost(currentDirectory:std.String, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
+	public static function NewCachedFSCompilerHost(currentDirectory:RootedDirectoryPath, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
 			trace:TraceFunc, ?contentMapperProject:ts.contentmapper.Host.Project):CompilerHost {
 		return NewCompilerHost(currentDirectory, Cachedvfs.From(fs), defaultLibraryPath, extendedConfigCache, trace, contentMapperProject);
 	}
 
-	public static function NewCompilerHost(currentDirectory:std.String, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
+	public static function NewCompilerHost(currentDirectory:RootedDirectoryPath, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
 			trace:TraceFunc, ?contentMapperProject:ts.contentmapper.Host.Project):CompilerHost {
 		if (trace == null) {
 			trace = function(msg:Message, args:Array<Any>) {};

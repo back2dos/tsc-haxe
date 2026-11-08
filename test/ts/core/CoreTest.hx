@@ -459,12 +459,12 @@ class CoreTest {
 			T.eq(5, Core.UTF16Len("a\u{1F600}bc"));
 
 			// Go: ScriptKindTS ScriptKindJS ScriptKindUnknown ScriptKindJSON
-			T.eq(ScriptKindTS, Core.GetScriptKindFromFileName("a.D.TS"));
-			T.eq(ScriptKindJS, Core.GetScriptKindFromFileName("a.mjs"));
-			T.eq(ScriptKindJSX, Core.GetScriptKindFromFileName("a.jsx"));
-			T.eq(ScriptKindTSX, Core.GetScriptKindFromFileName("a.tsx"));
-			T.eq(ScriptKindUnknown, Core.GetScriptKindFromFileName("noext"));
-			T.eq(ScriptKindJSON, Core.GetScriptKindFromFileName("x.json"));
+			T.eq(ScriptKindTS, Core.GetScriptKindFromFileName(Tspath.RootedFilePathFromAbsolute("/a.D.TS")));
+			T.eq(ScriptKindJS, Core.GetScriptKindFromFileName(Tspath.RootedFilePathFromAbsolute("/a.mjs")));
+			T.eq(ScriptKindJSX, Core.GetScriptKindFromFileName(Tspath.RootedFilePathFromAbsolute("/a.jsx")));
+			T.eq(ScriptKindTSX, Core.GetScriptKindFromFileName(Tspath.RootedFilePathFromAbsolute("/a.tsx")));
+			T.eq(ScriptKindUnknown, Core.GetScriptKindFromFileName(Tspath.RootedFilePathFromAbsolute("/noext")));
+			T.eq(ScriptKindJSON, Core.GetScriptKindFromFileName(Tspath.RootedFilePathFromAbsolute("/x.json")));
 
 			final opts = new CompilerOptions();
 			T.isTrue(!Core.ShouldRewriteModuleSpecifier("./a.ts", opts));
@@ -626,11 +626,11 @@ class CoreTest {
 			T.isTrue(opts.GetUseDefineForClassFields());
 			T.isTrue(opts.GetStrictOptionValue(TSUnknown));
 			T.isTrue(!opts.GetAllowJS());
-			T.eq("", opts.GetPathsBasePath("/cwd"));
+			T.eq("", opts.GetPathsBasePath(Tspath.RootedDirectoryPathFromAbsolute("/cwd")));
 			T.isTrue(opts.HasJsonModuleEmitEnabled());
 
 			// Go: [/a/b/node_modules/@types /a/node_modules/@types /node_modules/@types] false
-			final tr = opts.GetEffectiveTypeRoots("/a/b");
+			final tr = opts.GetEffectiveTypeRoots(Tspath.RootedDirectoryPathFromAbsolute("/a/b"));
 			T.eq("[/a/b/node_modules/@types /a/node_modules/@types /node_modules/@types]", str(tr.value));
 			T.eq(false, tr.ok);
 
@@ -638,11 +638,11 @@ class CoreTest {
 			opts.Target = ScriptTargetES2015;
 			opts.Types = ["*"];
 			opts.MaxNodeModuleJsDepth = 2;
-			opts.TypeRoots = ["/t"];
+			opts.TypeRoots = [Tspath.RootedDirectoryPathFromAbsolute("/t")];
 			T.eq(ModuleResolutionKindNodeNext, opts.GetModuleResolutionKind());
 			T.eq(ModuleDetectionKindForce, opts.GetEmitModuleDetectionKind());
 			T.isTrue(opts.UsesWildcardTypes());
-			T.isTrue(opts.GetEffectiveTypeRoots("").ok);
+			T.isTrue(opts.GetEffectiveTypeRoots(cast "").ok);
 			T.isTrue(!opts.GetEmitStandardClassFields());
 			T.isTrue(ModuleKindES2020.IsNonNodeESM() && !ModuleKindNode16.IsNonNodeESM());
 			T.isTrue(ModuleKindNode18.SupportsImportAttributes() && !ModuleKindNode16.SupportsImportAttributes());
@@ -867,9 +867,9 @@ class CoreTest {
 			final po = new ParsedOptions();
 			T.eq(null, po.CompilerOptions);
 			final pr = new ProjectReference();
-			pr.Path = "/p";
+			pr.Path = Tspath.RootedPathFromAbsolute("/p");
 			T.eq("/p/tsconfig.json", Core.ResolveProjectReferencePath(pr));
-			T.eq("/p/x.json", Core.ResolveConfigFileNameOfProjectReference("/p/x.json"));
+			T.eq("/p/x.json", Core.ResolveConfigFileNameOfProjectReference(Tspath.RootedPathFromAbsolute("/p/x.json")));
 		});
 
 		T.run("NodeModules/Version (extra)", () -> {

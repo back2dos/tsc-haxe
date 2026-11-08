@@ -3,7 +3,7 @@ package ts.ast;
 // Port of parseoptions.go (types; the functions are in Ast.hx).
 
 class SourceFileParseOptions {
-	public var FileName:String = "";
+	public var FileName:RootedFilePath = cast "";
 	public var Path:Path = "";
 	public var ExternalModuleIndicatorOptions:ExternalModuleIndicatorOptions = new ExternalModuleIndicatorOptions();
 

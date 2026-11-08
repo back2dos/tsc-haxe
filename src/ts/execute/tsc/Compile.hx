@@ -8,7 +8,7 @@ interface System extends ParseConfigHost {
 	function Writer():Writer;
 	function FS():FS;
 	function DefaultLibraryPath():std.String;
-	function GetCurrentDirectory():std.String;
+	function GetCurrentDirectory():RootedDirectoryPath;
 	function WriteOutputIsTTY():Bool;
 	function GetWidthOfTerminal():Int;
 	function GetEnvironmentVariable(name:std.String):std.String;

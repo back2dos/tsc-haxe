@@ -20,7 +20,7 @@ class ProjectReferenceParseTask {
 			done = tr.Push(PhaseParse, "parseJsonSourceFileConfigFileContent", args, false);
 		}
 		try {
-			this.resolved = loader.opts.Host.GetResolvedProjectReference(this.configName, loader.toPath(this.configName));
+			this.resolved = loader.opts.Host.GetResolvedProjectReference(this.configName, loader.toPath(/* PORT: transitional, unchecked */ cast this.configName));
 			if (this.resolved != null) {
 				this.resolved.ParseInputOutputNames();
 				final subReferences = this.resolved.ResolvedProjectReferencePaths();
@@ -59,7 +59,7 @@ class ProjectReferenceParser {
 			return;
 		for (i in 0...tasks.length) {
 			final task = tasks[i];
-			final path = this.loader.toPath(task.configName);
+			final path = this.loader.toPath(/* PORT: transitional, unchecked */ cast task.configName);
 			final loadedTask = this.tasksByFileName.get(path);
 			if (loadedTask != null) {
 				// dedup tasks to ensure correct file order, regardless of which task would be started first
@@ -95,7 +95,7 @@ class ProjectReferenceParser {
 		final mapper = this.loader.projectReferenceFileMapper;
 		final results:Array<Path> = [];
 		for (task in tasks) {
-			final path = this.loader.toPath(task.configName);
+			final path = this.loader.toPath(/* PORT: transitional, unchecked */ cast task.configName);
 			results.push(path);
 			// ensure we only walk each task once
 			if (!seen.AddIfAbsent(task)) {
@@ -120,7 +120,7 @@ class ProjectReferenceParser {
 						declDir = task.resolved.CompilerOptions().OutDir;
 					}
 					if (declDir != "") {
-						this.loader.dtsDirectories.Add(this.loader.toPath(declDir));
+						this.loader.dtsDirectories.Add(this.loader.toPath(declDir.AsPath()));
 					}
 				}
 			}

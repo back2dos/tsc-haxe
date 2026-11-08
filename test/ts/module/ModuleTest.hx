@@ -229,8 +229,8 @@ class ResolutionHostStub implements ResolutionHost {
 		return this.fs;
 	}
 
-	public function GetCurrentDirectory():String {
-		return this.cwd;
+	public function GetCurrentDirectory():RootedDirectoryPath {
+		return cast this.cwd;
 	}
 }
 

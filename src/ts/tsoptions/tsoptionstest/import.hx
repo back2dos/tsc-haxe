@@ -1,5 +1,12 @@
 import go.Tuple;
 import ts.tspath.Tspath;
+import ts.tspath.CaseSensitivity;
+import ts.tspath.RootedPath;
+import ts.tspath.PathKey;
+import ts.tspath.RelativePath;
+import ts.tspath.ModuleSpecifier;
+import ts.tspath.FileSpec;
+import ts.tspath.SourceMapLocation;
 import ts.tspath.Path;
 import ts.vfs.Vfs;
 import ts.vfs.vfstest.Vfstest;

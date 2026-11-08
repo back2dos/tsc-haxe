@@ -209,7 +209,7 @@ abstract CommandLineOptionNameMap(StringMap<CommandLineOption>) from StringMap<C
 
 interface ParseConfigHost {
 	function FS():FS;
-	function GetCurrentDirectory():std.String;
+	function GetCurrentDirectory():RootedDirectoryPath;
 }
 
 // PORT: Go embeds ParseConfigHost; the two methods are forwarded.
@@ -224,7 +224,7 @@ class ResolverHost implements ParseConfigHost implements ts.module.Types.Resolut
 		return this.ParseConfigHost.FS();
 	}
 
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.ParseConfigHost.GetCurrentDirectory();
 	}
 
@@ -245,9 +245,9 @@ class PropOfRaw {
 // --- contentmappers.go ---
 class ContentMapperResolutionHost implements ParseConfigHost {
 	final fs:FS;
-	final currentDirectory:std.String;
+	final currentDirectory:RootedDirectoryPath;
 
-	public function new(fs:FS, currentDirectory:std.String) {
+	public function new(fs:FS, currentDirectory:RootedDirectoryPath) {
 		this.fs = fs;
 		this.currentDirectory = currentDirectory;
 	}
@@ -256,7 +256,7 @@ class ContentMapperResolutionHost implements ParseConfigHost {
 		return fs;
 	}
 
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return currentDirectory;
 	}
 }

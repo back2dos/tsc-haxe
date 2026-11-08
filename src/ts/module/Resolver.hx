@@ -747,7 +747,7 @@ class ResolutionState {
 		final r = this;
 		// Config file output paths are processed to be relative to the host's current directory, while
 		// otherwise the paths are resolved relative to the common source dir the compiler puts together
-		final currentDir = Core.IfElse(r.compilerOptions.ConfigFilePath != "", r.resolver.host.GetCurrentDirectory(), commonSourceDirGuess);
+		final currentDir:String = Core.IfElse(r.compilerOptions.ConfigFilePath != "", (r.resolver.host.GetCurrentDirectory() : String), commonSourceDirGuess);
 		var candidateDirectories:Null<Array<String>> = null;
 		if (r.compilerOptions.DeclarationDir != "") {
 			if (candidateDirectories == null)

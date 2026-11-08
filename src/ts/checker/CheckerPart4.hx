@@ -3375,11 +3375,11 @@ class CheckerPart4 {
 							final rootDirPath = Tspath.GetRelativePathFromDirectory_legacy(ownRootDir, otherRootDir, compareOptions);
 
 							// Get outDir paths, defaulting to root directories if not specified
-							var ownOutDir = c.compilerOptions.OutDir;
+							var ownOutDir:String = c.compilerOptions.OutDir;
 							if (ownOutDir == "") {
 								ownOutDir = ownRootDir;
 							}
-							var otherOutDir = redirect.CompilerOptions().OutDir;
+							var otherOutDir:String = redirect.CompilerOptions().OutDir;
 							if (otherOutDir == "") {
 								otherOutDir = otherRootDir;
 							}

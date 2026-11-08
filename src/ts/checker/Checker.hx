@@ -761,7 +761,7 @@ interface Host {
 	function ContentMapperExtensions():Null<Array<std.String>>;
 	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
 	function FileExists(path:std.String):Bool;
-	function GetCurrentDirectory():std.String;
+	function GetCurrentDirectory():RootedDirectoryPath;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;
 	function GetGlobalTypingsCacheLocation():std.String;
 	function GetModeForUsageLocation(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolutionMode;

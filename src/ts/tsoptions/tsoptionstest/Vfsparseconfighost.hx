@@ -14,7 +14,7 @@ class VfsParseConfigHost implements ParseConfigHost {
 		return this.Vfs;
 	}
 
-	public function GetCurrentDirectory():String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.CurrentDirectory;
 	}
 }

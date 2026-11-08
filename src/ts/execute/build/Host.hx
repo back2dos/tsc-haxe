@@ -38,7 +38,7 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 		return this.host.DefaultLibraryPath();
 	}
 
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.host.GetCurrentDirectory();
 	}
 

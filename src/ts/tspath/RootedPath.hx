@@ -15,7 +15,16 @@ import ts.tspath.CaseSensitivity;
 // RootedPath is a rooted, slash-normalized, lexically normalized path that may
 // represent either a file or a directory. It preserves path casing. Its zero
 // value is a valid sentinel.
+// PORT: read-only String methods forwarded (Go reads the string with AsString()).
+@:forward(indexOf, lastIndexOf, substring, substr, charCodeAt, charAt, split, toLowerCase)
 abstract RootedPath(String) to String {
+	// PORT: Go len(p).
+	public var length(get, never):Int;
+
+	inline function get_length():Int {
+		return this.length;
+	}
+
 	@:allow(ts.tspath)
 	inline function new(s:String) {
 		this = s;
@@ -63,7 +72,16 @@ abstract RootedPath(String) to String {
 
 // RootedFilePath is a RootedPath intended to be used as a file path. It does
 // not assert that the path exists or is a file on a filesystem.
+// PORT: read-only String methods forwarded (Go reads the string with AsString()).
+@:forward(indexOf, lastIndexOf, substring, substr, charCodeAt, charAt, split, toLowerCase)
 abstract RootedFilePath(String) to String {
+	// PORT: Go len(p).
+	public var length(get, never):Int;
+
+	inline function get_length():Int {
+		return this.length;
+	}
+
 	@:allow(ts.tspath)
 	inline function new(s:String) {
 		this = s;
@@ -307,7 +325,16 @@ abstract RootedFilePath(String) to String {
 // FileNameStem is a rooted filename prefix, not a normalized path. Removing
 // an extension can leave a trailing separator or a "." or ".." component.
 // Complete the stem with AppendSuffix before using it as a path.
+// PORT: read-only String methods forwarded (Go reads the string with AsString()).
+@:forward(indexOf, lastIndexOf, substring, substr, charCodeAt, charAt, split, toLowerCase)
 abstract FileNameStem(String) to String {
+	// PORT: Go len(p).
+	public var length(get, never):Int;
+
+	inline function get_length():Int {
+		return this.length;
+	}
+
 	@:allow(ts.tspath)
 	inline function new(s:String) {
 		this = s;
@@ -330,7 +357,16 @@ abstract FileNameStem(String) to String {
 // RootedDirectoryPath is a RootedPath intended to be used as a directory path.
 // It does not assert that the path exists or is a directory on a filesystem,
 // and does not guarantee a trailing directory separator.
+// PORT: read-only String methods forwarded (Go reads the string with AsString()).
+@:forward(indexOf, lastIndexOf, substring, substr, charCodeAt, charAt, split, toLowerCase)
 abstract RootedDirectoryPath(String) to String {
+	// PORT: Go len(p).
+	public var length(get, never):Int;
+
+	inline function get_length():Int {
+		return this.length;
+	}
+
 	@:allow(ts.tspath)
 	inline function new(s:String) {
 		this = s;

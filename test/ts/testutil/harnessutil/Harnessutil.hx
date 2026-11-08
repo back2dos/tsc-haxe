@@ -1070,7 +1070,7 @@ class CachedCompilerHost implements CompilerHost {
 		return CompilerHost.DefaultLibraryPath();
 	}
 
-	public function GetCurrentDirectory():String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return CompilerHost.GetCurrentDirectory();
 	}
 

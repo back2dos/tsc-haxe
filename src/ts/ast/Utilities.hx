@@ -68,12 +68,12 @@ enum abstract ModuleInstanceState(Int) from Int to Int {
 }
 
 class HasFileNameImpl implements HasFileName {
-	public var fileName:String = "";
+	public var fileName:RootedFilePath = cast "";
 	public var path:Path = "";
 
 	public function new() {}
 
-	public function FileName():String {
+	public function FileName():RootedFilePath {
 		return fileName;
 	}
 

@@ -107,7 +107,7 @@ class TestSys implements System implements CommandLineTesting {
 		return this.defaultLibraryPath;
 	}
 
-	public function GetCurrentDirectory():String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.cwd;
 	}
 

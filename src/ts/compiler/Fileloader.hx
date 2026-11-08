@@ -20,13 +20,33 @@ class LibResolution {
 @:allow(ts.compiler)
 class LibFile {
 	public var Name:std.String = "";
-	var path:std.String = "";
+	var path:RootedFilePath = cast "";
+	var pathKey:PathKey = cast "";
 	public var Replaced:Bool = false;
 
-	public function new(Name:std.String = "", path:std.String = "", Replaced:Bool = false) {
+	public function new(Name:std.String, path:RootedFilePath, pathKey:PathKey, Replaced:Bool = false) {
 		this.Name = Name;
 		this.path = path;
+		this.pathKey = pathKey;
 		this.Replaced = Replaced;
+	}
+}
+
+// Go's (RootedFilePath, PathKey, *sourceFileFromReferenceDiagnostic) result of getSourceFileFromReference.
+@:allow(ts.compiler)
+class SourceFileFromReference {
+	final fileName:RootedFilePath;
+	final path:PathKey;
+	final diagnostic:SourceFileFromReferenceDiagnostic;
+
+	public inline function new(fileName:RootedFilePath, path:PathKey, diagnostic:SourceFileFromReferenceDiagnostic) {
+		this.fileName = fileName;
+		this.path = path;
+		this.diagnostic = diagnostic;
+	}
+
+	static inline function failed(diagnostic:SourceFileFromReferenceDiagnostic):SourceFileFromReference {
+		return new SourceFileFromReference(cast "", cast "", diagnostic);
 	}
 }
 
@@ -45,8 +65,10 @@ class SourceFileFromReferenceDiagnostic {
 class FileLoader {
 	var opts:ProgramOptions = null;
 	var resolver:Resolver = null;
-	var defaultLibraryPath:std.String = "";
-	var comparePathsOptions:ComparePathsOptions = new ComparePathsOptions();
+	var defaultLibraryPath:RootedDirectoryPath = cast "";
+	var caseSensitivity:CaseSensitivity = Tspath.CaseInsensitive;
+	// PORT: transitional — the current directory (main: Config.BaseDirectory / the host)
+	var currentDirectory:RootedDirectoryPath = cast "";
 	var supportedExtensions:Array<Array<std.String>> = null;
 	var supportedExtensionsWithJsonIfResolveJsonModule:Array<Array<std.String>> = null;
 	var contentMapperExtensions:Array<std.String> = null;
@@ -82,87 +104,61 @@ class FileLoader {
 
 	public function new() {}
 
-	// PORT: perf — toPath by file name, memoized: every parse task (FilesParser.start) and import resolution
-	// normalizes long node_modules paths again (main's typed paths, #64159, avoid most of it); the current
-	// directory and case sensitivity are fixed for a loader. Parse tasks run on threads (a lock).
-	final toPathCache = new StringMap<Path>();
-	#if tshx_parallel
-	final toPathMutex = new sys.thread.Mutex();
-	#end
-
-	function toPath(file:std.String):Path {
-		#if tshx_parallel
-		toPathMutex.acquire();
-		#end
-		var path = toPathCache.get(file);
-		#if tshx_parallel
-		toPathMutex.release();
-		#end
-		if (path == null) {
-			path = Tspath.ToPath(file, this.opts.Host.GetCurrentDirectory(), this.opts.Host.FS().UseCaseSensitiveFileNames());
-			#if tshx_parallel
-			toPathMutex.acquire();
-			#end
-			toPathCache.set(file, path);
-			#if tshx_parallel
-			toPathMutex.release();
-			#end
-		}
-		return path;
+	function toPath(file:RootedPath):PathKey {
+		return this.caseSensitivity.PathKey(file);
 	}
 
-	function addRootTask(fileName:std.String, libFile:LibFile, includeReason:FileIncludeReason):Void {
-		final absPath = Tspath.GetNormalizedAbsolutePath(fileName, this.opts.Host.GetCurrentDirectory());
-		if (this.opts.Config.CompilerOptions().AllowNonTsExtensions.IsTrue() || Tspath.HasExtension(absPath)) {
+	function addRootTask(fileName:RootedFilePath, libFile:LibFile, includeReason:FileIncludeReason):Void {
+		if (this.opts.Config.CompilerOptions().AllowNonTsExtensions.IsTrue() || fileName.HasExtension()) {
 			final t = new ParseTask();
-			t.normalizedFilePath = absPath;
+			t.normalizedFilePath = fileName;
+			t.path = this.caseSensitivity.PathKey(fileName.AsPath());
 			t.libFile = libFile;
 			t.includeReason = includeReason;
 			this.rootTasks.push(t);
 		}
 	}
 
-	function addRootFileTask(fileName:std.String, libFile:LibFile, includeReason:FileIncludeReason):Void {
-		final currDir = this.opts.Host.GetCurrentDirectory();
-		final absPath = Tspath.GetNormalizedAbsolutePath(fileName, currDir);
-		var containingFile = currDir;
-		if (this.opts.Config.ConfigFile != null) {
-			containingFile = Tspath.GetNormalizedAbsolutePath(this.opts.Config.ConfigFile.SourceFile.FileName(), currDir);
-		}
-		final r = this.getSourceFileFromReference(absPath, fileName, containingFile, includeReason);
-		final resolvedFile = r.a, diagnostic = r.b;
+	// PORT: main passes the typed root file name and Config.RootFileNameForDiagnostic(index); the root file
+	// names of this port's ParsedCommandLine are still strings, resolved here as before.
+	function addRootFileTask(rootFileName:std.String, libFile:LibFile, includeReason:FileIncludeReason):Void {
+		final fileName = Tspath.ToRootedFilePath(rootFileName, this.currentDirectory);
+		final r = this.getSourceFileFromReference(fileName, rootFileName);
 		final rootTask = new ParseTask();
-		rootTask.normalizedFilePath = resolvedFile;
+		rootTask.normalizedFilePath = r.fileName;
+		rootTask.path = r.path;
 		rootTask.libFile = libFile;
 		rootTask.includeReason = includeReason;
-		if (diagnostic != null) {
-			rootTask.normalizedFilePath = absPath;
+		if (r.diagnostic != null) {
+			rootTask.normalizedFilePath = fileName;
+			rootTask.path = this.caseSensitivity.PathKey(fileName.AsPath());
 			rootTask.failedLookup = true;
 			rootTask.processingDiagnostics = [
 				new ProcessingDiagnostic(processingDiagnosticKindExplainingFileInclude,
-					new IncludeExplainingDiagnostic("", includeReason, diagnostic.message, diagnostic.args))
+					new IncludeExplainingDiagnostic("", includeReason, r.diagnostic.message, r.diagnostic.args))
 			];
 		}
 		this.rootTasks.push(rootTask);
 	}
 
 	function addAutomaticTypeDirectiveTasks():Void {
-		var containingDirectory:std.String;
+		var containingDirectory:RootedDirectoryPath;
 		final compilerOptions = this.opts.Config.CompilerOptions();
 		if (compilerOptions.ConfigFilePath != "") {
-			containingDirectory = Tspath.GetDirectoryPath(compilerOptions.ConfigFilePath);
+			containingDirectory = compilerOptions.ConfigFilePath.Directory();
 		} else {
-			containingDirectory = this.opts.Host.GetCurrentDirectory();
+			containingDirectory = this.currentDirectory;
 		}
-		final containingFileName = Tspath.CombinePaths(containingDirectory, Module.InferredTypesContainingFile);
+		final containingFileName = containingDirectory.ResolveFile(Module.InferredTypesContainingFile);
 		final t = new ParseTask();
 		t.normalizedFilePath = containingFileName;
+		t.path = this.caseSensitivity.PathKey(containingFileName.AsPath());
 		t.isForAutomaticTypeDirective = true;
 		this.rootTasks.push(t);
 	}
 
 	// PORT: 4 results → ResolveAutomaticTypeDirectivesResult
-	function resolveAutomaticTypeDirectives(containingFileName:std.String):ResolveAutomaticTypeDirectivesResult {
+	function resolveAutomaticTypeDirectives(containingFileName:RootedFilePath):ResolveAutomaticTypeDirectivesResult {
 		var toParse:Array<ResolvedRef> = null;
 		var typeResolutionsInFile:ModeAwareCache<ResolvedTypeReferenceDirective> = null;
 		var typeResolutionsTrace:Array<DiagAndArgs> = null;
@@ -194,7 +190,8 @@ class FileLoader {
 				}
 				if (resolved.IsResolved()) {
 					final ref = new ResolvedRef();
-					ref.fileName = resolved.ResolvedFileName;
+					ref.fileName = /* PORT: transitional, unchecked */ cast resolved.ResolvedFileName;
+					ref.path = this.caseSensitivity.PathKey(ref.fileName.AsPath());
 					ref.increaseDepth = resolved.IsExternalLibraryImport;
 					ref.elideOnDepth = false;
 					ref.includeReason = new FileIncludeReason(fileIncludeKindAutomaticTypeDirectiveFile, new AutomaticTypeDirectiveFileData(name, resolved.PackageId));
@@ -294,7 +291,7 @@ class FileLoader {
 			args.set("path", t.normalizedFilePath);
 			done = this.opts.Tracing.Push(PhaseParse, "createSourceFile", args, true);
 		}
-		final path = this.toPath(t.normalizedFilePath);
+		final path = t.path;
 		final options = this.projectReferenceFileMapper.getCompilerOptionsForFile(t);
 		final opts = new SourceFileParseOptions();
 		opts.FileName = t.normalizedFilePath;
@@ -388,7 +385,7 @@ class FileLoader {
 		info.ContentMapper = mapperIdentity;
 		info.TransformIdentity = transformIdentity;
 		info.ParseOptions = opts;
-		info.VirtualFileName = opts.FileName + Tspath.ExtensionTs;
+		info.VirtualFileName = opts.FileName.AppendSuffix(Tspath.ExtensionTs);
 		info.OriginalText = content == null ? "" : content;
 		sourceFile.SetContentMapperInfo(info);
 		return sourceFile;
@@ -446,80 +443,75 @@ class FileLoader {
 	}
 
 	// PORT: (string, *sourceFileFromReferenceDiagnostic) → Pair
-	function getSourceFileFromReference(fileName:std.String, referenceText:std.String, containingFile:std.String,
-			includeReason:FileIncludeReason):Pair<std.String, SourceFileFromReferenceDiagnostic> {
+	// PORT: (RootedFilePath, PathKey, *sourceFileFromReferenceDiagnostic) → SourceFileFromReference
+	function getSourceFileFromReference(fileName:RootedFilePath, referenceText:std.String):SourceFileFromReference {
 		final options = this.opts.Config.CompilerOptions();
 		final allowNonTsExtensions = options.AllowNonTsExtensions.IsTrue();
 		final diagnosticFileName = Tspath.NormalizeSlashes(referenceText);
 
 		if (ts.nativepath.Nativepath.IsNetworkPath(fileName)) {
-			return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.Network_path_0_is_not_supported, [diagnosticFileName]));
+			return SourceFileFromReference.failed(new SourceFileFromReferenceDiagnostic(Diagnostics.Network_path_0_is_not_supported, [diagnosticFileName]));
 		}
 
-		if (Tspath.HasExtension(fileName)) {
-			final canonicalFileName = Tspath.GetCanonicalFileName(fileName, this.opts.Host.FS().UseCaseSensitiveFileNames());
+		if (fileName.HasExtension()) {
+			final canonicalFileName = this.caseSensitivity.PathKey(fileName.AsPath());
 			if (!allowNonTsExtensions && !this.isSupportedExtension(canonicalFileName)) {
-				if (Tspath.HasJSFileExtension(canonicalFileName)) {
-					return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option, [diagnosticFileName]));
+				if (canonicalFileName.HasJSFileExtension()) {
+					return SourceFileFromReference.failed(new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option, [diagnosticFileName]));
 				}
-				return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1, [
+				return SourceFileFromReference.failed(new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1, [
 					diagnosticFileName,
 					"'" + Core.Flatten(this.supportedExtensions).join("', '") + "'"
 				]));
 			}
 
 			if (!this.opts.Host.FS().FileExists(fileName)) {
-				return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_not_found, [diagnosticFileName]));
+				return SourceFileFromReference.failed(new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_not_found, [diagnosticFileName]));
 			}
-
-			if (includeReason.isReferencedFile()
-				&& Tspath.GetCanonicalFileName(containingFile, this.opts.Host.FS().UseCaseSensitiveFileNames()) == canonicalFileName) {
-				return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.A_file_cannot_have_a_reference_to_itself));
-			}
-			return new Pair(fileName, null);
+			return new SourceFileFromReference(fileName, canonicalFileName, null);
 		}
 
 		if (allowNonTsExtensions && this.opts.Host.FS().FileExists(fileName)) {
-			return new Pair(fileName, null);
+			return new SourceFileFromReference(fileName, this.caseSensitivity.PathKey(fileName.AsPath()), null);
 		}
 
 		if (allowNonTsExtensions) {
-			return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_not_found, [diagnosticFileName]));
+			return SourceFileFromReference.failed(new SourceFileFromReferenceDiagnostic(Diagnostics.File_0_not_found, [diagnosticFileName]));
 		}
 
 		for (ext in this.supportedExtensions[0]) {
-			final candidate = fileName + ext;
+			final candidate = fileName.AppendSuffix(ext);
 			if (this.opts.Host.FS().FileExists(candidate)) {
-				return new Pair(candidate, null);
+				return new SourceFileFromReference(candidate, this.caseSensitivity.PathKey(candidate.AsPath()), null);
 			}
 		}
 
-		return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.Could_not_resolve_the_path_0_with_the_extensions_Colon_1, [
+		return SourceFileFromReference.failed(new SourceFileFromReferenceDiagnostic(Diagnostics.Could_not_resolve_the_path_0_with_the_extensions_Colon_1, [
 			diagnosticFileName,
 			"'" + Core.Flatten(this.supportedExtensions).join("', '") + "'"
 		]));
 	}
 
 	// PORT: (*resolvedRef, *processingDiagnostic) → Pair
-	function resolveTripleslashPathReference(moduleName:std.String, containingFile:std.String, index:Int):Pair<ResolvedRef, ProcessingDiagnostic> {
-		final basePath = Tspath.GetDirectoryPath(containingFile);
-		var referencedFileName = moduleName;
+	function resolveTripleslashPathReference(moduleName:std.String, containingFile:RootedFilePath, index:Int):Pair<ResolvedRef, ProcessingDiagnostic> {
+		final normalizedFileName = containingFile.Directory().ResolveFile(moduleName);
+		final containingPath = this.caseSensitivity.PathKey(containingFile.AsPath());
+		final includeReason = new FileIncludeReason(fileIncludeKindReferenceFile, new ReferencedFileData(containingPath, index));
 
-		if (!Tspath.IsRootedDiskPath(moduleName)) {
-			referencedFileName = Tspath.CombinePaths(basePath, moduleName);
-		}
-		final normalizedFileName = Tspath.NormalizePath(referencedFileName);
-		final includeReason = new FileIncludeReason(fileIncludeKindReferenceFile, new ReferencedFileData(this.toPath(containingFile), index));
-
-		final r = this.getSourceFileFromReference(normalizedFileName, moduleName, containingFile, includeReason);
-		final resolvedFileName = r.a, diagnostic = r.b;
+		final r = this.getSourceFileFromReference(normalizedFileName, moduleName);
+		final diagnostic = r.diagnostic;
 		if (diagnostic != null) {
 			return new Pair(null, new ProcessingDiagnostic(processingDiagnosticKindExplainingFileInclude,
 				new IncludeExplainingDiagnostic("", includeReason, diagnostic.message, diagnostic.args)));
 		}
+		if (containingPath == r.path) {
+			return new Pair(null, new ProcessingDiagnostic(processingDiagnosticKindExplainingFileInclude,
+				new IncludeExplainingDiagnostic("", includeReason, Diagnostics.A_file_cannot_have_a_reference_to_itself, null)));
+		}
 
 		final ref = new ResolvedRef();
-		ref.fileName = resolvedFileName;
+		ref.fileName = r.fileName;
+		ref.path = r.path;
 		ref.includeReason = includeReason;
 		return new Pair(ref, null);
 	}
@@ -568,7 +560,8 @@ class FileLoader {
 
 				if (resolved.IsResolved()) {
 					final r = new ResolvedRef();
-					r.fileName = resolved.ResolvedFileName;
+					r.fileName = /* PORT: transitional, unchecked */ cast resolved.ResolvedFileName;
+					r.path = this.caseSensitivity.PathKey(r.fileName.AsPath());
 					r.increaseDepth = resolved.IsExternalLibraryImport;
 					r.elideOnDepth = false;
 					r.includeReason = includeReason;
@@ -699,13 +692,14 @@ class FileLoader {
 					continue;
 				}
 
-				final resolvedFileName = resolvedModule.ResolvedFileName;
+				final resolvedFileName:RootedFilePath = /* PORT: transitional, unchecked */ cast resolvedModule.ResolvedFileName;
+				// PORT: main takes resolvedModule.ResolvedPath from the resolver
+				final resolvedPath = resolvedFileName == "" ? (cast "" : PathKey) : this.caseSensitivity.PathKey(resolvedFileName.AsPath());
 				final isFromNodeModulesSearch = resolvedModule.IsExternalLibraryImport;
 				// Don't treat redirected files as JS files.
-				final isJsFile = !Tspath.FileExtensionIsOneOf(resolvedFileName, Tspath.SupportedTSExtensionsWithJsonFlat)
-					&& this.projectReferenceFileMapper.getRedirectParsedCommandLineForResolution(Ast.NewHasFileName(resolvedFileName,
-						this.toPath(resolvedFileName))) == null;
-				final isJsFileFromNodeModules = isFromNodeModulesSearch && isJsFile && resolvedFileName.indexOf("/node_modules/") >= 0;
+				final isJsFile = !resolvedFileName.ExtensionIsOneOf(Tspath.SupportedTSExtensionsWithJsonFlat)
+					&& this.projectReferenceFileMapper.getRedirectParsedCommandLineForResolution(Ast.NewHasFileName(resolvedFileName, resolvedPath)) == null;
+				final isJsFileFromNodeModules = isFromNodeModulesSearch && isJsFile && resolvedFileName.ContainsLowercaseDirectorySequence("/node_modules/");
 
 				// add file to program only if:
 				// - resolution was successful
@@ -726,6 +720,7 @@ class FileLoader {
 				if (shouldAddFile) {
 					final r = new ResolvedRef();
 					r.fileName = resolvedFileName;
+					r.path = resolvedPath;
 					r.increaseDepth = resolvedModule.IsExternalLibraryImport;
 					r.elideOnDepth = isJsFileFromNodeModules;
 					r.includeReason = new FileIncludeReason(fileIncludeKindImport,
@@ -772,29 +767,31 @@ class FileLoader {
 			return cached;
 		}
 
-		var path = Tspath.CombinePaths(this.defaultLibraryPath, name);
+		var path = this.defaultLibraryPath.ResolveFile(name);
+		var pathKey = this.caseSensitivity.PathKey(path.AsPath());
 		var replaced = false;
 		if (this.opts.Config.CompilerOptions().LibReplacement.IsTrue() && name != "lib.d.ts") {
 			final libraryName = Compiler.getLibraryNameFromLibFileName(name);
-			final resolveFrom = Compiler.getInferredLibraryNameResolveFrom(this.opts.Config.CompilerOptions(), this.opts.Host.GetCurrentDirectory(), name);
+			final resolveFrom = Compiler.getInferredLibraryNameResolveFrom(this.opts.Config.CompilerOptions(), this.currentDirectory, name);
 			final rr = this.resolveLibrary(libraryName, resolveFrom);
 			final resolution = rr.a, trace = rr.b;
 			if (resolution.IsResolved()) {
-				path = resolution.ResolvedFileName;
+				path = /* PORT: transitional, unchecked */ cast resolution.ResolvedFileName;
+				pathKey = this.caseSensitivity.PathKey(path.AsPath());
 				replaced = true;
 			}
-			final key:std.String = this.toPath(resolveFrom);
+			final key:std.String = this.toPath(resolveFrom.AsPath());
 			if (!this.pathForLibFileResolutions.exists(key)) {
 				this.pathForLibFileResolutions.set(key, new LibResolution(libraryName, resolution, trace));
 			}
 		}
 
-		final libPath = new LibFile(name, path, replaced);
+		final libPath = new LibFile(name, path, pathKey, replaced);
 		this.pathForLibFileCache.set(name, libPath);
 		return libPath;
 	}
 
-	function resolveLibrary(libraryName:std.String, resolveFrom:std.String):Pair<ResolvedModule, Null<Array<DiagAndArgs>>> {
+	function resolveLibrary(libraryName:std.String, resolveFrom:RootedFilePath):Pair<ResolvedModule, Null<Array<DiagAndArgs>>> {
 		var done:() -> Void = null;
 		final tr = this.opts.Tracing;
 		if (tr != null) {
@@ -833,13 +830,13 @@ class ResolveAutomaticTypeDirectivesResult {
 class RedirectsFile implements HasFileName {
 	// Index of file at which this redirect file needs to be iterated
 	var index:Int = 0;
-	var fileName:std.String = "";
+	var fileName:RootedFilePath = cast "";
 	var path:Path = "";
 	var target:Path = "";
 
 	public function new() {}
 
-	public function FileName():std.String {
+	public function FileName():RootedFilePath {
 		return this.fileName;
 	}
 

@@ -9,7 +9,7 @@ import ts.diagnostics.Diagnostics.Message;
 interface CompilerHost extends ResolutionHost {
 	function FS():FS;
 	function DefaultLibraryPath():std.String;
-	function GetCurrentDirectory():std.String;
+	function GetCurrentDirectory():RootedDirectoryPath;
 	function Trace(msg:Message, ...args:Any):Void;
 	function GetSourceFile(opts:SourceFileParseOptions):SourceFile;
 	// GetContentMappedSourceFiles produces the source file for a content-mapped (foreign) file by running
@@ -28,7 +28,7 @@ typedef TraceFunc = (msg:Message, args:Array<Any>) -> Void;
 
 // Go type compilerHost (the exported name CompilerHost is the interface).
 class CompilerHost_ implements CompilerHost implements ParseConfigHost {
-	var currentDirectory:std.String = "";
+	var currentDirectory:RootedDirectoryPath = cast "";
 	var fs:FS = null;
 	var defaultLibraryPath:std.String = "";
 	var extendedConfigCache:ExtendedConfigCache = null;
@@ -45,7 +45,7 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 		return this.defaultLibraryPath;
 	}
 
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.currentDirectory;
 	}
 

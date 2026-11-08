@@ -238,7 +238,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	// GetCurrentDirectory implements checker.Program.
-	public function GetCurrentDirectory():std.String {
+	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.Host().GetCurrentDirectory();
 	}
 
@@ -313,7 +313,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	public function GetParseFileRedirect(fileName:std.String):std.String {
-		return this.projectReferenceFileMapper.getParseFileRedirect(Ast.NewHasFileName(fileName, this.toPath(fileName)));
+		return this.projectReferenceFileMapper.getParseFileRedirect(Ast.NewHasFileName(/* PORT: transitional, unchecked */ cast fileName, this.toPath(fileName)));
 	}
 
 	public function GetResolvedProjectReferences():Array<ParsedCommandLine> {

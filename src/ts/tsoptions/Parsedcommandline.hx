@@ -112,8 +112,8 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return this.commonSourceDirectory;
 	}
 
-	public function GetCurrentDirectory():std.String {
-		return this.comparePathsOptions.CurrentDirectory;
+	public function GetCurrentDirectory():RootedDirectoryPath {
+		return /* PORT: transitional, unchecked */ cast this.comparePathsOptions.CurrentDirectory;
 	}
 
 	public function UseCaseSensitiveFileNames():Bool {
