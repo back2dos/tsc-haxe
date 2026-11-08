@@ -471,7 +471,7 @@ class Flow {
 
 	// PORT: perf — Go appends a SharedFlow value to c.sharedFlows; the objects past sharedFlowsLen (the slice's
 	// length) are reused.
-	static function pushSharedFlow(c:Checker, flow:FlowNode, t:FlowType, transient:Int, reference:Int, height:Int, memoFlags:Int):Void {
+	static inline function pushSharedFlow(c:Checker, flow:FlowNode, t:FlowType, transient:Int, reference:Int, height:Int, memoFlags:Int):Void {
 		if (c.sharedFlows == null) {
 			c.sharedFlows = [];
 		}
