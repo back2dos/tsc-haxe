@@ -853,7 +853,7 @@ class Tsbaseline {
 		};
 
 		final findResultCodeFile = function(fileName:String):TestFile {
-			final sourceFile = result.Program.GetSourceFile(fileName);
+			final sourceFile = result.Program.GetSourceFile(Tspath.ToRootedFilePath(fileName, result.CurrentDirectory()));
 			if (sourceFile == null) {
 				throw "Program has no source file with name '" + fileName + "'";
 			}
@@ -874,9 +874,9 @@ class Tsbaseline {
 		final addDtsFile = function(file:TestFile, dtsFiles:Array<TestFile>):Array<TestFile> {
 			if (Tspath.IsDeclarationFileName(file.UnitName) || Tspath.HasJSONFileExtension(file.UnitName)) {
 				dtsFiles = appendFile(dtsFiles, file);
-			} else if (result.Program.GetSourceFile(file.UnitName) != null
+			} else if (result.Program.GetSourceFile(Tspath.ToRootedFilePath(file.UnitName, result.CurrentDirectory())) != null
 				&& (Tspath.HasTSFileExtension(file.UnitName) || (Tspath.HasJSFileExtension(file.UnitName) && options.GetAllowJS())
-					|| result.Program.GetSourceFile(file.UnitName).ContentMapper() != "")) {
+					|| result.Program.GetSourceFile(Tspath.ToRootedFilePath(file.UnitName, result.CurrentDirectory())).ContentMapper() != "")) {
 				// PORT: main checks that the program has the file (TypeScript main's js_emit_baseline.go)
 				final declFile = findResultCodeFile(file.UnitName);
 				if (declFile != null && findUnit(declFile.UnitName, declInputFiles) == null && findUnit(declFile.UnitName, declOtherFiles) == null) {
@@ -1023,7 +1023,7 @@ class Tsbaseline {
 				return StringTools.endsWith(td.UnitName, s);
 			});
 			if (sourceFile != null) {
-				final programSource = result.Program.GetSourceFile(sourceFile.UnitName);
+				final programSource = result.Program.GetSourceFile(Tspath.ToRootedFilePath(sourceFile.UnitName, result.CurrentDirectory()));
 				if (programSource != null) {
 					return new TestFile(sourceFile.UnitName, programSource.OriginalText());
 				}

@@ -736,7 +736,7 @@ class WideningContext {
 interface Program extends Host {
 	function BindSourceFiles():Void;
 	function CommonSourceDirectory():RootedDirectoryPath;
-	function FileExists(fileName:std.String):Bool;
+	function FileExists(fileName:RootedFilePath):Bool;
 	function GetEmitModuleFormatOfFile(sourceFile:HasFileName):ModuleKind;
 	function GetEmitSyntaxForUsageLocation(sourceFile:HasFileName, usageLocation:StringLiteralLike):ResolutionMode;
 	function GetImpliedNodeFormatForEmit(sourceFile:HasFileName):ModuleKind;
@@ -747,8 +747,7 @@ interface Program extends Host {
 	function GetRedirectForResolution(file:HasFileName):ParsedCommandLine;
 	function GetResolvedModule(currentSourceFile:HasFileName, moduleReference:std.String, mode:ResolutionMode):ResolvedModule;
 	function GetResolvedModules():StringMap<ModeAwareCache<ResolvedModule>>;
-	function GetSourceFile(fileName:std.String):SourceFile;
-	function GetSourceFileForResolvedModule(fileName:std.String):SourceFile;
+	function GetSourceFileForResolvedModule(resolved:ResolvedModule):SourceFile;
 	function GetSourceFileMetaData(path:Path):SourceFileMetaData;
 	function IsSourceFileDefaultLibrary(path:Path):Bool;
 	function Options():CompilerOptions;
@@ -762,19 +761,17 @@ interface Host {
 	function BaseDirectory():RootedDirectoryPath;
 	function ContentMapperExtensions():Null<Array<std.String>>;
 	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
-	function FileExists(path:std.String):Bool;
-	function GetCurrentDirectory():RootedDirectoryPath;
+	function FileExists(path:RootedFilePath):Bool;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;
-	function GetGlobalTypingsCacheLocation():std.String;
+	function GetGlobalTypingsCacheLocation():RootedDirectoryPath;
 	function GetModeForUsageLocation(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolutionMode;
-	function GetNearestAncestorDirectoryWithPackageJson(dirname:std.String):std.String;
-	function GetPackageJsonInfo(pkgJsonPath:std.String):InfoCacheEntry;
-	function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference;
-	function GetRedirectTargets(path:Path):Array<std.String>;
+	function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath;
+	function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry;
+	function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference;
+	function GetRedirectTargets(path:PathKey):Array<RootedFilePath>;
 	function GetResolvedModuleFromModuleSpecifier(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolvedModule;
-	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):std.String;
+	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath;
 	function GetSymlinkCache():KnownSymlinks;
-	function UseCaseSensitiveFileNames():Bool;
 }
 
 @:allow(ts.checker)
@@ -6925,10 +6922,10 @@ class Checker {
 		if (packageJsonDirectory != "" && packageJsonType == "") {
 			if (targetExt != "") {
 				return newDiagnosticDetails(Diagnostics.To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_add_the_field_type_Colon_module_to_1,
-					[targetExt, Tspath.CombinePaths(packageJsonDirectory, "package.json")]);
+					[targetExt, packageJsonDirectory.ResolveFile("package.json").AsString()]);
 			}
 			return newDiagnosticDetails(Diagnostics.To_convert_this_file_to_an_ECMAScript_module_add_the_field_type_Colon_module_to_0,
-				[Tspath.CombinePaths(packageJsonDirectory, "package.json")]);
+				[packageJsonDirectory.ResolveFile("package.json").AsString()]);
 		}
 		if (targetExt != "") {
 			return newDiagnosticDetails(Diagnostics.To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_create_a_local_package_json_file_with_type_Colon_module,

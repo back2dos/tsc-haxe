@@ -952,7 +952,7 @@ class Compiler {
 	}
 
 	static function forEachResolution<T>(resolutionCache:StringMap<ModeAwareCache<T>>,
-			callback:(resolution:T, moduleName:std.String, mode:ResolutionMode, filePath:Path) -> Void, file:SourceFile):Void {
+			callback:(resolution:T, moduleName:std.String, mode:ResolutionMode, filePath:PathKey) -> Void, file:SourceFile):Void {
 		if (file != null) {
 			final resolutions = resolutionCache.get(file.Path());
 			if (resolutions != null) {
@@ -967,7 +967,7 @@ class Compiler {
 					continue;
 				for (key => resolution in resolutions) {
 					final k = ModeAwareCacheKey.ModeAwareCacheKeyFromKey(key);
-					callback(resolution, k.Name, k.Mode, filePath);
+					callback(resolution, k.Name, k.Mode, /* PORT: StringMap key (Go: map[tspath.PathKey]) */ cast filePath);
 				}
 			}
 		}

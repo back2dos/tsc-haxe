@@ -22,24 +22,22 @@ interface DeclarationEmitHost {
 	function CaseSensitivity():CaseSensitivity;
 	function BaseDirectory():RootedDirectoryPath;
 	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
-	function FileExists(path:std.String):Bool;
-	function GetCurrentDirectory():RootedDirectoryPath;
+	function FileExists(path:RootedFilePath):Bool;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;
 	function GetEffectiveDeclarationFlags(node:Node, flags:ModifierFlags):ModifierFlags;
 	function GetEmitResolver():EmitResolver;
-	function GetGlobalTypingsCacheLocation():std.String;
+	function GetGlobalTypingsCacheLocation():RootedDirectoryPath;
 	function GetModeForUsageLocation(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolutionMode;
-	function GetNearestAncestorDirectoryWithPackageJson(dirname:std.String):std.String;
+	function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath;
 	function GetOutputPathsFor(file:SourceFile, forceDtsPaths:Bool):OutputPaths;
-	function GetPackageJsonInfo(pkgJsonPath:std.String):InfoCacheEntry;
-	function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference;
-	function GetRedirectTargets(path:Path):Array<std.String>;
+	function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry;
+	function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference;
+	function GetRedirectTargets(path:PathKey):Array<RootedFilePath>;
 	function GetResolutionModeOverride(node:Node):ResolutionMode;
 	function GetResolvedModuleFromModuleSpecifier(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolvedModule;
 	function GetSourceFileFromReference(origin:SourceFile, ref:FileReference):SourceFile;
-	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):std.String;
+	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath;
 	function GetSymlinkCache():KnownSymlinks;
-	function UseCaseSensitiveFileNames():Bool;
 }
 
 @:allow(ts.transformers.declarations)

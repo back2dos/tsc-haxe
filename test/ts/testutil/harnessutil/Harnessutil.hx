@@ -1225,6 +1225,11 @@ class CompilationResult {
 
 	public function new() {}
 
+	// PORT: main stores the harness's current directory; it is the host's.
+	public function CurrentDirectory():RootedDirectoryPath {
+		return this.Host.GetCurrentDirectory();
+	}
+
 	function getOutputPath(path:String, ext:String):String {
 		// PORT: the harness passes file names as strings; main's getOutputPath takes a RootedFilePath.
 		final filePath = Tspath.ToRootedFilePath(path, this.Host.GetCurrentDirectory());
@@ -1333,7 +1338,8 @@ class CompilationResult {
 					sourceMapSpanWriter.recordSourceMapSpan(decodedSourceMapping);
 					continue;
 				}
-				final currentSourceFile = this.Program.GetSourceFile(sourceMapData.InputSourceFileNames[decodedSourceMapping.SourceIndex]);
+				final currentSourceFile = this.Program.GetSourceFile(Tspath.ToRootedFilePath(sourceMapData.InputSourceFileNames[decodedSourceMapping.SourceIndex],
+					this.CurrentDirectory()));
 				if (currentSourceFile != prevSourceFile) {
 					if (currentSourceFile != null) {
 						sourceMapSpanWriter.recordNewSourceFileSpan(decodedSourceMapping, currentSourceFile.OriginalText());

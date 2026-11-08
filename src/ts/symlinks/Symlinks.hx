@@ -4,7 +4,7 @@ package ts.symlinks;
 class Symlinks {
 	// --- knownsymlinks.go ---
 
-	public static function NewKnownSymlink(currentDirectory:String, useCaseSensitiveFileNames:Bool):KnownSymlinks {
-		return new KnownSymlinks(currentDirectory, useCaseSensitiveFileNames);
+	public static function NewKnownSymlinks(caseSensitivity:CaseSensitivity):KnownSymlinks {
+		return new KnownSymlinks(caseSensitivity);
 	}
 }

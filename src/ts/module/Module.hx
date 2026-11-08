@@ -567,4 +567,8 @@ class Module {
 				return "";
 		}
 	}
+
+	public static inline function TryGetJSExtensionForFileName(fileName:RootedFilePath, options:CompilerOptions):String {
+		return TryGetJSExtensionForFile(fileName.AsString(), options);
+	}
 }

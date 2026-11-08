@@ -4,36 +4,37 @@ package ts.modulespecifiers;
 
 // PORT: Go value struct, never mutated → immutable class.
 class Info {
-	public final UseCaseSensitiveFileNames:Bool;
-	public final ImportingSourceFileName:String;
-	public final SourceDirectory:String;
+	public final CaseSensitivity:CaseSensitivity;
+	public final ImportingSourceFileName:RootedFilePath;
+	public final SourceDirectory:RootedDirectoryPath;
 
-	public function new(UseCaseSensitiveFileNames:Bool = false, ImportingSourceFileName:String = "", SourceDirectory:String = "") {
-		this.UseCaseSensitiveFileNames = UseCaseSensitiveFileNames;
+	public function new(CaseSensitivity:CaseSensitivity, ImportingSourceFileName:RootedFilePath, SourceDirectory:RootedDirectoryPath) {
+		this.CaseSensitivity = CaseSensitivity;
 		this.ImportingSourceFileName = ImportingSourceFileName;
 		this.SourceDirectory = SourceDirectory;
 	}
 }
 
 class PkgJsonDirAttemptResult {
-	public final moduleFileToTry:String;
-	public final packageRootPath:String;
+	public final moduleFileToTry:RootedFilePath;
+	public final packageRootDirectory:RootedDirectoryPath;
 	public final blockedByExports:Bool;
-	public final verbatimFromExports:Bool;
+	public final verbatimFromExports:ModuleSpecifier;
 
-	public function new(moduleFileToTry:String = "", packageRootPath:String = "", blockedByExports:Bool = false, verbatimFromExports:Bool = false) {
+	public function new(moduleFileToTry:RootedFilePath, ?packageRootDirectory:RootedDirectoryPath, blockedByExports:Bool = false,
+			?verbatimFromExports:ModuleSpecifier) {
 		this.moduleFileToTry = moduleFileToTry;
-		this.packageRootPath = packageRootPath;
+		this.packageRootDirectory = packageRootDirectory != null ? packageRootDirectory : cast "";
 		this.blockedByExports = blockedByExports;
-		this.verbatimFromExports = verbatimFromExports;
+		this.verbatimFromExports = verbatimFromExports != null ? verbatimFromExports : cast "";
 	}
 }
 
 class SpecPair {
 	public final ending:ModuleSpecifierEnding;
-	public final value:String;
+	public final value:ModuleSpecifier;
 
-	public function new(ending:ModuleSpecifierEnding, value:String) {
+	public function new(ending:ModuleSpecifierEnding, value:ModuleSpecifier) {
 		this.ending = ending;
 		this.value = value;
 	}

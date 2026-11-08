@@ -15,6 +15,6 @@ interface EmitHost {
 	function WriteFile(fileName:RootedFilePath, text:std.String):Null<Error>;
 	function GetEmitModuleFormatOfFile(file:HasFileName):ModuleKind;
 	function GetEmitResolver():EmitResolver;
-	function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference;
+	function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference;
 	function IsSourceFileFromExternalLibrary(file:SourceFile):Bool;
 }

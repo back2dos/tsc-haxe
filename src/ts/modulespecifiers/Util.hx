@@ -5,16 +5,24 @@ package ts.modulespecifiers;
 
 // PORT: Go value struct, never mutated → immutable class.
 class NodeModulePathParts {
-	public final TopLevelNodeModulesIndex:Int;
-	public final TopLevelPackageNameIndex:Int;
-	public final PackageRootIndex:Int;
-	public final FileNameIndex:Int;
+	public final TopLevelNodeModulesSearchRoot:RootedDirectoryPath;
+	public final TopLevelNodeModulesDirectory:RootedDirectoryPath;
+	public final PackageRootDirectory:RootedDirectoryPath;
+	public final PackageName:String;
+	public final PackageRelativePath:RelativePath;
+	public final HasNestedNodeModules:Bool;
+	public final IsDirectNodeModulesFile:Bool;
 
-	public function new(TopLevelNodeModulesIndex:Int = 0, TopLevelPackageNameIndex:Int = 0, PackageRootIndex:Int = 0, FileNameIndex:Int = 0) {
-		this.TopLevelNodeModulesIndex = TopLevelNodeModulesIndex;
-		this.TopLevelPackageNameIndex = TopLevelPackageNameIndex;
-		this.PackageRootIndex = PackageRootIndex;
-		this.FileNameIndex = FileNameIndex;
+	public function new(TopLevelNodeModulesSearchRoot:RootedDirectoryPath, TopLevelNodeModulesDirectory:RootedDirectoryPath,
+			PackageRootDirectory:RootedDirectoryPath, PackageName:String, PackageRelativePath:RelativePath, HasNestedNodeModules:Bool,
+			IsDirectNodeModulesFile:Bool) {
+		this.TopLevelNodeModulesSearchRoot = TopLevelNodeModulesSearchRoot;
+		this.TopLevelNodeModulesDirectory = TopLevelNodeModulesDirectory;
+		this.PackageRootDirectory = PackageRootDirectory;
+		this.PackageName = PackageName;
+		this.PackageRelativePath = PackageRelativePath;
+		this.HasNestedNodeModules = HasNestedNodeModules;
+		this.IsDirectNodeModulesFile = IsDirectNodeModulesFile;
 	}
 }
 

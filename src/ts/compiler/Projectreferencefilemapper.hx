@@ -21,7 +21,7 @@ class ProjectReferenceFileMapper {
 
 	public function new() {}
 
-	function getParseFileRedirect(file:HasFileName):std.String {
+	function getParseFileRedirect(file:HasFileName):RootedFilePath {
 		if (this.opts.canUseProjectReferenceSource()) {
 			// Map to source file from project reference
 			var source = this.getProjectReferenceFromOutputDts(file.Path());
@@ -38,7 +38,7 @@ class ProjectReferenceFileMapper {
 				return output.OutputDts;
 			}
 		}
-		return "";
+		return cast "";
 	}
 
 	function getResolvedProjectReferences():Array<ParsedCommandLine> {
@@ -60,15 +60,15 @@ class ProjectReferenceFileMapper {
 		return result;
 	}
 
-	function getProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference {
+	function getProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference {
 		return this.sourceToProjectReference == null ? null : this.sourceToProjectReference.get(path);
 	}
 
-	function getProjectReferenceFromOutputDts(path:Path):SourceOutputAndProjectReference {
+	function getProjectReferenceFromOutputDts(path:PathKey):SourceOutputAndProjectReference {
 		return this.outputDtsToProjectReference == null ? null : this.outputDtsToProjectReference.get(path);
 	}
 
-	function isSourceFromProjectReference(path:Path):Bool {
+	function isSourceFromProjectReference(path:PathKey):Bool {
 		return this.opts.canUseProjectReferenceSource() && this.getProjectReferenceFromSource(path) != null;
 	}
 
@@ -88,18 +88,18 @@ class ProjectReferenceFileMapper {
 		// Check if outputdts of source file from project reference
 		final output = this.getProjectReferenceFromSource(path);
 		if (output != null) {
-			return new Pair(output.Resolved, (/* PORT: transitional, unchecked */ cast output.Source : RootedFilePath));
+			return new Pair(output.Resolved, output.Source);
 		}
 
 		// Source file from project reference
 		final resultFromDts = this.getProjectReferenceFromOutputDts(path);
 		if (resultFromDts != null) {
-			return new Pair(resultFromDts.Resolved, (/* PORT: transitional, unchecked */ cast resultFromDts.Source : RootedFilePath));
+			return new Pair(resultFromDts.Resolved, resultFromDts.Source);
 		}
 
 		final realpathDtsToSource = this.getSourceToDtsIfSymlink(file);
 		if (realpathDtsToSource != null) {
-			return new Pair(realpathDtsToSource.Resolved, (/* PORT: transitional, unchecked */ cast realpathDtsToSource.Source : RootedFilePath));
+			return new Pair(realpathDtsToSource.Resolved, realpathDtsToSource.Source);
 		}
 		return new Pair(null, file.FileName());
 	}

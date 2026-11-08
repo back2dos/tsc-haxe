@@ -242,7 +242,7 @@ class CompilerTest {
 		}
 		final program = this.result.Program;
 		final allFiles = Core.Filter(Core.Concatenate(this.toBeCompiled, this.otherFiles), function(f:TestFile):Bool {
-			return program.GetSourceFile(f.UnitName) != null;
+			return program.GetSourceFile(Tspath.ToRootedFilePath(f.UnitName, this.result.CurrentDirectory())) != null;
 		});
 
 		var headerComponents = Tspath.GetPathComponentsRelativeTo_legacy(Repo.TestDataPath(), this.filename, new ComparePathsOptions());

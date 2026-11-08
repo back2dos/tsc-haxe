@@ -12528,7 +12528,7 @@ class CommentDirective {
 
 class SourceFileMetaData {
 	public var PackageJsonType:String = "";
-	public var PackageJsonDirectory:String = "";
+	public var PackageJsonDirectory:RootedDirectoryPath = cast "";
 	public var ImpliedNodeFormat:ResolutionMode = ModuleKindNone;
 
 	public function new() {}

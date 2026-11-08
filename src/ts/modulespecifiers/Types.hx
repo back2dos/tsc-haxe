@@ -10,7 +10,7 @@ import ts.module.Types.ResolvedModule;
 
 // Port of types.go.
 
-// PORT: Go's structural interface includes Path()/FileName(), i.e. ast.HasFileName; declared as
+// PORT: Go's structural interface includes PathKey()/FileName(), i.e. ast.HasFileName; declared as
 // `extends HasFileName` so values can be passed where Go converts them to ast.HasFileName.
 interface SourceFileForSpecifierGeneration extends HasFileName {
 	function Imports():Array<StringLiteralLike>;
@@ -81,11 +81,11 @@ enum abstract ResultKind(Int) from Int to Int {
 }
 
 class ModuleSpecifiersResult {
-	public var Specifiers:Array<String> = null;
+	public var Specifiers:Array<ModuleSpecifier> = null;
 	public var Kind:ResultKind = ResultKindNone;
 	public var AmbientModuleSymbol:ts.ast.Symbol = null; // used to construct an import attributes node, if one is needed
 
-	public function new(Specifiers:Array<String> = null, Kind:ResultKind = ResultKindNone, AmbientModuleSymbol:ts.ast.Symbol = null) {
+	public function new(Specifiers:Array<ModuleSpecifier> = null, Kind:ResultKind = ResultKindNone, AmbientModuleSymbol:ts.ast.Symbol = null) {
 		this.Specifiers = Specifiers;
 		this.Kind = Kind;
 		this.AmbientModuleSymbol = AmbientModuleSymbol;
@@ -94,38 +94,34 @@ class ModuleSpecifiersResult {
 
 // PORT: Go value struct, never mutated after construction → immutable class.
 class ModulePath {
-	public final FileName:String;
+	public final FileName:RootedFilePath;
 	public final IsInNodeModules:Bool;
 	public final IsRedirect:Bool;
 
-	public function new(FileName:String = "", IsInNodeModules:Bool = false, IsRedirect:Bool = false) {
+	public function new(FileName:RootedFilePath, IsInNodeModules:Bool = false, IsRedirect:Bool = false) {
 		this.FileName = FileName;
 		this.IsInNodeModules = IsInNodeModules;
 		this.IsRedirect = IsRedirect;
 	}
 }
 
-// PORT: Go's interface lists CommonSourceDirectory/GetCurrentDirectory/UseCaseSensitiveFileNames and
-// is passed to outputpaths as an OutputPathsHost; declared as `extends OutputPathsHost`.
+// PORT: Go's interface lists CommonSourceDirectory/CaseSensitivity/ContentMapperExtensions and is passed to
+// outputpaths as an OutputPathsHost; declared as `extends OutputPathsHost`.
 interface ModuleSpecifierGenerationHost extends OutputPathsHost {
 	// GetModuleResolutionCache() any // !!! TODO: adapt new resolution cache model
 	function GetSymlinkCache():KnownSymlinks;
 	// GetFileIncludeReasons() any // !!! TODO: adapt new resolution cache model
-	function GetGlobalTypingsCacheLocation():String;
-	// PORT: transitional — main's host has CaseSensitivity()/BaseDirectory() (OutputPathsHost lost these two);
-	// kept until modulespecifiers is ported.
-	function GetCurrentDirectory():RootedDirectoryPath;
-	function UseCaseSensitiveFileNames():Bool;
+	function GetGlobalTypingsCacheLocation():RootedDirectoryPath;
 	function BaseDirectory():RootedDirectoryPath;
 
-	function GetProjectReferenceFromSource(path:ts.tspath.Path):ts.tsoptions.Parsedcommandline.SourceOutputAndProjectReference;
-	function GetRedirectTargets(path:ts.tspath.Path):Array<String>;
-	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):String;
+	function GetProjectReferenceFromSource(path:PathKey):ts.tsoptions.Parsedcommandline.SourceOutputAndProjectReference;
+	function GetRedirectTargets(path:PathKey):Array<RootedFilePath>;
+	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath;
 
-	function FileExists(path:String):Bool;
+	function FileExists(path:RootedFilePath):Bool;
 
-	function GetNearestAncestorDirectoryWithPackageJson(dirname:String):String;
-	function GetPackageJsonInfo(pkgJsonPath:String):ts.packagejson.Cache.InfoCacheEntry;
+	function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath;
+	function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):ts.packagejson.Cache.InfoCacheEntry;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;
 	function GetResolvedModuleFromModuleSpecifier(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolvedModule;
 	function GetModeForUsageLocation(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolutionMode;

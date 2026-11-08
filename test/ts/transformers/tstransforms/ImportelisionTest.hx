@@ -55,39 +55,35 @@ private class FakeProgram implements Program {
 		throw "unimplemented";
 	}
 
-	public function FileExists(path:std.String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		return false;
 	}
 
-	public function GetCurrentDirectory():RootedDirectoryPath {
+	public function GetGlobalTypingsCacheLocation():RootedDirectoryPath {
 		return cast "";
 	}
 
-	public function GetGlobalTypingsCacheLocation():std.String {
-		return "";
-	}
-
-	public function GetNearestAncestorDirectoryWithPackageJson(dirname:std.String):std.String {
-		return "";
+	public function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath {
+		return cast "";
 	}
 
 	public function GetSymlinkCache():KnownSymlinks {
 		return null;
 	}
 
-	public function GetPackageJsonInfo(pkgJsonPath:std.String):InfoCacheEntry {
+	public function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry {
 		return null;
 	}
 
-	public function GetRedirectTargets(path:Path):Array<std.String> {
+	public function GetRedirectTargets(path:PathKey):Array<RootedFilePath> {
 		return null;
 	}
 
-	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):std.String {
-		return "";
+	public function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath {
+		return cast "";
 	}
 
-	public function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference {
+	public function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference {
 		return null;
 	}
 
@@ -97,10 +93,6 @@ private class FakeProgram implements Program {
 
 	public function GetProjectReferenceFromOutputDts(path:Path):SourceOutputAndProjectReference {
 		return null;
-	}
-
-	public function UseCaseSensitiveFileNames():Bool {
-		return true;
 	}
 
 	public function Options():CompilerOptions {
@@ -140,12 +132,12 @@ private class FakeProgram implements Program {
 		return getResolvedModule(currentSourceFile, moduleReference, mode);
 	}
 
-	public function GetSourceFile(FileName:std.String):SourceFile {
-		return getSourceFile(FileName);
+	public function GetSourceFile(fileName:RootedFilePath):SourceFile {
+		return getSourceFile(fileName.AsString());
 	}
 
-	public function GetSourceFileForResolvedModule(FileName:std.String):SourceFile {
-		return getSourceFileForResolvedModule(FileName);
+	public function GetSourceFileForResolvedModule(resolved:ResolvedModule):SourceFile {
+		return getSourceFileForResolvedModule(resolved.ResolvedFileName.AsString());
 	}
 
 	public function GetSourceFileMetaData(path:Path):SourceFileMetaData {

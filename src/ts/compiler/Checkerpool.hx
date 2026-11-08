@@ -229,7 +229,7 @@ class CheckerPool_ implements CheckerPool {
 			for (resolved in resolvedModules) {
 				if (resolved == null || !resolved.IsResolved())
 					continue;
-				final importedFile = this.program.GetSourceFileForResolvedModule(resolved.ResolvedFileName);
+				final importedFile = this.program.GetSourceFileForResolvedModule(resolved);
 				final importedIndex = importedFile == null ? null : fileIndices.get(importedFile);
 				if (importedIndex == null || importedIndex == fileIndex)
 					continue;

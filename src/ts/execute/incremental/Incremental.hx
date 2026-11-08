@@ -337,13 +337,12 @@ class Incremental {
 	}
 
 	// Gets the path to reference file from file name, it could be resolvedPath if present otherwise path
-	static function addReferencedFileFromFileName(program:CompilerProgram, fileName:std.String, referencedFiles:Set<Path>,
-			sourceFileDirectory:std.String):Void {
+	static function addReferencedFileFromFileName(program:CompilerProgram, fileName:RootedFilePath, referencedFiles:Set<Path>):Void {
 		final redirect = program.GetParseFileRedirect(fileName);
 		if (redirect != "") {
-			referencedFiles.Add(Tspath.ToPath(redirect, program.GetCurrentDirectory(), program.UseCaseSensitiveFileNames()));
+			referencedFiles.Add(program.PathKeyForFileName(redirect));
 		} else {
-			referencedFiles.Add(Tspath.ToPath(fileName, sourceFileDirectory, program.UseCaseSensitiveFileNames()));
+			referencedFiles.Add(program.PathKeyForFileName(fileName));
 		}
 	}
 
@@ -370,10 +369,10 @@ class Incremental {
 			addReferencedFilesFromImportLiteral(file, referencedFiles, checker, importName);
 		}
 
-		final sourceFileDirectory = Tspath.GetDirectoryPath(file.FileName());
+		final sourceFileDirectory = file.FileName().Directory();
 		// Handle triple slash references
 		for (referencedFile in file.ReferencedFiles) {
-			addReferencedFileFromFileName(program, referencedFile.FileName, referencedFiles, sourceFileDirectory);
+			addReferencedFileFromFileName(program, Tspath.ToRootedFilePath(referencedFile.FileName, sourceFileDirectory), referencedFiles);
 		}
 
 		// Handle type reference directives
@@ -381,7 +380,7 @@ class Incremental {
 		if (typeRefsInFile != null) {
 			for (typeRef in typeRefsInFile) {
 				if (typeRef.ResolvedFileName != "") {
-					addReferencedFileFromFileName(program, typeRef.ResolvedFileName, referencedFiles, sourceFileDirectory);
+					addReferencedFileFromFileName(program, typeRef.ResolvedFileName, referencedFiles);
 				}
 			}
 		}

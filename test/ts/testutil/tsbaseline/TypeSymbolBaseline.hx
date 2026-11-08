@@ -20,13 +20,13 @@ class TypeWriterWalker {
 	}
 
 	function getTypes(filename:String):Array<TypeWriterResult> {
-		final sourceFile = this.program.GetSourceFile(filename);
+		final sourceFile = this.program.GetSourceFile(Tspath.ToRootedFilePath(filename, this.program.Program().BaseDirectory()));
 		this.currentSourceFile = sourceFile;
 		return this.visitNode(sourceFile.AsNode(), false /*isSymbolWalk*/);
 	}
 
 	function getSymbols(filename:String):Array<TypeWriterResult> {
-		final sourceFile = this.program.GetSourceFile(filename);
+		final sourceFile = this.program.GetSourceFile(Tspath.ToRootedFilePath(filename, this.program.Program().BaseDirectory()));
 		this.currentSourceFile = sourceFile;
 		return this.visitNode(sourceFile.AsNode(), true /*isSymbolWalk*/);
 	}

@@ -68,7 +68,7 @@ class Program implements ProgramLike {
 	}
 
 	// GetSourceFile implements compiler.AnyProgram interface.
-	public function GetSourceFile(path:std.String):SourceFile {
+	public function GetSourceFile(path:RootedFilePath):SourceFile {
 		this.panicIfNoProgram("GetSourceFile");
 		return this.program.GetSourceFile(path);
 	}

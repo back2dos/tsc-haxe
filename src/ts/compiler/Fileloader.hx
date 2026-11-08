@@ -88,7 +88,7 @@ class FileLoader {
 	#end
 
 	var projectReferenceFileMapper:ProjectReferenceFileMapper = null;
-	var dtsDirectories:Set<Path> = new Set<Path>();
+	var dtsDirectories:Set<PathKey> = new Set<PathKey>();
 
 	var pathForLibFileCache:StringMap<LibFile> = new StringMap(); // PORT: SyncMap[string, *LibFile] → StringMap
 	var pathForLibFileResolutions:StringMap<LibResolution> = new StringMap(); // PORT: SyncMap[tspath.Path, *libResolution] → StringMap
@@ -258,7 +258,7 @@ class FileLoader {
 		final packageJsonScope = this.resolver.GetPackageScopeForPath(fileName.Directory());
 		final moduleResolutionKind = this.opts.Config.CompilerOptions().GetModuleResolutionKind();
 
-		var packageJsonType = "", packageJsonDirectory = "";
+		var packageJsonType = "", packageJsonDirectory:RootedDirectoryPath = cast "";
 		if (packageJsonScope.Exists()) {
 			packageJsonDirectory = packageJsonScope.PackageDirectory.AsDirectoryPath();
 			final v = packageJsonScope.Contents.Type.GetValue();
@@ -873,9 +873,9 @@ class ProcessedFiles {
 	var includeProcessor:IncludeProcessor = null;
 	// if file was included using source file and its output is actually part of program
 	// this contains mapping from output to source file
-	var outputFileToProjectReferenceSource:StringMap<std.String> = null;
+	var outputFileToProjectReferenceSource:StringMap<RootedFilePath> = null;
 	// Key is a file path. Value is the list of files that redirect to it (same package, different install location)
-	var redirectTargetsMap:StringMap<Array<std.String>> = null;
+	var redirectTargetsMap:StringMap<Array<RootedFilePath>> = null;
 	// filesByPath for redirect files
 	var redirectFilesByPath:StringMap<RedirectsFile> = null;
 	// Program-level diagnostics reported when a content mapper fails fatally (reported once per mapper).
