@@ -3417,7 +3417,7 @@ class Relater {
 				if (source.flags & TypeFlagsIntersection != 0) {
 					sourceTypes = source.Types();
 				} else {
-					sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
+					sourceTypes = Core.vector1(source);
 				}
 				final constraint = c.getEffectiveConstraintOfIntersection(sourceTypes, target.flags & TypeFlagsUnion != 0);
 				if (constraint != null && Checker.everyType(constraint, c -> c != source)) {

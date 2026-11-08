@@ -205,7 +205,9 @@ class Core {
 		while (i < n && f(slice[i]))
 			i++;
 		if (i < n) {
-			final r = [for (k in 0...i) slice[k]];
+			final r = new VectorBuilder<T>();
+			for (k in 0...i)
+				r.push(slice[k]);
 			var k = i + 1;
 			while (k < n) {
 				final value = slice[k];
@@ -214,7 +216,7 @@ class Core {
 				}
 				k++;
 			}
-			result = haxe.ds.Vector.fromArrayCopy(r);
+			result = r.build();
 		}
 		return result;
 	}

@@ -1290,7 +1290,7 @@ class CheckerPart7 {
 	}
 
 	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type
-		return c.newUnionTypeV(objectFlags, haxe.ds.Vector.fromArrayCopy(types)); // PORT: perf — a Vector (one copy per new type)
+		return c.newUnionTypeV(objectFlags, VectorBuilder.freeze(types)); // PORT: perf — a Vector (one copy per new type)
 
 	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:haxe.ds.Vector<Type>):Type
 		return c.newUnionTypeV(objectFlags, types);
@@ -1303,7 +1303,7 @@ class CheckerPart7 {
 
 	static function newIntersectionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type {
 		final data = new IntersectionType();
-		data.types = haxe.ds.Vector.fromArrayCopy(types); // PORT: perf — a Vector (one copy per new type)
+		data.types = VectorBuilder.freeze(types); // PORT: perf — a Vector (one copy per new type)
 		return c.newType(TypeFlagsIntersection, objectFlags, data);
 	}
 

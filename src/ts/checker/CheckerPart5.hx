@@ -2215,7 +2215,7 @@ class CheckerPart5 {
 					}
 				}
 			}
-			context.siblings = haxe.ds.Vector.fromArrayCopy(siblings);
+			context.siblings = VectorBuilder.freeze(siblings);
 		}
 		return context.siblings;
 	}
@@ -2924,7 +2924,7 @@ class CheckerPart5 {
 		final lazyState = new LazyState();
 		lazyState.layout = layout;
 		lazyState.mapper = mapper;
-		lazyState.baseTypes = instantiatedBaseTypes == null ? null : haxe.ds.Vector.fromArrayCopy(instantiatedBaseTypes);
+		lazyState.baseTypes = VectorBuilder.freezeOrNull(instantiatedBaseTypes);
 		t.AsTypeReference().lazy = lazyState;
 		c.propagateResolvedDeclaredMembers();
 		c.resolvingObjectTypeStack.pop();

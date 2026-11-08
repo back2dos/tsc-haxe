@@ -157,7 +157,7 @@ class Inference {
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sourceTypes = source.Types();
 			} else {
-				sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
+				sourceTypes = Core.vector1(source);
 			}
 			// First, infer between identically matching source and target constituents and remove the
 			// matching types.
@@ -192,7 +192,7 @@ class Inference {
 				if ((source.flags & TypeFlagsIntersection) != 0) {
 					sourceTypes = source.Types();
 				} else {
-					sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
+					sourceTypes = Core.vector1(source);
 				}
 				// Infer between identically matching source and target constituents and remove the matching types.
 				final matched = c.inferFromMatchingTypes(n, sourceTypes, target.Types(), fn_isTypeIdenticalTo, false /*sort*/);
@@ -558,7 +558,7 @@ class Inference {
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sources = source.Types();
 			} else {
-				sources = haxe.ds.Vector.fromArrayCopy([source]);
+				sources = Core.vector1(source);
 			}
 			final matched = [for (_ in 0...sources.length) false];
 			var inferenceCircularity = false;
@@ -652,7 +652,7 @@ class Inference {
 			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(c.getTrueTypeFromConditionalType(source)), c.getTrueTypeFromConditionalType(target));
 			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(c.getFalseTypeFromConditionalType(source)), c.getFalseTypeFromConditionalType(target));
 		} else {
-			final targetTypes = haxe.ds.Vector.fromArrayCopy([c.getTrueTypeFromConditionalType(target), c.getFalseTypeFromConditionalType(target)]);
+			final targetTypes = Core.vector2(c.getTrueTypeFromConditionalType(target), c.getFalseTypeFromConditionalType(target));
 			c.inferToMultipleTypesWithPriority(n, source, targetTypes, target.flags, Core.IfElse(n.contravariant, InferencePriorityContravariantConditional, 0));
 		}
 	}

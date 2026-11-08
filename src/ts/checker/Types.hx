@@ -1001,7 +1001,7 @@ class Type implements TypeSystemEntity {
 		if ((flags & TypeFlagsUnionOrIntersection) != 0) {
 			return AsUnionOrIntersectionType().types;
 		} else if ((flags & TypeFlagsTemplateLiteral) != 0) {
-			return haxe.ds.Vector.fromArrayCopy(AsTemplateLiteralType().types); // PORT: perf (a copy: template literal types are rare here)
+			return VectorBuilder.freeze(AsTemplateLiteralType().types); // PORT: perf (a copy: template literal types are rare here)
 		}
 		throw "Unhandled case in Type.Types";
 	}
