@@ -325,9 +325,20 @@ class Strings {
 			}
 			return b.toString();
 		}
-		if (s.indexOf(old) < 0)
+		var i = s.indexOf(old);
+		if (i < 0)
 			return s;
-		return StringTools.replace(s, old, new_);
+		// PORT: perf — one pass with indexOf (StringTools.replace splits into an array and joins it)
+		final b = new StringBuf();
+		var start = 0;
+		while (i >= 0) {
+			b.addSub(s, start, i - start);
+			b.add(new_);
+			start = i + old.length;
+			i = s.indexOf(old, start);
+		}
+		b.addSub(s, start, s.length - start);
+		return b.toString();
 	}
 
 	// strings.Split. Same result on every target (Haxe's "".split(sep) is not).
