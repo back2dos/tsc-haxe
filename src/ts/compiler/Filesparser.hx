@@ -289,16 +289,16 @@ class FilesParser {
 		for (i in 0...tasks.length) {
 			final task = tasks[i];
 			task.path = loader.toPath(task.normalizedFilePath);
-			final candidate = Compiler.getParseTaskData(task);
+			// PORT: perf — Go takes the candidate from a sync.Pool and puts it back when the path is loaded
+			// already; here it is made only when it is stored (most tasks find their file's data: t3code-server
+			// 218k tasks, 3k files; each candidate a map and, with -D tshx-parallel, a mutex)
 			#if tshx_parallel
 			this.taskDataMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — SyncMap.LoadOrStore
 			#end
 			var data = this.taskDataByPath.get(task.path);
 			final loaded = data != null;
-			if (loaded) {
-				Compiler.putParseTaskData(candidate);
-			} else {
-				data = candidate;
+			if (!loaded) {
+				data = Compiler.getParseTaskData(task);
 				this.taskDataByPath.set(task.path, data);
 			}
 			#if tshx_parallel
@@ -356,7 +356,9 @@ class FilesParser {
 				}
 			};
 			#if tshx_parallel
-			final info = tasks.length > 1 ? loader.opts.Host.FS().Stat(task.normalizedFilePath) : null;
+			// PORT: perf — a loaded path's file is parsed or queued already (this task only records its casing
+			// and depth): no size needed
+			final info = tasks.length > 1 && !loaded ? loader.opts.Host.FS().Stat(task.normalizedFilePath) : null;
 			sizes.push(info != null ? info.Size() : 0);
 			queued.push(function() {
 			#else
@@ -474,6 +476,8 @@ class FilesParser {
 							duplicateSourceFiles.push(d);
 						}
 					}
+					// PORT: perf — equal names give equal paths (main compares the typed paths' WithoutRoot, no
+					// normalization; here both are normalized again)
 					if (!loader.opts.Config.CompilerOptions().ForceConsistentCasingInFileNames.IsFalse()) {
 						// Check if it differs only in drive letters its ok to ignore that error:
 						final checkedAbsolutePath = Tspath.GetNormalizedAbsolutePathWithoutRoot(checkedName, loader.comparePathsOptions.CurrentDirectory);
