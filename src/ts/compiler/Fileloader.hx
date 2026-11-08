@@ -72,8 +72,33 @@ class FileLoader {
 
 	public function new() {}
 
+	// PORT: perf — toPath by file name, memoized: every parse task (FilesParser.start) and import resolution
+	// normalizes long node_modules paths again (main's typed paths, #64159, avoid most of it); the current
+	// directory and case sensitivity are fixed for a loader. Parse tasks run on threads (a lock).
+	final toPathCache = new StringMap<Path>();
+	#if tshx_parallel
+	final toPathMutex = new sys.thread.Mutex();
+	#end
+
 	function toPath(file:std.String):Path {
-		return Tspath.ToPath(file, this.opts.Host.GetCurrentDirectory(), this.opts.Host.FS().UseCaseSensitiveFileNames());
+		#if tshx_parallel
+		toPathMutex.acquire();
+		#end
+		var path = toPathCache.get(file);
+		#if tshx_parallel
+		toPathMutex.release();
+		#end
+		if (path == null) {
+			path = Tspath.ToPath(file, this.opts.Host.GetCurrentDirectory(), this.opts.Host.FS().UseCaseSensitiveFileNames());
+			#if tshx_parallel
+			toPathMutex.acquire();
+			#end
+			toPathCache.set(file, path);
+			#if tshx_parallel
+			toPathMutex.release();
+			#end
+		}
+		return path;
 	}
 
 	function addRootTask(fileName:std.String, libFile:LibFile, includeReason:FileIncludeReason):Void {
