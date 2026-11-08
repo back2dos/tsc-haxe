@@ -165,17 +165,20 @@ class Program implements ProgramLike {
 		this.panicIfNoProgram("Emit");
 
 		var result:EmitResult = null;
-		if (this.snapshot.options.NoEmit.IsTrue()) {
-			result = new EmitResult();
-			result.EmitSkipped = true;
-		} else {
-			result = Compiler.HandleNoEmitOnError(ctx, this, options.TargetSourceFile);
+		if (options.EmitOnly != EmitOnlyForcedDts) {
+			var emitBuildInfo:Null<() -> EmitResult> = null;
+			if (this.Options().NoEmit.IsTrue()) {
+				emitBuildInfo = function():EmitResult {
+					return this.emitBuildInfo(ctx, options);
+				};
+			}
+			result = Compiler.HandleNoEmitOptions(ctx, this, options.TargetSourceFile, emitBuildInfo);
 			if (ctx.Err() != null) {
 				return null;
 			}
 		}
 		if (result != null) {
-			if (options.TargetSourceFile != null) {
+			if (options.TargetSourceFile != null || this.Options().NoEmit.IsTrue()) {
 				return result;
 			}
 

@@ -189,14 +189,7 @@ class Outputpaths {
 
 	public static function GetSourceFilePathInNewDir(fileName:String, newDirPath:String, currentDirectory:String, commonSourceDirectory:String,
 			useCaseSensitiveFileNames:Bool):String {
-		var sourceFilePath = Tspath.GetNormalizedAbsolutePath(fileName, currentDirectory);
-		commonSourceDirectory = Tspath.EnsureTrailingDirectorySeparator(commonSourceDirectory);
-		final isSourceFileInCommonSourceDirectory = Tspath.ContainsPath(commonSourceDirectory, sourceFilePath,
-			new ComparePathsOptions(useCaseSensitiveFileNames, currentDirectory));
-		if (isSourceFileInCommonSourceDirectory) {
-			sourceFilePath = sourceFilePath.substring(commonSourceDirectory.length);
-		}
-		return Tspath.CombinePaths(newDirPath, sourceFilePath);
+		return GetSourceFilePathInNewDirWorker(fileName, newDirPath, currentDirectory, commonSourceDirectory, useCaseSensitiveFileNames);
 	}
 
 	static function getOutputPathWithoutChangingExtension(inputFileName:String, outputDirectory:String, host:OutputPathsHost):String {
@@ -211,11 +204,9 @@ class Outputpaths {
 	public static function GetSourceFilePathInNewDirWorker(fileName:String, newDirPath:String, currentDirectory:String, commonSourceDirectory:String,
 			useCaseSensitiveFileNames:Bool):String {
 		var sourceFilePath = Tspath.GetNormalizedAbsolutePath(fileName, currentDirectory);
-		final commonDir = Tspath.GetCanonicalFileName(commonSourceDirectory, useCaseSensitiveFileNames);
-		final canonFile = Tspath.GetCanonicalFileName(sourceFilePath, useCaseSensitiveFileNames);
-		final isSourceFileInCommonSourceDirectory = StringTools.startsWith(canonFile, commonDir);
-		if (isSourceFileInCommonSourceDirectory) {
-			sourceFilePath = sourceFilePath.substring(commonSourceDirectory.length);
+		final trimmed = Tspath.TrimFilePathPrefix(sourceFilePath, commonSourceDirectory, useCaseSensitiveFileNames);
+		if (trimmed.ok) {
+			sourceFilePath = trimmed.value;
 		}
 		return Tspath.CombinePaths(newDirPath, sourceFilePath);
 	}

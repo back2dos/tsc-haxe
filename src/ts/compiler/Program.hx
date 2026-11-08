@@ -409,7 +409,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			return new Triple(Compiler.NewProgram(newOpts), newFile, false);
 		}
 
-		if (!Compiler.canReplaceFileInProgram(oldFile, newFile)) {
+		if (!Compiler.canReplaceFileInProgram(this, oldFile, newFile)) {
 			return new Triple(Compiler.NewProgram(newOpts), newFile, false);
 		}
 		final oldNeedsImportHelpers = this.importHelpersImportSpecifiers != null && this.importHelpersImportSpecifiers.get(oldFile.Path()) != null;
@@ -1111,6 +1111,8 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 						}
 						if (!Tspath.PathIsRelative(subst) && !Tspath.PathIsAbsolute(subst)) {
 							createDiagnosticForOptionPathKeyValue(key, i, Diagnostics.Non_relative_paths_are_not_allowed_Did_you_forget_a_leading_Slash, []);
+						} else if (ts.nativepath.Nativepath.IsNetworkPath(Tspath.GetNormalizedAbsolutePath(subst, options.GetPathsBasePath(this.GetCurrentDirectory())))) {
+							createDiagnosticForOptionPathKeyValue(key, i, Diagnostics.Network_path_0_is_not_supported, [subst]);
 						}
 					}
 				}
@@ -1732,7 +1734,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// PORT: body of Emit after the tracing defer.
 	function emitWorker(ctx:Context, options:EmitOptions):EmitResult {
 		if (options.EmitOnly != EmitOnlyForcedDts) {
-			final result = Compiler.HandleNoEmitOnError(ctx, this, options.TargetSourceFile);
+			final result = Compiler.HandleNoEmitOptions(ctx, this, options.TargetSourceFile, null);
 			if (result != null || ctx.Err() != null) {
 				return result;
 			}
@@ -2138,7 +2140,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 					}
 
 					final packageResolution = this.resolver.ResolvePackageDirectory(dep, packageJsonName, Core.ResolutionModeCommonJS, null);
-					if (packageResolution.IsResolved()) {
+					if (packageResolution.IsResolved() && packageResolution.OriginalPath != "") {
 						knownSymlinks.ProcessResolution(Tspath.CombinePaths(packageResolution.OriginalPath, "package.json"),
 							Tspath.CombinePaths(packageResolution.ResolvedFileName, "package.json"));
 					}

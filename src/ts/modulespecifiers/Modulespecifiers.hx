@@ -153,7 +153,13 @@ class Modulespecifiers {
 		final moduleResolution = compilerOptions.GetModuleResolutionKind();
 		final moduleResolutionIsNodeNext = ModuleResolutionKindNode16 <= moduleResolution && moduleResolution <= ModuleResolutionKindNodeNext;
 		final allowImportingTsExtension = shouldAllowImportingTsExtension(compilerOptions, importingSourceFile.FileName());
-		if (syntaxImpliedNodeFormat == Core.ResolutionModeESM && moduleResolutionIsNodeNext) {
+		// TypeScript uses `(syntaxImpliedNodeFormat ?? impliedNodeFormat)` here - fall back to the
+		// file's default resolution mode when no syntax-implied mode is given.
+		var effectiveSyntaxMode = syntaxImpliedNodeFormat;
+		if (effectiveSyntaxMode == Core.ResolutionModeNone) {
+			effectiveSyntaxMode = resolutionMode;
+		}
+		if (effectiveSyntaxMode == Core.ResolutionModeESM && moduleResolutionIsNodeNext) {
 			if (allowImportingTsExtension) {
 				return [ModuleSpecifierEndingTsExtension, ModuleSpecifierEndingJsExtension];
 			}
@@ -872,11 +878,25 @@ class Modulespecifiers {
 			return "";
 		}
 
+		final caseSensitive = host.UseCaseSensitiveFileNames();
+		final globalTypingsCacheLocation = host.GetGlobalTypingsCacheLocation();
+		// Check reachability before consulting package.json exports, which can return
+		// a bare specifier directly. An exported path is only usable if the importing
+		// file can reach the package through node_modules, and packages under the
+		// global typings cache are excluded.
+		// PORT: the prefix up to the top-level node_modules is the same in pathObj.FileName and in
+		// every specifier computed below from it.
+		final pathToTopLevelNodeModules = pathObj.FileName.substring(0, parts.TopLevelNodeModulesIndex);
+		if (!Stringutil.HasPrefix(info.SourceDirectory, pathToTopLevelNodeModules, caseSensitive)
+			|| globalTypingsCacheLocation.length > 0
+			&& Stringutil.HasPrefix(globalTypingsCacheLocation, pathToTopLevelNodeModules, caseSensitive)) {
+			return "";
+		}
+
 		// Simplify the full file path to something that can be resolved by Node.
 		final preferences = getModuleSpecifierPreferences(userPreferences, host, options, importingSourceFile, "");
 		final allowedEndings = preferences.getAllowedEndingsInPreferredOrder(Core.ResolutionModeNone);
 
-		final caseSensitive = host.UseCaseSensitiveFileNames();
 		var moduleSpecifier = pathObj.FileName;
 		var isPackageRootPath = false;
 		if (!packageNameOnly) {
@@ -914,17 +934,6 @@ class Modulespecifiers {
 		}
 
 		if (pathObj.IsRedirect && !isPackageRootPath) {
-			return "";
-		}
-
-		final globalTypingsCacheLocation = host.GetGlobalTypingsCacheLocation();
-		// Get a path that's relative to node_modules or the importing file's path
-		// if node_modules folder is in this folder or any of its parent folders, no need to keep it.
-		final pathToTopLevelNodeModules = moduleSpecifier.substring(0, parts.TopLevelNodeModulesIndex);
-
-		if (!Stringutil.HasPrefix(info.SourceDirectory, pathToTopLevelNodeModules, caseSensitive)
-			|| globalTypingsCacheLocation.length > 0
-			&& Stringutil.HasPrefix(globalTypingsCacheLocation, pathToTopLevelNodeModules, caseSensitive)) {
 			return "";
 		}
 

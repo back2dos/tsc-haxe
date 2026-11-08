@@ -102,6 +102,7 @@ class FileLoader {
 		rootTask.includeReason = includeReason;
 		if (diagnostic != null) {
 			rootTask.normalizedFilePath = absPath;
+			rootTask.failedLookup = true;
 			rootTask.processingDiagnostics = [
 				new ProcessingDiagnostic(processingDiagnosticKindExplainingFileInclude,
 					new IncludeExplainingDiagnostic("", includeReason, diagnostic.message, diagnostic.args))
@@ -197,7 +198,7 @@ class FileLoader {
 	}
 
 	function sortLibs(libFiles:Array<SourceFile>):Void {
-		Slices.SortFunc(libFiles, function(f1:SourceFile, f2:SourceFile):Int {
+		Slices.SortStableFunc(libFiles, function(f1:SourceFile, f2:SourceFile):Int {
 			return go.Cmp.Compare(this.getDefaultLibFilePriority(f1), this.getDefaultLibFilePriority(f2));
 		});
 	}
@@ -289,6 +290,10 @@ class FileLoader {
 		final options = this.opts.Config.CompilerOptions();
 		final allowNonTsExtensions = options.AllowNonTsExtensions.IsTrue();
 		final diagnosticFileName = Tspath.NormalizeSlashes(referenceText);
+
+		if (ts.nativepath.Nativepath.IsNetworkPath(fileName)) {
+			return new Pair("", new SourceFileFromReferenceDiagnostic(Diagnostics.Network_path_0_is_not_supported, [diagnosticFileName]));
+		}
 
 		if (Tspath.HasExtension(fileName)) {
 			final canonicalFileName = Tspath.GetCanonicalFileName(fileName, this.opts.Host.FS().UseCaseSensitiveFileNames());
@@ -468,7 +473,7 @@ class FileLoader {
 			}
 		}
 
-		if (file.ScriptKind == ScriptKindJSX || file.ScriptKind == ScriptKindTSX) {
+		if (isJavaScriptFile || file.ScriptKind == ScriptKindTSX) {
 			final jsxImport = Ast.GetJSXRuntimeImport(Ast.GetJSXImplicitImportBase(optionsForFile, file), optionsForFile);
 			if (jsxImport != "") {
 				final specifier = this.createSyntheticImport(jsxImport, file);
@@ -507,6 +512,18 @@ class FileLoader {
 				}
 
 				final mode = Compiler.getModeForUsageLocation(file.FileName(), meta, entry, optionsForFile);
+				// We know moduleName resolves to an ambient module provided that moduleName:
+				// - is in the list of ambient modules locally declared in the current source file.
+				if (Slices.Contains(file.AmbientModuleNames, moduleName)) {
+					if (optionsForFile.TraceResolution.IsTrue()) {
+						if (resolutionsTrace == null) {
+							resolutionsTrace = [];
+						}
+						resolutionsTrace.push(new DiagAndArgs(Diagnostics.Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1, [moduleName, file.FileName()]));
+					}
+					resolutionsInFile.set(new ModeAwareCacheKey(moduleName, mode).Key(), new ResolvedModule());
+					continue;
+				}
 				final rr = this.resolver.ResolveModuleName(moduleName, fileName, mode, redirect);
 				final resolvedModule = rr.a, trace = rr.b;
 				resolutionsInFile.set(new ModeAwareCacheKey(moduleName, mode).Key(), resolvedModule);

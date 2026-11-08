@@ -51,7 +51,7 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 		if (!ok) {
 			return null;
 		}
-		return Parser.ParseSourceFile(opts, text, Core.GetScriptKindFromFileName(opts.FileName));
+		return Parser.ParseSourceFile(opts, text, Core.EnsureScriptKindFromFileName(opts.FileName));
 	}
 
 	public function GetResolvedProjectReference(fileName:std.String, path:Path):ParsedCommandLine {

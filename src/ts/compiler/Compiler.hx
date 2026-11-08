@@ -488,11 +488,15 @@ class Compiler {
 		return p;
 	}
 
-	static function canReplaceFileInProgram(file1:SourceFile, file2:SourceFile):Bool {
+	// PORT: Go method of *Program; a static with the program as first parameter.
+	static function canReplaceFileInProgram(p:Program, file1:SourceFile, file2:SourceFile):Bool {
 		return file2 != null
 			&& parseOptionsEqual(file1.ParseOptions(), file2.ParseOptions())
 			&& file1.UsesUriStyleNodeCoreModules == file2.UsesUriStyleNodeCoreModules
-			&& Slices.EqualFunc(file1.Imports(), file2.Imports(), equalModuleSpecifiers)
+			&& Slices.EqualFunc(file1.Imports(), file2.Imports(), function(n1:Node, n2:Node):Bool {
+				return equalModuleSpecifiers(n1, n2) && p.GetModeForUsageLocation(ts.modulespecifiers.Types.SourceFileAdapter.Of(file1), n1)
+					== p.GetModeForUsageLocation(ts.modulespecifiers.Types.SourceFileAdapter.Of(file2), n2);
+			})
 			&& Slices.EqualFunc(file1.ModuleAugmentations, file2.ModuleAugmentations, equalModuleAugmentationNames)
 			&& Slices.Equal(file1.AmbientModuleNames, file2.AmbientModuleNames)
 			&& Slices.EqualFunc(file1.ReferencedFiles, file2.ReferencedFiles, equalFileReferences)
@@ -677,19 +681,36 @@ class Compiler {
 		return s;
 	}
 
-	public static function HandleNoEmitOnError(ctx:Context, program:ProgramLike, file:SourceFile):EmitResult {
-		if (!program.Options().NoEmitOnError.IsTrue()) {
-			return null; // No emit on error is not set, so we can proceed with emitting
-		}
+	// HandleNoEmitOptions mirrors tsc's handleNoEmitOptions.
+	// PORT: TypeScript main takes the target files as a slice (TargetSourceFiles); the port keeps
+	// 7.0.2's single TargetSourceFile (null: all files).
+	public static function HandleNoEmitOptions(ctx:Context, program:ProgramLike, file:SourceFile, emitBuildInfo:Null<() -> EmitResult>):EmitResult {
+		if (!program.Options().NoEmit.IsTrue()) {
+			if (!program.Options().NoEmitOnError.IsTrue()) {
+				return null; // NoEmit is false and NoEmitOnError is also false, so we can proceed with normal emit
+			}
 
-		final diagnostics = GetDiagnosticsOfAnyProgram(ctx, program, file, true, program.GetBindDiagnostics, program.GetSemanticDiagnostics);
-		if (Core.len(diagnostics) == 0) {
-			return null; // No diagnostics, so we can proceed with emitting
+			final diagnostics = GetDiagnosticsOfAnyProgram(ctx, program, file, true, program.GetBindDiagnostics, program.GetSemanticDiagnostics);
+			if (Core.len(diagnostics) == 0) {
+				return null; // NoEmitOnError is enabled, but no diagnostics were found, so we can proceed with emitting
+			}
+			final r = new EmitResult();
+			r.Diagnostics = diagnostics;
+			r.EmitSkipped = true;
+			return r;
 		}
-		final r = new EmitResult();
-		r.Diagnostics = diagnostics;
-		r.EmitSkipped = true;
-		return r;
+		if (file != null) {
+			final r = new EmitResult();
+			r.EmitSkipped = true;
+			return r;
+		}
+		if (emitBuildInfo != null) {
+			final result = emitBuildInfo();
+			if (result != null) {
+				return result;
+			}
+		}
+		return new EmitResult();
 	}
 
 	public static function GetDiagnosticsOfAnyProgram(ctx:Context, program:ProgramLike, file:SourceFile, skipNoEmitCheckForDtsDiagnostics:Bool,
