@@ -61,14 +61,30 @@ class SourceFileFromReferenceDiagnostic {
 	}
 }
 
+class CompilerResolutionHost implements ResolutionHost {
+	final host:CompilerHost;
+	final baseDirectory:RootedDirectoryPath;
+
+	public function new(host:CompilerHost, baseDirectory:RootedDirectoryPath) {
+		this.host = host;
+		this.baseDirectory = baseDirectory;
+	}
+
+	public function FS():ts.vfs.Vfs.FS {
+		return this.host.FS();
+	}
+
+	public function GetCurrentDirectory():RootedDirectoryPath {
+		return this.baseDirectory;
+	}
+}
+
 @:allow(ts.compiler)
 class FileLoader {
 	var opts:ProgramOptions = null;
 	var resolver:Resolver = null;
 	var defaultLibraryPath:RootedDirectoryPath = cast "";
 	var caseSensitivity:CaseSensitivity = Tspath.CaseInsensitive;
-	// PORT: transitional — the current directory (main: Config.BaseDirectory / the host)
-	var currentDirectory:RootedDirectoryPath = cast "";
 	var supportedExtensions:Array<Array<std.String>> = null;
 	var supportedExtensionsWithJsonIfResolveJsonModule:Array<Array<std.String>> = null;
 	var contentMapperExtensions:Array<std.String> = null;
@@ -139,14 +155,7 @@ class FileLoader {
 	}
 
 	function addAutomaticTypeDirectiveTasks():Void {
-		var containingDirectory:RootedDirectoryPath;
-		final compilerOptions = this.opts.Config.CompilerOptions();
-		if (compilerOptions.ConfigFilePath != "") {
-			containingDirectory = compilerOptions.ConfigFilePath.Directory();
-		} else {
-			containingDirectory = this.currentDirectory;
-		}
-		final containingFileName = containingDirectory.ResolveFile(Module.InferredTypesContainingFile);
+		final containingFileName = this.opts.Config.BaseDirectory().ResolveFile(Module.InferredTypesContainingFile);
 		final t = new ParseTask();
 		t.normalizedFilePath = containingFileName;
 		t.path = this.caseSensitivity.PathKey(containingFileName.AsPath());
@@ -160,7 +169,7 @@ class FileLoader {
 		var typeResolutionsInFile:ModeAwareCache<ResolvedTypeReferenceDirective> = null;
 		var typeResolutionsTrace:Array<DiagAndArgs> = null;
 		var pDiagnostics:Array<ProcessingDiagnostic> = null;
-		final automaticTypeDirectiveNames = Module.GetAutomaticTypeDirectiveNames(this.opts.Config.CompilerOptions(), this.opts.Host.GetCurrentDirectory(), this.opts.Host.FS());
+		final automaticTypeDirectiveNames = Module.GetAutomaticTypeDirectiveNames(this.opts.Config.CompilerOptions(), this.opts.Config.BaseDirectory(), this.opts.Host.FS());
 		if (Core.len(automaticTypeDirectiveNames) != 0) {
 			toParse = [];
 			typeResolutionsInFile = new ModeAwareCache<ResolvedTypeReferenceDirective>();
@@ -213,7 +222,7 @@ class FileLoader {
 	function addProjectReferenceTasks(singleThreaded:Bool):Void {
 		this.projectReferenceFileMapper = new ProjectReferenceFileMapper();
 		this.projectReferenceFileMapper.opts = this.opts;
-		this.projectReferenceFileMapper.host = this.opts.Host;
+		this.projectReferenceFileMapper.host = new CompilerResolutionHost(this.opts.Host, this.opts.Config.BaseDirectory());
 		final projectReferences = this.opts.Config.ResolvedProjectReferencePaths();
 		if (Core.len(projectReferences) == 0) {
 			return;
@@ -768,7 +777,7 @@ class FileLoader {
 		var replaced = false;
 		if (this.opts.Config.CompilerOptions().LibReplacement.IsTrue() && name != "lib.d.ts") {
 			final libraryName = Compiler.getLibraryNameFromLibFileName(name);
-			final resolveFrom = Compiler.getInferredLibraryNameResolveFrom(this.opts.Config.CompilerOptions(), this.currentDirectory, name);
+			final resolveFrom = Compiler.getInferredLibraryNameResolveFrom(this.opts.Config.BaseDirectory(), name);
 			final rr = this.resolveLibrary(libraryName, resolveFrom);
 			final resolution = rr.a, trace = rr.b;
 			if (resolution.IsResolved()) {

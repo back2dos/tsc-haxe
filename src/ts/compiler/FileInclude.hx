@@ -121,28 +121,27 @@ class FileIncludeReason {
 		if (relativeFileName) {
 			if (!this.relativeFileNameDiagOnce) {
 				this.relativeFileNameDiagOnce = true;
-				this.relativeFileNameDiag = this.computeDiagnostic(program, function(fileName:std.String):std.String {
-					// PORT: transitional (main: typed toFileName parameter)
-					final relativePath = program.caseSensitivity.RelativePathFromDirectory(relativeTo, Tspath.RootedFilePathFromNormalized(fileName));
+				this.relativeFileNameDiag = this.computeDiagnostic(program, function(fileName:RootedFilePath):std.String {
+					final relativePath = program.caseSensitivity.RelativePathFromDirectory(relativeTo, fileName);
 					if (relativePath != null) {
 						return relativePath.AsString();
 					}
-					return fileName;
+					return fileName.AsString();
 				});
 			}
 			return this.relativeFileNameDiag;
 		} else {
 			if (!this.diagOnce) {
 				this.diagOnce = true;
-				this.diag = this.computeDiagnostic(program, function(fileName:std.String):std.String {
-					return fileName;
+				this.diag = this.computeDiagnostic(program, function(fileName:RootedFilePath):std.String {
+					return fileName.AsString();
 				});
 			}
 			return this.diag;
 		}
 	}
 
-	function computeDiagnostic(program:Program, toFileName:(std.String) -> std.String):Diagnostic {
+	function computeDiagnostic(program:Program, toFileName:(RootedFilePath) -> std.String):Diagnostic {
 		if (this.isReferencedFile()) {
 			return this.computeReferenceFileDiagnostic(program, toFileName);
 		}
@@ -206,7 +205,7 @@ class FileIncludeReason {
 		}
 	}
 
-	function computeReferenceFileDiagnostic(program:Program, toFileName:(std.String) -> std.String):Diagnostic {
+	function computeReferenceFileDiagnostic(program:Program, toFileName:(RootedFilePath) -> std.String):Diagnostic {
 		final referenceLocation = program.includeProcessor.getReferenceLocation(this, program);
 		final referenceText = referenceLocation.text();
 		switch (this.kind) {

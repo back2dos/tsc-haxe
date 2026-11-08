@@ -6,7 +6,7 @@ import go.Time;
 
 @:allow(ts.compiler)
 class ProjectReferenceDtsFakingHost implements ResolutionHost {
-	var host:CompilerHost = null;
+	var currentDirectory:RootedDirectoryPath = cast "";
 	var fs:ts.vfs.cachedvfs.Cachedvfs.FS = null;
 
 	public function new() {}
@@ -18,7 +18,7 @@ class ProjectReferenceDtsFakingHost implements ResolutionHost {
 
 	// GetCurrentDirectory implements module.ResolutionHost.
 	public function GetCurrentDirectory():RootedDirectoryPath {
-		return this.host.GetCurrentDirectory();
+		return this.currentDirectory;
 	}
 }
 

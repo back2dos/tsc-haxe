@@ -434,7 +434,6 @@ class Compiler {
 		// PORT: main's host returns a typed DefaultLibraryPath; here it is still a string, resolved as before.
 		loader.defaultLibraryPath = Tspath.ToRootedDirectoryPath(opts.Host.DefaultLibraryPath(), opts.Host.GetCurrentDirectory());
 		loader.caseSensitivity = opts.Host.FS().CaseSensitivity();
-		loader.currentDirectory = opts.Host.GetCurrentDirectory();
 		loader.filesParser = new FilesParser();
 		#if tshx_parallel
 		// PORT: hxmc (-D tshx-parallel) — the files are loaded and parsed on threads, as in Go
@@ -525,15 +524,8 @@ class Compiler {
 		return path.toString();
 	}
 
-	// PORT: main takes Config.BaseDirectory(); computed from the options as before.
-	static function getInferredLibraryNameResolveFrom(options:CompilerOptions, currentDirectory:RootedDirectoryPath, libFileName:std.String):RootedFilePath {
-		var containingDirectory:RootedDirectoryPath;
-		if (options.ConfigFilePath != "") {
-			containingDirectory = options.ConfigFilePath.Directory();
-		} else {
-			containingDirectory = currentDirectory;
-		}
-		return containingDirectory.ResolveFile("__lib_node_modules_lookup_" + libFileName + "__.ts");
+	static function getInferredLibraryNameResolveFrom(baseDirectory:RootedDirectoryPath, libFileName:std.String):RootedFilePath {
+		return baseDirectory.ResolveFile("__lib_node_modules_lookup_" + libFileName + "__.ts");
 	}
 
 	static function getModeForTypeReferenceDirectiveInFile(ref:FileReference, file:SourceFile, meta:SourceFileMetaData, options:CompilerOptions):ResolutionMode {
@@ -1091,7 +1083,7 @@ class Compiler {
 	static function newProjectReferenceDtsFakingHost(loader:FileLoader):ResolutionHost {
 		// Create a new host that will fake the dts files
 		final host = new ProjectReferenceDtsFakingHost();
-		host.host = loader.opts.Host;
+		host.currentDirectory = loader.projectReferenceFileMapper.host.GetCurrentDirectory();
 		final vfs = new ProjectReferenceDtsFakingVfs();
 		vfs.projectReferenceFileMapper = loader.projectReferenceFileMapper;
 		vfs.dtsDirectories = loader.dtsDirectories;

@@ -109,7 +109,7 @@ class IncludeProcessor {
 		return relatedInfo;
 	}
 
-	function explainRedirectAndImpliedFormat(program:Program, filePath:Path, toFileName:(fileName:std.String) -> std.String):Array<Diagnostic> {
+	function explainRedirectAndImpliedFormat(program:Program, filePath:Path, toFileName:(fileName:RootedFilePath) -> std.String):Array<Diagnostic> {
 		if (this.redirectAndFileFormat.exists(filePath)) {
 			return this.redirectAndFileFormat.get(filePath);
 		}

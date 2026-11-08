@@ -2076,8 +2076,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	public function ExplainFiles(w:go.Io.Writer, locale:Locale, currentDirectory:RootedDirectoryPath):Void {
-		final toRelativeFileName = function(fileName:std.String):std.String {
-			return Tspath.GetRelativePathFromDirectory(currentDirectory, fileName, this.caseSensitivity);
+		final toRelativeFileName = function(fileName:RootedFilePath):std.String {
+			final relativePath = this.caseSensitivity.RelativePathFromDirectory(currentDirectory, fileName);
+			if (relativePath != null) {
+				return relativePath.AsString();
+			}
+			return fileName.AsString();
 		};
 		var filesExplained = 0;
 		final explainFile = function(file:HasFileName) {
