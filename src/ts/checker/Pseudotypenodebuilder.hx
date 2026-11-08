@@ -182,7 +182,7 @@ class Pseudotypenodebuilder {
 				final d = t.AsPseudoTypeSingleCallSignature();
 				final signature = b.ch.getSignatureFromDeclaration(d.Signature);
 				final expandedParams = b.ch.getExpandedParameters(signature, true /*skipUnionExpanding*/)[0];
-				final cleanup = b.enterNewScope(d.Signature, expandedParams, signature.typeParameters, signature.parameters, signature.mapper);
+				final cleanup = b.enterNewScope(d.Signature, expandedParams, Core.vectorToArray(signature.typeParameters) /* PORT: perf — a copy (printing) */, signature.parameters, signature.mapper);
 				// PORT: defer cleanup() → called before the single return below.
 				var typeParams:NodeList = null;
 				if (Core.len(d.TypeParameters) > 0) {
@@ -242,7 +242,7 @@ class Pseudotypenodebuilder {
 					if (e.Kind != PseudoObjectElementKindPropertyAssignment) {
 						final signature = b.ch.getSignatureFromDeclaration(e.Signature());
 						final expandedParams = b.ch.getExpandedParameters(signature, true /*skipUnionExpanding*/)[0];
-						cleanup = b.enterNewScope(e.Signature(), expandedParams, signature.typeParameters, signature.parameters, signature.mapper);
+						cleanup = b.enterNewScope(e.Signature(), expandedParams, Core.vectorToArray(signature.typeParameters) /* PORT: perf — a copy (printing) */, signature.parameters, signature.mapper);
 					}
 					var newProp:Node = null;
 					switch (e.Kind) {

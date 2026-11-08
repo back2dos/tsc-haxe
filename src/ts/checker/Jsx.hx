@@ -950,7 +950,7 @@ class Jsx {
 		var apparentAttributesType = attributesType;
 		final intrinsicClassAttribs = c.getJsxType(Checker.JsxNames.IntrinsicClassAttributes, context);
 		if (!c.isErrorType(intrinsicClassAttribs)) {
-			final typeParams = c.getLocalTypeParametersOfClassOrInterfaceOrTypeAlias(intrinsicClassAttribs.symbol);
+			final typeParams = VectorBuilder.freezeOrNull(c.getLocalTypeParametersOfClassOrInterfaceOrTypeAlias(intrinsicClassAttribs.symbol));
 			final hostClassType = c.getReturnTypeOfSignature(sig);
 			var libraryManagedAttributeType:Type = null;
 			if (typeParams != null) {
@@ -1024,7 +1024,7 @@ class Jsx {
 			}
 		}
 		if ((declaredManagedType.objectFlags & ObjectFlagsClassOrInterface) != 0 && Core.len(declaredManagedType.AsInterfaceType().TypeParameters()) >= Core.len(typeArguments)) {
-			final args = c.fillMissingTypeArguments(typeArguments, Core.vectorToArray(declaredManagedType.AsInterfaceType().TypeParameters()), Core.len(typeArguments), inJavaScript); // PORT: perf — a copy (JSX LibraryManagedAttributes of a class type)
+			final args = c.fillMissingTypeArguments(typeArguments, declaredManagedType.AsInterfaceType().TypeParameters(), Core.len(typeArguments), inJavaScript);
 			return c.createTypeReference(declaredManagedType, args);
 		}
 		return null;

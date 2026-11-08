@@ -2373,7 +2373,7 @@ class CheckerPart8 {
 	}
 
 	// Creates a synthetic `FunctionType`
-	static function newFunctionType(c:Checker, typeParameters:Array<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Type {
+	static function newFunctionType(c:Checker, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Type {
 		final signature = c.newCallSignature(typeParameters, thisParameter, parameters, returnType);
 		return c.getOrCreateTypeFromSignature(signature);
 	}
@@ -2388,7 +2388,7 @@ class CheckerPart8 {
 	}
 
 	// Creates a synthetic `Signature` corresponding to a call signature.
-	static function newCallSignature(c:Checker, typeParameters:Array<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Signature {
+	static function newCallSignature(c:Checker, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Signature {
 		final decl = c.factory.NewFunctionTypeNode(null, null, c.factory.NewKeywordTypeNode(KindAnyKeyword));
 		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), returnType, null, Core.len(parameters));
 	}

@@ -294,11 +294,11 @@ class Exports {
 		return c.isContextSensitive(node);
 	}
 
-	public static function FillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
+	public static function FillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
 		return c.fillMissingTypeArguments(typeArguments, typeParameters, minTypeArgumentCount, isJavaScriptImplicitAny);
 	}
 
-	public static function GetMinTypeArgumentCount(c:Checker, typeParameters:Array<Type>):Int {
+	public static function GetMinTypeArgumentCount(c:Checker, typeParameters:haxe.ds.Vector<Type>):Int {
 		return c.getMinTypeArgumentCount(typeParameters);
 	}
 

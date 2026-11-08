@@ -31,7 +31,7 @@ class Nodebuilderscopes {
 
 	static function enterSignatureScope(b:NodeBuilderImpl, signature:Signature):Pair<Array<Symbol>, () -> Void> {
 		final expandedParams = b.ch.getExpandedParameters(signature, true /*skipUnionExpanding*/)[0];
-		final cleanup = b.enterNewScope(signature.declaration, expandedParams, signature.typeParameters, signature.parameters, signature.mapper);
+		final cleanup = b.enterNewScope(signature.declaration, expandedParams, Core.vectorToArray(signature.typeParameters) /* PORT: perf — a copy (printing) */, signature.parameters, signature.mapper);
 		return new Pair<Array<Symbol>, () -> Void>(expandedParams, cleanup);
 	}
 

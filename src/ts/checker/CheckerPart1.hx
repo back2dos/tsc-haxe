@@ -74,7 +74,7 @@ class CheckerPart1 {
 		return symbol;
 	}
 
-	public static function GetTypeAliasTypeParameters(c:Checker, symbol:Symbol):Array<Type> {
+	public static function GetTypeAliasTypeParameters(c:Checker, symbol:Symbol):haxe.ds.Vector<Type> {
 		if (symbol.Flags & SymbolFlagsTypeAlias == 0) {
 			throw "Attempted to fetch type alias parameters for non-type-alias symbol";
 		}
@@ -1955,7 +1955,7 @@ class CheckerPart1 {
 		}
 	}
 
-	static function checkTypeArgumentConstraints(c:Checker, node:Node, typeParameters:Array<Type>):Bool {
+	static function checkTypeArgumentConstraints(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>):Bool {
 		var typeArguments:Array<Type> = null;
 		var mapper:TypeMapper = null;
 		var result = true;
@@ -2276,7 +2276,7 @@ class CheckerPart1 {
 				links.typeParametersChecked = true;
 				final typeParameter = c.getDeclaredTypeOfTypeParameter(symbol);
 				final declarations = Checker.getDeclarationsOfKind(symbol, KindTypeParameter);
-				if (!c.areTypeParametersIdentical(declarations, [typeParameter], (decl:Node) -> [decl])) {
+				if (!c.areTypeParametersIdentical(declarations, Core.vector1(typeParameter), (decl:Node) -> [decl])) {
 					// Report an error on every conflicting declaration.
 					final name = c.symbolToString(symbol);
 					if (declarations != null) {

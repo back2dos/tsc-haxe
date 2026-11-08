@@ -511,7 +511,7 @@ class CheckerPart2 {
 		});
 	}
 
-	static function areTypeParametersIdentical(c:Checker, declarations:Array<Node>, targetParameters:Array<Type>, getTypeParameterDeclarations:(node:Node) -> Array<Node>):Bool {
+	static function areTypeParametersIdentical(c:Checker, declarations:Array<Node>, targetParameters:haxe.ds.Vector<Type>, getTypeParameterDeclarations:(node:Node) -> Array<Node>):Bool {
 		final maxTypeArgumentCount = Core.len(targetParameters);
 		final minTypeArgumentCount = c.getMinTypeArgumentCount(targetParameters);
 		for (declaration in declarations) {
@@ -4033,7 +4033,7 @@ class CheckerPart2 {
 		return result;
 	}
 
-	static function getUniqueTypeParameters(c:Checker, context:InferenceContext, typeParameters:Array<Type>):Array<Type> {
+	static function getUniqueTypeParameters(c:Checker, context:InferenceContext, typeParameters:haxe.ds.Vector<Type>):Array<Type> {
 		var oldTypeParameters:Array<Type> = null;
 		var newTypeParameters:Array<Type> = null;
 		final result:Array<Type> = [];

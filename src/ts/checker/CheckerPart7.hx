@@ -1354,7 +1354,7 @@ class CheckerPart7 {
 		return c.newType(TypeFlagsSubstitution, ObjectFlagsNone, data);
 	}
 
-	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:Array<Type>, thisParameter:Symbol, parameters:haxe.ds.Vector<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
+	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:haxe.ds.Vector<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
 		c.SignatureCount++;
 		final sig = c.signatureArena.New();
 		sig.id = c.SignatureCount;

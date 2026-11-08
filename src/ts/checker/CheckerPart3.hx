@@ -1620,7 +1620,7 @@ class CheckerPart3 {
 		return maxParamsIndex;
 	}
 
-	static function getTypeArgumentsFromNodes(c:Checker, typeArgumentNodes:Array<Node>, typeParameters:Array<Type>):Array<Type> {
+	static function getTypeArgumentsFromNodes(c:Checker, typeArgumentNodes:Array<Node>, typeParameters:haxe.ds.Vector<Type>):Array<Type> {
 		if (Core.len(typeArgumentNodes) > Core.len(typeParameters)) {
 			typeArgumentNodes = typeArgumentNodes.slice(0, Core.len(typeParameters));
 		}
@@ -1638,7 +1638,7 @@ class CheckerPart3 {
 		return typeArguments;
 	}
 
-	static function inferSignatureInstantiationForOverloadFailure(c:Checker, node:Node, typeParameters:Array<Type>, candidate:Signature, args:Array<Node>, checkMode:CheckMode):Signature {
+	static function inferSignatureInstantiationForOverloadFailure(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>, candidate:Signature, args:Array<Node>, checkMode:CheckMode):Signature {
 		final inferenceContext = c.newInferenceContext(typeParameters, candidate, Core.IfElse(Ast.IsInJSFile(node), InferenceFlagsAnyDefault, InferenceFlagsNone),
 			null);
 		final typeArgumentTypes = c.inferTypeArguments(node, candidate, args, checkMode | CheckModeSkipContextSensitive | CheckModeSkipGenericFunctions,

@@ -580,12 +580,15 @@ class CheckerPart6 {
 	}
 
 	static function instantiateSignatureEx(c:Checker, sig:Signature, m:TypeMapper, eraseTypeParameters:Bool):Signature {
-		var freshTypeParameters:Array<Type> = null;
+		var freshTypeParameters:haxe.ds.Vector<Type> = null;
 		if (Core.len(sig.typeParameters) != 0 && !eraseTypeParameters) {
 			// First create a fresh set of type parameters, then include a mapping from the old to the
 			// new type parameters in the mapper function. Finally store this mapper in the new type
 			// parameters such that we can use it when instantiating constraints.
-			freshTypeParameters = Core.Map(sig.typeParameters, function(tp:Type):Type return c.cloneTypeParameter(tp));
+			freshTypeParameters = new haxe.ds.Vector<Type>(sig.typeParameters.length);
+			for (i in 0...sig.typeParameters.length) {
+				freshTypeParameters[i] = c.cloneTypeParameter(sig.typeParameters[i]);
+			}
 			m = c.combineTypeMappers(Checker.newTypeMapper(sig.typeParameters, freshTypeParameters), m);
 			for (tp in freshTypeParameters) {
 				tp.AsTypeParameter().mapper = m;
@@ -1970,7 +1973,7 @@ class CheckerPart6 {
 				switch (node.Kind) {
 					case KindTypeReference:
 						// PORT: Go `append(n.OuterTypeParameters(), ...)`; OuterTypeParameters returns a fresh (clipped) slice.
-						typeArguments = appendTypes(n.OuterTypeParameters(), c.getEffectiveTypeArguments(node, n.LocalTypeParameters()));
+						typeArguments = appendTypes(Core.vectorToArray(n.OuterTypeParameters()), c.getEffectiveTypeArguments(node, n.LocalTypeParameters()));
 					case KindArrayType:
 						typeArguments = [c.getTypeFromTypeNode(node.AsArrayTypeNode().ElementType)];
 					case KindTupleType:
@@ -2001,7 +2004,7 @@ class CheckerPart6 {
 		return d.resolvedTypeArguments;
 	}
 
-	static function getEffectiveTypeArguments(c:Checker, node:Node, typeParameters:Array<Type>):Array<Type> {
+	static function getEffectiveTypeArguments(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>):Array<Type> {
 		return c.fillMissingTypeArguments(Core.Map(node.TypeArguments(), function(n:Node):Type {
 			return c.getTypeFromTypeNode(n);
 		}), typeParameters, c.getMinTypeArgumentCount(typeParameters), Ast.IsInJSFile(node));
@@ -2039,16 +2042,16 @@ class CheckerPart6 {
 		});
 	}
 
-	static extern inline overload function fillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
+	static extern inline overload function fillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
 		return c.fillMissingTypeArgumentsA(typeArguments, typeParameters, minTypeArgumentCount, isJavaScriptImplicitAny);
 	}
 
 	// PORT: perf — Vector type arguments (an alias's): the same Vector or a new one
-	static extern inline overload function fillMissingTypeArguments(c:Checker, typeArguments:haxe.ds.Vector<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):haxe.ds.Vector<Type> {
+	static extern inline overload function fillMissingTypeArguments(c:Checker, typeArguments:haxe.ds.Vector<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):haxe.ds.Vector<Type> {
 		return c.fillMissingTypeArgumentsV(typeArguments, typeParameters, minTypeArgumentCount, isJavaScriptImplicitAny);
 	}
 
-	static function fillMissingTypeArgumentsA(c:Checker, typeArguments:Array<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
+	static function fillMissingTypeArgumentsA(c:Checker, typeArguments:Array<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
 		final numTypeParameters = Core.len(typeParameters);
 		if (numTypeParameters == 0) {
 			return null;
@@ -2059,7 +2062,6 @@ class CheckerPart6 {
 			// PORT: perf — the mappers of the default types hold a Vector (mappers hold Vectors) that sees the later
 			// writes as Go's mapper sees them in `result`: written in step with `result`
 			final resultV = new haxe.ds.Vector<Type>(numTypeParameters);
-			var sources:haxe.ds.Vector<Type> = null;
 			final result:Array<Type> = [for (i in 0...numTypeParameters) resultV[i] = i < numTypeArguments ? typeArguments[i] : null];
 			// Map invalid forward references in default types to the error type
 			for (i in numTypeArguments...numTypeParameters) {
@@ -2074,10 +2076,7 @@ class CheckerPart6 {
 				}
 
 				if (defaultType != null) {
-					if (sources == null) {
-						sources = VectorBuilder.freeze(typeParameters);
-					}
-					result[i] = resultV[i] = c.instantiateType(defaultType, Checker.newTypeMapper(sources, resultV));
+					result[i] = resultV[i] = c.instantiateType(defaultType, Checker.newTypeMapper(typeParameters, resultV));
 				} else {
 					result[i] = resultV[i] = baseDefaultType;
 				}
@@ -2087,7 +2086,7 @@ class CheckerPart6 {
 		return typeArguments;
 	}
 
-	static function fillMissingTypeArgumentsV(c:Checker, typeArguments:haxe.ds.Vector<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):haxe.ds.Vector<Type> {
+	static function fillMissingTypeArgumentsV(c:Checker, typeArguments:haxe.ds.Vector<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):haxe.ds.Vector<Type> {
 		final numTypeParameters = Core.len(typeParameters);
 		if (numTypeParameters == 0) {
 			return null;
@@ -2096,7 +2095,6 @@ class CheckerPart6 {
 		if (isJavaScriptImplicitAny || numTypeArguments < numTypeParameters) {
 			// PORT: Go `make` + `copy` (copy stops at the shorter length).
 			final resultV = new haxe.ds.Vector<Type>(numTypeParameters);
-			var sources:haxe.ds.Vector<Type> = null;
 			for (i in 0...(numTypeArguments < numTypeParameters ? numTypeArguments : numTypeParameters)) {
 				resultV[i] = typeArguments[i];
 			}
@@ -2113,10 +2111,7 @@ class CheckerPart6 {
 				}
 
 				if (defaultType != null) {
-					if (sources == null) {
-						sources = VectorBuilder.freeze(typeParameters);
-					}
-					resultV[i] = c.instantiateType(defaultType, Checker.newTypeMapper(sources, resultV));
+					resultV[i] = c.instantiateType(defaultType, Checker.newTypeMapper(typeParameters, resultV));
 				} else {
 					resultV[i] = baseDefaultType;
 				}
@@ -3454,7 +3449,7 @@ class CheckerPart6 {
 			// supplied as type arguments and the type reference only specifies arguments for the local type parameters
 			// of the class or interface.
 			final localTypeArguments = c.fillMissingTypeArguments(c.getTypeArgumentsFromNode(node), typeParameters, minTypeArgumentCount, isJs);
-			final typeArguments = appendAll(d.OuterTypeParameters(), localTypeArguments);
+			final typeArguments = appendAll(Core.vectorToArray(d.OuterTypeParameters()), localTypeArguments);
 			return c.createTypeReferenceEx(t, typeArguments, ObjectFlagsFromTypeNode);
 		}
 		if (c.checkNoTypeArguments(node, symbol)) {
@@ -3925,7 +3920,7 @@ class CheckerPart6 {
 					if ((kind == KindFunctionExpression || kind == KindArrowFunction || Ast.IsObjectLiteralMethod(node)) && c.isContextSensitive(node)) {
 						final signature = Core.FirstOrNil(c.getSignaturesOfType(c.getTypeOfSymbol(c.getSymbolOfDeclaration(node)), SignatureKindCall));
 						if (signature != null && Core.len(signature.typeParameters) != 0) {
-							return appendAll(outerTypeParameters, signature.typeParameters);
+							return appendAll(outerTypeParameters, Core.vectorToArray(signature.typeParameters));
 						}
 					}
 					if (kind == KindMappedType) {
@@ -4017,7 +4012,7 @@ class CheckerPart6 {
 				if (Core.len(typeParameters) != 0) {
 					// Initialize the instantiation cache for generic type aliases. The declared type corresponds to
 					// an instantiation of the type alias with the type parameters supplied as type arguments.
-					links.typeParameters = typeParameters;
+					links.typeParameters = VectorBuilder.freeze(typeParameters);
 					links.instantiations = new ts.core.HashKeyMap<Type>();
 					links.instantiations.set(Checker.getTypeListKey(typeParameters).Key(), t);
 				}

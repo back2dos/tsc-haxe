@@ -60,9 +60,9 @@ class TypeResolution {
 @:allow(ts.checker)
 class VarianceStackEntry {
 	var symbol:Symbol = null;
-	var typeParameters:Array<Type> = null;
+	var typeParameters:haxe.ds.Vector<Type> = null;
 
-	public function new(symbol:Symbol, typeParameters:Array<Type>) {
+	public function new(symbol:Symbol, typeParameters:haxe.ds.Vector<Type>) {
 		this.symbol = symbol;
 		this.typeParameters = typeParameters;
 	}
@@ -3847,14 +3847,14 @@ class Checker {
 		return m;
 	}
 
-	static function newArrayToSingleTypeMapper(sources:Array<Type>, target:Type):TypeMapper {
+	static function newArrayToSingleTypeMapper(sources:haxe.ds.Vector<Type>, target:Type):TypeMapper {
 		final m = new ArrayToSingleTypeMapper();
 		m.sources = sources;
 		m.target = target;
 		return m;
 	}
 
-	static function newDeferredTypeMapper(sources:Array<Type>, targets:Array<() -> Type>):TypeMapper {
+	static function newDeferredTypeMapper(sources:haxe.ds.Vector<Type>, targets:Array<() -> Type>):TypeMapper {
 		final m = new DeferredTypeMapper();
 		m.sources = sources;
 		m.targets = targets;
@@ -4705,7 +4705,7 @@ class Checker {
 				if (Ast.IsFunctionLike(node)) {
 					final sig = b.ch.getSignatureFromDeclaration(node);
 					params = Core.vectorToArray(sig.parameters); // PORT: perf — a copy (printing)
-					typeParams = sig.typeParameters;
+					typeParams = Core.vectorToArray(sig.typeParameters); // PORT: perf — a copy (printing)
 				} else if (Ast.IsConditionalTypeNode(node)) { // !!! TODO: impossible in combination with the scope start check???
 					typeParams = b.ch.getInferTypeParameters(node);
 				} else if (Ast.IsMappedTypeNode(node)) {

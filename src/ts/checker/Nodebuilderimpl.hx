@@ -2931,7 +2931,7 @@ class NodeBuilderImpl {
 			&& !this.ch.IsValueSymbolAccessible(t.symbol, this.ctx.enclosingDeclaration)) {
 			return this.createAnonymousTypeNode(t);
 		} else {
-			final outerTypeParameters = t.Target().AsInterfaceType().OuterTypeParameters();
+			final outerTypeParameters = Core.vectorToArray(t.Target().AsInterfaceType().OuterTypeParameters()); // PORT: perf — a copy (printing)
 			var i = 0;
 			var resultType:TypeNode = null;
 			if (outerTypeParameters != null) {

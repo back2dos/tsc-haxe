@@ -309,7 +309,7 @@ class ExportTypeLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class TypeAliasLinks extends ts.core.Linkstore.LinkEntry {
 	var declaredType:Type = null;
-	var typeParameters:Array<Type> = null; // Type parameters of type alias (undefined if non-generic)
+	var typeParameters:haxe.ds.Vector<Type> = null; // Type parameters of type alias (undefined if non-generic) // PORT: perf — a Vector
 	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null; // Instantiations of generic type alias (undefined if non-generic)
 	var isConstructorDeclaredProperty:Bool = false;
 
@@ -1365,20 +1365,19 @@ class InterfaceType extends TypeReference {
 	}
 
 
-	// PORT: a fresh Array (Go's clipped subslice: an append to it makes a new slice)
-	public function OuterTypeParameters():Array<Type> {
+	// PORT: perf — a Vector (a copy of Go's clipped subslice; the same Vector when it is all of TypeParameters())
+	public function OuterTypeParameters():haxe.ds.Vector<Type> {
 		if (Core.len(allTypeParameters) == 0) {
 			return null;
 		}
-		return [for (i in 0...outerTypeParameterCount) allTypeParameters[i]];
+		return outerTypeParameterCount == allTypeParameters.length - 1 ? TypeParameters() : Core.subVector(allTypeParameters, 0, outerTypeParameterCount);
 	}
 
-	// PORT: a fresh Array (Go's clipped subslice: an append to it makes a new slice)
-	public function LocalTypeParameters():Array<Type> {
+	public function LocalTypeParameters():haxe.ds.Vector<Type> {
 		if (Core.len(allTypeParameters) == 0) {
 			return null;
 		}
-		return [for (i in outerTypeParameterCount...allTypeParameters.length - 1) allTypeParameters[i]];
+		return outerTypeParameterCount == 0 ? TypeParameters() : Core.subVector(allTypeParameters, outerTypeParameterCount, allTypeParameters.length - 1);
 	}
 
 	// PORT: perf — one Vector per type (the same one on every call, as Go's subslice shares the storage)
@@ -1734,7 +1733,7 @@ class Signature implements TypeSystemEntity {
 	var minArgumentCount:Int = 0;
 	var resolvedMinArgumentCount:Int = 0;
 	var declaration:Node = null;
-	var typeParameters:Array<Type> = null;
+	var typeParameters:haxe.ds.Vector<Type> = null; // PORT: perf — a Vector (one exact-size object; a mapper holds it as it is)
 	var parameters:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (one exact-size object)
 	var thisParameter:Symbol = null;
 	var resolvedReturnType:Type = null;
@@ -1784,7 +1783,7 @@ class Signature implements TypeSystemEntity {
 		return flags;
 	}
 
-	public function TypeParameters():Array<Type> {
+	public function TypeParameters():haxe.ds.Vector<Type> {
 		return typeParameters;
 	}
 

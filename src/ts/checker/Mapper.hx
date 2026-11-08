@@ -147,7 +147,7 @@ class ThisArgumentTypeMapper extends ArrayTypeMapper {
 
 @:allow(ts.checker)
 class ArrayToSingleTypeMapper extends TypeMapperBase {
-	var sources:Array<Type> = null;
+	var sources:haxe.ds.Vector<Type> = null;
 	var target:Type = null;
 
 	public function new() {
@@ -155,7 +155,7 @@ class ArrayToSingleTypeMapper extends TypeMapperBase {
 	}
 
 	public override function Map(t:Type):Type {
-		if (sources != null && sources.indexOf(t) >= 0) {
+		if (Slices.Contains(sources, t)) {
 			return target;
 		}
 		return t;
@@ -168,7 +168,7 @@ class ArrayToSingleTypeMapper extends TypeMapperBase {
 
 @:allow(ts.checker)
 class DeferredTypeMapper extends TypeMapperBase {
-	var sources:Array<Type> = null;
+	var sources:haxe.ds.Vector<Type> = null;
 	var targets:Array<() -> Type> = null;
 
 	public function new() {
@@ -298,10 +298,12 @@ class Mapper {
 	// Maps forward-references to later types parameters to the empty object type.
 	// This is used during inference when instantiating type parameter defaults.
 	static function newBackreferenceMapper(c:Checker, context:InferenceContext, index:Int):TypeMapper {
-		final forwardInferences = context.inferences.slice(index);
-		final typeParameters = Core.Map(forwardInferences, (i:InferenceInfo) -> {
-			return i.typeParameter;
-		});
+		// PORT: perf — the forward type parameters straight into a Vector (no slice)
+		final n = Core.len(context.inferences) - index;
+		final typeParameters = new haxe.ds.Vector<Type>(n);
+		for (i in 0...n) {
+			typeParameters[i] = context.inferences[index + i].typeParameter;
+		}
 		return Checker.newArrayToSingleTypeMapper(typeParameters, c.unknownType);
 	}
 

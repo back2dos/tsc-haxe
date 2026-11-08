@@ -1162,7 +1162,7 @@ class CheckerPart5 {
 		return null;
 	}
 
-	static function getTypeParametersForTypeReferenceOrImport(c:Checker, node:Node):Array<Type> {
+	static function getTypeParametersForTypeReferenceOrImport(c:Checker, node:Node):haxe.ds.Vector<Type> {
 		final t = c.getTypeFromTypeNode(node);
 		if (!c.isErrorType(t)) {
 			final symbol = c.getResolvedSymbolOrNil(node);
@@ -1173,7 +1173,7 @@ class CheckerPart5 {
 		return null;
 	}
 
-	static function getTypeParametersForTypeAndSymbol(c:Checker, t:Type, symbol:Symbol):Array<Type> {
+	static function getTypeParametersForTypeAndSymbol(c:Checker, t:Type, symbol:Symbol):haxe.ds.Vector<Type> {
 		if (!c.isErrorType(t)) {
 			if ((symbol.Flags & SymbolFlagsTypeAlias) != 0) {
 				final typeParameters = c.typeAliasLinks.Get(symbol).typeParameters;
@@ -1188,7 +1188,7 @@ class CheckerPart5 {
 		return null;
 	}
 
-	static function getEffectiveTypeArgumentAtIndex(c:Checker, node:Node, typeParameters:Array<Type>, index:Int):Type {
+	static function getEffectiveTypeArgumentAtIndex(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>, index:Int):Type {
 		final typeArguments = node.TypeArguments();
 		if (index < Core.len(typeArguments)) {
 			return c.getTypeFromTypeNode(typeArguments[index]);
@@ -3226,7 +3226,7 @@ class CheckerPart5 {
 			final returnSignature = c.getSingleCallOrConstructSignature(c.getReturnTypeOfSignature(instantiatedSignature));
 			if (returnSignature != null) {
 				final newReturnSignature = c.cloneSignature(returnSignature);
-				newReturnSignature.typeParameters = inferredTypeParameters;
+				newReturnSignature.typeParameters = VectorBuilder.freeze(inferredTypeParameters);
 				final newReturnType = c.getOrCreateTypeFromSignature(newReturnSignature);
 				newReturnType.AsObjectType().mapper = instantiatedSignature.mapper;
 				final newInstantiatedSignature = c.cloneSignature(instantiatedSignature);
@@ -3246,7 +3246,16 @@ class CheckerPart5 {
 		return result;
 	}
 
-	static function getSignatureInstantiationWithoutFillingInTypeArguments(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
+	// PORT: perf — Array type arguments (a fresh list: copied into the mapper's Vector on a miss) or a Vector (held as it is)
+	static extern inline overload function getSignatureInstantiationWithoutFillingInTypeArguments(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
+		return c.getSignatureInstantiationWithoutFillingInTypeArgumentsA(sig, typeArguments);
+	}
+
+	static extern inline overload function getSignatureInstantiationWithoutFillingInTypeArguments(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):Signature {
+		return c.getSignatureInstantiationWithoutFillingInTypeArgumentsV(sig, typeArguments);
+	}
+
+	static function getSignatureInstantiationWithoutFillingInTypeArgumentsA(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
 		final key = CachedSignatureKey.keyOf(sig, Checker.getTypeListKey(typeArguments));
 		var instantiation = c.cachedSignatures.get(key);
 		if (instantiation == null) {
@@ -3256,15 +3265,33 @@ class CheckerPart5 {
 		return instantiation;
 	}
 
-	static function createSignatureInstantiation(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
-		return c.instantiateSignatureEx(sig, c.createSignatureTypeMapper(sig, typeArguments), true /*eraseTypeParameters*/);
+	static function getSignatureInstantiationWithoutFillingInTypeArgumentsV(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):Signature {
+		final key = CachedSignatureKey.keyOf(sig, Checker.getTypeListKey(typeArguments));
+		var instantiation = c.cachedSignatures.get(key);
+		if (instantiation == null) {
+			instantiation = c.createSignatureInstantiation(sig, typeArguments);
+			c.cachedSignatures.set(key, instantiation);
+		}
+		return instantiation;
 	}
 
-	static function createSignatureTypeMapper(c:Checker, sig:Signature, typeArguments:Array<Type>):TypeMapper {
+	static extern inline overload function createSignatureInstantiation(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
+		return c.instantiateSignatureEx(sig, Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments), true /*eraseTypeParameters*/);
+	}
+
+	static extern inline overload function createSignatureInstantiation(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):Signature {
+		return c.instantiateSignatureEx(sig, Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments), true /*eraseTypeParameters*/);
+	}
+
+	static extern inline overload function createSignatureTypeMapper(c:Checker, sig:Signature, typeArguments:Array<Type>):TypeMapper {
 		return Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments);
 	}
 
-	static function getTypeParametersForMapper(c:Checker, sig:Signature):Array<Type> {
+	static extern inline overload function createSignatureTypeMapper(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):TypeMapper {
+		return Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments);
+	}
+
+	static function getTypeParametersForMapper(c:Checker, sig:Signature):haxe.ds.Vector<Type> {
 		return Core.SameMap(sig.typeParameters, tp -> c.instantiateType(tp, tp.Mapper()));
 	}
 
@@ -3876,7 +3903,7 @@ class CheckerPart5 {
 		if (Ast.IsConstructorDeclaration(declaration)) {
 			classType = c.getDeclaredTypeOfClassOrInterface(c.getMergedSymbol(declaration.Parent.Symbol()));
 		}
-		var typeParameters:Array<Type> = null;
+		var typeParameters:haxe.ds.Vector<Type> = null;
 		if (classType != null) {
 			typeParameters = classType.AsInterfaceType().LocalTypeParameters();
 		} else {
@@ -3897,7 +3924,7 @@ class CheckerPart5 {
 		return links.resolvedSignature;
 	}
 
-	static function getTypeParametersFromDeclaration(c:Checker, declaration:Node):Array<Type> {
+	static function getTypeParametersFromDeclaration(c:Checker, declaration:Node):haxe.ds.Vector<Type> {
 		final sig = c.getSignatureOfFullSignatureType(declaration);
 		if (sig != null) {
 			return sig.TypeParameters();
@@ -3906,7 +3933,7 @@ class CheckerPart5 {
 		for (node in rangeOf(declaration.TypeParameters())) {
 			result = Core.AppendIfUnique(result, c.getDeclaredTypeOfTypeParameter(node.Symbol()));
 		}
-		return result;
+		return VectorBuilder.freezeOrNull(result);
 	}
 
 	static function getAnnotatedAccessorThisParameter(c:Checker, accessor:Node):Symbol {

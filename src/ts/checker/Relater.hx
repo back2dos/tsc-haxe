@@ -1373,12 +1373,7 @@ class Relater {
 		if (t == c.globalArrayType || t == c.globalReadonlyArrayType || t.objectFlags & ObjectFlagsTuple != 0) {
 			return c.arrayVariances;
 		}
-		// PORT: perf — the type parameters as an Array (a copy) only when the variances are computed
-		final variances = c.varianceLinks.Get(t.symbol).variances;
-		if (variances != null) {
-			return variances;
-		}
-		return c.getVariancesWorker(t.symbol, Core.vectorToArray(t.AsInterfaceType().TypeParameters()));
+		return c.getVariancesWorker(t.symbol, t.AsInterfaceType().TypeParameters());
 	}
 
 	static function getAliasVariances(c:Checker, symbol:Symbol):Array<VarianceFlags> {
@@ -1390,7 +1385,7 @@ class Relater {
 	// generic type are structurally compared. We infer the variance information by comparing
 	// instantiations of the generic type for type arguments with known relations. The function
 	// returns an empty slice when invoked recursively for the given generic type.
-	static function getVariancesWorker(c:Checker, symbol:Symbol, typeParameters:Array<Type>):Array<VarianceFlags> {
+	static function getVariancesWorker(c:Checker, symbol:Symbol, typeParameters:haxe.ds.Vector<Type>):Array<VarianceFlags> {
 		final links = c.varianceLinks.Get(symbol);
 		if (links.variances == null) {
 			var traceArgs:StringMap<Any> = null;
@@ -1520,7 +1515,7 @@ class Relater {
 		}
 		var result:Type = null;
 		if (symbol.Flags & SymbolFlagsTypeAlias != 0) {
-			result = c.getTypeAliasInstantiation(symbol, c.instantiateTypes(c.typeAliasLinks.Get(symbol).typeParameters, mapper), null);
+			result = c.getTypeAliasInstantiation(symbol, Core.vectorToArray(c.instantiateTypes(c.typeAliasLinks.Get(symbol).typeParameters, mapper)), null); // PORT: perf — a copy (variance markers)
 		} else {
 			result = c.createTypeReference(t, c.instantiateTypes(t.AsInterfaceType().TypeParameters(), mapper));
 		}
@@ -2389,7 +2384,7 @@ class Relater {
 		return false;
 	}
 
-	static function compareTypeParametersIdentical(c:Checker, sourceParams:Array<Type>, targetParams:Array<Type>):Bool {
+	static function compareTypeParametersIdentical(c:Checker, sourceParams:haxe.ds.Vector<Type>, targetParams:haxe.ds.Vector<Type>):Bool {
 		if (Core.len(sourceParams) != Core.len(targetParams)) {
 			return false;
 		}

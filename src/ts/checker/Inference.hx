@@ -1403,11 +1403,12 @@ class Inference {
 		return c.newAnonymousType(null, members, null, null, indexInfos);
 	}
 
-	static function newInferenceContext(c:Checker, typeParameters:Array<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
-		if (compareTypes == null) {
-			compareTypes = c.compareTypesAssignable;
-		}
-		return c.newInferenceContextWorker(Core.Map(typeParameters, Checker.newInferenceInfo), signature, flags, compareTypes);
+	static extern inline overload function newInferenceContext(c:Checker, typeParameters:Array<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
+		return c.newInferenceContextWorker(Core.Map(typeParameters, Checker.newInferenceInfo), signature, flags, compareTypes == null ? c.compareTypesAssignable : compareTypes);
+	}
+
+	static extern inline overload function newInferenceContext(c:Checker, typeParameters:haxe.ds.Vector<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
+		return c.newInferenceContextWorker(Core.Map(typeParameters, Checker.newInferenceInfo), signature, flags, compareTypes == null ? c.compareTypesAssignable : compareTypes);
 	}
 
 	static function cloneInferenceContext(c:Checker, n:InferenceContext, extraFlags:InferenceFlags):InferenceContext {
