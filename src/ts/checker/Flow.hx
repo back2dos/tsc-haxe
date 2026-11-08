@@ -12,6 +12,7 @@ package ts.checker;
 class FlowType {
 	var t:Type = null;
 	var incomplete:Bool = false;
+	var twin:FlowType = null; // (on a type's complete FlowType: its incomplete one, see ofIncomplete)
 
 	public function new() {}
 
@@ -38,10 +39,11 @@ class FlowType {
 	}
 
 	static function ofIncomplete(t:Type):FlowType {
-		var ft:FlowType = @:privateAccess t.flowTypeIncomplete;
+		final complete = ofComplete(t);
+		var ft = complete.twin;
 		if (ft == null) {
 			ft = make(t, true);
-			@:privateAccess t.flowTypeIncomplete = ft;
+			complete.twin = ft;
 		}
 		return ft;
 	}

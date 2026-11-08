@@ -1047,7 +1047,6 @@ class CheckerPart7 {
 		t.objectFlags = objectFlags & ~(ObjectFlagsCouldContainTypeVariablesComputed | ObjectFlagsCouldContainTypeVariables | ObjectFlagsMembersResolved);
 		t.id = c.TypeCount;
 		t.checker = c;
-		t.data = data;
 		if (c.tracer != null) {
 			c.tracer.RecordType(t);
 		}

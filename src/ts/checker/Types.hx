@@ -805,10 +805,11 @@ class Type implements TypeSystemEntity {
 	var symbol:Symbol = null;
 	var alias:TypeAlias = null;
 	var checker:Checker = null;
-	var data:TypeData = null; // Type specific data
-	// PORT: perf — FlowType{t: this, incomplete: false/true}, made once (Go returns FlowType by value).
+	// PORT: perf — no `data` field: Go's `data` (Type specific data) is always the type itself here (every
+	// TypeData is a TypeBase, a subclass of Type), so the As*() casts are of `this`.
+	// PORT: perf — FlowType{t: this, incomplete: false}, made once (Go returns FlowType by value); the incomplete
+	// one hangs off it (FlowType.twin).
 	var flowType:FlowType = null;
-	var flowTypeIncomplete:FlowType = null;
 
 	public function new() {}
 
@@ -825,71 +826,71 @@ class Type implements TypeSystemEntity {
 	}
 
 	public inline function AsIntrinsicType():IntrinsicType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsLiteralType():LiteralType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsUniqueESSymbolType():UniqueESSymbolType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsTupleType():TupleType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsInstantiationExpressionType():InstantiationExpressionType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsMappedType():MappedType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsReverseMappedType():ReverseMappedType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsEvolvingArrayType():EvolvingArrayType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsTypeParameter():TypeParameter {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsUnionType():UnionType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsIntersectionType():IntersectionType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsIndexType():IndexType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsIndexedAccessType():IndexedAccessType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsTemplateLiteralType():TemplateLiteralType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsStringMappingType():StringMappingType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsSubstitutionType():SubstitutionType {
-		return cast data;
+		return cast this;
 	}
 
 	public inline function AsConditionalType():ConditionalType {
-		return cast data;
+		return cast this;
 	}
 
 	// PORT: perf — inline: what every TypeData's AsConstrainedType returns (the data when it is a ConstrainedType, else null),

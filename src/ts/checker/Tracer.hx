@@ -45,7 +45,7 @@ class TracedTypeAdapter implements TracedType {
 		if ((t.flags & TypeFlagsIntrinsic) == 0) {
 			return "";
 		}
-		final data = Std.downcast(t.data, IntrinsicType);
+		final data = Std.downcast(t, IntrinsicType);
 		if (data == null) {
 			return "";
 		}
