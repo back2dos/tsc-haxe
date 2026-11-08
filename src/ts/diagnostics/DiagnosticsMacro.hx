@@ -24,13 +24,18 @@ class DiagnosticsMacro {
 		final pos = Context.currentPos();
 
 		// TypeScript main merged extraDiagnosticMessages.json into diagnosticMessages.json.
+		// PORT: legacyDiagnosticMessages.json keeps messages that TypeScript main removed but that
+		// code not yet caught up with main still uses (added only for codes main no longer has).
 		final byCode = new Map<Int, {key:String, m:Dynamic}>();
-		for (file in ["ts/diagnostics/diagnosticMessages.json"]) {
+		for (file in ["ts/diagnostics/diagnosticMessages.json", "ts/diagnostics/legacyDiagnosticMessages.json"]) {
 			final path = Context.resolvePath(file);
 			Context.registerModuleDependency(Context.getLocalModule(), path);
 			final raw:Dynamic = haxe.Json.parse(sys.io.File.getContent(path));
 			for (key in Reflect.fields(raw)) {
 				final m:Dynamic = Reflect.field(raw, key);
+				if (StringTools.endsWith(file, "legacyDiagnosticMessages.json") && byCode.exists(m.code)) {
+					continue;
+				}
 				byCode.set(m.code, {key: key, m: m});
 			}
 		}

@@ -1803,7 +1803,7 @@ class Grammarchecks {
 						}
 					} else {
 						if (isCallee) {
-							return c.grammarErrorOnNode(nodeName, Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_or_defer, nameText);
+							return c.grammarErrorOnNode(nodeName, Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_defer_or_source, nameText);
 						}
 						return c.grammarErrorOnNode(nodeName, Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2, nameText, Scanner.TokenToString(node.KeywordToken), "meta");
 					}
