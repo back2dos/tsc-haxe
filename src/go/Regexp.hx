@@ -9,6 +9,65 @@ package go;
 //   - no `i` flag (case folding differs on all three): spell out both cases; Go `(?i)` also
 //     folds k to U+212A and s to U+017F.
 class Regexp {
+	#if tshx_parallel
+	// PORT: hxmc (-D tshx-parallel) — Go's Regexp is safe for concurrent use; an EReg keeps the state of its last
+	// match, so package-level patterns used on threads (semver ranges during module resolution) raced (an
+	// intermittent "Null Access" in parsePartial). Each call takes an EReg of its own from a pool.
+	final expr:String;
+	final pool:Array<EReg> = [];
+	final mutex = new sys.thread.Mutex();
+
+	function new(expr:String) {
+		this.expr = expr;
+		this.pool.push(new EReg(expr, "g")); // a bad pattern fails here, as before
+	}
+
+	public static function MustCompile(expr:String):Regexp {
+		return new Regexp(expr);
+	}
+
+	function take():EReg {
+		mutex.acquire();
+		final re = pool.pop();
+		mutex.release();
+		return re != null ? re : new EReg(expr, "g");
+	}
+
+	function give(re:EReg):Void {
+		mutex.acquire();
+		pool.push(re);
+		mutex.release();
+	}
+
+	// Regexp.MatchString
+	public function MatchString(s:String):Bool {
+		final re = take();
+		final r = re.match(s);
+		give(re);
+		return r;
+	}
+
+	public function FindStringSubmatch(s:String):Null<Array<String>> {
+		final re = take();
+		final r = findStringSubmatch(re, s);
+		give(re);
+		return r;
+	}
+
+	public function FindAllStringIndex(s:String, n:Int):Null<Array<Array<Int>>> {
+		final re = take();
+		final r = findAllStringIndex(re, s, n);
+		give(re);
+		return r;
+	}
+
+	public function ReplaceAllStringFunc(src:String, repl:String->String):String {
+		final re = take();
+		final r = re.map(src, (r) -> repl(r.matched(0)));
+		give(re);
+		return r;
+	}
+	#else
 	final re:EReg;
 
 	function new(re:EReg) {
@@ -24,8 +83,22 @@ class Regexp {
 		return re.match(s);
 	}
 
-	// Regexp.FindStringSubmatch: null when there is no match; unmatched groups are "".
 	public function FindStringSubmatch(s:String):Null<Array<String>> {
+		return findStringSubmatch(re, s);
+	}
+
+	public function FindAllStringIndex(s:String, n:Int):Null<Array<Array<Int>>> {
+		return findAllStringIndex(re, s, n);
+	}
+
+	// Regexp.ReplaceAllStringFunc. Only for patterns that cannot match the empty string.
+	public function ReplaceAllStringFunc(src:String, repl:String->String):String {
+		return re.map(src, (r) -> repl(r.matched(0)));
+	}
+	#end
+
+	// Regexp.FindStringSubmatch: null when there is no match; unmatched groups are "".
+	static function findStringSubmatch(re:EReg, s:String):Null<Array<String>> {
 		if (!re.match(s))
 			return null;
 		final result:Array<String> = [];
@@ -44,7 +117,7 @@ class Regexp {
 	}
 
 	// Regexp.FindAllStringIndex. Returns pairs [start, end] in UTF-16 code units.
-	public function FindAllStringIndex(s:String, n:Int):Null<Array<Array<Int>>> {
+	static function findAllStringIndex(re:EReg, s:String, n:Int):Null<Array<Array<Int>>> {
 		if (n < 0)
 			n = s.length + 1;
 		var result:Null<Array<Array<Int>>> = null;
@@ -123,8 +196,4 @@ class Regexp {
 		return strings;
 	}
 
-	// Regexp.ReplaceAllStringFunc. Only for patterns that cannot match the empty string.
-	public function ReplaceAllStringFunc(src:String, repl:String->String):String {
-		return re.map(src, (r) -> repl(r.matched(0)));
-	}
 }
