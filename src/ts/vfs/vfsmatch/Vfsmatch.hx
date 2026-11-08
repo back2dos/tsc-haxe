@@ -424,17 +424,18 @@ class GlobPattern {
 
 	// matchPathParts is like matchPath, but operates on a virtual path formed by prefix+suffix.
 	// Offsets are in the combined string.
+	// PORT: perf — the parts are read in place through a PathPartCursor (nextPathPartParts' result without
+	// its substring and result object; Go slices for free): every call walks the whole absolute path again.
 	public function matchPathParts(prefix:String, suffix:String, pathOffset:Int, compIdx:Int, prefixOnly:Bool):Bool {
+		final part = new PathPartCursor();
 		while (true) {
-			final r = Vfsmatch.nextPathPartParts(prefix, suffix, pathOffset);
-			final pathPart = r.a;
-			final nextOffset = r.b;
-			if (!r.c) {
+			if (!part.advance(prefix, suffix, pathOffset)) {
 				if (prefixOnly) {
 					return true;
 				}
 				return this.patternSatisfied(compIdx);
 			}
+			final nextOffset = part.next;
 
 			if (compIdx >= this.components.length) {
 				return this.isExclude && !prefixOnly;
@@ -446,23 +447,23 @@ class GlobPattern {
 					if (this.matchPathParts(prefix, suffix, pathOffset, compIdx + 1, prefixOnly)) {
 						return true;
 					}
-					if (!this.isExclude && (Vfsmatch.isHiddenPath(pathPart) || Vfsmatch.isPackageFolder(pathPart))) {
+					if (!this.isExclude && (part.isHidden() || part.isPackageFolder())) {
 						return false;
 					}
 					pathOffset = nextOffset;
 					continue;
 				case KindLiteral:
-					if (comp.skipPackageFolders && Vfsmatch.isPackageFolder(pathPart)) {
+					if (comp.skipPackageFolders && part.isPackageFolder()) {
 						throw "unreachable: literal components never have skipPackageFolders";
 					}
-					if (!this.stringsEqual(comp.literal, pathPart)) {
+					if (!part.equals(comp.literal, this.caseSensitive)) {
 						return false;
 					}
 				case KindWildcard:
-					if (comp.skipPackageFolders && Vfsmatch.isPackageFolder(pathPart)) {
+					if (comp.skipPackageFolders && part.isPackageFolder()) {
 						return false;
 					}
-					if (!this.matchWildcard(comp.segments, pathPart)) {
+					if (!this.matchWildcard(comp.segments, part.toString())) {
 						return false;
 					}
 			}
@@ -931,3 +932,107 @@ class DirectoryPrefetcher {
 	}
 }
 #end
+
+// PORT: perf — Vfsmatch.nextPathPartParts as a cursor: advance(prefix, suffix, offset) is its ok, the part is
+// str[start, end) and next its next offset (the same cases; for GlobPattern.matchPathParts).
+private class PathPartCursor {
+	public var str:String = "";
+	public var start:Int = 0;
+	public var end:Int = 0;
+	public var next:Int = 0;
+
+	public function new() {}
+
+	inline function set(str:String, start:Int, end:Int, next:Int):Bool {
+		this.str = str;
+		this.start = start;
+		this.end = end;
+		this.next = next;
+		return true;
+	}
+
+	public function advance(prefix:String, suffix:String, offset:Int):Bool {
+		if (suffix.length == 0) {
+			return this.single(prefix, offset);
+		}
+		if (prefix.length == 0) {
+			return this.single(suffix, offset);
+		}
+		final totalLen = prefix.length + suffix.length;
+		if (offset >= totalLen) {
+			return false;
+		}
+		if (offset == 0 && StringTools.fastCodeAt(prefix, 0) == '/'.code) {
+			return this.set(prefix, 0, 0, 1);
+		}
+		if (offset < prefix.length) {
+			while (offset < prefix.length && StringTools.fastCodeAt(prefix, offset) == '/'.code) {
+				offset++;
+			}
+			if (offset < prefix.length) {
+				final idx = prefix.indexOf("/", offset);
+				if (idx < 0) {
+					throw "slice bounds out of range";
+				}
+				return this.set(prefix, offset, idx, idx);
+			}
+		}
+		final sOff = offset - prefix.length;
+		if (sOff >= suffix.length) {
+			return false;
+		}
+		return this.set(suffix, sOff, suffix.length, totalLen);
+	}
+
+	function single(s:String, offset:Int):Bool {
+		if (offset >= s.length) {
+			return false;
+		}
+		if (offset == 0 && StringTools.fastCodeAt(s, 0) == '/'.code) {
+			return this.set(s, 0, 0, 1);
+		}
+		while (offset < s.length && StringTools.fastCodeAt(s, offset) == '/'.code) {
+			offset++;
+		}
+		if (offset >= s.length) {
+			return false;
+		}
+		final idx = s.indexOf("/", offset);
+		if (idx >= 0) {
+			return this.set(s, offset, idx, idx);
+		}
+		return this.set(s, offset, s.length, s.length);
+	}
+
+	public inline function toString():String {
+		return this.str.substring(this.start, this.end);
+	}
+
+	// Vfsmatch.isHiddenPath
+	public inline function isHidden():Bool {
+		return this.end > this.start && StringTools.fastCodeAt(this.str, this.start) == '.'.code;
+	}
+
+	// Vfsmatch.isPackageFolder (its lengths first)
+	public function isPackageFolder():Bool {
+		final n = this.end - this.start;
+		return (n == 12 || n == 13 || n == 16) && Vfsmatch.isPackageFolder(this.toString());
+	}
+
+	// GlobPattern.stringsEqual(literal, part)
+	public function equals(literal:String, caseSensitive:Bool):Bool {
+		if (!caseSensitive) {
+			return Strings.EqualFold(literal, this.toString());
+		}
+		final n = this.end - this.start;
+		if (literal.length != n) {
+			return false;
+		}
+		for (i in 0...n) {
+			if (StringTools.fastCodeAt(literal, i) != StringTools.fastCodeAt(this.str, this.start + i)) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
