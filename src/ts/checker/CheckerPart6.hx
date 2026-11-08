@@ -988,7 +988,7 @@ class CheckerPart6 {
 		}
 		// Transform the type from `(A[] | B[])["member"]` to `(A | B)[]["member"]` (since we pretend array is covariant anyway).
 		final arrayArg = c.mapType(t, function(t:Type):Type {
-			return t.Mapper().Map((c.isReadonlyArraySymbol(t.symbol.Parent) ? c.globalReadonlyArrayType : c.globalArrayType).AsInterfaceType().TypeParameters()[0]);
+			return Checker.getMappedType((c.isReadonlyArraySymbol(t.symbol.Parent) ? c.globalReadonlyArrayType : c.globalArrayType).AsInterfaceType().TypeParameters()[0], t.Mapper());
 		});
 		final arrayType = c.createArrayTypeEx(arrayArg, Checker.someType(t, function(t:Type):Bool {
 			return c.isReadonlyArraySymbol(t.symbol.Parent);
@@ -2345,7 +2345,7 @@ class CheckerPart6 {
 	static function instantiateTypeWorker(c:Checker, t:Type, m:TypeMapper, alias:TypeAlias):Type {
 		final flags = t.flags;
 		if ((flags & TypeFlagsTypeParameter) != 0) {
-			return m.Map(t);
+			return Checker.getMappedType(t, m);
 		} else if ((flags & TypeFlagsObject) != 0) {
 			final objectFlags = t.objectFlags;
 			if ((objectFlags & (ObjectFlagsReference | ObjectFlagsAnonymous | ObjectFlagsMapped)) != 0) {
@@ -2620,7 +2620,7 @@ class CheckerPart6 {
 				final checkType = root.checkType;
 				var distributionType:Type = null;
 				if (root.isDistributive) {
-					distributionType = c.getReducedType(newMapper.Map(checkType));
+					distributionType = c.getReducedType(Checker.getMappedType(checkType, newMapper));
 				}
 				// Distributive conditional types are distributed over union types. For example, when the
 				// distributive conditional type T extends U ? X : Y is instantiated with A | B for T, the
@@ -3139,11 +3139,39 @@ class CheckerPart6 {
 				if (t != null) {
 					links.resolvedType = t;
 				} else {
-					links.resolvedType = c.getTypeReferenceType(node, c.getSymbolFromTypeReference(node));
+					links.resolvedType = c.getDistributedTypeParameter(node, c.getTypeReferenceType(node, c.getSymbolFromTypeReference(node)));
 				}
 			}
 		}
 		return links.resolvedType;
+	}
+
+	static function getDistributedTypeParameter(c:Checker, node:Node, t:Type):Type {
+		if (t.flags & TypeFlagsTypeParameter != 0 && !t.AsTypeParameter().isDistributed) {
+			var n = node.Parent;
+			while (n != null && !Ast.IsStatement(n)) {
+				if (Ast.IsConditionalTypeNode(n)) {
+					final checkTypeNode = n.AsConditionalTypeNode().CheckType;
+					if (Checker.isSimpleIdentifierTypeReference(checkTypeNode) && c.getSymbolFromTypeReference(checkTypeNode) == t.symbol) {
+						// If node is contained in a distributive conditional type for the given type parameter,
+						// return the distributed form of the type parameter.
+						return c.getDistributedTypeFromTypeParameter(t);
+					}
+				}
+				n = n.Parent;
+			}
+		}
+		return t;
+	}
+
+	static function getDistributedTypeFromTypeParameter(c:Checker, t:Type):Type {
+		final tp = t.AsTypeParameter();
+		if (tp.distributedType == null) {
+			tp.distributedType = c.newTypeParameter(t.symbol);
+			tp.distributedType.AsTypeParameter().isDistributed = true;
+			tp.distributedType.AsTypeParameter().constraint = t;
+		}
+		return tp.distributedType;
 	}
 
 	static function getIntendedTypeFromJSDocTypeReference(c:Checker, node:Node):Type {

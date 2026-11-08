@@ -3582,6 +3582,7 @@ class Checker {
 
 	static function getInferenceInfoForType(n:InferenceState, t:Type):InferenceInfo {
 		if (t.flags & TypeFlagsTypeVariable != 0) {
+			t = getNonDistributedTypeParameter(t);
 			if (n.inferences != null) {
 				for (inference in n.inferences) {
 					if (t == inference.typeParameter) {
@@ -3718,18 +3719,39 @@ class Checker {
 		return m2;
 	}
 
+	// --- mapper.go ---
+
+	static function getMappedType(t:Type, mapper:TypeMapper):Type {
+		return mapper.Map(getNonDistributedTypeParameter(t));
+	}
+
+	static function getNonDistributedTypeParameter(t:Type):Type {
+		if (t.flags & TypeFlagsTypeParameter != 0 && t.AsTypeParameter().isDistributed) {
+			return t.AsTypeParameter().constraint;
+		}
+		return t;
+	}
+
+	static function isSimpleIdentifierTypeReference(node:Node):Bool {
+		return Ast.IsTypeReferenceNode(node) && Ast.IsIdentifier(node.AsTypeReferenceNode().TypeName) && node.TypeArgumentList() == null;
+	}
+
+	public static function IsDistributedTypeParameter(t:Type):Bool {
+		return t.flags & TypeFlagsTypeParameter != 0 && t.AsTypeParameter().isDistributed;
+	}
+
 	static function prependTypeMapping(source:Type, target:Type, mapper:TypeMapper):TypeMapper {
 		if (mapper == null) {
-			return newSimpleTypeMapper(source, target);
+			return newSimpleTypeMapper(getNonDistributedTypeParameter(source), target);
 		}
-		return newMergedTypeMapper(newSimpleTypeMapper(source, target), mapper);
+		return newMergedTypeMapper(newSimpleTypeMapper(getNonDistributedTypeParameter(source), target), mapper);
 	}
 
 	static function appendTypeMapping(mapper:TypeMapper, source:Type, target:Type):TypeMapper {
 		if (mapper == null) {
-			return newSimpleTypeMapper(source, target);
+			return newSimpleTypeMapper(getNonDistributedTypeParameter(source), target);
 		}
-		return newMergedTypeMapper(mapper, newSimpleTypeMapper(source, target));
+		return newMergedTypeMapper(mapper, newSimpleTypeMapper(getNonDistributedTypeParameter(source), target));
 	}
 
 	static function newSimpleTypeMapper(source:Type, target:Type):TypeMapper {
@@ -4249,7 +4271,7 @@ class Checker {
 			}
 			if (s.Flags & SymbolFlagsTypeParameter != 0) {
 				final declaredType = b.ch.getDeclaredTypeOfSymbol(s);
-				if (b.ctx.mapper != null && b.ctx.mapper.Map(declaredType) != declaredType) {
+				if (b.ctx.mapper != null && getMappedType(declaredType, b.ctx.mapper) != declaredType) {
 					return null; // refers to type parameter remapped by context (TODO improvement: just return the remapped param name?)
 				}
 			}

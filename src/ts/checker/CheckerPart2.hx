@@ -2848,9 +2848,9 @@ class CheckerPart2 {
 				final mapper = methodType.Mapper();
 				var nextType:Type = null;
 				if (methodName == "next") {
-					nextType = mapper.Map(typeParameters[2]);
+					nextType = Checker.getMappedType(typeParameters[2], mapper);
 				}
-				return newIterationTypes(mapper.Map(typeParameters[0]), mapper.Map(typeParameters[1]), nextType);
+				return newIterationTypes(Checker.getMappedType(typeParameters[0], mapper), Checker.getMappedType(typeParameters[1], mapper), nextType);
 			}
 		}
 		// Extract the first parameter and return type of each signature.

@@ -5024,7 +5024,9 @@ class Relater {
 		}
 		if (targetFlags & TypeFlagsTypeParameter != 0 && target != c.markerSuperTypeForCheck && target != c.markerSubTypeForCheck) {
 			final constraint = c.getBaseConstraintOfType(target);
-			if (constraint != null && c.isTypeAssignableTo(generalizedSource, constraint)) {
+			if (Checker.IsDistributedTypeParameter(target) && c.isTypeAssignableTo(generalizedSource, target.AsTypeParameter().constraint)) {
+				reportError(Diagnostics.X_0_is_only_assignable_to_the_non_distributed_1_but_1_has_been_distributed_here, generalizedSourceType, targetType);
+			} else if (constraint != null && c.isTypeAssignableTo(generalizedSource, constraint)) {
 				reportError(Diagnostics.X_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2,
 					generalizedSourceType, targetType, c.TypeToString(constraint));
 			} else if (constraint != null && c.isTypeAssignableTo(source, constraint)) {

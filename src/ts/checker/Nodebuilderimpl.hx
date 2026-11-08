@@ -3122,16 +3122,8 @@ class NodeBuilderImpl {
 	}
 
 	function typeToTypeNode(t:Type):TypeNode {
-		// Push type onto typeStack for expansion depth tracking
 		// PORT: defer — the body runs in a local function; the deferred restores run after it returns or throws.
 		var pushedTypeStack = false;
-		if (this.ctx.maxExpansionDepth >= 0 && t != null) {
-			if (this.ctx.typeStack == null) {
-				this.ctx.typeStack = [];
-			}
-			this.ctx.typeStack.push(t);
-			pushedTypeStack = true;
-		}
 		var deferredDepthDecrement = false;
 		final typeArg = t;
 
@@ -3148,6 +3140,17 @@ class NodeBuilderImpl {
 				}
 				this.ctx.approximateLength += 3;
 				return this.f.NewKeywordTypeNode(KindAnyKeyword);
+			}
+
+			t = Checker.getNonDistributedTypeParameter(t);
+
+			// Push type onto typeStack for expansion depth tracking
+			if (this.ctx.maxExpansionDepth >= 0) {
+				if (this.ctx.typeStack == null) {
+					this.ctx.typeStack = [];
+				}
+				this.ctx.typeStack.push(t);
+				pushedTypeStack = true;
 			}
 
 			if (this.ctx.flags & FlagsNoTypeReduction == 0) {

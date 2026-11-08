@@ -458,7 +458,7 @@ class CheckerPart7 {
 				final newRootMapper = Checker.newTypeMapper(newRoot.outerTypeParameters, typeArguments);
 				var newCheckType:Type = null;
 				if (newRoot.isDistributive) {
-					newCheckType = newRootMapper.Map(newRoot.checkType);
+					newCheckType = Checker.getMappedType(newRoot.checkType, newRootMapper);
 				}
 				if (newCheckType == null || newCheckType == newRoot.checkType || (newCheckType.flags & (TypeFlagsUnion | TypeFlagsNever)) == 0) {
 					return new Pair<ConditionalRoot, TypeMapper>(newRoot, newRootMapper);

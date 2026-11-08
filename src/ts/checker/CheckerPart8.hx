@@ -64,7 +64,7 @@ class CheckerPart8 {
 				final constraint = c.getConstraintTypeFromMappedType(declaredType);
 				var extendedConstraint = constraint;
 				if (constraint != null && (constraint.flags & TypeFlagsTypeParameter) != 0) {
-					extendedConstraint = c.getConstraintOfTypeParameter(constraint);
+					extendedConstraint = c.getConstraintOfTypeParameter(Checker.getNonDistributedTypeParameter(constraint));
 				}
 				if (extendedConstraint != null && (extendedConstraint.flags & TypeFlagsIndex) != 0) {
 					m.modifiersType = c.instantiateType(extendedConstraint.AsIndexType().target, m.mapper);
@@ -3438,10 +3438,14 @@ class CheckerPart8 {
 		if ((t.flags & TypeFlagsSubstitution) != 0) {
 			return c.getActualTypeVariable(t.AsSubstitutionType().baseType);
 		}
-		if ((t.flags & TypeFlagsIndexedAccess) != 0 && ((t.AsIndexedAccessType().objectType.flags & TypeFlagsSubstitution) != 0 || (t.AsIndexedAccessType().indexType.flags & TypeFlagsSubstitution) != 0)) {
-			return c.getIndexedAccessType(c.getActualTypeVariable(t.AsIndexedAccessType().objectType), c.getActualTypeVariable(t.AsIndexedAccessType().indexType));
+		if ((t.flags & TypeFlagsIndexedAccess) != 0) {
+			final objectType = c.getActualTypeVariable(t.AsIndexedAccessType().objectType);
+			final indexType = c.getActualTypeVariable(t.AsIndexedAccessType().indexType);
+			if (objectType != t.AsIndexedAccessType().objectType || indexType != t.AsIndexedAccessType().indexType) {
+				return c.getIndexedAccessType(objectType, indexType);
+			}
 		}
-		return t;
+		return Checker.getNonDistributedTypeParameter(t);
 	}
 
 	public static function GetSymbolAtLocation(c:Checker, node:Node):Symbol {

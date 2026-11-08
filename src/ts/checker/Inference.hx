@@ -642,10 +642,10 @@ class Inference {
 
 	static function inferToConditionalType(c:Checker, n:InferenceState, source:Type, target:Type):Void {
 		if ((source.flags & TypeFlagsConditional) != 0) {
-			c.inferFromTypes(n, source.AsConditionalType().checkType, target.AsConditionalType().checkType);
-			c.inferFromTypes(n, source.AsConditionalType().extendsType, target.AsConditionalType().extendsType);
-			c.inferFromTypes(n, c.getTrueTypeFromConditionalType(source), c.getTrueTypeFromConditionalType(target));
-			c.inferFromTypes(n, c.getFalseTypeFromConditionalType(source), c.getFalseTypeFromConditionalType(target));
+			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(source.AsConditionalType().checkType), target.AsConditionalType().checkType);
+			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(source.AsConditionalType().extendsType), target.AsConditionalType().extendsType);
+			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(c.getTrueTypeFromConditionalType(source)), c.getTrueTypeFromConditionalType(target));
+			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(c.getFalseTypeFromConditionalType(source)), c.getFalseTypeFromConditionalType(target));
 		} else {
 			final targetTypes = haxe.ds.Vector.fromArrayCopy([c.getTrueTypeFromConditionalType(target), c.getFalseTypeFromConditionalType(target)]);
 			c.inferToMultipleTypesWithPriority(n, source, targetTypes, target.flags, Core.IfElse(n.contravariant, InferencePriorityContravariantConditional, 0));
