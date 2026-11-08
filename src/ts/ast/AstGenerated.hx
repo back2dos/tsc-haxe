@@ -4945,14 +4945,39 @@ class ElementAccessExpression extends NodeDefault implements MemberExpressionBas
 // ──────────────────────────────────────────────────────────────────────
 
 class CallExpression extends NodeDefault implements LeftHandSideExpressionBase implements DeclarationBase implements CompositeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+	public var Symbol(get, set):Symbol; // (in CallExpressionRare)
 	@:isVar public var facts(get, set):Int = 0;
 	public var Expression:Expression = null;
-	public var QuestionDotToken:QuestionDotToken = null;
-	public var TypeArguments:TypeList = null;
+	public var QuestionDotToken(get, set):QuestionDotToken; // (in CallExpressionRare)
+	public var TypeArguments(get, set):TypeList; // (in CallExpressionRare)
 	public var Arguments:ElementList = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
+	inline function get_Symbol():Symbol {
+		final r = links == null ? null : CallExpressionRare.store.TryGet(this);
+		return r == null ? null : r.Symbol;
+	}
+	function set_Symbol(v:Symbol):Symbol {
+		final r = v != null ? CallExpressionRare.store.Get(this) : links == null ? null : CallExpressionRare.store.TryGet(this);
+		if (r != null) r.Symbol = v;
+		return v;
+	}
+	inline function get_QuestionDotToken():QuestionDotToken {
+		final r = links == null ? null : CallExpressionRare.store.TryGet(this);
+		return r == null ? null : r.QuestionDotToken;
+	}
+	function set_QuestionDotToken(v:QuestionDotToken):QuestionDotToken {
+		final r = v != null ? CallExpressionRare.store.Get(this) : links == null ? null : CallExpressionRare.store.TryGet(this);
+		if (r != null) r.QuestionDotToken = v;
+		return v;
+	}
+	inline function get_TypeArguments():TypeList {
+		final r = links == null ? null : CallExpressionRare.store.TryGet(this);
+		return r == null ? null : r.TypeArguments;
+	}
+	function set_TypeArguments(v:TypeList):TypeList {
+		final r = v != null ? CallExpressionRare.store.Get(this) : links == null ? null : CallExpressionRare.store.TryGet(this);
+		if (r != null) r.TypeArguments = v;
+		return v;
+	}
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -4991,6 +5016,19 @@ class CallExpression extends NodeDefault implements LeftHandSideExpressionBase i
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few CallExpression nodes set (see GenAst.RARE_FIELDS)
+class CallExpressionRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, CallExpressionRare>(() -> new CallExpressionRare());
+
+	public var Symbol:Symbol = null;
+	public var QuestionDotToken:QuestionDotToken = null;
+	public var TypeArguments:TypeList = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────

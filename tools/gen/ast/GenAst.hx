@@ -111,6 +111,13 @@ class GenAst {
 	static var kindLike:Map<String, Bool>; // Haxe types whose zero value is 0
 	static var report:Array<String> = [];
 
+	// PORT: perf — fields that almost every node of the class has nil (hxmc field census at exit: >= 97% nil on
+	// t3code-server and vscode) are no fields of the class: a node that sets one gets an entry of its links with
+	// all of them (class <Node>Rare, see generateRareRecord). Pointer fields only (their zero is null).
+	static final RARE_FIELDS:Map<String, Array<String>> = [
+		"CallExpression" => ["Symbol", "QuestionDotToken", "TypeArguments"],
+	];
+
 	static final HAXE_KEYWORDS = [
 		"abstract", "break", "case", "cast", "catch", "class", "continue", "default", "do", "dynamic", "else", "enum", "extends", "extern", "false",
 		"final", "for", "function", "if", "implements", "import", "in", "inline", "interface", "is", "macro", "new", "null", "operator", "overload",
@@ -563,18 +570,39 @@ class GenAst {
 		final impl = [for (e in exts) ' implements $e'].join("");
 		final notes = [];
 		final fields = flattenFields(node, notes);
+		final rare = rareFields(node, fields);
 		for (n in notes)
 			w.write('// $n');
 		w.write('class ${node.name} extends NodeDefault$impl {');
 		w.push();
 		for (f in fields) {
-			if (f.origin == node.name) {
+			if (rare.contains(f)) {
+				w.write('public var ${f.name}(get, set):${f.hxType}; // (in ${node.name}Rare)');
+			} else if (f.origin == node.name) {
 				w.write('public var ${f.name}:${f.hxType} = ${zero(f.hxType)};');
 			} else {
 				w.write('@:isVar public var ${f.name}(get, set):${f.hxType} = ${zero(f.hxType)};');
 			}
 		}
+		for (f in rare) {
+			final r = '${node.name}Rare';
+			w.write('inline function get_${f.name}():${f.hxType} {');
+			w.push();
+			w.write('final r = links == null ? null : $r.store.TryGet(this);');
+			w.write('return r == null ? null : r.${f.name};');
+			w.pop();
+			w.write('}');
+			w.write('function set_${f.name}(v:${f.hxType}):${f.hxType} {');
+			w.push();
+			w.write('final r = v != null ? $r.store.Get(this) : links == null ? null : $r.store.TryGet(this);');
+			w.write('if (r != null) r.${f.name} = v;');
+			w.write('return v;');
+			w.pop();
+			w.write('}');
+		}
 		for (f in fields) {
+			if (rare.contains(f))
+				continue;
 			if (f.origin != node.name) {
 				w.write('inline function get_${f.name}():${f.hxType} return ${f.name};');
 				w.write('inline function set_${f.name}(v:${f.hxType}):${f.hxType} return ${f.name} = v;');
@@ -593,6 +621,46 @@ class GenAst {
 		generateSubtreeFacts(w, node);
 		generateNameAccessor(w, node);
 		generatePromoted(w, node);
+		w.pop();
+		w.write("}");
+		w.write("");
+		if (rare.length > 0)
+			generateRareRecord(w, node, rare);
+	}
+
+	static function rareFields(node:NodeType, fields:Array<FieldInfo>):Array<FieldInfo> {
+		final names = RARE_FIELDS.get(node.name);
+		if (names == null)
+			return [];
+		return [
+			for (n in names) {
+				final f = Lambda.find(fields, f -> f.name == n);
+				if (f == null)
+					throw 'RARE_FIELDS: ${node.name} has no field $n';
+				if (zero(f.hxType) != "null")
+					throw 'RARE_FIELDS: ${node.name}.$n is not a pointer';
+				f;
+			}
+		];
+	}
+
+	// the side record of the rare fields of a node class: an entry of the node's links (core.LinkStore), made when
+	// one of them is set to a non-nil value
+	static function generateRareRecord(w:CodeWriter, node:NodeType, rare:Array<FieldInfo>) {
+		final r = '${node.name}Rare';
+		w.write('// the fields that few ${node.name} nodes set (see GenAst.RARE_FIELDS)');
+		w.write('class $r extends ts.core.Linkstore.LinkEntry {');
+		w.push();
+		w.write('public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, $r>(() -> new $r());');
+		w.write("");
+		for (f in rare)
+			w.write('public var ${f.name}:${f.hxType} = null;');
+		w.write("");
+		w.write("public function new() {");
+		w.push();
+		w.write("super();");
+		w.pop();
+		w.write("}");
 		w.pop();
 		w.write("}");
 		w.write("");
