@@ -831,6 +831,7 @@ class TypeAlias {
 @:allow(ts.checker)
 class TypeExtra {
 	var alias:TypeAlias = null;
+	var resolvedBaseConstraint:Type = null; // (StructuredType)
 	var node:Node = null; // (TypeReference)
 	var flowType:FlowType = null;
 	var objectTypeWithoutAbstractConstructSignatures:Type = null;
@@ -1194,12 +1195,47 @@ class UniqueESSymbolType extends TypeBase {
 
 @:allow(ts.checker)
 class ConstrainedType extends TypeBase {
-	var resolvedBaseConstraint:Type = null;
+	// PORT: perf — a structured type's resolved base constraint is in TypeExtra (t3code-server: 1% of the object
+	// types have one), an instantiable type's in a field (InstantiableType); the type's flags say which it is
+	var resolvedBaseConstraint(get, set):Type;
+
+	inline function get_resolvedBaseConstraint():Type {
+		final t:Type = this;
+		if ((t.flags & TypeFlagsStructuredType) != 0) {
+			final x = t.extra;
+			return x == null ? null : x.resolvedBaseConstraint;
+		}
+		return (cast this : InstantiableType).baseConstraint;
+	}
+
+	function set_resolvedBaseConstraint(v:Type):Type {
+		final t:Type = this;
+		if ((t.flags & TypeFlagsStructuredType) != 0) {
+			if (t.extra == null) {
+				if (v == null) {
+					return v;
+				}
+				t.extra = new TypeExtra();
+			}
+			return t.extra.resolvedBaseConstraint = v;
+		}
+		return (cast this : InstantiableType).baseConstraint = v;
+	}
 
 	public function new() {
 		super();
 	}
 
+}
+
+// PORT: perf — the constrained types that are not structured (see ConstrainedType.resolvedBaseConstraint)
+@:allow(ts.checker)
+class InstantiableType extends ConstrainedType {
+	var baseConstraint:Type = null;
+
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
@@ -1610,7 +1646,7 @@ class IntersectionType extends UnionOrIntersectionType {
 }
 
 @:allow(ts.checker)
-class TypeParameter extends ConstrainedType {
+class TypeParameter extends InstantiableType {
 	var constraint:Type = null;
 	var target:Type = null;
 	var mapper:TypeMapper = null;
@@ -1640,7 +1676,7 @@ enum abstract IndexFlags(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
-class IndexType extends ConstrainedType {
+class IndexType extends InstantiableType {
 	var target:Type = null;
 	var indexFlags:IndexFlags = 0;
 
@@ -1654,7 +1690,7 @@ class IndexType extends ConstrainedType {
 }
 
 @:allow(ts.checker)
-class IndexedAccessType extends ConstrainedType {
+class IndexedAccessType extends InstantiableType {
 	var objectType:Type = null;
 	var indexType:Type = null;
 	var accessFlags:AccessFlags = 0; // Only includes AccessFlags.Persistent
@@ -1673,7 +1709,7 @@ class IndexedAccessType extends ConstrainedType {
 }
 
 @:allow(ts.checker)
-class TemplateLiteralType extends ConstrainedType {
+class TemplateLiteralType extends InstantiableType {
 	var texts:Array<std.String> = null; // Always one element longer than types
 	var types:Array<Type> = null; // Always at least one element
 
@@ -1688,7 +1724,7 @@ class TemplateLiteralType extends ConstrainedType {
 }
 
 @:allow(ts.checker)
-class StringMappingType extends ConstrainedType {
+class StringMappingType extends InstantiableType {
 	var target:Type = null;
 
 	public function new() {
@@ -1701,7 +1737,7 @@ class StringMappingType extends ConstrainedType {
 }
 
 @:allow(ts.checker)
-class SubstitutionType extends ConstrainedType {
+class SubstitutionType extends InstantiableType {
 	var baseType:Type = null; // Target type
 	var constraint:Type = null; // Constraint that target type is known to satisfy
 
@@ -1733,7 +1769,7 @@ class ConditionalRoot {
 }
 
 @:allow(ts.checker)
-class ConditionalType extends ConstrainedType {
+class ConditionalType extends InstantiableType {
 	var root:ConditionalRoot = null;
 	var checkType:Type = null;
 	var extendsType:Type = null;
