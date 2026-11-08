@@ -1589,6 +1589,8 @@ class Checker {
 	var anyBaseTypeIndexInfo:IndexInfo = null;
 	var patternAmbientModules:Array<PatternAmbientModule> = null;
 	var patternAmbientModuleAugmentations:SymbolTable = null;
+	var patternAmbientModuleAugmentationTargets:SymbolTable = null;
+	var moduleImportAttributesTypes:IdentityMap<Symbol, Type> = null;
 	var globalObjectType:Type = null;
 	var globalFunctionType:Type = null;
 	var globalCallableFunctionType:Type = null;
@@ -1670,6 +1672,7 @@ class Checker {
 	var getGlobalPromiseType:() -> Type = null;
 	var getGlobalPromiseTypeChecked:() -> Type = null;
 	var getGlobalPromiseLikeType:() -> Type = null;
+	var getGlobalAbstractModuleSourceType:() -> Type = null;
 	var getGlobalPromiseConstructorSymbol:() -> Symbol = null;
 	var getGlobalPromiseConstructorSymbolOrNil:() -> Symbol = null;
 	var getGlobalOmitSymbol:() -> Symbol = null;
@@ -2015,6 +2018,7 @@ class Checker {
 		c.comparableRelation = new Relation();
 		c.identityRelation = new Relation();
 		c.enumRelation = new StringMap<RelationComparisonResult>();
+		c.moduleImportAttributesTypes = new IdentityMap<Symbol, Type>();
 		c.getGlobalESSymbolType = c.getGlobalTypeResolver("Symbol", 0 /*arity*/, false /*reportErrors*/);
 		c.getGlobalBigIntType = c.getGlobalTypeResolver("BigInt", 0 /*arity*/, false /*reportErrors*/);
 		c.getGlobalImportMetaType = c.getGlobalTypeResolver("ImportMeta", 0 /*arity*/, true /*reportErrors*/);
@@ -2036,6 +2040,7 @@ class Checker {
 		c.getGlobalPromiseType = c.getGlobalTypeResolver("Promise", 1 /*arity*/, false /*reportErrors*/);
 		c.getGlobalPromiseTypeChecked = c.getGlobalTypeResolver("Promise", 1 /*arity*/, true /*reportErrors*/);
 		c.getGlobalPromiseLikeType = c.getGlobalTypeResolver("PromiseLike", 1 /*arity*/, true /*reportErrors*/);
+		c.getGlobalAbstractModuleSourceType = c.getGlobalTypeResolver("AbstractModuleSource", 0 /*arity*/, true /*reportErrors*/);
 		c.getGlobalPromiseConstructorSymbol = c.getGlobalValueSymbolResolver("Promise", true /*reportErrors*/);
 		c.getGlobalPromiseConstructorSymbolOrNil = c.getGlobalValueSymbolResolver("Promise", false /*reportErrors*/);
 		c.getGlobalOmitSymbol = c.getGlobalTypeAliasResolver("Omit", 2 /*arity*/, true /*reportErrors*/);
@@ -3973,13 +3978,13 @@ class Checker {
 	static function tryGetModuleSpecifierFromDeclarationWorker(node:Node):Node {
 		switch (node.Kind) {
 			case KindVariableDeclaration | KindBindingElement:
-				final requireCall = Ast.FindAncestor(node.Initializer(), (node:Node) -> {
-					return Ast.IsRequireCall(node, true /*requireStringLiteralLikeArgument*/);
+				final moduleCall = Ast.FindAncestor(node.Initializer(), (node:Node) -> {
+					return Ast.IsRequireCall(node, true /*requireStringLiteralLikeArgument*/) || Ast.IsImportCall(node);
 				});
-				if (requireCall == null) {
+				if (moduleCall == null) {
 					return null;
 				}
-				return requireCall.Arguments()[0];
+				return moduleCall.Arguments()[0];
 			case KindImportDeclaration | KindExportDeclaration | KindJSDocImportTag:
 				return node.ModuleSpecifier();
 			case KindImportEqualsDeclaration:
@@ -6799,9 +6804,7 @@ class Checker {
 
 	// True if the symbol is for an external module, as opposed to a namespace.
 	public static function IsExternalModuleSymbol(moduleSymbol:Symbol):Bool {
-		final name = moduleSymbol.Name;
-		final firstRune = name.length == 0 ? go.Utf16.RuneError : go.Utf16.CodePointAt(name, 0);
-		return moduleSymbol.Flags & SymbolFlagsModule != 0 && firstRune == '"'.code;
+		return moduleSymbol.IsExternalModule();
 	}
 
 	public static function ValueToString(value:Any):std.String {

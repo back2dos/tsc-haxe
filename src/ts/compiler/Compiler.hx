@@ -414,12 +414,15 @@ class Compiler {
 			return ModuleKindCommonJS;
 		}
 		final fileEmitMode = Ast.GetEmitModuleFormatOfFileWorker(fileName, options, meta);
-		if (Ast.IsImportCall(Ast.WalkUpParenthesizedExpressions(usage.Parent))) {
-			if (Ast.ShouldTransformImportCall(fileName, options, fileEmitMode)) {
-				return ModuleKindCommonJS;
-			} else {
+		final call = Ast.WalkUpParenthesizedExpressions(usage.Parent);
+		if (Ast.IsImportCall(call)) {
+			if (Ast.IsSourcePhaseImportCall(call)) {
 				return ModuleKindESNext;
 			}
+			if (Ast.ShouldTransformImportCall(fileName, options, fileEmitMode)) {
+				return ModuleKindCommonJS;
+			}
+			return ModuleKindESNext;
 		}
 		// If we're in --module preserve on an input file, we know that an import
 		// is an import. But if this is a declaration file, we'd prefer to use the
@@ -495,7 +498,8 @@ class Compiler {
 			&& file1.UsesUriStyleNodeCoreModules == file2.UsesUriStyleNodeCoreModules
 			&& Slices.EqualFunc(file1.Imports(), file2.Imports(), function(n1:Node, n2:Node):Bool {
 				return equalModuleSpecifiers(n1, n2) && p.GetModeForUsageLocation(ts.modulespecifiers.Types.SourceFileAdapter.Of(file1), n1)
-					== p.GetModeForUsageLocation(ts.modulespecifiers.Types.SourceFileAdapter.Of(file2), n2);
+					== p.GetModeForUsageLocation(ts.modulespecifiers.Types.SourceFileAdapter.Of(file2), n2)
+					&& Ast.IsSourcePhaseImport(n1.Parent) == Ast.IsSourcePhaseImport(n2.Parent);
 			})
 			&& Slices.EqualFunc(file1.ModuleAugmentations, file2.ModuleAugmentations, equalModuleAugmentationNames)
 			&& Slices.Equal(file1.AmbientModuleNames, file2.AmbientModuleNames)
@@ -815,6 +819,7 @@ class Compiler {
 				Diagnostics.A_return_statement_cannot_be_used_inside_a_class_static_block.Code(),
 				Diagnostics.A_set_accessor_cannot_have_rest_parameter.Code(),
 				Diagnostics.A_set_accessor_must_have_exactly_one_parameter.Code(),
+				Diagnostics.A_source_phase_import_must_specify_a_local_binding.Code(),
 				Diagnostics.An_export_declaration_can_only_be_used_at_the_top_level_of_a_module.Code(),
 				Diagnostics.An_export_declaration_cannot_have_modifiers.Code(),
 				Diagnostics.An_import_declaration_can_only_be_used_at_the_top_level_of_a_module.Code(),
@@ -838,11 +843,15 @@ class Compiler {
 				Diagnostics.Jump_target_cannot_cross_function_boundary.Code(),
 				Diagnostics.Line_terminator_not_permitted_before_arrow.Code(),
 				Diagnostics.Modifiers_cannot_appear_here.Code(),
+				Diagnostics.Named_and_namespace_imports_are_not_allowed_in_a_source_phase_import.Code(),
 				Diagnostics.Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement.Code(),
 				Diagnostics.Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement.Code(),
+				Diagnostics.Optional_chaining_cannot_be_used_with_import_source.Code(),
 				Diagnostics.Private_identifiers_are_not_allowed_outside_class_bodies.Code(),
 				Diagnostics.Private_identifiers_are_only_allowed_in_class_bodies_and_may_only_be_used_as_part_of_a_class_member_declaration_property_access_or_on_the_left_hand_side_of_an_in_expression.Code(),
 				Diagnostics.Property_0_is_not_accessible_outside_class_1_because_it_has_a_private_identifier.Code(),
+				Diagnostics.Source_phase_imports_are_not_allowed_on_statements_that_compile_to_CommonJS_require_calls.Code(),
+				Diagnostics.Source_phase_imports_are_only_supported_when_the_module_option_is_set_to_esnext_nodenext_or_preserve.Code(),
 				Diagnostics.Tagged_template_expressions_are_not_permitted_in_an_optional_chain.Code(),
 				Diagnostics.The_left_hand_side_of_a_for_of_statement_may_not_be_async.Code(),
 				Diagnostics.The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer.Code(),
@@ -851,6 +860,7 @@ class Compiler {
 				Diagnostics.Variable_declaration_list_cannot_be_empty.Code(),
 				Diagnostics.X_0_and_1_operations_cannot_be_mixed_without_parentheses.Code(),
 				Diagnostics.X_0_expected.Code(),
+				Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_defer_or_source.Code(),
 				Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2.Code(),
 				Diagnostics.X_0_list_cannot_be_empty.Code(),
 				Diagnostics.X_0_modifier_already_seen.Code(),

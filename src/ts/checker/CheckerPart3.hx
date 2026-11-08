@@ -293,6 +293,7 @@ class CheckerPart3 {
 		if (specifierType.flags & TypeFlagsNullable != 0 || !c.isTypeAssignableTo(specifierType, c.stringType)) {
 			c.error(specifier, Diagnostics.Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0, c.TypeToString(specifierType));
 		}
+		var importAttributesType:Type = null;
 		if (optionsType != null) {
 			final importCallOptionsType = c.getGlobalImportCallOptionsTypeChecked();
 			if (importCallOptionsType != c.emptyObjectType) {
@@ -306,13 +307,18 @@ class CheckerPart3 {
 					}
 				}
 			}
+			importAttributesType = c.getTypeOfPropertyOfType(optionsType, "with");
+		}
+		if (Ast.IsSourcePhaseImportCall(node)) {
+			return c.createPromiseReturnType(node, c.getGlobalAbstractModuleSourceType());
 		}
 		// resolveExternalModuleName will return undefined if the moduleReferenceExpression is not a string literal
-		final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/);
+		final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/, importAttributesType);
 		if (moduleSymbol != null) {
 			final esModuleSymbol = c.resolveExternalModuleSymbol(moduleSymbol, true /*dontResolveAlias*/);
 			if (esModuleSymbol != null) {
-				var syntheticType = c.getTypeWithSyntheticDefaultOnly(c.getTypeOfSymbol(esModuleSymbol), esModuleSymbol, moduleSymbol, specifier);
+				var syntheticType = c.getTypeWithSyntheticDefaultOnly(c.getTypeOfSymbol(esModuleSymbol), esModuleSymbol, moduleSymbol, specifier,
+					importAttributesType);
 				if (syntheticType == null) {
 					syntheticType = c.getTypeWithSyntheticDefaultImportType(c.getTypeOfSymbol(esModuleSymbol), esModuleSymbol, moduleSymbol, specifier);
 				}
@@ -3857,6 +3863,8 @@ class CheckerPart3 {
 				if (node.Parent != null) {
 					return c.getEntityNameForExtendingInterface(node.Parent);
 				}
+			case KindTypeReference:
+				return node.AsTypeReferenceNode().TypeName;
 			case KindExpressionWithTypeArguments:
 				if (Ast.IsEntityNameExpression(node.Expression())) {
 					return node.Expression();

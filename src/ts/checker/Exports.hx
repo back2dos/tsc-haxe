@@ -101,8 +101,8 @@ class Exports {
 		return c.getTypeOnlyAliasDeclaration(symbol);
 	}
 
-	public static function ResolveExternalModuleName(c:Checker, moduleSpecifier:Node):Symbol {
-		return c.resolveExternalModuleName(moduleSpecifier, moduleSpecifier, true);
+	public static function ResolveExternalModuleName(c:Checker, moduleSpecifier:Node, importAttributesType:Type):Symbol {
+		return c.resolveExternalModuleName(moduleSpecifier, moduleSpecifier, true, importAttributesType);
 	}
 
 	public static function ResolveExternalModuleSymbol(c:Checker, moduleSymbol:Symbol):Symbol {

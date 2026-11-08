@@ -2056,9 +2056,25 @@ class Grammarchecks {
 				if (node.NamedBindings.Kind == KindNamedImports) {
 					return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Named_imports_are_not_allowed_in_a_deferred_import);
 				}
-				if (c.moduleKind != ModuleKindESNext && c.moduleKind != ModuleKindPreserve) {
-					return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Deferred_imports_are_only_supported_when_the_module_flag_is_set_to_esnext_or_preserve);
+				if (c.moduleKind.SupportsDeferredImports()) {
+					return false;
 				}
+				return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Deferred_imports_are_only_supported_when_the_module_flag_is_set_to_esnext_or_preserve);
+			case KindSourceKeyword:
+				if (node.NamedBindings != null) {
+					return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Named_and_namespace_imports_are_not_allowed_in_a_source_phase_import);
+				}
+				if (node.Name() == null) {
+					return c.grammarErrorOnNode(node.AsNode(), Diagnostics.A_source_phase_import_must_specify_a_local_binding);
+				}
+				if (c.moduleKind.SupportsSourcePhaseImports()) {
+					final moduleSpecifier = Checker.getModuleSpecifierFromNode(node.Parent);
+					if (c.getEmitSyntaxForModuleSpecifierExpression(moduleSpecifier) == ModuleKindCommonJS) {
+						return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Source_phase_imports_are_not_allowed_on_statements_that_compile_to_CommonJS_require_calls);
+					}
+					return false;
+				}
+				return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Source_phase_imports_are_only_supported_when_the_module_option_is_set_to_esnext_nodenext_or_preserve);
 			default:
 		}
 		return false;
@@ -2103,8 +2119,12 @@ class Grammarchecks {
 			return c.grammarErrorOnNode(node, Checker.getVerbatimModuleSyntaxErrorMessage(node));
 		}
 
-		if (node.Expression().Kind == KindMetaProperty) {
-			if (c.moduleKind != ModuleKindESNext && c.moduleKind != ModuleKindPreserve) {
+		if (Ast.IsImportSourceMetaProperty(node.Expression())) {
+			if (!c.moduleKind.SupportsSourcePhaseImports()) {
+				return c.grammarErrorOnNode(node, Diagnostics.Source_phase_imports_are_only_supported_when_the_module_option_is_set_to_esnext_nodenext_or_preserve);
+			}
+		} else if (Ast.IsImportDeferMetaProperty(node.Expression())) {
+			if (!c.moduleKind.SupportsDeferredImports()) {
 				return c.grammarErrorOnNode(node, Diagnostics.Deferred_imports_are_only_supported_when_the_module_flag_is_set_to_esnext_or_preserve);
 			}
 		} else if (c.moduleKind == ModuleKindES2015) {
@@ -2112,6 +2132,9 @@ class Grammarchecks {
 		}
 
 		final nodeAsCall = node.AsCallExpression();
+		if (Ast.IsSourcePhaseImportCall(node) && nodeAsCall.QuestionDotToken != null) {
+			return c.grammarErrorOnNode(nodeAsCall.QuestionDotToken, Diagnostics.Optional_chaining_cannot_be_used_with_import_source);
+		}
 		if (nodeAsCall.TypeArguments != null) {
 			return c.grammarErrorOnNode(node, Diagnostics.This_use_of_import_is_invalid_import_calls_can_be_written_but_they_must_have_parentheses_and_cannot_have_type_arguments);
 		}
@@ -2152,6 +2175,46 @@ class Grammarchecks {
 	// Haxe uses the cached adapter of modulespecifiers (as in CheckerPart2).
 	static inline function hasFileName(file:SourceFile):HasFileName {
 		return ts.modulespecifiers.Types.SourceFileAdapter.Of(file);
+	}
+
+	static function checkGrammarImportAttributesType(c:Checker, attributes:TypeLiteralNode):Bool {
+		final members = attributes.Members;
+		if (members == null) {
+			return false;
+		}
+		for (member in members.Nodes) {
+			if (member.Kind != KindPropertySignature) {
+				return c.grammarErrorOnNode(member, Diagnostics.An_import_attributes_type_may_only_contain_property_signatures);
+			}
+			final propertySignature = member.AsPropertySignatureDeclaration();
+			final modifiers = member.Modifiers();
+			if (modifiers != null) {
+				for (modifier in modifiers.Nodes) {
+					if (modifier.Kind == KindReadonlyKeyword) {
+						return c.grammarErrorOnNode(modifier, Diagnostics.An_import_attributes_property_cannot_have_a_readonly_modifier);
+					}
+				}
+			}
+			if (propertySignature.Type == null) {
+				return c.grammarErrorOnNode(member, Diagnostics.An_import_attributes_property_must_have_a_type_annotation);
+			}
+			if (member.QuestionToken() != null) {
+				return c.grammarErrorOnNode(member, Diagnostics.An_import_attributes_property_cannot_be_optional);
+			}
+			final name = member.Name();
+			if (!(Ast.IsStringLiteralLike(name) || Ast.IsIdentifier(name))) {
+				return c.grammarErrorOnNode(name, Diagnostics.An_import_attributes_property_must_have_a_string_literal_or_identifier_name);
+			}
+			if (name.Text() == "resolution-mode") {
+				return c.grammarErrorOnNode(name, Diagnostics.X_0_is_not_a_valid_key_for_an_import_attributes_type, name.Text());
+			}
+
+			final typeNode = propertySignature.Type;
+			if (!Ast.IsLiteralTypeNode(typeNode) || !Ast.IsStringLiteral(typeNode.AsLiteralTypeNode().Literal)) {
+				return c.grammarErrorOnNode(typeNode, Diagnostics.An_import_attributes_property_must_have_a_string_literal_type_annotation);
+			}
+		}
+		return false;
 	}
 
 	// PORT: method values created once (PORTING.md §7a).

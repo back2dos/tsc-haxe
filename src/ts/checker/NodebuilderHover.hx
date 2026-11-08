@@ -584,7 +584,15 @@ class NodebuilderHover {
 		if (!Ast.IsIdentifier(localName)) {
 			keyword = KindModuleKeyword;
 		}
-		final result = b.f.NewModuleDeclaration(null, keyword, localName, null /*attributes*/, b.f.NewModuleBlock(b.f.NewNodeList(bodyStatements)));
+		var attributes:Node = null;
+		final declaration = Core.Find(symbol.Declarations, (declaration:Node) -> {
+			return Ast.IsModuleDeclaration(declaration) && declaration.AsModuleDeclaration().Attributes != null;
+		});
+		if (declaration != null) {
+			attributes = b.f.DeepCloneNode(declaration.AsModuleDeclaration().Attributes);
+			b.e.SetEmitFlags(attributes, EFSingleLine);
+		}
+		final result = b.f.NewModuleDeclaration(null, keyword, localName, attributes, b.f.NewModuleBlock(b.f.NewNodeList(bodyStatements)));
 		b.ctx.flags = oldFlags;
 		return result;
 	}

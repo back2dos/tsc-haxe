@@ -590,7 +590,8 @@ class CheckerPart7 {
 			}
 			final targetMeaning:SymbolFlags = n.IsTypeOf ? SymbolFlagsValue : SymbolFlagsType;
 			// TODO: Future work: support unions/generics/whatever via a deferred import-type
-			final innerModuleSymbol = c.resolveExternalModuleName(node, n.Argument.AsLiteralTypeNode().Literal, false /*ignoreErrors*/);
+			final innerModuleSymbol = c.resolveExternalModuleName(node, n.Argument.AsLiteralTypeNode().Literal, false /*ignoreErrors*/,
+				c.getTypeFromImportAttributes(Ast.GetImportAttributes(node)));
 			if (innerModuleSymbol == null) {
 				c.symbolNodeLinks.Get(node).resolvedSymbol = c.unknownSymbol;
 				links.resolvedType = c.errorType;

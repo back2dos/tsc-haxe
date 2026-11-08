@@ -945,7 +945,7 @@ class Ast {
 			| propagateSubtreeFacts(node.QuestionDotToken)
 			| propagateEraseableSyntaxListSubtreeFacts(node.TypeArguments)
 			| propagateNodeListSubtreeFacts(node.Arguments, propagateSubtreeFactsFunc)
-			| Core.IfElse(node.Expression.Kind == KindImportKeyword, SubtreeContainsDynamicImport, SubtreeFactsNone);
+			| Core.IfElse(IsImportCall(node.AsNode()), SubtreeContainsDynamicImport, SubtreeFactsNone);
 	}
 
 	public static function CallExpression_propagateSubtreeFacts(node:CallExpression):SubtreeFacts {

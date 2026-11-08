@@ -80,6 +80,18 @@ enum abstract ResultKind(Int) from Int to Int {
 	var ResultKindAmbient = 5;
 }
 
+class ModuleSpecifiersResult {
+	public var Specifiers:Array<String> = null;
+	public var Kind:ResultKind = ResultKindNone;
+	public var AmbientModuleSymbol:ts.ast.Symbol = null; // used to construct an import attributes node, if one is needed
+
+	public function new(Specifiers:Array<String> = null, Kind:ResultKind = ResultKindNone, AmbientModuleSymbol:ts.ast.Symbol = null) {
+		this.Specifiers = Specifiers;
+		this.Kind = Kind;
+		this.AmbientModuleSymbol = AmbientModuleSymbol;
+	}
+}
+
 // PORT: Go value struct, never mutated after construction → immutable class.
 class ModulePath {
 	public final FileName:String;

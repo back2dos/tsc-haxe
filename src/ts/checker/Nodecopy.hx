@@ -268,7 +268,7 @@ class Nodecopy {
 		if (b.ctx.enclosingFile != Ast.GetSourceFileOfNode(lit)) {
 			var mode = Core.ResolutionModeNone;
 			if (parent.AsImportTypeNode().Attributes != null) {
-				mode = b.ch.getResolutionModeOverride(parent.AsImportTypeNode().Attributes.AsImportAttributes(), false);
+				mode = parent.AsImportTypeNode().Attributes.GetResolutionModeOverride(null).value;
 			}
 			var name = lit.Text();
 			final originalName = name;
@@ -282,11 +282,11 @@ class Nodecopy {
 				parentSymbol = b.lookupSymbolChain(nodeSymbol, meaning, true)[0];
 			}
 			if (parentSymbol != null && Checker.IsExternalModuleSymbol(parentSymbol)) {
-				name = b.getSpecifierForModuleSymbol(parentSymbol, mode);
+				name = b.getSpecifierForModuleSymbol(parentSymbol, mode).specifier;
 			} else {
 				final targetFile = b.ch.getExternalModuleFileFromDeclaration(parent);
 				if (targetFile != null) {
-					name = b.getSpecifierForModuleSymbol(targetFile.Symbol, mode);
+					name = b.getSpecifierForModuleSymbol(targetFile.Symbol, mode).specifier;
 				}
 			}
 			if (name.length > 0 && name.indexOf("/node_modules/") >= 0) {

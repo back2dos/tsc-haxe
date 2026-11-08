@@ -110,7 +110,8 @@ class CheckerPart5 {
 				final nestedSymbols = new SymbolTable();
 				final lookupTable = new ExportCollisionTable();
 				for (node in rangeOf(exportStars.Declarations)) {
-					final resolvedModule = c.resolveExternalModuleName(node, node.ModuleSpecifier(), false /*ignoreErrors*/);
+					final resolvedModule = c.resolveExternalModuleName(node, node.ModuleSpecifier(), false /*ignoreErrors*/,
+						c.getTypeFromImportAttributes(Ast.GetImportAttributes(node)));
 					final exportedSymbols = visit(resolvedModule, node, isTypeOnly || node.IsTypeOnly());
 					c.extendExportSymbols(nestedSymbols, exportedSymbols, lookupTable, node);
 				}

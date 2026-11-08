@@ -260,6 +260,7 @@ class CheckerPart1 {
 				c.mergeGlobalSymbol(symbol);
 			}
 		}
+		c.mergePatternAmbientModules();
 		// merge _nonglobal_ module augmentations.
 		// this needs to be done after global symbol table is initialized to make sure that all ambient modules are indexed
 		for (list in augmentations) {
@@ -285,6 +286,42 @@ class CheckerPart1 {
 		c.globals.set(symbol.Name, merged);
 	}
 
+	// Pattern ambient modules are merged together if they have the same pattern and identical import attributes type.
+	static function mergePatternAmbientModules(c:Checker):Void {
+		final groupsByPattern = new haxe.ds.StringMap<Array<Int>>();
+		final grouped:Array<PatternAmbientModule> = [];
+		for (module in c.patternAmbientModules) {
+			final attributesType = c.getTypeOfModuleImportAttributes(module.Symbol);
+			var groupIndex = -1;
+			for (index in groupsByPattern.get(module.Pattern.Text)) {
+				if (c.isTypeIdenticalTo(attributesType, c.getTypeOfModuleImportAttributes(grouped[index].Symbol))) {
+					groupIndex = index;
+					break;
+				}
+			}
+			if (groupIndex == -1) {
+				var list = groupsByPattern.get(module.Pattern.Text);
+				if (list == null) {
+					list = [];
+					groupsByPattern.set(module.Pattern.Text, list);
+				}
+				list.push(grouped.length);
+				final m = new PatternAmbientModule();
+				m.Pattern = module.Pattern;
+				m.Symbol = module.Symbol;
+				grouped.push(m);
+			} else {
+				grouped[groupIndex].Symbol = c.mergeSymbol(grouped[groupIndex].Symbol, module.Symbol, false /*unidirectional*/);
+			}
+		}
+		for (module in c.patternAmbientModules) {
+			if (c.globals.exists(module.Symbol.Name)) {
+				c.globals.set(module.Symbol.Name, c.getMergedSymbol(module.Symbol));
+			}
+		}
+		c.patternAmbientModules = grouped;
+	}
+
 	static function mergeModuleAugmentation(c:Checker, moduleName:Node):Void {
 		final moduleNode = moduleName.Parent;
 		final moduleAugmentation = moduleNode.AsModuleDeclaration();
@@ -303,7 +340,8 @@ class CheckerPart1 {
 			if (moduleName.Parent.Parent.Flags & NodeFlagsAmbient == 0) {
 				moduleNotFoundError = Diagnostics.Invalid_module_name_in_augmentation_module_0_cannot_be_found;
 			}
-			var mainModule = c.resolveExternalModuleNameWorker(moduleName, moduleName, moduleNotFoundError /*ignoreErrors*/, false /*isForAugmentation*/, true);
+			// We ban import attributes on module augmentation declarations.
+			var mainModule = c.resolveExternalModuleNameWorker(moduleName, moduleName, moduleNotFoundError, false /*ignoreErrors*/, true /*isForAugmentation*/, null /*importAttributesType*/);
 			if (mainModule == null) {
 				return;
 			}
@@ -317,12 +355,14 @@ class CheckerPart1 {
 				// 'getMergedSymbol()' on *.foo only gives you exports from *.foo.
 				final mm = mainModule;
 				if (Core.Some(c.patternAmbientModules, (module:PatternAmbientModule) -> {
-					return mm == module.Symbol;
+					return mm == c.getMergedSymbol(module.Symbol);
 				})) {
 					final merged = c.mergeSymbol(moduleAugmentation.Symbol, mainModule, true /*unidirectional*/);
 					// moduleName will be a StringLiteral since this is not `declare global`.
 					Ast.GetSymbolTable(() -> c.patternAmbientModuleAugmentations, t -> c.patternAmbientModuleAugmentations = t)
 						.set(moduleName.Text(), merged);
+					Ast.GetSymbolTable(() -> c.patternAmbientModuleAugmentationTargets, t -> c.patternAmbientModuleAugmentationTargets = t)
+						.set(moduleName.Text(), mainModule);
 				} else {
 					if (mainModule.Exports != null && mainModule.Exports.get(Ast.InternalSymbolNameExportStar) != null
 						&& moduleAugmentation.Symbol.Exports != null && moduleAugmentation.Symbol.Exports.keys().hasNext()) {
@@ -2264,40 +2304,16 @@ class CheckerPart1 {
 			c.getResolutionModeOverride(importAttributes, true /*reportErrors*/);
 		}
 		c.checkTypeReferenceOrImport(node);
+		c.checkImportAttributes(node);
 	}
 
 	static function getResolutionModeOverride(c:Checker, node:ImportAttributes, reportErrors:Bool):ResolutionMode {
-		if (node.Attributes.Nodes.length != 1) {
-			if (reportErrors) {
-				c.grammarErrorOnNode(node.AsNode(),
-					Diagnostics.Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require);
-			}
-			return Core.ResolutionModeNone;
+		var grammarErrorOnNode:(Node, Message, Array<Any>) -> Bool = null;
+		if (reportErrors) {
+			grammarErrorOnNode = (n, message, args) -> c.grammarErrorOnNode(n, message, ...args);
 		}
-		final elem = node.Attributes.Nodes[0];
-		if (!Ast.IsStringLiteralLike(elem.Name())) {
-			return Core.ResolutionModeNone;
-		}
-		if (elem.Name().Text() != "resolution-mode") {
-			if (reportErrors) {
-				c.grammarErrorOnNode(elem.Name(), Diagnostics.X_resolution_mode_is_the_only_valid_key_for_type_import_attributes);
-			}
-			return Core.ResolutionModeNone;
-		}
-		final value = elem.AsImportAttribute().Value;
-		if (!Ast.IsStringLiteralLike(value)) {
-			return Core.ResolutionModeNone;
-		}
-		if (value.Text() != "import" && value.Text() != "require") {
-			if (reportErrors) {
-				c.grammarErrorOnNode(value, Diagnostics.X_resolution_mode_should_be_either_require_or_import);
-			}
-			return Core.ResolutionModeNone;
-		}
-		if (value.Text() == "import") {
-			return Core.ResolutionModeESM;
-		}
-		return Core.ResolutionModeCommonJS;
+		final r = node.AsNode().GetResolutionModeOverride(grammarErrorOnNode);
+		return r.value;
 	}
 
 	static function checkNamedTupleMember(c:Checker, node:Node):Void {

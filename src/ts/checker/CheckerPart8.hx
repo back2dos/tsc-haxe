@@ -569,7 +569,7 @@ class CheckerPart8 {
 		final links = c.sourceFileLinks.Get(file);
 		if (links.externalHelpersModule == null) {
 			final location = c.program.GetImportHelpersImportSpecifier(file.Path());
-			var helpersModule = c.resolveExternalModule(location, Checker.externalHelpersModuleNameText, Diagnostics.This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found, errorNode, false /*isForAugmentation*/);
+			var helpersModule = c.resolveExternalModule(location, Checker.externalHelpersModuleNameText, Diagnostics.This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found, errorNode, false /*isForAugmentation*/, null /*importAttributesType*/);
 			if (helpersModule == null) {
 				helpersModule = c.unknownSymbol;
 			}
@@ -3587,7 +3587,7 @@ class CheckerPart8 {
 					((parent.Kind == KindImportDeclaration || parent.Kind == KindJSImportDeclaration || parent.Kind == KindExportDeclaration) && Ast.GetExternalModuleName(parent) == node) ||
 					Ast.IsVariableDeclarationInitializedToRequire(grandParent) || Ast.IsImportCall(parent) ||
 					(Ast.IsLiteralTypeNode(parent) && Ast.IsLiteralImportTypeNode(grandParent) && grandParent.AsImportTypeNode().Argument == parent)) {
-					return c.resolveExternalModuleName(node, node, ignoreErrors);
+					return c.resolveExternalModuleName(node, node, ignoreErrors, c.getImportAttributesTypeForModuleSpecifier(node));
 				}
 				if (Ast.IsCallExpression(parent) && Ast.IsBindableObjectDefinePropertyCall(parent) && parent.Arguments()[1] == node) {
 					return c.getSymbolOfDeclaration(parent);
@@ -3907,7 +3907,7 @@ class CheckerPart8 {
 		}
 
 		if (Ast.IsImportAttributes(node)) {
-			return c.getGlobalImportAttributesType();
+			return c.checkImportAttributesExpression(node);
 		}
 
 		return c.errorType;

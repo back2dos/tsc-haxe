@@ -247,33 +247,31 @@ class Modulespecifiers {
 
 	public static function GetModuleSpecifiers(moduleSymbol:Symbol, checker:CheckerShape, compilerOptions:CompilerOptions,
 			importingSourceFile:SourceFileForSpecifierGeneration, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences,
-			options:ModuleSpecifierOptions, forAutoImports:Bool):Array<String> {
-		final result = GetModuleSpecifiersWithInfo(moduleSymbol, checker, compilerOptions, importingSourceFile, host, userPreferences, options,
-			forAutoImports);
-		return result.a;
+			options:ModuleSpecifierOptions, forAutoImports:Bool):ModuleSpecifiersResult {
+		return GetModuleSpecifiersWithInfo(moduleSymbol, checker, compilerOptions, importingSourceFile, host, userPreferences, options, forAutoImports);
 	}
 
-	// PORT: ([]string, ResultKind) → Pair.
 	public static function GetModuleSpecifiersWithInfo(moduleSymbol:Symbol, checker:CheckerShape, compilerOptions:CompilerOptions,
 			importingSourceFile:SourceFileForSpecifierGeneration, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences,
-			options:ModuleSpecifierOptions, forAutoImports:Bool):Pair<Array<String>, ResultKind> {
+			options:ModuleSpecifierOptions, forAutoImports:Bool):ModuleSpecifiersResult {
 		final ambient = tryGetModuleNameFromAmbientModule(moduleSymbol, checker);
-		if (ambient.length > 0) {
-			if (forAutoImports && IsExcludedByRegex(ambient, userPreferences.AutoImportSpecifierExcludeRegexes)) {
-				return new Pair<Array<String>, ResultKind>(null, ResultKindAmbient);
+		if (ambient.name.length > 0) {
+			if (forAutoImports && IsExcludedByRegex(ambient.name, userPreferences.AutoImportSpecifierExcludeRegexes)) {
+				return new ModuleSpecifiersResult(null, ResultKindAmbient, ambient.symbol);
 			}
-			return new Pair<Array<String>, ResultKind>([ambient], ResultKindAmbient);
+			return new ModuleSpecifiersResult([ambient.name], ResultKindAmbient, ambient.symbol);
 		}
 
 		final moduleSourceFile = Ast.GetSourceFileOfModule(moduleSymbol);
 		if (moduleSourceFile == null) {
-			return new Pair<Array<String>, ResultKind>(null, ResultKindNone);
+			return new ModuleSpecifiersResult();
 		}
 
 		// Use original source file name when file is from project reference output
 		final moduleFileName = host.GetSourceOfProjectReferenceIfOutputIncluded(SourceFileAdapter.Of(moduleSourceFile));
 
-		return GetModuleSpecifiersForFileWithInfo(importingSourceFile, moduleFileName, compilerOptions, host, userPreferences, options, forAutoImports);
+		final r = GetModuleSpecifiersForFileWithInfo(importingSourceFile, moduleFileName, compilerOptions, host, userPreferences, options, forAutoImports);
+		return new ModuleSpecifiersResult(r.a, r.b);
 	}
 
 	public static function GetModuleSpecifiersForFileWithInfo(importingSourceFile:SourceFileForSpecifierGeneration, moduleFileName:String,
@@ -285,12 +283,12 @@ class Modulespecifiers {
 		return computeModuleSpecifiers(modulePaths, compilerOptions, importingSourceFile, host, userPreferences, options, forAutoImports);
 	}
 
-	static function tryGetModuleNameFromAmbientModule(moduleSymbol:Symbol, checker:CheckerShape):String {
+	static function tryGetModuleNameFromAmbientModule(moduleSymbol:Symbol, checker:CheckerShape):AmbientModuleInfo {
 		if (moduleSymbol.Declarations != null) {
 			for (decl in moduleSymbol.Declarations) {
 				if (Ast.IsModuleWithStringLiteralName(decl)
 					&& (!Ast.IsModuleAugmentationExternal(decl) || !Tspath.IsExternalModuleNameRelative(decl.Name().Text()))) {
-					return decl.Name().Text();
+					return new AmbientModuleInfo(decl.Name().Text(), moduleSymbol);
 				}
 			}
 		}
@@ -334,11 +332,11 @@ class Modulespecifiers {
 				}
 				// TODO: Possible strada bug - isn't this insufficient in the presence of merge symbols?
 				if (exportSymbol == d.Symbol()) {
-					return possibleContainer.Name().Text();
+					return new AmbientModuleInfo(possibleContainer.Name().Text(), possibleContainer.Symbol());
 				}
 			}
 		}
-		return "";
+		return new AmbientModuleInfo("", null);
 	}
 
 	static function getInfo(importingSourceFileName:String, host:ModuleSpecifierGenerationHost):Info {
@@ -1869,5 +1867,15 @@ class Modulespecifiers {
 
 		// For other extensions (like .json), return as-is
 		return specifier;
+	}
+}
+
+private class AmbientModuleInfo {
+	public final name:String;
+	public final symbol:Symbol;
+
+	public function new(name:String, symbol:Symbol) {
+		this.name = name;
+		this.symbol = symbol;
 	}
 }
