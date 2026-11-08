@@ -551,11 +551,38 @@ class Scanner {
 	// PORT: Go reslices commentText after each '@'; here `start` is the offset of that slice, so
 	// no substring is made per '@' (hasJSDocTag takes the offset).
 	// PORT: perf — the comment is text[commentStart:commentEnd] (no substring)
+	// text.indexOf("*/", from)
+	static function indexOfCommentEnd(text:String, from:Int):Int {
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+		if (hxmc.rt.Str.isOne(text)) {
+			final p = hxmc.rt.Str.unitsAddr(text);
+			final n = text.length - 1;
+			var i = from;
+			while (i < n) {
+				if (hxmc.unsafe.Mem.getU8(p, i) == '*'.code && hxmc.unsafe.Mem.getU8(p, i + 1) == '/'.code)
+					return i;
+				i++;
+			}
+			return -1;
+		}
+		#end
+		return text.indexOf("*/", from);
+	}
+
 	function scanJSDocCommentForTags(commentStart:Int, commentEnd:Int):Void {
 		final text = this.text;
 		var start = commentStart;
 		while (true) {
 			var i = start;
+			#if (target.name == "hxmc" && !hxmc.wasm_gc)
+			// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+			if (hxmc.rt.Str.isOne(text)) {
+				final p = hxmc.rt.Str.unitsAddr(text);
+				while (i < commentEnd && hxmc.unsafe.Mem.getU8(p, i) != '@'.code)
+					i++;
+			} else
+			#end
 			while (i < commentEnd && StringTools.fastCodeAt(text, i) != '@'.code)
 				i++;
 			if (i >= commentEnd) {
@@ -3360,6 +3387,22 @@ class Scanner {
 						final startPos = pos;
 						pos += 2;
 						if (nextChar == '/'.code) {
+							#if (target.name == "hxmc" && !hxmc.wasm_gc)
+							// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass): its only line
+							// breaks are '\n' and '\r', each unit one rune
+							if (hxmc.rt.Str.isOne(text)) {
+								final p = hxmc.rt.Str.unitsAddr(text);
+								final n = text.length;
+								while (pos < n) {
+									final c = hxmc.unsafe.Mem.getU8(p, pos);
+									if (c == '\n'.code || c == '\r'.code) {
+										hasTrailingNewLine = true;
+										break;
+									}
+									pos++;
+								}
+							} else
+							#end
 							while (pos < text.length) {
 								final c = Utf16.DecodeRuneInString(text, pos);
 								if (Stringutil.IsLineBreak(c)) {
@@ -3369,7 +3412,7 @@ class Scanner {
 								pos += Utf16.RuneLen(c);
 							}
 						} else {
-							final i = text.indexOf("*/", pos);
+							final i = indexOfCommentEnd(text, pos);
 							if (i >= 0) {
 								pos = i + 2;
 							} else {
