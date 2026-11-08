@@ -12,6 +12,8 @@ class Reparser {
 
 	static function finishMutatedNode(p:Parser, node:Node):Void {
 		p.overrideParentInImmediateChildren(node);
+		// Wrapping an assignment's right side can make it a CommonJS export assignment.
+		p.checkCommonJSModuleIndicator(node);
 	}
 
 	// Deep-clone the given node and add the clone to the reparsed clone list. The list is used by ast.GetReparsedNodeForNode
@@ -33,6 +35,10 @@ class Reparser {
 	}
 
 	static function checkNonIdentifierName(p:Parser, name:Node):Node {
+		// Handles the case of anonymous functions
+		if (name == null) {
+			return null;
+		}
 		if (Ast.IsIdentifier(name) && !Scanner.IsValidIdentifier(name.AsIdentifier().Text)) {
 			var errLoc = name.Loc;
 			if (errLoc.Len() == 0) { // missing name, emit error on the character before the missing name node
@@ -577,20 +583,25 @@ class Reparser {
 				if (extendsClause != null && Core.len(extendsClause.AsHeritageClause().Types.Nodes) == 1) {
 					var target = extendsClause.AsHeritageClause().Types.Nodes[0].AsExpressionWithTypeArguments();
 					var source = tag.ClassName().AsExpressionWithTypeArguments();
-					if (Ast.HasSamePropertyAccessName(target.Expression, source.Expression)) {
-						if (target.TypeArguments == null && source.TypeArguments != null) {
-							var newArguments:Array<Node> = []; // PORT: arena — Go p.nodeSliceArena.NewSlice(len)
-							for (i in 0...Core.len(source.TypeArguments.Nodes)) {
-								newArguments[i] = p.addDeepCloneReparse(source.TypeArguments.Nodes[i]);
-							}
-							target.TypeArguments = p.newNodeList(source.TypeArguments.Loc, Core.len(newArguments) == 0 ? null : newArguments);
-							p.finishMutatedNode(target.AsNode());
-						}
+					if (target.TypeArguments == null
+						&& source.TypeArguments != null
+						&& target.Expression.Kind != KindNullKeyword
+						&& (!Ast.IsEntityNameExpression(target.Expression) || Ast.HasSamePropertyAccessName(target.Expression, source.Expression))) {
+						setReparsedTypeArguments(p, target, source.TypeArguments);
 					}
 				}
 			}
 		default:
 		}
+	}
+
+	static function setReparsedTypeArguments(p:Parser, target:ExpressionWithTypeArguments, source:NodeList):Void {
+		var typeArguments:Array<Node> = []; // PORT: arena — Go p.nodeSliceArena.NewSlice(len)
+		for (i in 0...Core.len(source.Nodes)) {
+			typeArguments[i] = p.addDeepCloneReparse(source.Nodes[i]);
+		}
+		target.TypeArguments = p.newNodeList(source.Loc, Core.len(typeArguments) == 0 ? null : typeArguments);
+		p.finishMutatedNode(target.AsNode());
 	}
 
 	static function makeQuestionIfOptional(p:Parser, parameter:JSDocParameterOrPropertyTag):Node {
@@ -662,7 +673,7 @@ class Reparser {
 		if (nested) {
 			modifiers = p.createExportModifier(fullName);
 		}
-		var result = p.factory.NewModuleDeclaration(modifiers, KindNamespaceKeyword, p.addDeepCloneReparse(fullName.Name()), block);
+		var result = p.factory.NewModuleDeclaration(modifiers, KindNamespaceKeyword, p.addDeepCloneReparse(fullName.Name()), null, block);
 		p.finishReparsedNode(result, fullName);
 		p.reparsedClones = Parser.append(p.reparsedClones, result);
 		return result;

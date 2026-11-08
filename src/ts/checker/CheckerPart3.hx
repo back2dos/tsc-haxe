@@ -2867,9 +2867,10 @@ class CheckerPart3 {
 			case KindNewKeyword:
 				return c.checkNewTargetMetaProperty(node);
 			case KindImportKeyword:
-				if (node.Name().Text() == "defer") {
-					Debug.Assert(!Ast.IsCallExpression(node.Parent) || node.Parent.Expression() != node,
-						"Trying to get the type of `import.defer` in `import.defer(...)`");
+				if (Ast.IsImportPhaseMetaProperty(node.AsNode())) {
+					if (Ast.IsCallExpression(node.Parent)) {
+						Debug.Assert(node.Parent.Expression() != node, "Trying to get the type of a phase import meta-property in its call");
+					}
 					return c.errorType;
 				}
 				return c.checkImportMetaProperty(node);

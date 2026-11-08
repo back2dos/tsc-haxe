@@ -82,8 +82,5 @@ enum abstract SymbolFlags(Int) from Int to Int {
 	var SymbolFlagsClassMember = SymbolFlagsMethod | SymbolFlagsAccessor | SymbolFlagsProperty;
 	var SymbolFlagsExportSupportsDefaultModifier = SymbolFlagsClass | SymbolFlagsFunction | SymbolFlagsInterface;
 	var SymbolFlagsExportDoesNotSupportDefaultModifier = ~SymbolFlagsExportSupportsDefaultModifier;
-	// The set of things we consider semantically classifiable.  Used to speed up the LS during
-	// classification.
-	var SymbolFlagsClassifiable = SymbolFlagsClass | SymbolFlagsEnum | SymbolFlagsTypeAlias | SymbolFlagsInterface | SymbolFlagsTypeParameter | SymbolFlagsModule | SymbolFlagsAlias;
 	var SymbolFlagsLateBindingContainer = SymbolFlagsClass | SymbolFlagsInterface | SymbolFlagsTypeLiteral | SymbolFlagsObjectLiteral | SymbolFlagsFunction;
 }

@@ -1860,6 +1860,10 @@
         "category": "Message",
         "code": 1549
     },
+    "An ambient module declaration with import attributes must use a pattern name with an '*' character.": {
+        "category": "Error",
+        "code": 1550
+    },
 
     "The types of '{0}' are incompatible between these types.": {
         "category": "Error",
@@ -8551,6 +8555,18 @@
     "Deferred imports are only supported when the '--module' flag is set to 'esnext' or 'preserve'.": {
         "category": "Error",
         "code": 18060
+    },
+    "Regular expression pattern modifiers are only available when targeting '{0}' or later.": {
+        "category": "Error",
+        "code": 18062
+    },
+    "Duplicate named capturing groups are only available when targeting '{0}' or later.": {
+        "category": "Error",
+        "code": 18063
+    },
+    "A deferred import must specify a namespace binding.": {
+        "category": "Error",
+        "code": 18117
     },
     "'{0}' is not a valid meta-property for keyword 'import'. Did you mean 'meta' or 'defer'?": {
         "category": "Error",

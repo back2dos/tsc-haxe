@@ -67,6 +67,11 @@ class SkipTriviaOptions {
 class Scanner {
 	// --- scanner.go ---
 
+	// PORT: Go `type identifierVariant int32`
+	static inline final identifierVariantStandard = 0;
+	static inline final identifierVariantJSX = 1;
+	static inline final identifierVariantRegExpGroupName = 2;
+
 	static final textToKeyword:StringMap<Kind> = [
 		"abstract" => KindAbstractKeyword,
 		"accessor" => KindAccessorKeyword,
@@ -130,6 +135,7 @@ class Scanner {
 		"return" => KindReturnKeyword,
 		"satisfies" => KindSatisfiesKeyword,
 		"set" => KindSetKeyword,
+		"source" => KindSourceKeyword,
 		"static" => KindStaticKeyword,
 		"string" => KindStringKeyword,
 		"super" => KindSuperKeyword,
@@ -1045,9 +1051,7 @@ class Scanner {
 					pos++;
 					token = KindAtToken;
 				case '\\'.code:
-					final cp = peekUnicodeEscape();
-					if (cp >= 0 && IsIdentifierStart(cp)) {
-						tokenValue = Utf16.RuneString(scanUnicodeEscape(true)) + scanIdentifierParts();
+					if (scanIdentifier(0, identifierVariantStandard)) {
 						token = GetIdentifierToken(tokenValue);
 					} else {
 						scanInvalidCharacter();
@@ -1066,21 +1070,11 @@ class Scanner {
 							continue;
 						}
 						errorAt(Diagnostics.X_can_only_be_used_at_the_start_of_a_file, pos, 2);
-						pos++;
+						pos += 2;
 						token = KindUnknown;
 						return token;
 					}
-					if (charAt(1) == '\\'.code) {
-						pos++;
-						final cp = peekUnicodeEscape();
-						if (cp >= 0 && IsIdentifierStart(cp)) {
-							tokenValue = "#" + Utf16.RuneString(scanUnicodeEscape(true)) + scanIdentifierParts();
-							token = KindPrivateIdentifier;
-							return token;
-						}
-						pos--;
-					}
-					if (!scanIdentifier(1)) {
+					if (!scanIdentifier(1, identifierVariantStandard)) {
 						errorAt(Diagnostics.Invalid_character, pos - 1, 1);
 						tokenValue = "#";
 					}
@@ -1090,7 +1084,7 @@ class Scanner {
 						token = KindEndOfFile;
 						return token;
 					}
-					if (scanIdentifier(0)) {
+					if (scanIdentifier(0, identifierVariantStandard)) {
 						token = GetIdentifierToken(tokenValue);
 						return token;
 					}
@@ -1500,22 +1494,8 @@ class Scanner {
 			// everything after it to the token
 			// Do note that this means that `scanJsxIdentifier` effectively _mutates_ the visible token without advancing to a new token
 			// Any caller should be expecting this behavior and should only read the pos or token value after calling it.
-			while (true) {
-				final ch = char();
-				if (ch < 0) {
-					break;
-				}
-				if (ch == '-'.code) {
-					tokenValue += "-";
-					pos++;
-					continue;
-				}
-				final oldPos = pos;
-				tokenValue += scanIdentifierParts(); // reuse `scanIdentifierParts` so unicode escapes are handled
-				if (pos == oldPos) {
-					break;
-				}
-			}
+			// Here scanIdentifierParts is reused to ensure Unicode escapes are handled.
+			tokenValue += scanIdentifierParts(identifierVariantJSX);
 			token = GetIdentifierToken(tokenValue);
 		}
 		return token;
@@ -1679,51 +1659,26 @@ class Scanner {
 			case '#'.code:
 				token = KindHashToken;
 				return token;
-			case '\\'.code:
-				pos--;
-				final cp = peekUnicodeEscape();
-				if (cp >= 0 && IsIdentifierStart(cp)) {
-					tokenValue = Utf16.RuneString(scanUnicodeEscape(true)) + scanIdentifierParts();
-					token = GetIdentifierToken(tokenValue);
-				} else {
-					pos++;
-					token = KindUnknown;
-				}
-				return token;
 			default:
 		}
 
-		if (IsIdentifierStart(ch)) {
-			var char = ch;
-			while (true) {
-				if (pos >= textLen) {
-					break;
-				}
-				char = charAndSize();
-				size = charSize(char);
-				if (!IsIdentifierPart(char) && char != '-'.code) {
-					break;
-				}
-				pos += size;
-			}
-			tokenValue = text.substring(tokenStart, pos);
-			if (char == '\\'.code) {
-				tokenValue += scanIdentifierParts();
-			}
+		pos = tokenStart;
+		if (scanIdentifier(0, identifierVariantJSX)) {
 			token = GetIdentifierToken(tokenValue);
 			return token;
-		} else {
-			token = KindUnknown;
-			return token;
 		}
+		pos = tokenStart + size;
+		token = KindUnknown;
+		return token;
 	}
 
-	function scanIdentifier(prefixLength:Int):Bool {
+	function scanIdentifier(prefixLength:Int, variant:Int):Bool {
 		final start = pos;
 		pos += prefixLength;
+		final identifierStart = pos;
 		var ch = char();
 		// Fast path for simple ASCII identifiers
-		if (Stringutil.IsASCIILetter(ch) || ch == '_'.code || ch == '$'.code) {
+		if (variant != identifierVariantJSX && (Stringutil.IsASCIILetter(ch) || ch == '_'.code || ch == '$'.code)) {
 			pos++;
 			scanASCIIWhile(b -> asciiIdentifierPart[b]); // PORT: perf — (from tsrs) a table of Go's predicate
 			ch = char();
@@ -1731,43 +1686,53 @@ class Scanner {
 				tokenValue = text.substring(start, pos);
 				return true;
 			}
-			pos = start + prefixLength;
+			pos = identifierStart;
 		}
 		ch = charAndSize();
 		var size = charSize(ch);
 		if (IsIdentifierStart(ch)) {
+			final languageVariant = variant == identifierVariantJSX ? LanguageVariantJSX : LanguageVariantStandard;
 			while (true) {
 				pos += size;
 				ch = charAndSize();
 				size = charSize(ch);
-				if (!IsIdentifierPart(ch)) {
+				if (!IsIdentifierPartEx(ch, languageVariant)) {
 					break;
 				}
 			}
 			tokenValue = text.substring(start, pos);
 			if (ch == '\\'.code) {
-				tokenValue += scanIdentifierParts();
+				tokenValue += scanIdentifierParts(variant);
 			}
 			return true;
+		}
+		if (ch == '\\'.code) {
+			final escaped = scanIdentifierEscape(LanguageVariantStandard, true, variant == identifierVariantRegExpGroupName);
+			if (escaped >= 0) {
+				tokenValue = text.substring(start, identifierStart) + Utf16.RuneString(escaped) + scanIdentifierParts(variant);
+				return true;
+			}
 		}
 		return false;
 	}
 
-	function scanIdentifierParts():String {
+	function scanIdentifierParts(variant:Int):String {
 		final sb = new StringBuf();
 		var start = pos;
+		final languageVariant = variant == identifierVariantJSX ? LanguageVariantJSX : LanguageVariantStandard;
 		while (true) {
 			final ch = charAndSize();
 			final size = charSize(ch);
-			if (IsIdentifierPart(ch)) {
+			if (IsIdentifierPartEx(ch, languageVariant)) {
 				pos += size;
 				continue;
 			}
 			if (ch == '\\'.code) {
-				final escaped = peekUnicodeEscape();
-				if (escaped >= 0 && IsIdentifierPart(escaped)) {
-					sb.addSub(text, start, pos - start);
-					Utf16.WriteRune(sb, scanUnicodeEscape(true));
+				final escapeStart = pos;
+				final escaped = scanIdentifierEscape(languageVariant, false, variant == identifierVariantRegExpGroupName);
+				if (escaped >= 0) {
+					sb.addSub(text, start, escapeStart - start);
+					Utf16.WriteRune(sb, escaped);
 					start = pos;
 					continue;
 				}
@@ -1776,6 +1741,37 @@ class Scanner {
 		}
 		sb.addSub(text, start, pos - start);
 		return sb.toString();
+	}
+
+	// PORT: Go passes the validity check as a func value (IsIdentifierStart, or IsIdentifierPartEx with a
+	// language variant); here `start` selects IsIdentifierStart. Go returns (rune, bool); here the code
+	// point, or -1 for false.
+	function scanIdentifierEscape(languageVariant:LanguageVariant, start:Bool, allowSurrogatePairEscape:Bool):Int {
+		inline function isValid(ch:Int):Bool
+			return start ? IsIdentifierStart(ch) : IsIdentifierPartEx(ch, languageVariant);
+		final escaped = peekUnicodeEscape();
+		if (escaped >= 0 && isValid(escaped)) {
+			return scanUnicodeEscape(true);
+		}
+		if (allowSurrogatePairEscape && charAt(2) != '{'.code && Stringutil.IsHighSurrogate(escaped)) {
+			// Unlike normal identifiers, group names in regular expressions, whether in Unicode mode or not,
+			// accept \u HexLeadSurrogate \u HexTrailSurrogate as part of RegExpIdentifierName.
+			// See https://github.com/tc39/ecma262/pull/1869 for the change.
+			final savedPos = pos;
+			final savedTokenFlags = tokenFlags;
+			scanUnicodeEscape(false);
+			// scanLowSurrogateEscape also accepts the braced form used in string literals,
+			// but RegExpIdentifierName does not allow it.
+			if (charAt(2) != '{'.code) {
+				final codePoint = scanLowSurrogateEscape(escaped);
+				if (codePoint >= 0 && isValid(codePoint)) {
+					return codePoint;
+				}
+			}
+			pos = savedPos;
+			tokenFlags = savedTokenFlags;
+		}
+		return -1;
 	}
 
 	function scanString(jsxAttributeString:Bool):String {
@@ -2251,7 +2247,7 @@ class Scanner {
 		final ch = charAndSize();
 		if (IsIdentifierStart(ch)) {
 			final idStart = pos;
-			final id = scanIdentifierParts();
+			final id = scanIdentifierParts(identifierVariantStandard);
 			if (result != KindBigIntLiteral && id.length == 1 && StringTools.fastCodeAt(text, idStart) == 'n'.code) {
 				if ((tokenFlags & TokenFlagsScientific) != 0) {
 					errorAt(Diagnostics.A_bigint_literal_cannot_use_exponential_notation, start, pos - start);
@@ -2505,7 +2501,7 @@ class Scanner {
 		return isWordCharacter(ch)
 			|| ch == '$'.code
 			|| ch >= Utf16.RuneSelf && Stringutil.IsUnicodeIdentifierPart(ch)
-			|| languageVariant == LanguageVariantJSX && (ch == '-'.code || ch == ':'.code); // "-" and ":" are valid in JSX Identifiers
+			|| languageVariant == LanguageVariantJSX && ch == '-'.code; // ":" is part of JSXNamespacedName, but not JSXIdentifier.
 	}
 
 	static final tokenToText:Array<String> = (function() {
@@ -3434,6 +3430,70 @@ class Scanner {
 		return GetTextOfNodeFromSourceText(sourceFile.Text(), node, includeTrivia);
 	}
 
+	static function isJSDocTypeExpressionOrChild(node:Node):Bool {
+		if (Ast.IsJSDocTypeExpression(node)) {
+			return true;
+		}
+		if ((node.Flags & (NodeFlagsJSDoc | NodeFlagsReparsed)) == 0) {
+			return false;
+		}
+		var current = node;
+		while (current != null) {
+			if (Ast.IsTypeNode(current)) {
+				return true;
+			}
+			current = current.Parent;
+		}
+		return false;
+	}
+
+	static function normalizeJSDocTypeSourceText(text:String):String {
+		final lineStarts = Core.ComputeECMALineStarts(text);
+		if (lineStarts.length == 1) {
+			return stripLeadingJSDocComment(text);
+		}
+
+		final result = new StringBuf();
+		final newLine = (NewLineKindLF : NewLineKind).GetNewLineCharacter();
+		for (i in 0...lineStarts.length) {
+			final lineStart:Int = lineStarts[i];
+			if (i > 0) {
+				result.add(newLine);
+			}
+			var lineEnd = text.length;
+			if (i + 1 < lineStarts.length) {
+				lineEnd = lineStarts[i + 1];
+			}
+			// PORT: strings.TrimRightFunc(text[lineStart:lineEnd], stringutil.IsLineBreak); line breaks are BMP code units
+			while (lineEnd > lineStart && Stringutil.IsLineBreak(StringTools.fastCodeAt(text, lineEnd - 1))) {
+				lineEnd--;
+			}
+			result.add(stripLeadingJSDocComment(text.substring(lineStart, lineEnd)));
+		}
+		return result.toString();
+	}
+
+	static function stripLeadingJSDocComment(line:String):String {
+		line = trimLeftWhiteSpaceLike(line);
+		if (line.length > 0 && StringTools.fastCodeAt(line, 0) == '*'.code) {
+			line = line.substring(1);
+		}
+		return trimLeftWhiteSpaceLike(line);
+	}
+
+	// PORT: strings.TrimLeftFunc(s, stringutil.IsWhiteSpaceLike), decoding UTF-16
+	static function trimLeftWhiteSpaceLike(s:String):String {
+		var i = 0;
+		while (i < s.length) {
+			final ch = Utf16.DecodeRuneInString(s, i);
+			if (!Stringutil.IsWhiteSpaceLike(ch)) {
+				break;
+			}
+			i += Utf16.RuneLen(ch);
+		}
+		return i == 0 ? s : s.substring(i);
+	}
+
 	public static function GetTextOfNodeFromSourceText(sourceText:String, node:Node, includeTrivia:Bool):String {
 		if (Ast.NodeIsMissing(node)) {
 			return "";
@@ -3442,7 +3502,10 @@ class Scanner {
 		if (!includeTrivia) {
 			pos = SkipTrivia(sourceText, pos);
 		}
-		final text = sourceText.substring(pos, node.End());
+		var text = sourceText.substring(pos, node.End());
+		if (isJSDocTypeExpressionOrChild(node)) {
+			text = normalizeJSDocTypeSourceText(text);
+		}
 		if ((node.Flags & NodeFlagsReparserTransformedLiteral) != 0) {
 			// This is similar to `getLiteralTextOfNode` in the printer, but without the context of an `emitContext` to provide overrides
 			if (Ast.IsStringLiteral(node)) {
@@ -3458,10 +3521,6 @@ class Scanner {
 			// Fail on any other kinds.
 			Debug.FailBadSyntaxKind({KindString: () -> node.KindString()}, "Unexpected reparser-transformed node kind");
 		}
-		// if (isJSDocTypeExpressionOrChild(node)) {
-		//     // strip space + asterisk at line start
-		//     text = text.split(/\r\n|\n|\r/).map(line => line.replace(/^\s*\*/, "").trimStart()).join("\n");
-		// }
 		return text;
 	}
 

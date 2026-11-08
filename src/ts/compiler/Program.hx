@@ -1565,17 +1565,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			return null;
 		}
 
-		// Checker creation forces binding, so bind suggestion diagnostics will be populated.
-		var diags:Array<Diagnostic> = Slices.Clone(sourceFile.BindSuggestionDiagnostics);
-		final s = fileChecker.GetSuggestionDiagnostics(ctx, sourceFile);
-		if (s != null && s.length > 0) {
-			if (diags == null)
-				diags = [];
-			for (d in s)
-				diags.push(d);
-		}
-
-		return diags;
+		return fileChecker.GetSuggestionDiagnostics(ctx, sourceFile);
 	}
 
 	public function LineCount():Int {

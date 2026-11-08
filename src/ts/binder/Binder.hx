@@ -102,13 +102,13 @@ class Binder {
 	var inAssignmentPattern:Bool = false;
 	var seenParseError:Bool = false;
 	var symbolCount:Int = 0;
-	var classifiableNames:Set<String> = new Set<String>();
 	var notConstEnumOnlyModules:Set<Symbol> = new Set<Symbol>();
 	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new Symbol());
 	var flowNodeArena:Arena<FlowNode> = new Arena<FlowNode>(() -> new FlowNode());
 	var flowListArena:Arena<FlowList> = new Arena<FlowList>(() -> new FlowList());
 	var singleDeclarationsArena:Arena<Node> = new Arena<Node>(() -> null);
 	var expandoAssignments:Array<ExpandoAssignmentInfo> = null;
+	var seenCommonJSModuleIndicator:Bool = false;
 
 	function new() {}
 
@@ -181,10 +181,10 @@ class Binder {
 		inAssignmentPattern = false;
 		seenParseError = false;
 		symbolCount = 0;
-		classifiableNames = new Set<String>();
 		notConstEnumOnlyModules = new Set<Symbol>();
 		// PORT: the arenas only hold a factory (no backing storage); they need no reset.
 		expandoAssignments = null;
+		seenCommonJSModuleIndicator = false;
 	}
 
 	static function bindSourceFile(file:SourceFile):Void {
@@ -197,7 +197,6 @@ class Binder {
 				b.bind(file.AsNode());
 				b.bindDeferredExpandoAssignments();
 				file.SymbolCount = b.symbolCount;
-				file.ClassifiableNames = b.classifiableNames;
 			} catch (e:Dynamic) {
 				putBinder(b);
 				throw e;
@@ -268,9 +267,6 @@ class Binder {
 			// you have multiple 'vars' with the same name in the same container).  In this case
 			// just add this node into the declarations list of the symbol.
 			symbol = symbolTable.get(name);
-			if (includes & SymbolFlagsClassifiable != 0) {
-				classifiableNames.Add(name);
-			}
 			if (symbol == null) {
 				symbol = newSymbol(SymbolFlagsNone, name);
 				symbolTable.set(name, symbol);
@@ -395,6 +391,13 @@ class Binder {
 				final moduleName = name.Text();
 				if (Ast.IsGlobalScopeAugmentation(node)) {
 					return Ast.InternalSymbolNameGlobal;
+				}
+				final pattern = Core.TryParsePattern(moduleName);
+				if (pattern.IsValid() && pattern.StarIndex >= 0) {
+					final attributes = node.AsModuleDeclaration().Attributes;
+					if (attributes != null) {
+						return Ast.InternalSymbolNamePrefix + "\"" + moduleName + "\"pattern@" + Std.string(Ast.GetNodeId(attributes));
+					}
 				}
 				return "\"" + moduleName + "\"";
 			}
@@ -850,7 +853,7 @@ class Binder {
 
 	function bindSourceFileIfExternalModule():Void {
 		setExportContextFlag(file.AsNode());
-		if (Ast.IsExternalOrCommonJSModule(file)) {
+		if (isExternalOrCommonJSModule()) {
 			bindSourceFileAsExternalModule();
 		} else if (Ast.IsJsonSourceFile(file)) {
 			bindSourceFileAsExternalModule();
@@ -878,6 +881,7 @@ class Binder {
 				final symbol = declareSymbolAndAddToSymbolTable(node, SymbolFlagsValueModule, SymbolFlagsValueModuleExcludes);
 
 				if (Ast.IsStringLiteral(name)) {
+					final attributes = node.AsModuleDeclaration().Attributes;
 					final pattern = Core.TryParsePattern(name.Text());
 					if (!pattern.IsValid()) {
 						// An invalid pattern - must have multiple wildcards.
@@ -890,6 +894,8 @@ class Binder {
 							file.PatternAmbientModules = [];
 						}
 						file.PatternAmbientModules.push(m);
+					} else if (attributes != null) {
+						errorOnNode(name, Diagnostics.An_ambient_module_declaration_with_import_attributes_must_use_a_pattern_name_with_an_Asterisk_character);
 					}
 				}
 			}
@@ -1024,17 +1030,21 @@ class Binder {
 	function bindCallExpression(node:Node):Void {
 		// We're only inspecting call expressions to detect CommonJS modules, so we can skip
 		// this check if we've already seen the module indicator
-		if (file.CommonJSModuleIndicator == null && Ast.IsRequireCall(node, false /*requireStringLiteralLikeArgument*/)) {
+		if (!seenCommonJSModuleIndicator && Ast.IsRequireCall(node, false /*requireStringLiteralLikeArgument*/)) {
 			setCommonJSModuleIndicator(node);
 		}
 	}
 
+	// setCommonJSModuleIndicator reports whether node's file is a CommonJS module, which the
+	// parser has already determined. The file symbol is created at the first CommonJS construct
+	// in the walk, rather than up front, to preserve symbol creation order.
 	function setCommonJSModuleIndicator(node:Node):Bool {
-		if (file.ExternalModuleIndicator != null && file.ExternalModuleIndicator != file.AsNode()) {
+		if (file.CommonJSModuleIndicator == null) {
+			Debug.Assert(file.ExternalModuleIndicator != null && file.ExternalModuleIndicator != file.AsNode(), "parser missed a CommonJS module indicator");
 			return false;
 		}
-		if (file.CommonJSModuleIndicator == null) {
-			file.CommonJSModuleIndicator = node;
+		if (!seenCommonJSModuleIndicator) {
+			seenCommonJSModuleIndicator = true;
 			if (file.ExternalModuleIndicator == null) {
 				bindSourceFileAsExternalModule();
 			}
@@ -1042,8 +1052,17 @@ class Binder {
 		return true;
 	}
 
+	// isExternalOrCommonJSModule is like ast.IsExternalOrCommonJSModule, but a CommonJS file only
+	// counts as a module once the walk has reached its first CommonJS construct.
+	inline function isExternalOrCommonJSModule():Bool {
+		return file.ExternalModuleIndicator != null || seenCommonJSModuleIndicator;
+	}
+
 	function bindClassLikeDeclaration(node:Node):Void {
 		final name = node.Name();
+		if ((node.Flags & NodeFlagsAmbient) == 0) {
+			checkStrictModeEvalOrArguments(node, name);
+		}
 		switch (node.Kind) {
 			case KindClassDeclaration:
 				bindBlockScopedDeclaration(node, SymbolFlagsClass, SymbolFlagsClassExcludes);
@@ -1051,7 +1070,6 @@ class Binder {
 				var nameText = Ast.InternalSymbolNameClass;
 				if (name != null) {
 					nameText = name.Text();
-					classifiableNames.Add(nameText);
 				}
 				bindAnonymousDeclaration(node, SymbolFlagsClass, nameText);
 			default:
@@ -1366,7 +1384,7 @@ class Binder {
 				declareModuleMember(node, symbolFlags, symbolExcludes);
 			case KindSourceFile:
 				// PORT: `break` / `fallthrough` → if/else.
-				if (Ast.IsExternalOrCommonJSModule(container.AsSourceFile())) {
+				if (isExternalOrCommonJSModule()) {
 					declareModuleMember(node, symbolFlags, symbolExcludes);
 				} else {
 					declareSymbol(Ast.GetLocals(blockScopeContainer), null /*parent*/, node, symbolFlags, symbolExcludes);
@@ -1592,7 +1610,7 @@ class Binder {
 
 	function getStrictModeEvalOrArgumentsMessage(node:Node):Message {
 		// Provide specialized messages to help the user understand why we think they're in strict mode
-		if (Ast.GetContainingClass(node) != null) {
+		if (Ast.IsClassLike(node) || Ast.GetContainingClass(node) != null) {
 			return Diagnostics.Code_contained_in_a_class_is_evaluated_in_JavaScript_s_strict_mode_which_does_not_allow_this_use_of_0_For_more_information_see_https_Colon_Slash_Slashdeveloper_mozilla_org_Slashen_US_Slashdocs_SlashWeb_SlashJavaScript_SlashReference_SlashStrict_mode;
 		}
 		if (file.ExternalModuleIndicator != null) {
@@ -1697,7 +1715,6 @@ class Binder {
 			}
 			if (node.Kind == KindSourceFile) {
 				node.Flags |= emitFlags;
-				node.AsSourceFile().EndFlowNode = currentFlow;
 			}
 			if (currentReturnTarget != null) {
 				addAntecedent(currentReturnTarget, currentFlow);
@@ -1745,12 +1762,13 @@ class Binder {
 					}
 				}
 			}
-			if (file.CommonJSModuleIndicator != null) {
+			Debug.Assert(seenCommonJSModuleIndicator == (file.CommonJSModuleIndicator != null), "binder missed a CommonJS module indicator");
+			if (seenCommonJSModuleIndicator) {
 				declareCommonJSVariable("module");
 				declareCommonJSVariable("exports");
 			}
 		}
-		if (Ast.IsSourceFile(node) && Ast.IsExternalOrCommonJSModule(node.AsSourceFile()) || Ast.IsAmbientModule(node)) {
+		if (Ast.IsSourceFile(node) && isExternalOrCommonJSModule() || Ast.IsAmbientModule(node)) {
 			bindCommonJSTypeExports(node.Symbol());
 		}
 		container = saveContainer;
@@ -2040,6 +2058,17 @@ class Binder {
 		final preIncrementorLabel = createBranchLabel();
 		final postLoopLabel = createBranchLabel();
 		bind(stmt.Initializer);
+		if (currentFlow == unreachableFlow) {
+			// Unlike while/do, the for-loop initializer is bound inside this function before the loop's
+			// flow graph is constructed. If it makes flow unreachable (e.g. a throwing IIFE), addAntecedent
+			// will filter out the unreachable entry to preLoopLabel, leaving only the back-edge from the
+			// incrementor. This creates a cycle with no exit that crashes isReachableFlowNodeWorker.
+			// Bail out early and just bind the remaining children with unreachable flow.
+			bind(stmt.Condition);
+			bind(stmt.Statement);
+			bind(stmt.Incrementor);
+			return;
+		}
 		addAntecedent(preLoopLabel, currentFlow);
 		currentFlow = preLoopLabel;
 		bindCondition(stmt.Condition, preBodyLabel, postLoopLabel);
@@ -2057,6 +2086,16 @@ class Binder {
 		final preLoopLabel = setContinueTarget(node, createLoopLabel());
 		final postLoopLabel = createBranchLabel();
 		bind(stmt.Expression);
+		if (currentFlow == unreachableFlow) {
+			// Like the for-loop initializer, the for-in/for-of expression is bound before the loop's
+			// flow graph is constructed. If it makes flow unreachable (e.g. a throwing IIFE), addAntecedent
+			// will filter out the unreachable entry to preLoopLabel, leaving only the back-edge from the
+			// loop body. This creates a cycle with no exit that crashes isReachableFlowNodeWorker.
+			// Bail out early and just bind the remaining children with unreachable flow.
+			bind(stmt.Initializer);
+			bind(stmt.Statement);
+			return;
+		}
 		addAntecedent(preLoopLabel, currentFlow);
 		currentFlow = preLoopLabel;
 		if (node.Kind == KindForOfStatement) {
@@ -2272,18 +2311,18 @@ class Binder {
 			bind(clause);
 			fallthroughFlow = currentFlow;
 			if (currentFlow.Flags & FlowFlagsUnreachable == 0 && i != clauses.length - 1) {
-				clause.AsCaseOrDefaultClause().FallthroughFlowNode = currentFlow;
+				clause.CaseOrDefaultClauseData().FallthroughFlowNode = currentFlow;
 			}
 			i++;
 		}
 	}
 
 	function bindCaseOrDefaultClause(node:Node):Void {
-		final clause = node.AsCaseOrDefaultClause();
-		if (clause.Expression != null) {
+		final clause = node.CaseOrDefaultClauseData();
+		if (node.Kind == KindCaseClause) {
 			final saveCurrentFlow = currentFlow;
 			currentFlow = preSwitchCaseFlow;
-			bind(clause.Expression);
+			bind(node.Expression());
 			currentFlow = saveCurrentFlow;
 		}
 		bindEach(clause.Statements.Nodes);
@@ -2889,24 +2928,6 @@ class Binder {
 	function errorOnFirstToken(node:Node, message:Message, ...args:Any):Void {
 		final span = Scanner.GetRangeOfTokenAtPosition(file, node.Pos());
 		addDiagnostic(Ast.NewDiagnostic(file, span, message, ...args));
-	}
-
-	function errorOrSuggestionOnNode(isError:Bool, node:Node, message:Message):Void {
-		errorOrSuggestionOnRange(isError, node, node, message);
-	}
-
-	function errorOrSuggestionOnRange(isError:Bool, startNode:Node, endNode:Node, message:Message):Void {
-		final textRange = Core.NewTextRange(Scanner.GetRangeOfTokenAtPosition(file, startNode.Pos()).Pos(), endNode.End());
-		final diagnostic = Ast.NewDiagnostic(file, textRange, message);
-		if (isError) {
-			addDiagnostic(diagnostic);
-		} else {
-			diagnostic.SetCategory(CategorySuggestion);
-			if (file.BindSuggestionDiagnostics == null) {
-				file.BindSuggestionDiagnostics = [];
-			}
-			file.BindSuggestionDiagnostics.push(diagnostic);
-		}
 	}
 
 	// Inside the binder, we may create a diagnostic for an as-yet unbound node (with potentially no parent pointers, implying no accessible source file)

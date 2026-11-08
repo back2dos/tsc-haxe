@@ -747,7 +747,8 @@ class Jsdoc {
 
 	static function tryParseTypeExpression(p:Parser):Node {
 		p.skipWhitespaceOrAsterisk();
-		if (p.token == KindOpenBraceToken) {
+		// An inline link starts the tag's description, not a type annotation.
+		if (p.token == KindOpenBraceToken && p.lookAhead(fl_notJSDocLinkPrefix)) {
 			return p.parseJSDocTypeExpression(false /*mayOmitBraces*/);
 		} else {
 			return null;
@@ -791,7 +792,7 @@ class Jsdoc {
 		var isBracketed = p.bracketNameIsBracketed;
 		var indentText = p.skipWhitespaceOrAsterisk();
 
-		if (isNameFirst && p.lookAhead(fl_notJSDocLinkPrefix)) {
+		if (isNameFirst) {
 			typeExpression = p.tryParseTypeExpression();
 		}
 
@@ -951,7 +952,7 @@ class Jsdoc {
 		var typeNameOrNamespaceName = p.parseJSDocIdentifierName(null);
 		if (p.parseOptionalJsdoc(KindDotToken)) {
 			var body = p.parseJSDocTypeNameWithNamespace(true /*nested*/);
-			var jsDocNamespaceNode = p.factory.NewModuleDeclaration(null /*modifiers*/, KindNamespaceKeyword /*keyword*/, typeNameOrNamespaceName, body);
+			var jsDocNamespaceNode = p.factory.NewModuleDeclaration(null /*modifiers*/, KindNamespaceKeyword /*keyword*/, typeNameOrNamespaceName, null /*attributes*/, body);
 			if (nested) {
 				jsDocNamespaceNode.Flags |= NodeFlagsNestedNamespace;
 			}
@@ -1287,7 +1288,6 @@ class Jsdoc {
 		var pos = p.scanner.TokenStart();
 		var end = p.scanner.TokenEnd();
 		var text = p.scanner.TokenValue();
-		p.internIdentifier(text);
 		p.nextTokenJSDoc();
 		return p.finishNodeWithEnd(p.newIdentifier(text), pos, end);
 	}

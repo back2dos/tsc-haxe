@@ -100,6 +100,8 @@ class ParserState {
 	public var reparsedClonesLen:Int = 0;
 	public var statementHasAwaitIdentifier:Bool = false;
 	public var hasParseError:Bool = false;
+	public var commonJSModuleIndicator:Node = null;
+	public var jsdocHasCommonJSConstruct:Bool = false;
 
 	public function new() {}
 }
@@ -160,7 +162,6 @@ class Parser {
 	var hasDeprecatedTag:Bool = false;
 	var hasParseError:Bool = false;
 
-	var identifiers:StringMap<String> = null;
 	var identifierCount:Int = 0;
 	var notParenthesizedArrow:Set<Int> = new Set<Int>();
 	// PORT: arena — nodeSliceArena / stringSliceArena: see cloneNodes / cloneStrings.
@@ -172,6 +173,7 @@ class Parser {
 	var jsdocTagCommentsPartsSpace:Array<Node> = null;
 	var reparseList:Array<Node> = null;
 	var commonJSModuleIndicator:Node = null;
+	var jsdocHasCommonJSConstruct:Bool = false;
 
 	var currentParent:Node = null;
 	var setParentFromContext:Visitor = null;
@@ -248,7 +250,6 @@ class Parser {
 		statementHasAwaitIdentifier = false;
 		hasDeprecatedTag = false;
 		hasParseError = false;
-		identifiers = null;
 		identifierCount = 0;
 		notParenthesizedArrow = new Set<Int>();
 		jsdocInfos = null;
@@ -259,6 +260,7 @@ class Parser {
 		jsdocTagCommentsPartsSpace = null;
 		reparseList = null;
 		commonJSModuleIndicator = null;
+		jsdocHasCommonJSConstruct = false;
 		currentParent = null;
 		reparsedClones = null;
 		// PORT: port-only fields (out results and the parseList element function).
@@ -385,7 +387,7 @@ class Parser {
 					case KindNumericLiteral | KindStringLiteral:
 						// PORT: `break` out of the case, else `fallthrough` into default.
 						if (lookAhead(fl_jsonNextIsNotColon)) {
-							expression = parseLiteralExpression(false /*intern*/);
+							expression = parseLiteralExpression();
 						} else {
 							expression = parseObjectLiteralExpression();
 						}
@@ -437,7 +439,10 @@ class Parser {
 	};
 
 	static function getErrorSpanForNode(sourceText:String, node:Node):TextRange {
-		var pos = Scanner.SkipTrivia(sourceText, node.Pos());
+		var pos = node.Pos();
+		if (!Ast.NodeIsMissing(node)) {
+			pos = Scanner.SkipTrivia(sourceText, pos);
+		}
 		return Core.NewTextRange(pos, node.End());
 	}
 
@@ -496,7 +501,7 @@ class Parser {
 		final r = try {
 			p.initializeState(new SourceFileParseOptions(), text, ScriptKindJS);
 			p.nextToken();
-			var entityName = p.parseEntityName(true, null);
+			var entityName = p.parseEntityName(true, false, null);
 			(p.token == KindEndOfFile && Core.len(p.diagnostics) == 0 ? entityName : null);
 		} catch (e:Dynamic) {
 			putParser(p);
@@ -566,6 +571,8 @@ class Parser {
 		state.reparsedClonesLen = Core.len(reparsedClones);
 		state.statementHasAwaitIdentifier = statementHasAwaitIdentifier;
 		state.hasParseError = hasParseError;
+		state.commonJSModuleIndicator = commonJSModuleIndicator;
+		state.jsdocHasCommonJSConstruct = jsdocHasCommonJSConstruct;
 		return state;
 	}
 
@@ -579,6 +586,8 @@ class Parser {
 		reparsedClones = truncate(reparsedClones, state.reparsedClonesLen);
 		statementHasAwaitIdentifier = state.statementHasAwaitIdentifier;
 		hasParseError = state.hasParseError;
+		commonJSModuleIndicator = state.commonJSModuleIndicator;
+		jsdocHasCommonJSConstruct = state.jsdocHasCommonJSConstruct;
 	}
 
 	inline function lookAhead(callback:(p:Parser) -> Bool):Bool {
@@ -659,6 +668,10 @@ class Parser {
 		if (!result.IsDeclarationFile && result.ExternalModuleIndicator != null && Core.len(possibleAwaitSpans) > 0) {
 			var reparse = finishNode(reparseTopLevelAwait(result), pos);
 			if (node != reparse) {
+				// Reparsing can change which CommonJS constructs exist, so recompute from the final tree.
+				if ((contextFlags & NodeFlagsJavaScriptFile) != 0) {
+					commonJSModuleIndicator = findCommonJSModuleIndicator(reparse);
+				}
 				result = reparse.AsSourceFile();
 				finishSourceFile(result, isDeclarationFile);
 			}
@@ -676,12 +689,10 @@ class Parser {
 		processPragmasIntoFields(result);
 		result.SetDiagnostics(attachFileToDiagnostics(diagnostics, result));
 		result.SetJSDocDiagnostics(attachFileToDiagnostics(jsdocDiagnostics, result));
-		result.CommonJSModuleIndicator = commonJSModuleIndicator;
 		result.IsDeclarationFile = isDeclarationFile;
 		result.LanguageVariant = languageVariant;
 		result.ScriptKind = scriptKind;
 		result.Flags |= sourceFlags;
-		result.Identifiers = identifiers;
 		result.NodeCount = factory.NodeCount();
 		result.TextCount = factory.TextCount();
 		result.IdentifierCount = identifierCount;
@@ -695,6 +706,54 @@ class Parser {
 		}
 		result.ReparsedClones = reparsedClones == null ? null : reparsedClones.copy();
 		Ast.SetExternalModuleIndicator(result, opts.ExternalModuleIndicatorOptions);
+		// CommonJS constructs only make a file a module when it has no ES module syntax.
+		if (result.ExternalModuleIndicator == null || result.ExternalModuleIndicator == result.AsNode()) {
+			if (commonJSModuleIndicator == null && jsdocHasCommonJSConstruct) {
+				// Only reparsed JSDoc clones that survive into the tree are bound.
+				commonJSModuleIndicator = findCommonJSModuleIndicator(result.AsNode());
+			}
+			result.CommonJSModuleIndicator = commonJSModuleIndicator;
+		} else {
+			result.CommonJSModuleIndicator = null;
+		}
+	}
+
+	// checkCommonJSModuleIndicator records the first CommonJS construct in a JavaScript file
+	// (a require call, or an assignment or Object.defineProperty on exports or module.exports).
+	// The binder binds the same constructs as CommonJS exports. Nodes parsed within JSDoc are
+	// only bound if reparsed, so for those we just note that the final tree needs checking.
+	function checkCommonJSModuleIndicator(node:Node):Node {
+		if (commonJSModuleIndicator == null && (node.Flags & NodeFlagsJavaScriptFile) != 0 && isCommonJSModuleIndicator(node)) {
+			if ((node.Flags & NodeFlagsJSDoc) == 0) {
+				commonJSModuleIndicator = node;
+			} else {
+				jsdocHasCommonJSConstruct = true;
+			}
+		}
+		return node;
+	}
+
+	static function findCommonJSModuleIndicator(node:Node):Node {
+		var found:Node = null;
+		var visit:Node->Bool = null;
+		visit = function(n:Node):Bool {
+			if (isCommonJSModuleIndicator(n)) {
+				found = n;
+				return true;
+			}
+			return n.ForEachChild(visit);
+		}
+		visit(node);
+		return found;
+	}
+
+	static function isCommonJSModuleIndicator(node:Node):Bool {
+		switch (Ast.GetAssignmentDeclarationKind(node)) {
+			case JSDeclarationKindModuleExports | JSDeclarationKindExportsProperty | JSDeclarationKindObjectDefinePropertyExports:
+				return true;
+			default:
+		}
+		return Ast.IsRequireCall(node, false /*requireStringLiteralLikeArgument*/);
 	}
 
 	function createJSDocCache():IdentityMap<Node, Array<Node>> {
@@ -1628,7 +1687,7 @@ class Parser {
 		var expression = parseExpressionAllowIn();
 		parseExpected(KindColonToken);
 		var statements = parseList(PCSwitchClauseStatements, fn_parseStatement);
-		var result = finishNode(factory.NewCaseOrDefaultClause(KindCaseClause, expression, statements), pos);
+		var result = finishNode(factory.NewCaseClause(expression, statements), pos);
 		this.withJSDoc(result, jsdoc);
 		return result;
 	}
@@ -1639,7 +1698,7 @@ class Parser {
 		parseExpected(KindDefaultKeyword);
 		parseExpected(KindColonToken);
 		var statements = parseList(PCSwitchClauseStatements, fn_parseStatement);
-		var result = finishNode(factory.NewCaseOrDefaultClause(KindDefaultClause, null /*expression*/, statements), pos);
+		var result = finishNode(factory.NewDefaultClause(statements), pos);
 		this.withJSDoc(result, jsdoc);
 		return result;
 	}
@@ -1980,7 +2039,10 @@ class Parser {
 		// We don't parse the name here in await context, instead we will report a grammar error in the checker.
 		var name = parseNameOfClassDeclarationOrExpression();
 		var typeParameters = parseTypeParameters();
-		if (modifiers != null && Core.Some(modifiers.Nodes, isExportModifier)) {
+		if (modifiers != null
+			&& (parsingContexts & (1 << PCSourceElements)) != 0
+			&& (parsingContexts & ((1 << PCBlockStatements) | (1 << PCSwitchClauseStatements))) == 0
+			&& Core.Some(modifiers.Nodes, isExportModifier)) {
 			setContextFlags(NodeFlagsAwaitContext, true /*value*/);
 		}
 		var heritageClauses = parseHeritageClauses();
@@ -2411,7 +2473,11 @@ class Parser {
 			keyword = KindGlobalKeyword;
 		} else {
 			// parse string literal
-			name = parseLiteralExpression(true /*intern*/);
+			name = parseLiteralExpression();
+		}
+		var attributes:TypeLiteralNodeNode = null;
+		if (keyword == KindModuleKeyword && parseOptional(KindWithKeyword)) {
+			attributes = parseTypeLiteral();
 		}
 		var body:Node = null;
 		if (token == KindOpenBraceToken) {
@@ -2419,7 +2485,7 @@ class Parser {
 		} else {
 			parseSemicolon();
 		}
-		var result = finishNode(factory.NewModuleDeclaration(modifiers, keyword, name, body), pos);
+		var result = finishNode(factory.NewModuleDeclaration(modifiers, keyword, name, attributes, body), pos);
 		this.withJSDoc(result, jsdoc);
 		statementHasAwaitIdentifier = saveHasAwaitIdentifier;
 		return result;
@@ -2455,7 +2521,7 @@ class Parser {
 		} else {
 			body = parseModuleBlock();
 		}
-		var result = finishNode(factory.NewModuleDeclaration(modifiers, keyword, name, body), pos);
+		var result = finishNode(factory.NewModuleDeclaration(modifiers, keyword, name, null, body), pos);
 		this.withJSDoc(result, jsdoc);
 		checkJSSyntax(result);
 		statementHasAwaitIdentifier = saveHasAwaitIdentifier;
@@ -2467,6 +2533,7 @@ class Parser {
 		var afterImportPos = nodePos();
 		// We don't parse the identifier here in await context, instead we will report a grammar error in the checker.
 		var saveHasAwaitIdentifier = statementHasAwaitIdentifier;
+		var phaseModifierCandidate = currentImportPhaseModifier();
 		var identifier:Node = null;
 		if (isIdentifier()) {
 			identifier = parseIdentifier();
@@ -2480,22 +2547,17 @@ class Parser {
 			if (isIdentifier()) {
 				identifier = parseIdentifier();
 			}
-		} else if (identifier != null && identifier.Text() == "defer") {
-			var shouldParseAsDeferModifier:Bool = false;
-			if (token == KindFromKeyword) {
-				shouldParseAsDeferModifier = !lookAhead(fn_nextTokenIsTokenStringLiteral);
-			} else {
-				shouldParseAsDeferModifier = token != KindCommaToken && token != KindEqualsToken;
-			}
-			if (shouldParseAsDeferModifier) {
-				phaseModifier = KindDeferKeyword;
-				identifier = null;
-				if (isIdentifier()) {
-					identifier = parseIdentifier();
-				}
+		} else if (identifier != null && phaseModifierCandidate != KindUnknown && shouldParseImportPhaseModifier()) {
+			phaseModifier = phaseModifierCandidate;
+			identifier = null;
+			if (isIdentifier()) {
+				identifier = parseIdentifier();
 			}
 		}
-		if (identifier != null && !tokenAfterImportedIdentifierDefinitelyProducesImportDeclaration() && phaseModifier != KindDeferKeyword) {
+		if (identifier != null
+			&& tokenAfterImportedIdentifierAllowsImportEqualsDeclaration()
+			&& phaseModifier != KindDeferKeyword
+			&& phaseModifier != KindSourceKeyword) {
 			var importEquals = checkJSSyntax(parseImportEqualsDeclaration(pos, jsdoc, modifiers, identifier, phaseModifier == KindTypeKeyword));
 			statementHasAwaitIdentifier = saveHasAwaitIdentifier; // Import= declaration is always parsed in an Await context, no need to reparse
 			return importEquals;
@@ -2520,10 +2582,37 @@ class Parser {
 		return token == KindAsteriskToken || token == KindOpenBraceToken;
 	}
 
-	function tokenAfterImportedIdentifierDefinitelyProducesImportDeclaration():Bool {
-		// In `import id ___`, the current token decides whether to produce
-		// an ImportDeclaration or ImportEqualsDeclaration.
-		return token == KindCommaToken || token == KindFromKeyword;
+	function shouldParseImportPhaseModifier():Bool {
+		switch (token) {
+			case KindCommaToken | KindEqualsToken:
+				return false;
+			case KindFromKeyword:
+				if (lookAhead(fn_nextTokenIsTokenStringLiteral)) {
+					return false;
+				}
+			default:
+		}
+		return true;
+	}
+
+	function currentImportPhaseModifier():Kind {
+		switch (scanner.TokenText()) {
+			case "defer":
+				return KindDeferKeyword;
+			case "source":
+				return KindSourceKeyword;
+			default:
+				return KindUnknown;
+		}
+	}
+
+	function tokenAfterImportedIdentifierAllowsImportEqualsDeclaration():Bool {
+		switch (token) {
+			case KindCommaToken | KindFromKeyword:
+				return false;
+			default:
+				return true;
+		}
 	}
 
 	function parseImportEqualsDeclaration(pos:Int, jsdoc:JsdocScannerInfo, modifiers:ModifierList, identifier:Node, isTypeOnly:Bool):Node {
@@ -2539,7 +2628,7 @@ class Parser {
 		if (token == KindRequireKeyword && lookAhead(fn_nextTokenIsOpenParen)) {
 			return parseExternalModuleReference();
 		}
-		return parseEntityName(false /*allowReservedWords*/, null /*diagnosticMessage*/);
+		return parseEntityName(false /*allowReservedWords*/, false /*allowPrivateName*/, null /*diagnosticMessage*/);
 	}
 
 	function parseExternalModuleReference():Node {
@@ -2556,8 +2645,7 @@ class Parser {
 
 	function parseModuleSpecifier():Expression {
 		if (token == KindStringLiteral) {
-			var result = parseLiteralExpression(true /*intern*/);
-			return result;
+			return parseLiteralExpression();
 		}
 		// We allow arbitrary expressions here, even though the grammar only allows string
 		// literals.  We check to ensure that it is only a string literal later in the grammar
@@ -2573,6 +2661,9 @@ class Parser {
 			var importClause = parseImportClause(identifier, pos, phaseModifier, skipJSDocLeadingAsterisks);
 			parseExpected(KindFromKeyword);
 			return importClause;
+		}
+		if (phaseModifier == KindDeferKeyword || phaseModifier == KindSourceKeyword) {
+			return finishNode(factory.NewImportClause(phaseModifier, null /*name*/, null /*namedBindings*/), pos);
 		}
 		return null;
 	}
@@ -2742,7 +2833,7 @@ class Parser {
 
 		if (token == KindStringLiteral) {
 			moduleExportNameOk = nameOk;
-			return parseLiteralExpression(false /*intern*/);
+			return parseLiteralExpression();
 		}
 		if (disallowKeywords && Ast.IsKeyword(token) && !isIdentifier()) {
 			nameOk = false;
@@ -3142,7 +3233,7 @@ class Parser {
 		if (token == KindTrueKeyword || token == KindFalseKeyword || token == KindNullKeyword) {
 			expression = parseKeywordExpression();
 		} else {
-			expression = parseLiteralExpression(false /*intern*/);
+			expression = parseLiteralExpression();
 		}
 		if (negative) {
 			expression = finishNode(factory.NewPrefixUnaryExpression(KindMinusToken, expression), pos);
@@ -3156,10 +3247,10 @@ class Parser {
 	}
 
 	function parseEntityNameOfTypeReference():Node {
-		return parseEntityName(true /*allowReservedWords*/, Diagnostics.Type_expected);
+		return parseEntityName(true /*allowReservedWords*/, false /*allowPrivateName*/, Diagnostics.Type_expected);
 	}
 
-	function parseEntityName(allowReservedWords:Bool, diagnosticMessage:Message):Node {
+	function parseEntityName(allowReservedWords:Bool, allowPrivateName:Bool, diagnosticMessage:Message):Node {
 		var pos = nodePos();
 		var entity:Node = null;
 		if (allowReservedWords) {
@@ -3173,7 +3264,7 @@ class Parser {
 				// `typeArguments` to report it as a grammar error in the checker.
 				break;
 			}
-			entity = finishNode(factory.NewQualifiedName(entity, parseRightSideOfDot(allowReservedWords, false /*allowPrivateIdentifiers*/, true /*allowUnicodeEscapeSequenceInIdentifierName*/)), pos);
+			entity = finishNode(factory.NewQualifiedName(entity, parseRightSideOfDot(allowReservedWords, allowPrivateName, true /*allowUnicodeEscapeSequenceInIdentifierName*/)), pos);
 		}
 		return entity;
 	}
@@ -3332,7 +3423,7 @@ class Parser {
 		if (tokenIsIdentifierOrKeyword(token)) {
 			name = parseIdentifierName();
 		} else if (token == KindStringLiteral) {
-			name = parseLiteralExpression(false /*intern*/);
+			name = parseLiteralExpression();
 		}
 		if (name != null) {
 			parseExpected(KindColonToken);
@@ -3372,7 +3463,7 @@ class Parser {
 	function parseTypeQuery():Node {
 		var pos = nodePos();
 		parseExpected(KindTypeOfKeyword);
-		var entityName = parseEntityName(true /*allowReservedWords*/, null);
+		var entityName = parseEntityName(true /*allowReservedWords*/, true /*allowPrivateName*/, null);
 		// Make sure we perform ASI to prevent parsing the next line's type arguments as part of an instantiation expression
 		var typeArguments:NodeList = null;
 		if (!hasPrecedingLineBreak()) {
@@ -3714,8 +3805,7 @@ class Parser {
 
 	function parsePropertyNameWorker(allowComputedPropertyNames:Bool):Node {
 		if (token == KindStringLiteral || token == KindNumericLiteral || token == KindBigIntLiteral) {
-			var literal = parseLiteralExpression(true /*intern*/);
-			return literal;
+			return parseLiteralExpression();
 		}
 		if (allowComputedPropertyNames && token == KindOpenBracketToken) {
 			return parseComputedPropertyName();
@@ -4795,10 +4885,11 @@ class Parser {
 				return false;
 			}
 			// Check for un-parenthesized AsyncArrowFunction
-			var expr = parseBinaryExpressionOrHigher(OperatorPrecedenceLowest);
-			if (!hasPrecedingLineBreak() && expr.Kind == KindIdentifier && token == KindEqualsGreaterThanToken) {
-				return true;
+			if (!isIdentifier()) {
+				return false;
 			}
+			nextTokenWithoutCheck();
+			return !hasPrecedingLineBreak() && token == KindEqualsGreaterThanToken;
 		}
 		return false;
 	}
@@ -4842,6 +4933,15 @@ class Parser {
 		return parseBinaryExpressionRest(precedence, leftOperand, pos);
 	}
 
+	// shouldConsumeBinaryOperator reports whether an operator binds before the operator represented by currentPrecedence.
+	// At equal precedence, only the right-associative exponentiation operator binds first.
+	static function shouldConsumeBinaryOperator(operator_:Kind, operatorPrecedence:OperatorPrecedence, currentPrecedence:OperatorPrecedence):Bool {
+		if ((operatorPrecedence : Int) > (currentPrecedence : Int)) {
+			return true;
+		}
+		return operatorPrecedence == currentPrecedence && operator_ == KindAsteriskAsteriskToken;
+	}
+
 	function parseBinaryExpressionRest(precedence:OperatorPrecedence, leftOperand:Expression, pos:Int):Expression {
 		var lastOperand = leftOperand;
 		while (true) {
@@ -4870,13 +4970,10 @@ class Parser {
 			//            ^^token; leftOperand = b. Return b ** c to the caller as a rightOperand
 			//      a ** b - c
 			//             ^token; leftOperand = b. Return b to the caller as a rightOperand
-			var consumeCurrentOperator:Bool = false;
-			if (operator_ == KindAsteriskAsteriskToken) {
-				consumeCurrentOperator = (newPrecedence : Int) >= (precedence : Int);
-			} else {
-				consumeCurrentOperator = (newPrecedence : Int) > (precedence : Int);
+			if (!shouldConsumeBinaryOperator(operator_, newPrecedence, precedence)) {
+				break;
 			}
-			if (!consumeCurrentOperator) {
+			if (hasPrecedingLineBreak() && (scanner.HasUnicodeEscape() || scanner.HasExtendedUnicodeEscape()) && Ast.NodeIsPresent(leftOperand)) {
 				break;
 			}
 			if (operator_ == KindInKeyword && inDisallowInContext()) {
@@ -4892,21 +4989,44 @@ class Parser {
 					break;
 				} else {
 					nextToken();
-					// When we have 'a ## b as SomeType' or 'a ## b satisfies SomeType', where ## is some binary
-					// operator, we want to stop parsing on any following operator with a higher precedence than ##
-					// because continuing would make it impossible to erase the `as` or `satisfies` without changing
-					// the meaning of the expression. See https://github.com/microsoft/TypeScript/issues/63527.
+					// When we have 'a ## b as SomeType $$ c' or 'a ## b satisfies SomeType $$ c', where ## and $$
+					// are binary operators, we want to stop parsing when $$ would bind before ## after erasing the
+					// assertion. See https://github.com/microsoft/TypeScript/issues/63527.
 					var lastPrecedence = OperatorPrecedenceHighest;
-					if (Ast.IsBinaryExpression(lastOperand)) {
-						lastPrecedence = Ast.GetBinaryOperatorPrecedence(lastOperand.AsBinaryExpression().OperatorToken.Kind);
+					var unaryOperator = KindUnknown;
+					// Unary expressions cannot be exposed on the left of '**', but update expressions can.
+					switch (lastOperand.Kind) {
+						case KindBinaryExpression:
+							lastPrecedence = Ast.GetBinaryOperatorPrecedence(lastOperand.AsBinaryExpression().OperatorToken.Kind);
+						case KindPrefixUnaryExpression:
+							final op = lastOperand.AsPrefixUnaryExpression().Operator;
+							if (op != KindPlusPlusToken && op != KindMinusMinusToken) {
+								unaryOperator = op;
+							}
+						case KindDeleteExpression:
+							unaryOperator = KindDeleteKeyword;
+						case KindTypeOfExpression:
+							unaryOperator = KindTypeOfKeyword;
+						case KindVoidExpression:
+							unaryOperator = KindVoidKeyword;
+						case KindAwaitExpression:
+							unaryOperator = KindAwaitKeyword;
+						case KindTypeAssertionExpression:
+							unaryOperator = KindLessThanToken;
+						default:
 					}
 					if (operator_ == KindSatisfiesKeyword) {
 						leftOperand = makeSatisfiesExpression(leftOperand, parseType());
 					} else {
 						leftOperand = makeAsExpression(leftOperand, parseType());
 					}
-					// Stop if the precedence of the next operator is too high.
-					if ((Ast.GetBinaryOperatorPrecedence(reScanGreaterThanToken()) : Int) > (lastPrecedence : Int)) {
+					// Stop if the next operator would bind before the last operator when the assertion is erased.
+					final nextOperator = reScanGreaterThanToken();
+					final nextPrecedence = Ast.GetBinaryOperatorPrecedence(nextOperator);
+					if (nextOperator == KindAsteriskAsteriskToken && unaryOperator != KindUnknown) {
+						reportInvalidExponentiationLeftOperand(lastOperand, unaryOperator);
+					}
+					if (shouldConsumeBinaryOperator(nextOperator, nextPrecedence, lastPrecedence)) {
 						break;
 					}
 				}
@@ -4927,7 +5047,7 @@ class Parser {
 	}
 
 	function makeBinaryExpression(left:Expression, operatorToken:Node, right:Expression, pos:Int):Node {
-		return finishNode(factory.NewBinaryExpression(null /*modifiers*/, left, null /*typeNode*/, operatorToken, right), pos);
+		return checkCommonJSModuleIndicator(finishNode(factory.NewBinaryExpression(null /*modifiers*/, left, null /*typeNode*/, operatorToken, right), pos));
 	}
 
 	function parseUnaryExpressionOrHigher():Expression {
@@ -4957,16 +5077,20 @@ class Parser {
 		var unaryOperator = token;
 		var simpleUnaryExpression = parseSimpleUnaryExpression();
 		if (token == KindAsteriskAsteriskToken) {
-			var pos = Scanner.SkipTrivia(sourceText, simpleUnaryExpression.Pos());
-			var end = simpleUnaryExpression.End();
-			if (simpleUnaryExpression.Kind == KindTypeAssertionExpression) {
-				parseErrorAt(pos, end, Diagnostics.A_type_assertion_expression_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses);
-			} else {
-				Debug.Assert(isKeywordOrPunctuation(unaryOperator));
-				parseErrorAt(pos, end, Diagnostics.An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses, Scanner.TokenToString(unaryOperator));
-			}
+			reportInvalidExponentiationLeftOperand(simpleUnaryExpression, unaryOperator);
 		}
 		return simpleUnaryExpression;
+	}
+
+	function reportInvalidExponentiationLeftOperand(expression:Expression, unaryOperator:Kind):Void {
+		var pos = Scanner.SkipTrivia(sourceText, expression.Pos());
+		var end = expression.End();
+		if (expression.Kind == KindTypeAssertionExpression) {
+			parseErrorAt(pos, end, Diagnostics.A_type_assertion_expression_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses);
+		} else {
+			Debug.Assert(isKeywordOrPunctuation(unaryOperator));
+			parseErrorAt(pos, end, Diagnostics.An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses, Scanner.TokenToString(unaryOperator));
+		}
 	}
 
 	function isUpdateExpression():Bool {
@@ -5300,13 +5424,15 @@ class Parser {
 	function parseJsxAttributeValue():Expression {
 		if (token == KindEqualsToken) {
 			if (scanJsxAttributeValue() == KindStringLiteral) {
-				return parseLiteralExpression(false /*intern*/);
+				return parseLiteralExpression();
 			}
 			if (token == KindOpenBraceToken) {
 				return parseJsxExpression( /*inExpressionContext*/ true);
 			}
 			if (token == KindLessThanToken) {
-				return parseJsxElementOrSelfClosingElementOrFragment(true /*inExpressionContext*/, -1, null, false);
+				// An attribute value must be a single JsxAttributeValue, so don't allow the sibling-element
+				// recovery to wrap it in a synthetic binary expression.
+				return parseJsxElementOrSelfClosingElementOrFragment(true /*inExpressionContext*/, -1 /*topInvalidNodePosition*/, null /*openingTag*/, true /*mustBeUnary*/);
 			}
 			parseErrorAtCurrentToken(Diagnostics.X_or_JSX_element_expected);
 		}
@@ -5457,8 +5583,8 @@ class Parser {
 				// This is an 'import.*' metaproperty (i.e. 'import.meta')
 				nextToken(); // advance past the 'import'
 				nextToken(); // advance past the dot
-				expression = finishNode(factory.NewMetaProperty(KindImportKeyword, parseIdentifierName()), pos);
-				if (expression.Text() == "defer") {
+				expression = finishNode(factory.NewMetaProperty(KindImportKeyword, parseImportMetaPropertyName()), pos);
+				if (Ast.IsImportPhaseMetaProperty(expression)) {
 					if (token == KindOpenParenToken || token == KindLessThanToken) {
 						sourceFlags |= NodeFlagsPossiblyContainsDynamicImport;
 					}
@@ -5481,6 +5607,17 @@ class Parser {
 
 	function nextTokenIsDot():Bool {
 		return nextToken() == KindDotToken;
+	}
+
+	function parseImportMetaPropertyName():Node {
+		switch (token) {
+			case KindDeferKeyword | KindSourceKeyword:
+				if (currentImportPhaseModifier() == KindUnknown) {
+					parseErrorAtCurrentToken(Diagnostics.Keywords_cannot_contain_escape_characters);
+				}
+			default:
+		}
+		return parseIdentifierName();
 	}
 
 	function parseSuperExpression():Expression {
@@ -5706,22 +5843,11 @@ class Parser {
 	}
 
 	function parseElementAccessExpressionRest(pos:Int, expression:Expression, questionDotToken:Node):Node {
-		var argumentExpression:Expression = null;
+		var argumentExpression:Expression = createMissingIdentifier();
 		if (token == KindCloseBracketToken) {
 			parseErrorAt(nodePos(), nodePos(), Diagnostics.An_element_access_expression_should_take_an_argument);
-			argumentExpression = createMissingIdentifier();
 		} else {
-			var argument = parseExpressionAllowIn();
-			switch (argument.Kind) {
-			case KindStringLiteral:
-				argument.AsStringLiteral().Text = internIdentifier(argument.Text());
-			case KindNoSubstitutionTemplateLiteral:
-				argument.AsNoSubstitutionTemplateLiteral().Text = internIdentifier(argument.Text());
-			case KindNumericLiteral:
-				argument.AsNumericLiteral().Text = internIdentifier(argument.Text());
-			default:
-			}
-			argumentExpression = argument;
+			argumentExpression = parseExpressionAllowIn();
 		}
 		parseExpected(KindCloseBracketToken);
 		var isOptionalChain = questionDotToken != null || tryReparseOptionalChain(expression);
@@ -5749,7 +5875,8 @@ class Parser {
 				var inner = expression;
 				var argumentList = parseArgumentList();
 				var isOptionalChain = questionDotToken != null || tryReparseOptionalChain(expression);
-				expression = checkJSSyntax(finishNode(factory.NewCallExpression(expression, questionDotToken, typeArguments, argumentList, (isOptionalChain ? NodeFlagsOptionalChain : NodeFlagsNone)), pos));
+				expression = checkCommonJSModuleIndicator(checkJSSyntax(finishNode(factory.NewCallExpression(expression, questionDotToken, typeArguments, argumentList,
+					(isOptionalChain ? NodeFlagsOptionalChain : NodeFlagsNone)), pos)));
 				unparseExpressionWithTypeArguments(inner, typeArguments, expression);
 				continue;
 			}
@@ -5797,7 +5924,7 @@ class Parser {
 		var template:Expression = null;
 		if (token == KindNoSubstitutionTemplateLiteral) {
 			reScanTemplateToken(true /*isTaggedTemplate*/);
-			template = parseLiteralExpression(false /*intern*/);
+			template = parseLiteralExpression();
 		} else {
 			template = parseTemplateExpression(true /*isTaggedTemplate*/);
 		}
@@ -5837,9 +5964,9 @@ class Parser {
 				reScanTemplateToken(false /*isTaggedTemplate*/);
 			}
 			// PORT: fallthrough
-			return parseLiteralExpression(false /*intern*/);
+			return parseLiteralExpression();
 		case KindNumericLiteral | KindBigIntLiteral | KindStringLiteral:
-			return parseLiteralExpression(false /*intern*/);
+			return parseLiteralExpression();
 		case KindThisKeyword | KindSuperKeyword | KindNullKeyword | KindTrueKeyword | KindFalseKeyword:
 			return parseKeywordExpression();
 		case KindOpenParenToken:
@@ -5866,7 +5993,7 @@ class Parser {
 			return parseNewExpressionOrNewDotTarget();
 		case KindSlashToken | KindSlashEqualsToken:
 			if (reScanSlashToken() == KindRegularExpressionLiteral) {
-				return parseLiteralExpression(false /*intern*/);
+				return parseLiteralExpression();
 			}
 		case KindTemplateHead:
 			return parseTemplateExpression(false /*isTaggedTemplate*/);
@@ -6063,12 +6190,9 @@ class Parser {
 		return finishNode(result, pos);
 	}
 
-	function parseLiteralExpression(intern:Bool):Node {
+	function parseLiteralExpression():Node {
 		var pos = nodePos();
 		var text = scanner.TokenValue();
-		if (intern) {
-			text = internIdentifier(text);
-		}
 		var tokenFlags = scanner.TokenFlags();
 		var result:Node = null;
 		switch (token) {
@@ -6174,19 +6298,10 @@ class Parser {
 		return createMissingIdentifier();
 	}
 
-	function internIdentifier(text:String):String {
-		if (identifiers != null) {
-			final identifier = identifiers.get(text);
-			if (identifier != null) {
-				return identifier;
-			}
-		}
-		var identifier = Strings.Intern(text); // PORT: perf — hash computed once (symbol table lookups)
-		if (identifiers == null) {
-			identifiers = new StringMap<String>();
-		}
-		identifiers.set(identifier, identifier);
-		return identifier;
+	// PORT: perf — Go no longer interns (it collects SourceFile identifiers lazily); identifier texts are
+	// still made permanent with their hash (symbol table lookups skip hashing on hxcpp).
+	inline function internIdentifier(text:String):String {
+		return Strings.Intern(text);
 	}
 
 	// PORT: inline so the TextRange argument (a Go value) is not allocated.
@@ -6351,7 +6466,7 @@ class Parser {
 			return isStartOfDeclaration() || isNextTokenOpenParenOrLessThanOrDot();
 		case KindConstKeyword | KindExportKeyword:
 			return isStartOfDeclaration();
-		case KindAsyncKeyword | KindDeclareKeyword | KindInterfaceKeyword | KindModuleKeyword | KindNamespaceKeyword | KindTypeKeyword | KindGlobalKeyword | KindDeferKeyword:
+		case KindAsyncKeyword | KindDeclareKeyword | KindInterfaceKeyword | KindModuleKeyword | KindNamespaceKeyword | KindTypeKeyword | KindGlobalKeyword | KindDeferKeyword | KindSourceKeyword:
 			// When these don't start a declaration, they're an identifier in an expression statement
 			return true;
 		case KindAccessorKeyword | KindPublicKeyword | KindPrivateKeyword | KindProtectedKeyword | KindStaticKeyword | KindReadonlyKeyword:
@@ -6398,7 +6513,7 @@ class Parser {
 			//   I {}
 			//
 			// could be legal, it would add complexity for very little gain.
-			case KindInterfaceKeyword | KindTypeKeyword | KindDeferKeyword:
+			case KindInterfaceKeyword | KindTypeKeyword | KindDeferKeyword | KindSourceKeyword:
 				return nextTokenIsIdentifierOnSameLine();
 			case KindModuleKeyword | KindNamespaceKeyword:
 				return nextTokenIsIdentifierOrStringLiteralOnSameLine();
@@ -6420,7 +6535,7 @@ class Parser {
 				return token == KindOpenBraceToken || token == KindIdentifier || token == KindExportKeyword;
 			case KindImportKeyword:
 				nextToken();
-				return token == KindDeferKeyword || token == KindStringLiteral || token == KindAsteriskToken || token == KindOpenBraceToken || tokenIsIdentifierOrKeyword(token);
+				return token == KindDeferKeyword || token == KindSourceKeyword || token == KindStringLiteral || token == KindAsteriskToken || token == KindOpenBraceToken || tokenIsIdentifierOrKeyword(token);
 			case KindExportKeyword:
 				nextToken();
 				if (token == KindEqualsToken || token == KindAsteriskToken || token == KindOpenBraceToken ||

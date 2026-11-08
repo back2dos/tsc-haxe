@@ -131,17 +131,36 @@ class RegExpParser {
 
 	// Disjunction ::= Alternative ('|' Alternative)*
 	function scanDisjunction(isInGroup:Bool):Void {
+		// Names defined by any of this disjunction's alternatives. Since exactly one
+		// alternative is chosen at runtime, these names are unioned together (rather
+		// than intersected) and, when this disjunction is nested inside a group,
+		// bubbled up into the enclosing alternative's scope once the group closes.
+		// This ensures a name defined inside a nested group (e.g. `(?:(?<a>x))`) is
+		// still visible to a duplicate check for a sibling group later in the same
+		// enclosing alternative (e.g. `(?:(?<a>x))(?<a>z)`).
+		final disjunctionNames:Array<String> = []; // PORT: collections.Set[string]; only iterated (insertion order)
 		while (true) {
 			if (namedCapturingGroups == null) {
 				namedCapturingGroups = [];
 			}
 			namedCapturingGroups.push(new StringMap<Bool>());
 			scanAlternative(isInGroup);
-			namedCapturingGroups.pop();
+			final alternativeNames = namedCapturingGroups.pop();
+			for (name in alternativeNames.keys()) {
+				if (disjunctionNames.indexOf(name) < 0) {
+					disjunctionNames.push(name);
+				}
+			}
 			if (char() != '|'.code) {
-				return;
+				break;
 			}
 			incPos(1);
+		}
+		if (isInGroup && Core.len(namedCapturingGroups) > 0) {
+			final parentScope = namedCapturingGroups[namedCapturingGroups.length - 1];
+			for (name in disjunctionNames) {
+				parentScope.set(name, true);
+			}
 		}
 	}
 
@@ -236,6 +255,11 @@ class RegExpParser {
 									if (pos() == flagsStart + 1) {
 										error(Diagnostics.Subpattern_flags_must_be_present_when_there_is_a_minus_sign, flagsStart, pos() - flagsStart);
 									}
+								}
+								// Modifier characters were consumed, so this is `(?flags:` rather than a plain `(?:` group.
+								if (pos() != flagsStart && scanner.languageVersion() < ScriptTargetES2025) {
+									error(Diagnostics.Regular_expression_pattern_modifiers_are_only_available_when_targeting_0_or_later, flagsStart, pos() - flagsStart,
+										(ScriptTargetES2025 : ScriptTarget).String().toLowerCase());
 								}
 								scanExpectedChar(':'.code);
 								isPreviousTermQuantifiable = true;
@@ -356,8 +380,9 @@ class RegExpParser {
 				} else if ((flag & RegularExpressionFlagsModifiers) == 0) {
 					error(Diagnostics.This_regular_expression_flag_cannot_be_toggled_within_a_subpattern, pos(), size);
 				} else {
+					// Modifier syntax itself requires ES2025, which is later than any flag that can appear
+					// here, so the group's own diagnostic already covers availability.
 					currFlags |= flag;
-					scanner.checkRegularExpressionFlagAvailability(flag, pos(), size);
 				}
 			}
 			incPos(size);
@@ -490,8 +515,7 @@ class RegExpParser {
 	function scanGroupName(isReference:Bool):Void {
 		Debug.Assert(pos() > 0 && StringTools.fastCodeAt(text(), pos() - 1) == '<'.code);
 		scanner.tokenStart = pos();
-		scanner.scanIdentifier(0);
-		if (pos() == scanner.tokenStart) {
+		if (!scanner.scanIdentifier(0, Scanner.identifierVariantRegExpGroupName)) {
 			error(Diagnostics.Expected_a_capturing_group_name, pos(), 0);
 		} else if (isReference) {
 			if (groupNameReferences == null) {
@@ -501,6 +525,14 @@ class RegExpParser {
 		} else if (namedCapturingGroupsContains(scanner.tokenValue)) {
 			error(Diagnostics.Named_capturing_groups_with_the_same_name_must_be_mutually_exclusive_to_each_other, scanner.tokenStart, pos() - scanner.tokenStart);
 		} else {
+			// A previous definition can only have come from a mutually exclusive alternative.
+			// Below ES2018 the group itself is already reported, so don't stack a second error on it.
+			if (groupSpecifiers.get(scanner.tokenValue) == true
+				&& scanner.languageVersion() >= ScriptTargetES2018
+				&& scanner.languageVersion() < ScriptTargetES2025) {
+				error(Diagnostics.Duplicate_named_capturing_groups_are_only_available_when_targeting_0_or_later, scanner.tokenStart, pos() - scanner.tokenStart,
+					(ScriptTargetES2025 : ScriptTarget).String().toLowerCase());
+			}
 			if (Core.len(namedCapturingGroups) > 0) {
 				namedCapturingGroups[namedCapturingGroups.length - 1].set(scanner.tokenValue, true);
 			}
@@ -633,8 +665,6 @@ class RegExpParser {
 					expressionMayContainStrings = mayContainStrings;
 					mayContainStrings = !isCharacterComplement && expressionMayContainStrings;
 					return;
-				} else {
-					error(Diagnostics.Unexpected_0_Did_you_mean_to_escape_it_with_backslash, pos(), 1, Utf16.RuneString(ch));
 				}
 			default:
 				if (isCharacterComplement && mayContainStrings) {
@@ -683,20 +713,17 @@ class RegExpParser {
 						}
 					}
 				case '&'.code:
-					start = pos();
-					incPos(1);
-					if (char() == '&'.code) {
-						incPos(1);
+					if (pos() + 1 < end && charAt(pos() + 1) == '&'.code) {
+						start = pos();
+						incPos(2);
 						error(Diagnostics.Operators_must_not_be_mixed_within_a_character_class_Wrap_it_in_a_nested_class_instead, pos() - 2, 2);
 						if (char() == '&'.code) {
 							error(Diagnostics.Unexpected_0_Did_you_mean_to_escape_it_with_backslash, pos(), 1, Utf16.RuneString(ch));
 							incPos(1);
 						}
-					} else {
-						error(Diagnostics.Unexpected_0_Did_you_mean_to_escape_it_with_backslash, pos() - 1, 1, Utf16.RuneString(ch));
+						operand = text().substring(start, pos());
+						continue;
 					}
-					operand = text().substring(start, pos());
-					continue;
 				default:
 			}
 			if (isClassContentExit(char())) {
@@ -714,6 +741,11 @@ class RegExpParser {
 					operand = text().substring(start, pos());
 				default:
 					operand = scanClassSetOperand();
+					if (isCharacterComplement && mayContainStrings) {
+						error(Diagnostics.Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class, start,
+							pos() - start);
+					}
+					expressionMayContainStrings = expressionMayContainStrings || mayContainStrings;
 			}
 		}
 		mayContainStrings = !isCharacterComplement && expressionMayContainStrings;
@@ -1046,7 +1078,10 @@ class RegExpParser {
 			}
 			final ch = Utf16.DecodeRuneInString(text(), pos());
 			final size = Utf16.RuneLen(ch);
-			if (ch == Utf16.RuneError) {
+			// utf8.RuneError is U+FFFD. A real U+FFFD decodes with size 3; only size 1
+			// means the input byte was not valid UTF-8 (see utf8.DecodeRune).
+			// PORT: utf16 — a real U+FFFD is the code unit 0xFFFD; any other RuneError is a lone surrogate.
+			if (ch == Utf16.RuneError && StringTools.fastCodeAt(text(), pos()) != 0xFFFD) {
 				// Not a valid rune; consume one raw byte.
 				// PORT: utf16 — Go returns string(byte) of the invalid byte; the UTF-16 text holds
 				// U+FFFD (or a lone surrogate) there instead.
@@ -1065,8 +1100,9 @@ class RegExpParser {
 		}
 		final ch = Utf16.DecodeRuneInString(text(), pos());
 		final size = Utf16.RuneLen(ch);
-		if (ch == Utf16.RuneError) {
+		if (ch == Utf16.RuneError && StringTools.fastCodeAt(text(), pos()) != 0xFFFD) {
 			// Invalid UTF-8; consume the byte to avoid infinite loops.
+			// PORT: utf16 — Go consumes one byte; here the lone surrogate's unit.
 			incPos(size);
 			return "";
 		}

@@ -398,6 +398,10 @@ class Ast {
 		return node;
 	}
 
+	public static function CaseOrDefaultClauseBase_CaseOrDefaultClauseData(node:CaseOrDefaultClauseBase):CaseOrDefaultClauseBase {
+		return node;
+	}
+
 	// FunctionLikeWithBodyBase
 
 	public static function FunctionLikeWithBodyBase_LocalsContainerData(node:FunctionLikeWithBodyBase):LocalsContainerBase {
@@ -723,10 +727,6 @@ class Ast {
 
 	// NamedMemberBase
 
-	public static function NamedMemberBase_DeclarationData(node:NamedMemberBase):DeclarationBase {
-		return node;
-	}
-
 	public static function NamedMemberBase_Modifiers(node:NamedMemberBase):ModifierList {
 		return node.modifiers;
 	}
@@ -1025,11 +1025,6 @@ class Ast {
 
 	// FunctionOrConstructorTypeNodeBase
 
-	public static function FunctionOrConstructorTypeNodeBase_DeclarationData(node:FunctionOrConstructorTypeNodeBase):DeclarationBase {
-		// PORT: Go `node.FunctionLikeBase.DeclarationData()`; flattened, it is the node.
-		return node;
-	}
-
 	public static function TemplateLiteralLikeNodeBase_LiteralLikeData(node:TemplateLiteralLikeNodeBase):LiteralLikeNodeBase {
 		return node;
 	}
@@ -1242,7 +1237,7 @@ class Ast {
 
 	public static function IsToken(node:Node):Bool {
 		switch (node.Kind) {
-			case KindUnknown | KindEndOfFile | KindSingleLineCommentTrivia | KindMultiLineCommentTrivia | KindNewLineTrivia | KindWhitespaceTrivia | KindConflictMarkerTrivia | KindNonTextFileMarkerTrivia | KindNumericLiteral | KindBigIntLiteral | KindStringLiteral | KindJsxText | KindJsxTextAllWhiteSpaces | KindRegularExpressionLiteral | KindNoSubstitutionTemplateLiteral | KindTemplateHead | KindTemplateMiddle | KindTemplateTail | KindOpenBraceToken | KindCloseBraceToken | KindOpenParenToken | KindCloseParenToken | KindOpenBracketToken | KindCloseBracketToken | KindDotToken | KindDotDotDotToken | KindSemicolonToken | KindCommaToken | KindQuestionDotToken | KindLessThanToken | KindLessThanSlashToken | KindGreaterThanToken | KindLessThanEqualsToken | KindGreaterThanEqualsToken | KindEqualsEqualsToken | KindExclamationEqualsToken | KindEqualsEqualsEqualsToken | KindExclamationEqualsEqualsToken | KindEqualsGreaterThanToken | KindPlusToken | KindMinusToken | KindAsteriskToken | KindAsteriskAsteriskToken | KindSlashToken | KindPercentToken | KindPlusPlusToken | KindMinusMinusToken | KindLessThanLessThanToken | KindGreaterThanGreaterThanToken | KindGreaterThanGreaterThanGreaterThanToken | KindAmpersandToken | KindBarToken | KindCaretToken | KindExclamationToken | KindTildeToken | KindAmpersandAmpersandToken | KindBarBarToken | KindQuestionToken | KindColonToken | KindAtToken | KindQuestionQuestionToken | KindBacktickToken | KindHashToken | KindEqualsToken | KindPlusEqualsToken | KindMinusEqualsToken | KindAsteriskEqualsToken | KindAsteriskAsteriskEqualsToken | KindSlashEqualsToken | KindPercentEqualsToken | KindLessThanLessThanEqualsToken | KindGreaterThanGreaterThanEqualsToken | KindGreaterThanGreaterThanGreaterThanEqualsToken | KindAmpersandEqualsToken | KindBarEqualsToken | KindBarBarEqualsToken | KindAmpersandAmpersandEqualsToken | KindQuestionQuestionEqualsToken | KindCaretEqualsToken | KindIdentifier | KindPrivateIdentifier | KindJSDocCommentTextToken | KindBreakKeyword | KindCaseKeyword | KindCatchKeyword | KindClassKeyword | KindConstKeyword | KindContinueKeyword | KindDebuggerKeyword | KindDefaultKeyword | KindDeleteKeyword | KindDoKeyword | KindElseKeyword | KindEnumKeyword | KindExportKeyword | KindExtendsKeyword | KindFalseKeyword | KindFinallyKeyword | KindForKeyword | KindFunctionKeyword | KindIfKeyword | KindImportKeyword | KindInKeyword | KindInstanceOfKeyword | KindNewKeyword | KindNullKeyword | KindReturnKeyword | KindSuperKeyword | KindSwitchKeyword | KindThisKeyword | KindThrowKeyword | KindTrueKeyword | KindTryKeyword | KindTypeOfKeyword | KindVarKeyword | KindVoidKeyword | KindWhileKeyword | KindWithKeyword | KindImplementsKeyword | KindInterfaceKeyword | KindLetKeyword | KindPackageKeyword | KindPrivateKeyword | KindProtectedKeyword | KindPublicKeyword | KindStaticKeyword | KindYieldKeyword | KindAbstractKeyword | KindAccessorKeyword | KindAsKeyword | KindAssertsKeyword | KindAssertKeyword | KindAnyKeyword | KindAsyncKeyword | KindAwaitKeyword | KindBooleanKeyword | KindConstructorKeyword | KindDeclareKeyword | KindGetKeyword | KindImmediateKeyword | KindInferKeyword | KindIntrinsicKeyword | KindIsKeyword | KindKeyOfKeyword | KindModuleKeyword | KindNamespaceKeyword | KindNeverKeyword | KindOutKeyword | KindReadonlyKeyword | KindRequireKeyword | KindNumberKeyword | KindObjectKeyword | KindSatisfiesKeyword | KindSetKeyword | KindStringKeyword | KindSymbolKeyword | KindTypeKeyword | KindUndefinedKeyword | KindUniqueKeyword | KindUnknownKeyword | KindUsingKeyword | KindFromKeyword | KindGlobalKeyword | KindBigIntKeyword | KindOverrideKeyword | KindOfKeyword | KindDeferKeyword:
+			case KindUnknown | KindEndOfFile | KindSingleLineCommentTrivia | KindMultiLineCommentTrivia | KindNewLineTrivia | KindWhitespaceTrivia | KindConflictMarkerTrivia | KindNonTextFileMarkerTrivia | KindNumericLiteral | KindBigIntLiteral | KindStringLiteral | KindJsxText | KindJsxTextAllWhiteSpaces | KindRegularExpressionLiteral | KindNoSubstitutionTemplateLiteral | KindTemplateHead | KindTemplateMiddle | KindTemplateTail | KindOpenBraceToken | KindCloseBraceToken | KindOpenParenToken | KindCloseParenToken | KindOpenBracketToken | KindCloseBracketToken | KindDotToken | KindDotDotDotToken | KindSemicolonToken | KindCommaToken | KindQuestionDotToken | KindLessThanToken | KindLessThanSlashToken | KindGreaterThanToken | KindLessThanEqualsToken | KindGreaterThanEqualsToken | KindEqualsEqualsToken | KindExclamationEqualsToken | KindEqualsEqualsEqualsToken | KindExclamationEqualsEqualsToken | KindEqualsGreaterThanToken | KindPlusToken | KindMinusToken | KindAsteriskToken | KindAsteriskAsteriskToken | KindSlashToken | KindPercentToken | KindPlusPlusToken | KindMinusMinusToken | KindLessThanLessThanToken | KindGreaterThanGreaterThanToken | KindGreaterThanGreaterThanGreaterThanToken | KindAmpersandToken | KindBarToken | KindCaretToken | KindExclamationToken | KindTildeToken | KindAmpersandAmpersandToken | KindBarBarToken | KindQuestionToken | KindColonToken | KindAtToken | KindQuestionQuestionToken | KindBacktickToken | KindHashToken | KindEqualsToken | KindPlusEqualsToken | KindMinusEqualsToken | KindAsteriskEqualsToken | KindAsteriskAsteriskEqualsToken | KindSlashEqualsToken | KindPercentEqualsToken | KindLessThanLessThanEqualsToken | KindGreaterThanGreaterThanEqualsToken | KindGreaterThanGreaterThanGreaterThanEqualsToken | KindAmpersandEqualsToken | KindBarEqualsToken | KindBarBarEqualsToken | KindAmpersandAmpersandEqualsToken | KindQuestionQuestionEqualsToken | KindCaretEqualsToken | KindIdentifier | KindPrivateIdentifier | KindJSDocCommentTextToken | KindBreakKeyword | KindCaseKeyword | KindCatchKeyword | KindClassKeyword | KindConstKeyword | KindContinueKeyword | KindDebuggerKeyword | KindDefaultKeyword | KindDeleteKeyword | KindDoKeyword | KindElseKeyword | KindEnumKeyword | KindExportKeyword | KindExtendsKeyword | KindFalseKeyword | KindFinallyKeyword | KindForKeyword | KindFunctionKeyword | KindIfKeyword | KindImportKeyword | KindInKeyword | KindInstanceOfKeyword | KindNewKeyword | KindNullKeyword | KindReturnKeyword | KindSuperKeyword | KindSwitchKeyword | KindThisKeyword | KindThrowKeyword | KindTrueKeyword | KindTryKeyword | KindTypeOfKeyword | KindVarKeyword | KindVoidKeyword | KindWhileKeyword | KindWithKeyword | KindImplementsKeyword | KindInterfaceKeyword | KindLetKeyword | KindPackageKeyword | KindPrivateKeyword | KindProtectedKeyword | KindPublicKeyword | KindStaticKeyword | KindYieldKeyword | KindAbstractKeyword | KindAccessorKeyword | KindAsKeyword | KindAssertsKeyword | KindAssertKeyword | KindAnyKeyword | KindAsyncKeyword | KindAwaitKeyword | KindBooleanKeyword | KindConstructorKeyword | KindDeclareKeyword | KindGetKeyword | KindImmediateKeyword | KindInferKeyword | KindIntrinsicKeyword | KindIsKeyword | KindKeyOfKeyword | KindModuleKeyword | KindNamespaceKeyword | KindNeverKeyword | KindOutKeyword | KindReadonlyKeyword | KindRequireKeyword | KindNumberKeyword | KindObjectKeyword | KindSatisfiesKeyword | KindSetKeyword | KindStringKeyword | KindSymbolKeyword | KindTypeKeyword | KindUndefinedKeyword | KindUniqueKeyword | KindUnknownKeyword | KindUsingKeyword | KindFromKeyword | KindGlobalKeyword | KindBigIntKeyword | KindOverrideKeyword | KindOfKeyword | KindDeferKeyword | KindSourceKeyword:
 				return true;
 			default:
 		}
@@ -2125,7 +2120,7 @@ class Ast {
 
 	public static function IsImportPhaseModifierKind(kind:Kind):Bool {
 		switch (kind) {
-			case KindTypeKeyword | KindDeferKeyword:
+			case KindTypeKeyword | KindDeferKeyword | KindSourceKeyword:
 				return true;
 			default:
 		}
@@ -3970,6 +3965,25 @@ class Ast {
 		return n;
 	}
 
+	public static function FindManyAncestors(node:Node, ...callbacks:(Node) -> Bool):Array<Node> {
+		final ancestors:Array<Node> = [for (_ in 0...callbacks.length) null];
+		var found = 0;
+		while (node != null) {
+			for (i in 0...callbacks.length) {
+				if (ancestors[i] == null && callbacks[i](node)) {
+					ancestors[i] = node;
+					found++;
+					if (found == callbacks.length) {
+						return ancestors;
+					}
+					break;
+				}
+			}
+			node = node.Parent;
+		}
+		return ancestors;
+	}
+
 	// Walks up the parents of a node to find the ancestor that matches the kind
 	public static function FindAncestorKind(node:Node, kind:Kind):Node {
 		while (node != null) {
@@ -4445,7 +4459,10 @@ class Ast {
 	}
 
 	public static function TryGetClassExtendingExpressionWithTypeArguments(node:Node):ClassLikeDeclaration {
-		final r = TryGetClassImplementingOrExtendingExpressionWithTypeArguments(node);
+		if (!IsExpressionWithTypeArguments(node)) {
+			return null;
+		}
+		final r = TryGetClassImplementingOrExtendingHeritageClauseElement(node);
 		final cls = r.a;
 		final isImplements = r.b;
 		if (cls != null && !isImplements) {
@@ -4455,13 +4472,20 @@ class Ast {
 	}
 
 	// PORT: (class, isImplements) → Pair<ClassLikeDeclaration, Bool> (a = class, b = isImplements).
-	public static function TryGetClassImplementingOrExtendingExpressionWithTypeArguments(node:Node):Pair<ClassLikeDeclaration, Bool> {
-		if (IsExpressionWithTypeArguments(node)) {
-			if (IsHeritageClause(node.Parent) && IsClassLike(node.Parent.Parent)) {
-				return new Pair<ClassLikeDeclaration, Bool>(node.Parent.Parent, node.Parent.AsHeritageClause().Token == KindImplementsKeyword);
-			}
+	public static function TryGetClassImplementingOrExtendingHeritageClauseElement(node:Node):Pair<ClassLikeDeclaration, Bool> {
+		if ((IsExpressionWithTypeArguments(node) || IsTypeReferenceNode(node)) && IsHeritageClause(node.Parent) && IsClassLike(node.Parent.Parent)) {
+			return new Pair<ClassLikeDeclaration, Bool>(node.Parent.Parent, node.Parent.AsHeritageClause().Token == KindImplementsKeyword);
 		}
 		return new Pair<ClassLikeDeclaration, Bool>(null, false);
+	}
+
+	// PORT: TypeScript 7.0.2's name (replaced in main by TryGetClassImplementingOrExtendingHeritageClauseElement); kept
+	// for callers not yet ported.
+	public static function TryGetClassImplementingOrExtendingExpressionWithTypeArguments(node:Node):Pair<ClassLikeDeclaration, Bool> {
+		if (!IsExpressionWithTypeArguments(node)) {
+			return new Pair<ClassLikeDeclaration, Bool>(null, false);
+		}
+		return TryGetClassImplementingOrExtendingHeritageClauseElement(node);
 	}
 
 	public static function GetNameOfDeclaration(declaration:Node):Node {
@@ -4671,7 +4695,27 @@ class Ast {
 	}
 
 	public static function IsAmbientModuleSymbolName(s:String):Bool {
-		return StringTools.startsWith(s, "\"") && StringTools.endsWith(s, "\"");
+		return TryGetAmbientModuleNameFromSymbolName(s) != null;
+	}
+
+	// Ambient module symbols are either of the form `"modulename"` or `InternalSymbolNamePrefix + "\"modulename\"pattern@nodeId"`;
+	// see `getDeclarationName`.
+	// PORT: Go returns (string, bool); here the name, or null for false.
+	public static function TryGetAmbientModuleNameFromSymbolName(s:String):String {
+		if (StringTools.startsWith(s, "\"") && StringTools.endsWith(s, "\"") && s.length >= 2) {
+			return s.substring(1, s.length - 1);
+		}
+
+		final patternPrefix = InternalSymbolNamePrefix + "\"";
+		if (!StringTools.startsWith(s, patternPrefix)) {
+			return null;
+		}
+		final rest = s.substring(patternPrefix.length);
+		final markerIndex = rest.lastIndexOf("\"pattern@");
+		if (markerIndex < 1) {
+			return null;
+		}
+		return rest.substring(0, markerIndex);
 	}
 
 	public static function IsExternalModule(file:SourceFile):Bool {
@@ -4749,6 +4793,21 @@ class Ast {
 			return clause.AsHeritageClause().Types.Nodes;
 		}
 		return null;
+	}
+
+	// GetHeritageClauseElementName returns the expression or type name of a heritage clause element.
+	public static function GetHeritageClauseElementName(node:HeritageClauseElement):Node {
+		if (IsTypeReferenceNode(node)) {
+			return node.AsTypeReferenceNode().TypeName;
+		}
+		return node.AsExpressionWithTypeArguments().Expression;
+	}
+
+	public static function IsNameOfHeritageClauseTypeReference(node:Node):Bool {
+		while (IsQualifiedName(node.Parent)) {
+			node = node.Parent;
+		}
+		return IsTypeReferenceNode(node.Parent) && node.Parent.AsTypeReferenceNode().TypeName == node && IsHeritageClause(node.Parent.Parent);
 	}
 
 	public static function GetHeritageClause(node:Node, kind:Kind):Node {
@@ -4949,15 +5008,26 @@ class Ast {
 		throw "Unhandled case in getExternalModuleName";
 	}
 
+	public static function HasImportAttributes(node:Node):Bool {
+		switch (node.Kind) {
+			case KindImportDeclaration | KindJSImportDeclaration | KindExportDeclaration | KindImportType:
+				return true;
+			default:
+		}
+		return false;
+	}
+
 	public static function GetImportAttributes(node:Node):Node {
 		switch (node.Kind) {
 			case KindImportDeclaration | KindJSImportDeclaration:
 				return node.AsImportDeclaration().Attributes;
 			case KindExportDeclaration:
 				return node.AsExportDeclaration().Attributes;
+			case KindImportType:
+				return node.AsImportTypeNode().Attributes;
 			default:
 		}
-		throw "Unhandled case in getImportAttributes";
+		throw "Unhandled case in getImportAttributes: " + node.Kind.String();
 	}
 
 	static function getImportTypeNodeLiteral(node:Node):Node {
@@ -5032,6 +5102,9 @@ class Ast {
 				return parent.Expression() == node && !IsPartOfTypeNode(parent);
 			case KindShorthandPropertyAssignment:
 				return parent.AsShorthandPropertyAssignment().ObjectAssignmentInitializer == node;
+			case KindFunctionExpression | KindClassExpression:
+				// The name of a function or class expression is a declaration name, not an expression.
+				return parent.Name() != node;
 			default:
 				return IsExpressionNode(parent);
 		}
@@ -5127,7 +5200,35 @@ class Ast {
 			return false;
 		}
 		final e = node.Expression();
-		return e.Kind == KindImportKeyword || IsMetaProperty(e) && e.AsMetaProperty().KeywordToken == KindImportKeyword && e.Text() == "defer";
+		return e.Kind == KindImportKeyword || IsImportPhaseMetaProperty(e);
+	}
+
+	public static function IsImportPhaseMetaProperty(node:Node):Bool {
+		return IsImportDeferMetaProperty(node) || IsImportSourceMetaProperty(node);
+	}
+
+	public static function IsImportDeferMetaProperty(node:Node):Bool {
+		return isImportMetaProperty(node, "defer");
+	}
+
+	public static function IsImportSourceMetaProperty(node:Node):Bool {
+		return isImportMetaProperty(node, "source");
+	}
+
+	static function isImportMetaProperty(node:Node, name:String):Bool {
+		return IsMetaProperty(node) && node.AsMetaProperty().KeywordToken == KindImportKeyword && node.AsMetaProperty().Name().Text() == name;
+	}
+
+	public static function IsSourcePhaseImport(node:Node):Bool {
+		if (IsImportDeclaration(node)) {
+			final clause = node.AsImportDeclaration().ImportClause;
+			return clause != null && clause.AsImportClause().PhaseModifier == KindSourceKeyword;
+		}
+		return IsSourcePhaseImportCall(node);
+	}
+
+	public static function IsSourcePhaseImportCall(node:Node):Bool {
+		return IsCallExpression(node) && IsImportSourceMetaProperty(node.Expression());
 	}
 
 	public static function IsComputedNonLiteralName(name:Node):Bool {
@@ -6114,7 +6215,8 @@ class Ast {
 			case KindVariableDeclaration | KindParameter | KindPropertySignature | KindPropertyDeclaration | KindTypePredicate | KindParenthesizedType |
 				KindTypeOperator | KindMappedType | KindTypeAssertionExpression | KindAsExpression | KindSatisfiesExpression | KindTypeAliasDeclaration |
 				KindJSTypeAliasDeclaration | KindNamedTupleMember | KindOptionalType | KindRestType | KindTemplateLiteralTypeSpan |
-				KindJSDocTypeExpression | KindJSDocPropertyTag | KindJSDocNullableType | KindJSDocNonNullableType | KindJSDocOptionalType:
+				KindJSDocTypeExpression | KindJSDocParameterTag | KindJSDocPropertyTag | KindJSDocNullableType | KindJSDocNonNullableType |
+				KindJSDocOptionalType:
 				return node.Type();
 			default:
 				final funcLike = node.FunctionLikeData();
@@ -6139,10 +6241,6 @@ class Ast {
 			return heritageElements[0];
 		}
 		return null;
-	}
-
-	public static function GetImplementsTypeNodes(node:Node):Array<ExpressionWithTypeArgumentsNode> {
-		return GetHeritageElements(node, KindImplementsKeyword);
 	}
 
 	public static function IsTypeKeywordToken(node:Node):Bool {
@@ -6239,9 +6337,6 @@ class Ast {
 		return FindAncestor(node, IsTypeOnlyImportOrExportDeclaration) != null;
 	}
 
-	public static function IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration(node:Node):Bool {
-		return FindAncestor(node, IsExclusivelyTypeOnlyImportOrExport) != null;
-	}
 
 	public static function IsEmittableImport(node:Node):Bool {
 		switch (node.Kind) {
@@ -6437,7 +6532,7 @@ class Ast {
 				return factory.UpdateEnumDeclaration(node.AsEnumDeclaration(), modifierArray, node.Name(), node.MemberList());
 			case KindModuleDeclaration:
 				return factory.UpdateModuleDeclaration(node.AsModuleDeclaration(), modifierArray, node.AsModuleDeclaration().Keyword, node.Name(),
-					node.Body());
+					node.Attributes(), node.Body());
 			case KindImportEqualsDeclaration:
 				return factory.UpdateImportEqualsDeclaration(node.AsImportEqualsDeclaration(), modifierArray, node.IsTypeOnly(), node.Name(),
 					node.AsImportEqualsDeclaration().ModuleReference);
@@ -6490,7 +6585,7 @@ class Ast {
 				KindEnumDeclaration:
 				return true;
 			case KindImportClause:
-				return node.IsTypeOnly();
+				return node.IsTypeOnly() && node.AsImportClause().Name() != null;
 			case KindImportSpecifier | KindExportSpecifier:
 				return node.Parent.Parent.IsTypeOnly();
 			default:
@@ -7483,6 +7578,10 @@ class Ast {
 		return (IsIdentifier(node) || IsStringLiteral(node)) && node.Text() == "__proto__";
 	}
 
+	public static function IsStringLiteralLikeType(node:Node):Bool {
+		return node.Kind == KindLiteralType && IsStringLiteralLike(node.AsLiteralTypeNode().Literal);
+	}
+
 	// --- visitor.go ---
 
 	public static function NewNodeVisitor(visit:(node:Node) -> Node, factory:NodeFactory, hooks:NodeVisitorHooks):NodeVisitor {
@@ -7570,7 +7669,6 @@ class NodeFactory implements NodeFactoryCoercible {
 		data.fileName = opts.FileName;
 		data.parseOptions = opts;
 		data.text = text;
-		data.ContainsNonASCII = Stringutil.ContainsNonASCII(text);
 		data.Statements = statements;
 		data.EndOfFileToken = endOfFileToken;
 		return newNode(KindSourceFile, data);
@@ -7614,14 +7712,14 @@ class NodeFactory implements NodeFactoryCoercible {
 		return this.newNode(KindPrivateIdentifier, data);
 	}
 
-	public function NewQualifiedName(left:EntityName, right:IdentifierNode):Node {
+	public function NewQualifiedName(left:EntityName, right:MemberName):Node {
 		final data = new QualifiedName();
 		data.Left = left;
 		data.Right = right;
 		return this.newNode(KindQualifiedName, data);
 	}
 
-	public function UpdateQualifiedName(node:QualifiedName, left:EntityName, right:IdentifierNode):Node {
+	public function UpdateQualifiedName(node:QualifiedName, left:EntityName, right:MemberName):Node {
 		if (left != node.Left || right != node.Right) {
 			return Ast.updateNode(this.NewQualifiedName(left, right), node.AsNode(), this.hooks);
 		}
@@ -7814,16 +7912,29 @@ class NodeFactory implements NodeFactoryCoercible {
 		return node.AsNode();
 	}
 
-	public function NewCaseOrDefaultClause(kind:Kind, expression:Expression, statements:StatementList):Node {
-		final data = new CaseOrDefaultClause();
+	public function NewCaseClause(expression:Expression, statements:StatementList):Node {
+		final data = new CaseClause();
 		data.Expression = expression;
 		data.Statements = statements;
-		return this.newNode(kind, data);
+		return this.newNode(KindCaseClause, data);
 	}
 
-	public function UpdateCaseOrDefaultClause(node:CaseOrDefaultClause, expression:Expression, statements:StatementList):Node {
+	public function UpdateCaseClause(node:CaseClause, expression:Expression, statements:StatementList):Node {
 		if (expression != node.Expression || statements != node.Statements) {
-			return Ast.updateNode(this.NewCaseOrDefaultClause(node.Kind, expression, statements), node.AsNode(), this.hooks);
+			return Ast.updateNode(this.NewCaseClause(expression, statements), node.AsNode(), this.hooks);
+		}
+		return node.AsNode();
+	}
+
+	public function NewDefaultClause(statements:StatementList):Node {
+		final data = new DefaultClause();
+		data.Statements = statements;
+		return this.newNode(KindDefaultClause, data);
+	}
+
+	public function UpdateDefaultClause(node:DefaultClause, statements:StatementList):Node {
+		if (statements != node.Statements) {
+			return Ast.updateNode(this.NewDefaultClause(statements), node.AsNode(), this.hooks);
 		}
 		return node.AsNode();
 	}
@@ -8075,14 +8186,14 @@ class NodeFactory implements NodeFactoryCoercible {
 		return node.AsNode();
 	}
 
-	public function NewHeritageClause(token:Kind, types:ExpressionWithTypeArgumentsList):Node {
+	public function NewHeritageClause(token:Kind, types:HeritageClauseElementList):Node {
 		final data = new HeritageClause();
 		data.Token = token;
 		data.Types = types;
 		return this.newNode(KindHeritageClause, data);
 	}
 
-	public function UpdateHeritageClause(node:HeritageClause, token:Kind, types:ExpressionWithTypeArgumentsList):Node {
+	public function UpdateHeritageClause(node:HeritageClause, token:Kind, types:HeritageClauseElementList):Node {
 		if (token != node.Token || types != node.Types) {
 			return Ast.updateNode(this.NewHeritageClause(token, types), node.AsNode(), this.hooks);
 		}
@@ -10028,18 +10139,19 @@ class NodeFactory implements NodeFactoryCoercible {
 		return node.AsNode();
 	}
 
-	public function NewModuleDeclaration(modifiers:ModifierList, keyword:Kind, name:ModuleName, body:ModuleBody):Node {
+	public function NewModuleDeclaration(modifiers:ModifierList, keyword:Kind, name:ModuleName, attributes:TypeLiteralNodeNode, body:ModuleBody):Node {
 		final data = new ModuleDeclaration();
 		data.modifiers = modifiers;
 		data.Keyword = keyword;
 		data.name = name;
+		data.Attributes = attributes;
 		data.Body = body;
 		return this.newNode(KindModuleDeclaration, data);
 	}
 
-	public function UpdateModuleDeclaration(node:ModuleDeclaration, modifiers:ModifierList, keyword:Kind, name:ModuleName, body:ModuleBody):Node {
-		if (modifiers != node.modifiers || keyword != node.Keyword || name != node.name || body != node.Body) {
-			return Ast.updateNode(this.NewModuleDeclaration(modifiers, keyword, name, body), node.AsNode(), this.hooks);
+	public function UpdateModuleDeclaration(node:ModuleDeclaration, modifiers:ModifierList, keyword:Kind, name:ModuleName, attributes:TypeLiteralNodeNode, body:ModuleBody):Node {
+		if (modifiers != node.modifiers || keyword != node.Keyword || name != node.name || attributes != node.Attributes || body != node.Body) {
+			return Ast.updateNode(this.NewModuleDeclaration(modifiers, keyword, name, attributes, body), node.AsNode(), this.hooks);
 		}
 		return node.AsNode();
 	}
@@ -10484,7 +10596,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 			case KindSwitchStatement:
 				return abstract.AsSwitchStatement().Expression;
 			case KindCaseClause:
-				return abstract.AsCaseOrDefaultClause().Expression;
+				return abstract.AsCaseClause().Expression;
 			case KindExpressionStatement:
 				return abstract.AsExpressionStatement().Expression;
 			case KindReturnStatement:
@@ -10636,7 +10748,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 			case KindModuleBlock:
 				return abstract.AsModuleBlock().Statements;
 			case KindCaseClause | KindDefaultClause:
-				return abstract.AsCaseOrDefaultClause().Statements;
+				return abstract.CaseOrDefaultClauseData().Statements;
 			default:
 		}
 		throw "Unhandled case in Node.StatementList: " + this.Kind.String();
@@ -10935,6 +11047,8 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 				return abstract.AsJsxOpeningElement().Attributes;
 			case KindJsxSelfClosingElement:
 				return abstract.AsJsxSelfClosingElement().Attributes;
+			case KindModuleDeclaration:
+				return abstract.AsModuleDeclaration().Attributes;
 			default:
 		}
 		throw "Unhandled case in Node.Attributes: " + this.Kind.String();
@@ -11203,44 +11317,27 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 	}
 
 	// PORT: Go method on *ImportAttributesNode (= *Node). (core.ResolutionMode, bool) → ValueOk.
-	public function GetResolutionModeOverride():ValueOk<ResolutionMode> {
+	// PORT: grammarErrorOnNode is Go's `func(node *Node, message *diagnostics.Message, args ...any) bool` (nil allowed).
+	public function GetResolutionModeOverride(?grammarErrorOnNode:(Node, Message, Array<Any>) -> Bool):ValueOk<ResolutionMode> {
 		if (abstract == null) {
 			return new ValueOk<ResolutionMode>(Core.ResolutionModeNone, false);
 		}
 
 		final attributes = abstract.AsImportAttributes().Attributes;
 
-		if (attributes.Nodes.length != 1) {
-			// !!!
-			// grammarErrorOnNode?.(
-			//     node,
-			//     node.token === SyntaxKind.WithKeyword
-			//         ? Diagnostics.Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
-			//         : Diagnostics.Type_import_assertions_should_have_exactly_one_key_resolution_mode_with_value_import_or_require,
-			// );
+		final attribute = Core.Find(attributes.Nodes, attribute -> attribute.Name().Text() == "resolution-mode");
+		if (attribute == null) {
 			return new ValueOk<ResolutionMode>(Core.ResolutionModeNone, false);
 		}
 
-		final elem = attributes.Nodes[0].AsImportAttribute();
-		if (!Ast.IsStringLiteralLike(elem.Name())) {
-			return new ValueOk<ResolutionMode>(Core.ResolutionModeNone, false);
-		}
-		if (elem.Name().Text() != "resolution-mode") {
-			// !!!
-			// grammarErrorOnNode?.(
-			//     elem.name,
-			//     node.token === SyntaxKind.WithKeyword
-			//         ? Diagnostics.resolution_mode_is_the_only_valid_key_for_type_import_attributes
-			//         : Diagnostics.resolution_mode_is_the_only_valid_key_for_type_import_assertions,
-			// );
-			return new ValueOk<ResolutionMode>(Core.ResolutionModeNone, false);
-		}
+		final elem = attribute.AsImportAttribute();
 		if (!Ast.IsStringLiteralLike(elem.Value)) {
 			return new ValueOk<ResolutionMode>(Core.ResolutionModeNone, false);
 		}
 		if (elem.Value.Text() != "import" && elem.Value.Text() != "require") {
-			// !!!
-			// grammarErrorOnNode?.(elem.value, Diagnostics.resolution_mode_should_be_either_require_or_import);
+			if (grammarErrorOnNode != null) {
+				grammarErrorOnNode(elem.Value, Diagnostics.X_resolution_mode_should_be_either_require_or_import, []);
+			}
 			return new ValueOk<ResolutionMode>(Core.ResolutionModeNone, false);
 		}
 		if (elem.Value.Text() == "import") {
@@ -11326,7 +11423,11 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		return cast this;
 	}
 
-	public inline function AsCaseOrDefaultClause():CaseOrDefaultClause {
+	public inline function AsCaseClause():CaseClause {
+		return cast this;
+	}
+
+	public inline function AsDefaultClause():DefaultClause {
 		return cast this;
 	}
 
@@ -12086,7 +12187,7 @@ abstract MutableNode(NodeDefault) from NodeDefault to NodeDefault {
 			case KindSwitchStatement:
 				n.AsSwitchStatement().Expression = expr;
 			case KindCaseClause:
-				n.AsCaseOrDefaultClause().Expression = expr;
+				n.AsCaseClause().Expression = expr;
 			case KindExpressionStatement:
 				n.AsExpressionStatement().Expression = expr;
 			case KindReturnStatement:
@@ -12293,6 +12394,10 @@ class NodeDefault extends ts.core.Linkstore.LinkHolder implements ts.ast.Symbol.
 		return null;
 	}
 
+	public function CaseOrDefaultClauseData():CaseOrDefaultClauseBase {
+		return null;
+	}
+
 	public function LiteralLikeData():LiteralLikeNodeBase {
 		return null;
 	}
@@ -12478,9 +12583,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	public var LanguageVariant:LanguageVariant = 0;
 	public var ScriptKind:ScriptKind = ScriptKindUnknown;
 	public var IsDeclarationFile:Bool = false;
-	public var ContainsNonASCII:Bool = false;
 	public var UsesUriStyleNodeCoreModules:Tristate = TSUnknown;
-	public var Identifiers:StringMap<String> = null;
 	public var IdentifierCount:Int = 0;
 
 	var imports:Array<LiteralLikeNode> = null; // []LiteralLikeNode
@@ -12491,6 +12594,8 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 
 	var jsdocCache:IdentityMap<Node, Array<Node>> = null;
 	var hasLazyJSDoc:Bool = false;
+	var identifiersDone:Bool = false; // PORT: sync.Once
+	var identifiers:Set<String> = new Set<String>();
 	#if tshx_parallel
 	// PORT: hxmc (-D tshx-parallel) — Go's dataMu, jsdocMu, tokenCacheMu and the Onces of the lazy
 	// fields (bind, name table, position map) as one re-entrant mutex
@@ -12517,10 +12622,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 
 	var bindDiagnostics:Array<Diagnostic> = null;
 
-	public var BindSuggestionDiagnostics:Array<Diagnostic> = null;
-	public var EndFlowNode:FlowNode = null;
 	public var SymbolCount:Int = 0;
-	public var ClassifiableNames:Set<String> = new Set<String>();
 	public var PatternAmbientModules:Array<PatternAmbientModule> = null;
 	public var GlobalExports:SymbolTable = null;
 
@@ -12646,14 +12748,42 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return Ast.IsSourceFileJS(this);
 	}
 
+	public function HasIdentifier(name:String):Bool {
+		#if tshx_parallel
+		syncMutex.acquire();
+		#end
+		if (!identifiersDone) {
+			identifiersDone = true;
+			identifiers = collectIdentifiersForSourceFile(this);
+		}
+		#if tshx_parallel
+		syncMutex.release();
+		#end
+		return identifiers.Has(name);
+	}
+
+	static function collectIdentifiersForSourceFile(sourceFile:SourceFile):Set<String> {
+		final identifiers = new Set<String>();
+		var collect:Node->Bool = null;
+		collect = function(node:Node):Bool {
+			switch (node.Kind) {
+				case KindIdentifier | KindPrivateIdentifier | KindStringLiteral | KindNumericLiteral | KindBigIntLiteral | KindNoSubstitutionTemplateLiteral:
+					identifiers.Add(node.Text());
+				default:
+			}
+			node.ForEachChild(collect);
+			return false;
+		}
+		collect(sourceFile.AsNode());
+		return identifiers;
+	}
+
 	function copyFrom(other:SourceFile):Void {
 		// Do not copy fields set by NewSourceFile (Text, FileName, Path, or Statements)
 		LanguageVariant = other.LanguageVariant;
 		ScriptKind = other.ScriptKind;
 		IsDeclarationFile = other.IsDeclarationFile;
-		ContainsNonASCII = other.ContainsNonASCII;
 		UsesUriStyleNodeCoreModules = other.UsesUriStyleNodeCoreModules;
-		Identifiers = other.Identifiers;
 		imports = other.imports;
 		ModuleAugmentations = other.ModuleAugmentations;
 		AmbientModuleNames = other.AmbientModuleNames;
@@ -12755,13 +12885,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		#end
 		if (!positionMapDone) {
 			positionMapDone = true;
-			if (!ContainsNonASCII) {
-				final pm = new PositionMap();
-				pm.asciiOnly = true;
-				positionMap = pm;
-			} else {
-				positionMap = Ast.ComputePositionMap(Text());
-			}
+			positionMap = Ast.ComputePositionMap(Text());
 		}
 		#if tshx_parallel
 		syncMutex.release();

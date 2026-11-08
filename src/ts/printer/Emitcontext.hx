@@ -487,6 +487,14 @@ class EmitContext {
 		return null;
 	}
 
+	public function IsFileLevelUniqueName(sourceFile:SourceFile, name:std.String, hasGlobalName:(std.String) -> Bool):Bool {
+		if (hasGlobalName != null && hasGlobalName(name)) {
+			return false;
+		}
+		sourceFile = MostOriginal(sourceFile.AsNode()).AsSourceFile();
+		return !sourceFile.HasIdentifier(name);
+	}
+
 	public function EmitFlags(node:Node):EmitFlags {
 		final emitNode = emitNodes.TryGet(node);
 		if (emitNode != null) {

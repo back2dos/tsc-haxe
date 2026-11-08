@@ -538,7 +538,7 @@ class NodebuilderHover {
 				final hasModuleExports = merged.Flags & (SymbolFlagsValueModule | SymbolFlagsNamespaceModule) != 0 && merged.Exports != null
 					&& merged.Exports.keys().hasNext();
 				if (!hasModuleExports) {
-					bodyNodes.push(b.f.NewModuleDeclaration(null, KindNamespaceKeyword, b.f.NewIdentifier(m.Name), b.f.NewModuleBlock(b.f.NewNodeList(null))));
+					bodyNodes.push(b.f.NewModuleDeclaration(null, KindNamespaceKeyword, b.f.NewIdentifier(m.Name), null /*attributes*/, b.f.NewModuleBlock(b.f.NewNodeList(null))));
 					bodyIsLocal.push(false);
 				}
 				i++;
@@ -584,7 +584,7 @@ class NodebuilderHover {
 		if (!Ast.IsIdentifier(localName)) {
 			keyword = KindModuleKeyword;
 		}
-		final result = b.f.NewModuleDeclaration(null, keyword, localName, b.f.NewModuleBlock(b.f.NewNodeList(bodyStatements)));
+		final result = b.f.NewModuleDeclaration(null, keyword, localName, null /*attributes*/, b.f.NewModuleBlock(b.f.NewNodeList(bodyStatements)));
 		b.ctx.flags = oldFlags;
 		return result;
 	}
