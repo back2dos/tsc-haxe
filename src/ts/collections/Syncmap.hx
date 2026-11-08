@@ -34,8 +34,9 @@ class SyncMap<K, V> {
 
 	public function Load(key:K):ValueOk<V> {
 		lock();
-		final ok = m.exists(key);
+		// PORT: perf — one lookup on a hit (a stored value is non-null); exists only to tell a null value from a miss
 		final val = m.get(key);
+		final ok = val != null || m.exists(key);
 		unlock();
 		if (!ok || val == null) {
 			return new ValueOk<V>(zero, ok);
@@ -52,8 +53,10 @@ class SyncMap<K, V> {
 	// PORT: (actual V, loaded bool) → ValueOk: value = actual, ok = loaded.
 	public function LoadOrStore(key:K, value:V):ValueOk<V> {
 		lock();
-		final loaded = m.exists(key);
-		final actualAny = loaded ? m.get(key) : value;
+		// PORT: perf — one lookup on a hit (see Load)
+		final existing = m.get(key);
+		final loaded = existing != null || m.exists(key);
+		final actualAny = loaded ? existing : value;
 		if (!loaded)
 			m.set(key, value);
 		unlock();
