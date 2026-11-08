@@ -202,19 +202,28 @@ class Scanner {
 		}
 		final t = text;
 		final n = end - start;
-		inline function u(i:Int):Int
-			return i < end ? StringTools.fastCodeAt(t, i) : 0;
-		final a = n | (u(start) << 8) | (u(start + 1) << 16) | (u(start + 2) << 24);
-		var b = 0, c = 0, d = 0;
-		if (n > 3) {
-			b = u(start + 3) | (u(start + 4) << 8) | (u(start + 5) << 16) | (u(start + 6) << 24);
-			if (n > 7) {
-				c = u(start + 7) | (u(start + 8) << 8) | (u(start + 9) << 16) | (u(start + 10) << 24);
-				if (n > 11)
-					d = StringTools.fastCodeAt(t, end - 1) | (StringTools.fastCodeAt(t, end - 2) << 8) | (StringTools.fastCodeAt(t, end - 3) << 16)
-						| (StringTools.fastCodeAt(t, end - 4) << 24);
+		var a = 0, b = 0, c = 0, d = 0;
+		inline function tagUnits(unit:Int->Int) {
+			inline function u(i:Int):Int
+				return i < end ? unit(i) : 0;
+			a = n | (u(start) << 8) | (u(start + 1) << 16) | (u(start + 2) << 24);
+			if (n > 3) {
+				b = u(start + 3) | (u(start + 4) << 8) | (u(start + 5) << 16) | (u(start + 6) << 24);
+				if (n > 7) {
+					c = u(start + 7) | (u(start + 8) << 8) | (u(start + 9) << 16) | (u(start + 10) << 24);
+					if (n > 11)
+						d = unit(end - 1) | (unit(end - 2) << 8) | (unit(end - 3) << 16) | (unit(end - 4) << 24);
+				}
 			}
 		}
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+		if (hxmc.rt.Str.isOne(t)) {
+			final p = hxmc.rt.Str.unitsAddr(t);
+			tagUnits(i -> hxmc.unsafe.Mem.getU8(p, i));
+		} else
+		#end
+		tagUnits(i -> StringTools.fastCodeAt(t, i));
 		final h = ((a * 0x9E3779B1) ^ (b * 0x85EBCA77) ^ (c * 0xC2B2AE3D) ^ (d * 0x27D4EB2F)) >>> (32 - ID_CACHE_BITS);
 		final ti = h << 2;
 		if (tags[ti] == a && tags[ti + 1] == b && tags[ti + 2] == c && tags[ti + 3] == d) {
