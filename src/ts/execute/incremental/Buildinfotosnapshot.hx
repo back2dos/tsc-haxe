@@ -6,15 +6,15 @@ package ts.execute.incremental;
 @:allow(ts.execute.incremental)
 class ToSnapshot {
 	var buildInfo:BuildInfo = null;
-	var buildInfoDirectory:std.String = "";
+	var buildInfoDirectory:RootedDirectoryPath = cast "";
 	var snapshot:Snapshot = new Snapshot();
 	var filePaths:Array<Path> = null;
 	var filePathSet:Array<Set<Path>> = null;
 
 	public function new() {}
 
-	function toAbsolutePath(path:std.String):std.String {
-		return Tspath.GetNormalizedAbsolutePath(path, this.buildInfoDirectory);
+	function toAbsoluteFileName(path:std.String):RootedFilePath {
+		return this.buildInfoDirectory.ResolveFile(path);
 	}
 
 	function toFilePath(fileId:BuildInfoFileId):Path {
@@ -135,12 +135,12 @@ class ToSnapshot {
 
 	function setPackageJsons():Void {
 		if (this.buildInfo.PackageJsons != null) {
-			this.snapshot.packageJsons = Core.Map(this.buildInfo.PackageJsons, this.toAbsolutePath);
+			this.snapshot.packageJsons = Core.Map(this.buildInfo.PackageJsons, this.toAbsoluteFileName);
 		} else {
 			this.snapshot.packageJsons = [];
 		}
 		if (this.buildInfo.MissingPackageJsons != null) {
-			this.snapshot.missingPackageJsons = Core.Map(this.buildInfo.MissingPackageJsons, this.toAbsolutePath);
+			this.snapshot.missingPackageJsons = Core.Map(this.buildInfo.MissingPackageJsons, this.toAbsoluteFileName);
 		} else {
 			this.snapshot.missingPackageJsons = [];
 		}

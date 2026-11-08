@@ -194,7 +194,7 @@ class Snapshot {
 	// Files pending to be emitted
 	var affectedFilesPendingEmit:SyncMap<Path, FileEmitKind> = new SyncMap<Path, FileEmitKind>(FileEmitKindNone);
 	// Name of the file whose dts was the latest to change
-	var latestChangedDtsFile:std.String = "";
+	var latestChangedDtsFile:RootedFilePath = cast "";
 	// Hash of d.ts emitted for the file, use to track when emit of d.ts changes
 	var emitSignatures:SyncMap<Path, EmitSignature> = new SyncMap<Path, EmitSignature>();
 	// Recorded if program had errors that need to be reported even with --noCheck
@@ -204,8 +204,8 @@ class Snapshot {
 	// If semantic diagnostic check is pending
 	var checkPending:Bool = false;
 	// Looked up package.json files from
-	var packageJsons:Array<std.String> = null;
-	var missingPackageJsons:Array<std.String> = null;
+	var packageJsons:Array<RootedFilePath> = null;
+	var missingPackageJsons:Array<RootedFilePath> = null;
 
 	// Additional fields that are not serialized but needed to track state
 
@@ -214,8 +214,8 @@ class Snapshot {
 	var hasErrorsFromOldState:Tristate = TSUnknown;
 	var hasSemanticErrorsFromOldState:Bool = false;
 	var allFilesExcludingDefaultLibraryFileOnce:Bool = false; // PORT: sync.Once → flag
-	var packageJsonsFromOldState:Array<std.String> = null;
-	var missingPackageJsonsFromOldState:Array<std.String> = null;
+	var packageJsonsFromOldState:Array<RootedFilePath> = null;
+	var missingPackageJsonsFromOldState:Array<RootedFilePath> = null;
 	//  Cache of all files excluding default library file for the current program
 	var allFilesExcludingDefaultLibraryFile:Array<SourceFile> = null;
 	var hasChangedDtsFile:Bool = false;

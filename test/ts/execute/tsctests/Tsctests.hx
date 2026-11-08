@@ -96,7 +96,7 @@ declare const console: { log(msg: any): void; };
 		}
 		final currentWrite = new Builder();
 		final sys = NewTscSystem(tscInput.files, !tscInput.ignoreCase, cwd);
-		sys.defaultLibraryPath = libPath;
+		sys.defaultLibraryPath = Tspath.RootedDirectoryPathFromNormalized(libPath);
 		sys.setCurrentWrite(currentWrite);
 		sys.tracer = Harnessutil.NewTracerForBaselining(new ComparePathsOptions(!tscInput.ignoreCase, cwd), currentWrite);
 		sys.env = tscInput.env;

@@ -15,7 +15,7 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 		return this.host.FS();
 	}
 
-	public function DefaultLibraryPath():std.String {
+	public function DefaultLibraryPath():RootedDirectoryPath {
 		return this.host.DefaultLibraryPath();
 	}
 

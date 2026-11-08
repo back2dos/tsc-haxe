@@ -8,16 +8,33 @@ class ToBuildInfo {
 	var snapshot:Snapshot = null;
 	var program:CompilerProgram = null;
 	var buildInfo:BuildInfo = null;
-	var buildInfoDirectory:std.String = "";
-	var comparePathsOptions:ComparePathsOptions = null;
+	var buildInfoDirectory:RootedDirectoryPath = cast "";
+	var caseSensitivity:CaseSensitivity = CaseInsensitive;
 	var fileNameToFileId:StringMap<BuildInfoFileId> = new StringMap();
 	var fileNamesToFileIdListId:StringMap<BuildInfoFileIdListId> = new StringMap();
 	var roots:IdentityMap<SourceFile, Path> = new IdentityMap();
 
 	public function new() {}
 
-	function relativeToBuildInfo(path:std.String):std.String {
-		return Tspath.EnsurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory_legacy(this.buildInfoDirectory, path, this.comparePathsOptions));
+	function relativeToBuildInfo(path:RootedPath):std.String {
+		final relativePath = this.caseSensitivity.RelativePathFromDirectory(this.buildInfoDirectory, Tspath.RootedFilePathFromPath(path));
+		if (relativePath != null) {
+			return relativePath.AsModuleSpecifier().AsString();
+		}
+		return path.AsString();
+	}
+
+	function fileNameRelativeToBuildInfo(path:RootedFilePath):std.String {
+		final relativePath = this.caseSensitivity.RelativePathFromDirectory(this.buildInfoDirectory, path);
+		if (relativePath != null) {
+			return relativePath.AsModuleSpecifier().AsString();
+		}
+		return path.AsString();
+	}
+
+	function serializedPathKeyRelativeToBuildInfo(path:PathKey):std.String {
+		return Tspath.EnsurePathIsNonModuleName(Tspath.GetRelativePathFromDirectory(this.buildInfoDirectory.AsString(), path.AsString(),
+			this.caseSensitivity));
 	}
 
 	function toFileId(path:Path):BuildInfoFileId {
@@ -29,7 +46,7 @@ class ToBuildInfo {
 			if (libFile != null && !libFile.Replaced) {
 				this.buildInfo.FileNames.push(libFile.Name);
 			} else {
-				this.buildInfo.FileNames.push(this.relativeToBuildInfo(path));
+				this.buildInfo.FileNames.push(this.serializedPathKeyRelativeToBuildInfo(path));
 			}
 			fileId = this.buildInfo.FileNames.length;
 			this.fileNameToFileId.set(path, fileId);
@@ -55,16 +72,16 @@ class ToBuildInfo {
 		return fileIdListId;
 	}
 
-	// PORT: Go `v.([]string)` / `v.(string)` on the reflect value; `isStrings` tells whether the
-	// field is a []string (compilerOptionsFields kind).
+	// PORT: Go type switches on the reflect value (typed paths); `isStrings` tells whether the field is a
+	// slice of paths (compilerOptionsFields kind). The typed paths are strings at run time.
 	function toRelativeToBuildInfoCompilerOptionValue(option:CommandLineOption, v:Dynamic, isStrings:Bool):Dynamic {
 		if (option.Kind == CommandLineOptionTypeList) {
-			if (option.Elements().IsFilePath) {
+			if (option.Elements().PathKind.IsRooted()) {
 				if (isStrings && v != null) {
-					return Core.Map((v : Array<std.String>), this.relativeToBuildInfo);
+					return Core.Map((v : Array<RootedPath>), this.relativeToBuildInfo);
 				}
 			}
-		} else if (option.IsFilePath) {
+		} else if (option.PathKind.IsRooted()) {
 			if (Std.isOfType(v, std.String) && (v : std.String) != "") {
 				return this.relativeToBuildInfo(v);
 			}
@@ -145,7 +162,7 @@ class ToBuildInfo {
 				file = this.program.GetSourceFile(fileName);
 			}
 			if (file != null) {
-				this.roots.set(file, Tspath.ToPath(fileName, this.comparePathsOptions.CurrentDirectory, this.comparePathsOptions.UseCaseSensitiveFileNames));
+				this.roots.set(file, this.caseSensitivity.PathKey(fileName.AsPath()));
 			}
 		}
 	}
@@ -155,11 +172,11 @@ class ToBuildInfo {
 			final info = this.snapshot.fileInfos.Load(file.Path()).value;
 			final fileId = this.toFileId(file.Path());
 			//  tryAddRoot(key, fileId);
-			if (this.buildInfo.FileNames[fileId - 1] != this.relativeToBuildInfo(file.Path())) {
+			if (this.buildInfo.FileNames[fileId - 1] != this.serializedPathKeyRelativeToBuildInfo(file.Path())) {
 				final libFile = this.program.GetDefaultLibFile(file.Path());
 				if (libFile == null || libFile.Replaced || this.buildInfo.FileNames[fileId - 1] != libFile.Name) {
 					throw Fmt.Sprintf("File name at index %d does not match expected relative path or libName: %s != %s",
-						[fileId - 1, this.buildInfo.FileNames[fileId - 1], this.relativeToBuildInfo(file.Path())]);
+						[fileId - 1, this.buildInfo.FileNames[fileId - 1], this.serializedPathKeyRelativeToBuildInfo(file.Path())]);
 				}
 			}
 			if (this.snapshot.options.Composite.IsTrue()) {
@@ -304,18 +321,17 @@ class ToBuildInfo {
 	}
 
 	function setRootOfNonIncrementalProgram():Void {
-		this.buildInfo.Root = Core.Map(this.program.CommandLine().FileNames(), function(fileName:std.String):BuildInfoRoot {
-			return new BuildInfoRoot(0, 0,
-				this.relativeToBuildInfo(Tspath.ToPath(fileName, this.comparePathsOptions.CurrentDirectory, this.comparePathsOptions.UseCaseSensitiveFileNames)));
+		this.buildInfo.Root = Core.Map(this.program.CommandLine().FileNames(), function(fileName:RootedFilePath):BuildInfoRoot {
+			return new BuildInfoRoot(0, 0, this.serializedPathKeyRelativeToBuildInfo(this.caseSensitivity.PathKey(fileName.AsPath())));
 		});
 	}
 
 	function setPackageJsons():Void {
 		if (Core.len(this.snapshot.packageJsons) > 0) {
-			this.buildInfo.PackageJsons = Core.Map(this.snapshot.packageJsons, this.relativeToBuildInfo);
+			this.buildInfo.PackageJsons = Core.Map(this.snapshot.packageJsons, this.fileNameRelativeToBuildInfo);
 		}
 		if (Core.len(this.snapshot.missingPackageJsons) > 0) {
-			this.buildInfo.MissingPackageJsons = Core.Map(this.snapshot.missingPackageJsons, this.relativeToBuildInfo);
+			this.buildInfo.MissingPackageJsons = Core.Map(this.snapshot.missingPackageJsons, this.fileNameRelativeToBuildInfo);
 		}
 	}
 }

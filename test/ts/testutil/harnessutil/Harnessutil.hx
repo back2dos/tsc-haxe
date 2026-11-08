@@ -459,7 +459,7 @@ class Harnessutil {
 		return t;
 	}
 
-	static function createCompilerHost(fs:FS, defaultLibraryPath:String, currentDirectory:String,
+	static function createCompilerHost(fs:FS, defaultLibraryPath:RootedDirectoryPath, currentDirectory:String,
 			?contentMapperProject:ts.contentmapper.Host.Project):CachedCompilerHost {
 		final tracer = NewTracerForBaselining(new ComparePathsOptions(fs.CaseSensitivity().IsCaseSensitive(), currentDirectory), new go.Strings.Builder());
 		final h = new CachedCompilerHost();
@@ -1069,7 +1069,7 @@ class CachedCompilerHost implements CompilerHost {
 		return CompilerHost.FS();
 	}
 
-	public function DefaultLibraryPath():String {
+	public function DefaultLibraryPath():RootedDirectoryPath {
 		return CompilerHost.DefaultLibraryPath();
 	}
 

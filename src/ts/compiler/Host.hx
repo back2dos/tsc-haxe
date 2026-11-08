@@ -8,7 +8,7 @@ import ts.diagnostics.Diagnostics.Message;
 // GetCurrentDirectory); Haxe interfaces are nominal, so it extends ResolutionHost.
 interface CompilerHost extends ResolutionHost {
 	function FS():FS;
-	function DefaultLibraryPath():std.String;
+	function DefaultLibraryPath():RootedDirectoryPath;
 	function GetCurrentDirectory():RootedDirectoryPath;
 	function Trace(msg:Message, ...args:Any):Void;
 	function GetSourceFile(opts:SourceFileParseOptions):SourceFile;
@@ -30,7 +30,7 @@ typedef TraceFunc = (msg:Message, args:Array<Any>) -> Void;
 class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 	var currentDirectory:RootedDirectoryPath = cast "";
 	var fs:FS = null;
-	var defaultLibraryPath:std.String = "";
+	var defaultLibraryPath:RootedDirectoryPath = cast "";
 	var extendedConfigCache:ExtendedConfigCache = null;
 	var trace:TraceFunc = null;
 	var contentMapperProject:ts.contentmapper.Host.Project = null;
@@ -41,7 +41,7 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 		return this.fs;
 	}
 
-	public function DefaultLibraryPath():std.String {
+	public function DefaultLibraryPath():RootedDirectoryPath {
 		return this.defaultLibraryPath;
 	}
 

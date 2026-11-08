@@ -274,7 +274,7 @@ class ReadableBuildInfo implements OrderedMarshaler {
 		if (this.buildInfo.AffectedFilesPendingEmit == null) {
 			return;
 		}
-		final fullEmitKind = Incremental.GetFileEmitKind(this.buildInfo.GetCompilerOptions(""));
+		final fullEmitKind = Incremental.GetFileEmitKind(this.buildInfo.GetCompilerOptions(cast ""));
 		this.AffectedFilesPendingEmit = Core.Map(this.buildInfo.AffectedFilesPendingEmit,
 			function(pendingEmit:BuildInfoFilePendingEmit):ReadableBuildInfoFilePendingEmit {
 				final emitKind = Core.IfElse(pendingEmit.EmitKind == 0, fullEmitKind, pendingEmit.EmitKind);

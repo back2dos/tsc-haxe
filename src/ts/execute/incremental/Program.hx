@@ -384,15 +384,15 @@ class Program implements ProgramLike {
 				if (value == null) {
 					return true;
 				}
-				var packageJson:std.String = value.PackageDirectory.ResolveFile("package.json");
+				var packageJson = value.PackageDirectory.ResolveFile("package.json");
 				if (value.Exists() || value.DirectoryExists) {
-					packageJson = this.program.Host().FS().Realpath(value.PackageDirectory.ResolveFile("package.json").AsPath());
+					packageJson = Tspath.RootedFilePathFromPath(this.program.Host().FS().Realpath(packageJson.AsPath()));
 				}
 				if (value.Exists()) {
 					if (this.snapshot.packageJsons == null)
 						this.snapshot.packageJsons = [];
 					this.snapshot.packageJsons.push(packageJson);
-				} else if (packageJson.indexOf("/node_modules/") >= 0) {
+				} else if (packageJson.ContainsLowercaseDirectorySequence("/node_modules/")) {
 					if (this.snapshot.missingPackageJsons == null)
 						this.snapshot.missingPackageJsons = [];
 					this.snapshot.missingPackageJsons.push(packageJson);
@@ -404,27 +404,27 @@ class Program implements ProgramLike {
 		this.snapshot.missingPackageJsons = Incremental.normalizePackageJsons(this.snapshot.missingPackageJsons);
 	}
 
-	public function PackageJsonLookupPaths():Array<std.String> {
+	public function PackageJsonLookupPaths():Array<RootedFilePath> {
 		final config = Tspath.GetDirectoryPath(this.program.CommandLine().ConfigName());
 		if (config == "") {
 			return null;
 		}
 
-		var packageJsons:Array<std.String> = null;
+		var packageJsons:Array<RootedFilePath> = null;
 		this.program.PackageJsonCacheEntries(function(key:PathKey, value:InfoCacheEntry):Bool {
 			if (value == null) {
 				return true;
 			}
-			var packageJson:std.String = value.PackageDirectory.ResolveFile("package.json");
+			var packageJson = value.PackageDirectory.ResolveFile("package.json");
 			if (value.Exists() || value.DirectoryExists) {
-				packageJson = this.program.Host().FS().Realpath(value.PackageDirectory.ResolveFile("package.json").AsPath());
+				packageJson = Tspath.RootedFilePathFromPath(this.program.Host().FS().Realpath(packageJson.AsPath()));
 			}
 			if (packageJsons == null)
 				packageJsons = [];
 			packageJsons.push(packageJson);
 			return true;
 		});
-		Slices.SortStrings(packageJsons);
+		Incremental.sortRootedFilePaths(packageJsons);
 		return Core.Deduplicate(packageJsons);
 	}
 }

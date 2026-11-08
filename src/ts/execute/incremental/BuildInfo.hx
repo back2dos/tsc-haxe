@@ -766,7 +766,7 @@ class BuildInfo implements OrderedMarshaler {
 		return this.FileInfos[fileId - 1];
 	}
 
-	public function GetCompilerOptions(buildInfoDirectory:std.String):CompilerOptions {
+	public function GetCompilerOptions(buildInfoDirectory:RootedDirectoryPath):CompilerOptions {
 		final options = new CompilerOptions();
 		if (this.Options != null) {
 			for (option => value in this.Options.Entries()) {
@@ -784,8 +784,7 @@ class BuildInfo implements OrderedMarshaler {
 					}
 				}
 				if (buildInfoDirectory != "") {
-					final r = Tsoptions.ConvertOptionToAbsolutePath(option, value, Tsoptions.CommandLineCompilerOptionsMap,
-						/* PORT: transitional (main: typed buildInfoDirectory) */ Tspath.RootedDirectoryPathFromAbsolute(buildInfoDirectory));
+					final r = Tsoptions.ConvertOptionToAbsolutePath(option, value, Tsoptions.CommandLineCompilerOptionsMap, buildInfoDirectory);
 					if (r.ok) {
 						Tsoptions.ParseCompilerOptions(option, r.value, options);
 						continue;
@@ -797,7 +796,7 @@ class BuildInfo implements OrderedMarshaler {
 		return options;
 	}
 
-	public function IsEmitPending(resolved:ParsedCommandLine, buildInfoDirectory:std.String):Bool {
+	public function IsEmitPending(resolved:ParsedCommandLine, buildInfoDirectory:RootedDirectoryPath):Bool {
 		// Some of the emit files like source map or dts etc are not yet done
 		if (!resolved.CompilerOptions().NoEmit.IsTrue() || resolved.CompilerOptions().GetEmitDeclarations()) {
 			var pendingEmit = Incremental.getPendingEmitKindWithOptions(resolved.CompilerOptions(), this.GetCompilerOptions(buildInfoDirectory));
@@ -809,22 +808,24 @@ class BuildInfo implements OrderedMarshaler {
 		return false;
 	}
 
-	// PORT: iter.Seq[string] → Iterator
-	public function GetPackageJsons(buildInfoDirectory:std.String):Iterator<std.String> {
-		return Incremental.getNormalizedPaths(this.PackageJsons, buildInfoDirectory);
+	// PORT: iter.Seq[tspath.RootedFilePath] → Iterator
+	public function GetPackageJsons(buildInfoDirectory:RootedDirectoryPath):Iterator<RootedFilePath> {
+		return Incremental.getBuildInfoFileNames(this.PackageJsons, buildInfoDirectory);
 	}
 
-	public function GetMissingPackageJsons(buildInfoDirectory:std.String):Iterator<std.String> {
-		return Incremental.getNormalizedPaths(this.MissingPackageJsons, buildInfoDirectory);
+	public function GetMissingPackageJsons(buildInfoDirectory:RootedDirectoryPath):Iterator<RootedFilePath> {
+		return Incremental.getBuildInfoFileNames(this.MissingPackageJsons, buildInfoDirectory);
 	}
 
-	public function GetBuildInfoRootInfoReader(buildInfoDirectory:std.String, comparePathOptions:ComparePathsOptions):BuildInfoRootInfoReader {
+	public function GetBuildInfoRootInfoReader(buildInfoDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):BuildInfoRootInfoReader {
 		final resolvedRootFileInfos = new StringMap<BuildInfoFileInfo>();
+		final resolvedRootFileNames = new StringMap<RootedFilePath>();
+		final rootFileNames = new StringMap<RootedFilePath>();
 		// Roots of the File
-		final rootToResolved = Collections.NewOrderedMapWithSizeHint(Core.len(this.FileNames), ("" : Path));
-		final resolvedToRoot = new StringMap<Path>();
-		final toPath = function(fileName:std.String):Path {
-			return Tspath.ToPath(fileName, buildInfoDirectory, comparePathOptions.UseCaseSensitiveFileNames);
+		final rootToResolved = Collections.NewOrderedMapWithSizeHint(Core.len(this.FileNames), (cast "" : PathKey));
+		final resolvedToRoot = new StringMap<PathKey>();
+		final toFileName = function(fileName:std.String):RootedFilePath {
+			return Tspath.ToRootedFilePath(fileName, buildInfoDirectory);
 		};
 
 		// Create map from resolvedRoot to Root
@@ -832,7 +833,10 @@ class BuildInfo implements OrderedMarshaler {
 			final resolvedRoot = this.fileName(resolved.Resolved);
 			final root = this.fileName(resolved.Root);
 			if (resolvedRoot != "" && root != "") {
-				resolvedToRoot.set(toPath(resolvedRoot), toPath(root));
+				final rootFileName = toFileName(root);
+				final rootPath = caseSensitivity.PathKey(rootFileName.AsPath());
+				resolvedToRoot.set(caseSensitivity.PathKey(toFileName(resolvedRoot).AsPath()), rootPath);
+				rootFileNames.set(rootPath, rootFileName);
 			}
 		}
 
@@ -840,12 +844,15 @@ class BuildInfo implements OrderedMarshaler {
 			if (resolvedRoot == "") {
 				return;
 			}
-			final resolvedRootPath = toPath(resolvedRoot);
+			final resolvedRootFileName = toFileName(resolvedRoot);
+			final resolvedRootPath = caseSensitivity.PathKey(resolvedRootFileName.AsPath());
+			resolvedRootFileNames.set(resolvedRootPath, resolvedRootFileName);
 			final rootPath = resolvedToRoot.get(resolvedRootPath);
 			if (rootPath != null) {
 				rootToResolved.Set(rootPath, resolvedRootPath);
 			} else {
 				rootToResolved.Set(resolvedRootPath, resolvedRootPath);
+				rootFileNames.set(resolvedRootPath, resolvedRootFileName);
 			}
 			if (fileInfo != null) {
 				resolvedRootFileInfos.set(resolvedRootPath, fileInfo);
@@ -866,34 +873,47 @@ class BuildInfo implements OrderedMarshaler {
 			}
 		}
 
-		return new BuildInfoRootInfoReader(resolvedRootFileInfos, rootToResolved);
+		return new BuildInfoRootInfoReader(resolvedRootFileInfos, resolvedRootFileNames, rootFileNames, rootToResolved);
 	}
 }
 
 @:allow(ts.execute.incremental)
 class BuildInfoRootInfoReader {
 	var resolvedRootFileInfos:StringMap<BuildInfoFileInfo> = null;
-	var rootToResolved:OrderedMap<Path, Path> = null;
+	var resolvedRootFileNames:StringMap<RootedFilePath> = null;
+	var rootFileNames:StringMap<RootedFilePath> = null;
+	var rootToResolved:OrderedMap<PathKey, PathKey> = null;
 
-	public function new(resolvedRootFileInfos:StringMap<BuildInfoFileInfo>, rootToResolved:OrderedMap<Path, Path>) {
+	public function new(resolvedRootFileInfos:StringMap<BuildInfoFileInfo>, resolvedRootFileNames:StringMap<RootedFilePath>,
+			rootFileNames:StringMap<RootedFilePath>, rootToResolved:OrderedMap<PathKey, PathKey>) {
 		this.resolvedRootFileInfos = resolvedRootFileInfos;
+		this.resolvedRootFileNames = resolvedRootFileNames;
+		this.rootFileNames = rootFileNames;
 		this.rootToResolved = rootToResolved;
 	}
 
-	// PORT: (*BuildInfoFileInfo, tspath.Path) → Pair
-	public function GetBuildInfoFileInfo(inputFilePath:Path):Pair<BuildInfoFileInfo, Path> {
+	// PORT: (*BuildInfoFileInfo, tspath.RootedFilePath) → Pair
+	public function GetBuildInfoFileInfo(inputFilePath:PathKey):Pair<BuildInfoFileInfo, RootedFilePath> {
 		if (this.resolvedRootFileInfos.exists(inputFilePath)) {
-			return new Pair(this.resolvedRootFileInfos.get(inputFilePath), inputFilePath);
+			return new Pair(this.resolvedRootFileInfos.get(inputFilePath), this.resolvedRootFileNames.get(inputFilePath));
 		}
 		final r = this.rootToResolved.Get(inputFilePath);
 		if (r.ok) {
-			return new Pair(this.resolvedRootFileInfos.get(r.value), r.value);
+			return new Pair(this.resolvedRootFileInfos.get(r.value), this.resolvedRootFileNames.get(r.value));
 		}
-		return new Pair<BuildInfoFileInfo, Path>(null, "");
+		return new Pair<BuildInfoFileInfo, RootedFilePath>(null, cast "");
 	}
 
 	// PORT: iter.Seq → Iterator
-	public function Roots():Iterator<Path> {
+	public function Roots():Iterator<PathKey> {
 		return this.rootToResolved.Keys();
+	}
+
+	public function RootFileName(path:PathKey):RootedFilePath {
+		final fileName = this.rootFileNames.get(path);
+		if (fileName == null) {
+			throw "root file name not found";
+		}
+		return fileName;
 	}
 }

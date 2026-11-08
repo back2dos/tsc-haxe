@@ -7,7 +7,7 @@ package ts.execute.tsc;
 interface System extends ParseConfigHost {
 	function Writer():Writer;
 	function FS():FS;
-	function DefaultLibraryPath():std.String;
+	function DefaultLibraryPath():RootedDirectoryPath;
 	function GetCurrentDirectory():RootedDirectoryPath;
 	function WriteOutputIsTTY():Bool;
 	function GetWidthOfTerminal():Int;

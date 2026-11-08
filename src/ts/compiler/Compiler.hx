@@ -431,8 +431,7 @@ class Compiler {
 		}
 		final loader = new FileLoader();
 		loader.opts = opts;
-		// PORT: main's host returns a typed DefaultLibraryPath; here it is still a string, resolved as before.
-		loader.defaultLibraryPath = Tspath.ToRootedDirectoryPath(opts.Host.DefaultLibraryPath(), opts.Host.GetCurrentDirectory());
+		loader.defaultLibraryPath = opts.Host.DefaultLibraryPath();
 		loader.caseSensitivity = opts.Host.FS().CaseSensitivity();
 		loader.filesParser = new FilesParser();
 		#if tshx_parallel
@@ -1105,12 +1104,12 @@ class Compiler {
 	// --- host.go ---
 
 	// PORT: contentMapperProject (TypeScript main) is an optional trailing parameter.
-	public static function NewCachedFSCompilerHost(currentDirectory:RootedDirectoryPath, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
+	public static function NewCachedFSCompilerHost(currentDirectory:RootedDirectoryPath, fs:FS, defaultLibraryPath:RootedDirectoryPath, extendedConfigCache:ExtendedConfigCache,
 			trace:TraceFunc, ?contentMapperProject:ts.contentmapper.Host.Project):CompilerHost {
 		return NewCompilerHost(currentDirectory, Cachedvfs.From(fs), defaultLibraryPath, extendedConfigCache, trace, contentMapperProject);
 	}
 
-	public static function NewCompilerHost(currentDirectory:RootedDirectoryPath, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
+	public static function NewCompilerHost(currentDirectory:RootedDirectoryPath, fs:FS, defaultLibraryPath:RootedDirectoryPath, extendedConfigCache:ExtendedConfigCache,
 			trace:TraceFunc, ?contentMapperProject:ts.contentmapper.Host.Project):CompilerHost {
 		if (trace == null) {
 			trace = function(msg:Message, args:Array<Any>) {};

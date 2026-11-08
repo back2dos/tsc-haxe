@@ -5,7 +5,7 @@ package ts.cmd;
 class OsSys implements System {
 	public var writer:Writer = null;
 	public var fs:FS = null;
-	public var defaultLibraryPath:std.String = "";
+	public var defaultLibraryPath:RootedDirectoryPath = cast "";
 	public var cwd:RootedDirectoryPath = cast "";
 	public var start:Time = null;
 
@@ -23,7 +23,7 @@ class OsSys implements System {
 		return this.fs;
 	}
 
-	public function DefaultLibraryPath():std.String {
+	public function DefaultLibraryPath():RootedDirectoryPath {
 		return this.defaultLibraryPath;
 	}
 
