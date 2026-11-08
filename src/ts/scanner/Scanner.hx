@@ -738,9 +738,13 @@ class Scanner {
 	static inline final classDigit = 32; // 0-9
 
 	static final asciiClass:haxe.ds.Vector<Int> = {
-		final v = new haxe.ds.Vector<Int>(128);
-		for (b in 0...128) {
+		final v = new haxe.ds.Vector<Int>(256); // units 128..255: no class (a one-byte text's units index it directly)
+		for (b in 0...256) {
 			var c = 0;
+			if (b >= 128) {
+				v[b] = 0;
+				continue;
+			}
 			if (asciiIdentifierPart[b])
 				c |= classIdentifierPart;
 			if (b == ' '.code || (b >= '\t'.code && b <= '\r'.code))
@@ -768,8 +772,7 @@ class Scanner {
 		if (hxmc.rt.Str.isOne(text)) {
 			final p = hxmc.rt.Str.unitsAddr(text);
 			while (i < end) {
-				final b = hxmc.unsafe.Mem.getU8(p, i);
-				if (b >= Utf16.RuneSelf || table[b] & cls == 0) {
+				if (table[hxmc.unsafe.Mem.getU8(p, i)] & cls == 0) {
 					break;
 				}
 				i++;
