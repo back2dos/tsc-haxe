@@ -1099,7 +1099,7 @@ class DeclarationTransformer {
 				// Rewrite external module names if necessary
 				return Factory().UpdateExportDeclaration(input.AsExportDeclaration(), input.Modifiers(), input.IsTypeOnly(),
 					input.AsExportDeclaration().ExportClause, rewriteModuleSpecifier(input, input.ModuleSpecifier()),
-					tryGetResolutionModeOverride(input.AsExportDeclaration().Attributes));
+					input.AsExportDeclaration().Attributes);
 			case KindExportAssignment:
 				return transformExportAssignment(input, input, input.Expression(), input.AsExportAssignment().IsExportEquals);
 			default:
@@ -1499,17 +1499,6 @@ class DeclarationTransformer {
 		}
 		resultHasExternalModuleIndicator = resultHasExternalModuleIndicator || (parent.Kind != KindModuleDeclaration && parent.Kind != KindImportType);
 		return input;
-	}
-
-	function tryGetResolutionModeOverride(node:Node):Node {
-		if (node == null) {
-			return node;
-		}
-		final mode = host.GetResolutionModeOverride(node);
-		if (mode != Core.ResolutionModeNone) {
-			return node;
-		}
-		return null;
 	}
 
 	function preserveJsDoc(updated:Node, original:Node):Void {
@@ -2342,7 +2331,7 @@ class DeclarationTransformer {
 		if (decl.ImportClause == null) {
 			// import "mod" - possibly needed for side effects? (global interface patches, module augmentations, etc)
 			return Factory().UpdateImportDeclaration(decl, decl.Modifiers(), decl.ImportClause, rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier),
-				tryGetResolutionModeOverride(decl.Attributes));
+				decl.Attributes);
 		}
 		var phaseModifier = decl.ImportClause.AsImportClause().PhaseModifier;
 		if (phaseModifier == KindDeferKeyword) {
@@ -2360,7 +2349,7 @@ class DeclarationTransformer {
 			}
 			return Factory().UpdateImportDeclaration(decl, decl.Modifiers(),
 				Factory().UpdateImportClause(decl.ImportClause.AsImportClause(), phaseModifier, visibleDefaultBinding, /*namedBindings*/ null),
-				rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier), tryGetResolutionModeOverride(decl.Attributes));
+				rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier), decl.Attributes);
 		}
 		if (decl.ImportClause.AsImportClause().NamedBindings.Kind == KindNamespaceImport) {
 			// Namespace import (optionally with visible default)
@@ -2373,7 +2362,7 @@ class DeclarationTransformer {
 			}
 			return Factory().UpdateImportDeclaration(decl, decl.Modifiers(),
 				Factory().UpdateImportClause(decl.ImportClause.AsImportClause(), phaseModifier, visibleDefaultBinding, namedBindings),
-				rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier), tryGetResolutionModeOverride(decl.Attributes));
+				rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier), decl.Attributes);
 		}
 		// Named imports (optionally with visible default)
 		final bindingList = Core.Filter(decl.ImportClause.AsImportClause().NamedBindings.Elements(), function(b:Node):Bool {
@@ -2386,7 +2375,7 @@ class DeclarationTransformer {
 			}
 			return Factory().UpdateImportDeclaration(decl, decl.Modifiers(),
 				Factory().UpdateImportClause(decl.ImportClause.AsImportClause(), phaseModifier, visibleDefaultBinding, namedImports),
-				rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier), tryGetResolutionModeOverride(decl.Attributes));
+				rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier), decl.Attributes);
 		}
 		// Augmentation of export depends on import
 		if (resolver.IsImportRequiredByAugmentation(decl)) {
@@ -2395,7 +2384,7 @@ class DeclarationTransformer {
 					Diagnostics.Declaration_emit_for_this_file_requires_preserving_this_import_for_augmentations_This_is_not_supported_with_isolatedDeclarations));
 			}
 			return Factory().UpdateImportDeclaration(decl, decl.Modifiers(), /*importClause*/ null, rewriteModuleSpecifier(decl.AsNode(), decl.ModuleSpecifier),
-				tryGetResolutionModeOverride(decl.Attributes));
+				decl.Attributes);
 		}
 		// Nothing visible
 		return null;
