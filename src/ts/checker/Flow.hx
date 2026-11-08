@@ -2612,7 +2612,7 @@ class Flow {
 	}
 
 	static function getEffectsSignature(c:Checker, node:Node):Signature {
-		final links = c.signatureLinks.Get(node);
+		final links = c.effectsSignatureLinks.Get(node);
 		var signature = links.effectsSignature;
 		if (signature == null) {
 			// A call expression parented by an expression statement is a potential assertion. Other call

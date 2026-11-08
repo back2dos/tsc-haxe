@@ -2523,7 +2523,8 @@ class CheckerPart6 {
 		} else {
 			target = t;
 		}
-		typeParameters = links.outerTypeParameters;
+		final outerLinks = c.outerTypeParametersLinks.Get(declaration);
+		typeParameters = outerLinks.outerTypeParameters;
 		if (typeParameters == null) {
 			// The first time an anonymous type is instantiated we compute and store a list of the type
 			// parameters that are in scope (and therefore potentially referenced). For type literals that
@@ -2546,7 +2547,7 @@ class CheckerPart6 {
 			if (typeParameters == null) {
 				typeParameters = [];
 			}
-			links.outerTypeParameters = typeParameters;
+			outerLinks.outerTypeParameters = typeParameters;
 		}
 		if (typeParameters.length == 0) {
 			return t;

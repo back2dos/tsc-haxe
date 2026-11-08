@@ -548,6 +548,17 @@ class SymbolNodeLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class TypeNodeLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Resolved type associated with node
+	// PORT: perf — outerTypeParameters in a store of its own (OuterTypeParametersLinks: t3code-server, 9% of the
+	// type node links had them)
+
+	public function new() {
+		super();
+	}
+}
+
+// PORT: perf — Go's TypeNodeLinks.outerTypeParameters (Checker.outerTypeParametersLinks)
+@:allow(ts.checker)
+class OuterTypeParametersLinks extends ts.core.Linkstore.LinkEntry {
 	var outerTypeParameters:Array<Type> = null; // Outer type parameters of anonymous object type
 
 	public function new() {
@@ -611,7 +622,27 @@ class SourceFileLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class SignatureLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedSignature:Signature = null; // Cached signature of signature node or call expression
+	// PORT: perf — effectsSignature and decoratorSignature in stores of their own (EffectsSignatureLinks,
+	// DecoratorSignatureLinks: t3code-server, 7% and none of the signature links had them)
+
+	public function new() {
+		super();
+	}
+}
+
+// PORT: perf — Go's SignatureLinks.effectsSignature (Checker.effectsSignatureLinks)
+@:allow(ts.checker)
+class EffectsSignatureLinks extends ts.core.Linkstore.LinkEntry {
 	var effectsSignature:Signature = null; // Signature with possible control flow effects
+
+	public function new() {
+		super();
+	}
+}
+
+// PORT: perf — Go's SignatureLinks.decoratorSignature (Checker.decoratorSignatureLinks)
+@:allow(ts.checker)
+class DecoratorSignatureLinks extends ts.core.Linkstore.LinkEntry {
 	var decoratorSignature:Signature = null; // Signature for decorator as if invoked by the runtime
 
 	public function new() {

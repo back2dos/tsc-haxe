@@ -2036,7 +2036,7 @@ class CheckerPart8 {
 
 	static function getLegacyDecoratorCallSignature(c:Checker, decorator:Node):Signature {
 		final node = decorator.Parent;
-		final links = c.signatureLinks.Get(node);
+		final links = c.decoratorSignatureLinks.Get(node);
 		if (links.decoratorSignature == null) {
 			links.decoratorSignature = c.anySignature;
 			// PORT: Go `break` inside the switch cases → if/else (PORTING.md §4).
@@ -2185,7 +2185,7 @@ class CheckerPart8 {
 		// return value similarly corresponds to the "output type" (though if the "output type" is `void` or
 		// `undefined` then the "output type" is the "input type").
 		final node = decorator.Parent;
-		final links = c.signatureLinks.Get(node);
+		final links = c.decoratorSignatureLinks.Get(node);
 		if (links.decoratorSignature == null) {
 			links.decoratorSignature = c.anySignature;
 			// PORT: Go `break` inside the switch cases → if/else (PORTING.md §4).
