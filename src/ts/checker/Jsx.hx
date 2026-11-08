@@ -1475,8 +1475,12 @@ class Jsx {
 	// --- private helpers (PORT) ---
 
 	// PORT: Go `range` over a possibly-nil slice.
-	static inline function rangeOf<T>(s:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(s:Null<Array<T>>):Array<T> {
 		return s != null ? s : [];
+	}
+
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go map lookup `table[name]` on a possibly-nil ast.SymbolTable (nil map reads as empty).

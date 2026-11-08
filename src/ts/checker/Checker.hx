@@ -1339,7 +1339,7 @@ enum abstract IntersectionFlags(Int) from Int to Int {
 class ObjectLiteralDiscriminator implements Discriminator {
 	var c:Checker = null;
 	var props:Array<Node> = null;
-	var members:Array<Symbol> = null;
+	var members:haxe.ds.Vector<Symbol> = null;
 
 	public function new() {}
 
@@ -4874,11 +4874,11 @@ class Checker {
 		return asRecursionId(t);
 	}
 
-	static function excludeProperties(properties:Array<Symbol>, excludedProperties:Set<std.String>):Array<Symbol> {
+	static function excludeProperties(properties:haxe.ds.Vector<Symbol>, excludedProperties:Set<std.String>):haxe.ds.Vector<Symbol> {
 		if (excludedProperties.Len() == 0 || Core.len(properties) == 0) {
 			return properties;
 		}
-		var reduced:Array<Symbol> = null;
+		var reduced:VectorBuilder<Symbol> = null;
 		var excluded = false;
 		for (i in 0...properties.length) {
 			final prop = properties[i];
@@ -4887,13 +4887,16 @@ class Checker {
 					reduced.push(prop);
 				}
 			} else if (!excluded) {
-				// PORT: slices.Clip(properties[:i]) — a fresh array, so appends never touch properties.
-				reduced = properties.slice(0, i);
+				// PORT: slices.Clip(properties[:i]) — a fresh list, so appends never touch properties.
+				reduced = new VectorBuilder<Symbol>();
+				for (k in 0...i) {
+					reduced.push(properties[k]);
+				}
 				excluded = true;
 			}
 		}
 		if (excluded) {
-			return reduced;
+			return reduced.build();
 		}
 		return properties;
 	}
@@ -5653,7 +5656,7 @@ class Checker {
 		return Ast.IsAssertionExpression(Ast.SkipParentheses(node));
 	}
 
-	static function createSymbolTable(symbols:Array<Symbol>):SymbolTable {
+	static function createSymbolTable(symbols:haxe.ds.Vector<Symbol>):SymbolTable {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}

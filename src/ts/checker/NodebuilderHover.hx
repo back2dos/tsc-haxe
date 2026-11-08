@@ -318,7 +318,7 @@ class NodebuilderHover {
 
 	// serializePropertiesWithTruncation iterates properties using addPropertyToElementList,
 	// with truncation checks matching Strada's createTypeNodesFromResolvedType behavior.
-	static function serializePropertiesWithTruncation(b:NodeBuilderImpl, properties:Array<Symbol>, elements:Array<Node>):Array<Node> {
+	static function serializePropertiesWithTruncation(b:NodeBuilderImpl, properties:haxe.ds.Vector<Symbol>, elements:Array<Node>):Array<Node> {
 		properties = Core.Filter(properties, (p:Symbol) -> {
 			return p.Flags & SymbolFlagsPrototype == 0;
 		});
@@ -611,7 +611,7 @@ class NodebuilderHover {
 	}
 
 	// filterInheritedProperties removes properties already present in base types.
-	static function filterInheritedProperties(b:NodeBuilderImpl, t:Type, baseTypes:Array<Type>, properties:Array<Symbol>):Array<Symbol> {
+	static function filterInheritedProperties(b:NodeBuilderImpl, t:Type, baseTypes:Array<Type>, properties:haxe.ds.Vector<Symbol>):haxe.ds.Vector<Symbol> {
 		if (Core.len(baseTypes) == 0) {
 			return properties;
 		}

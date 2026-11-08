@@ -1614,7 +1614,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		if (s == null) {
 			return [];
 		}
-		return checker.getPropertiesOfType(checker.getTypeOfSymbol(s));
+		return Core.vectorToArray(checker.getPropertiesOfType(checker.getTypeOfSymbol(s))); // PORT: perf — a copy (declaration emit errors)
 	}
 
 	function TryJSTypeNodeToTypeNode__locked(emitContext:EmitContext, typeNode:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {

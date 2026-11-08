@@ -1119,7 +1119,7 @@ class Relater {
 		return null;
 	}
 
-	static function findDiscriminantProperties(c:Checker, sourceProperties:Array<Symbol>, target:Type):Array<Symbol> {
+	static function findDiscriminantProperties(c:Checker, sourceProperties:haxe.ds.Vector<Symbol>, target:Type):Array<Symbol> {
 		var result:Array<Symbol> = null;
 		if (sourceProperties != null) {
 			for (sourceProperty in sourceProperties) {
@@ -4884,7 +4884,7 @@ class Relater {
 	function membersRelatedToIndexInfo(source:Type, targetInfo:IndexInfo, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
 		var result:Ternary = TernaryTrue;
 		final keyType = targetInfo.keyType;
-		var props:Array<Symbol>;
+		var props:haxe.ds.Vector<Symbol>;
 		if (source.flags & TypeFlagsIntersection != 0) {
 			props = c.getPropertiesOfUnionOrIntersectionType(source);
 		} else {

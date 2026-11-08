@@ -1235,7 +1235,7 @@ class NodeBuilderImpl {
 		var properties:Array<Symbol> = [];
 		if (!isEmptyAttributesType) {
 			final props = this.ch.getPropertiesOfType(result.importAttributesType);
-			properties = props == null ? [] : props.copy();
+			properties = props == null ? [] : props.toArray();
 		}
 		properties.sort((a, b) -> go.Strings.Compare(a.Name, b.Name));
 		final attributes:Array<Node> = [];

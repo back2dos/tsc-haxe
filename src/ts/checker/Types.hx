@@ -1157,7 +1157,7 @@ class ConstrainedType extends TypeBase {
 @:allow(ts.checker)
 class StructuredType extends ConstrainedType {
 	var members:SymbolTable = null;
-	var properties:Array<Symbol> = null;
+	var properties:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (one exact-size object; null: Go nil, which a lazy type tests)
 	var signatures:Array<Signature> = null; // Signatures (call + construct)
 	var callSignatureCount:Int = 0; // Count of call signatures
 	var indexInfos:Array<IndexInfo> = null;
@@ -1236,7 +1236,7 @@ class StructuredType extends ConstrainedType {
 			return properties[index];
 		}
 		if (properties == null) {
-			properties = Core.nilSlice(lazy.layout.symbols.length);
+			properties = new haxe.ds.Vector<Symbol>(lazy.layout.symbols.length);
 		}
 		var member = properties[index];
 		if (member == null) {
@@ -1252,7 +1252,7 @@ class StructuredType extends ConstrainedType {
 		return member;
 	}
 
-	function getProperties():Array<Symbol> {
+	function getProperties():haxe.ds.Vector<Symbol> {
 		final lazy = getLazyState();
 		if (lazy != null && !lazy.propertiesResolved) {
 			for (i in 0...lazy.layout.symbols.length) {
@@ -1278,7 +1278,7 @@ class StructuredType extends ConstrainedType {
 		return (cast this : Type).objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsReference) != 0 ? (cast this : TypeReference).lazy : null;
 	}
 
-	public function Properties():Array<Symbol> {
+	public function Properties():haxe.ds.Vector<Symbol> {
 		return getProperties();
 	}
 }
@@ -1338,9 +1338,9 @@ class LazyState {
 @:allow(ts.checker)
 class MemberLayout {
 	var id:Int = 0; // Unique identifier for the member layout
-	var symbols:Array<Symbol> = null; // the members (uninstantiated symbols) in order: the layout properties
+	var symbols:haxe.ds.Vector<Symbol> = null; // the members (uninstantiated symbols) in order: the layout properties
 	var index:StringMap<Int> = null; // their indices by name
-	var baseIndices:Array<Int> = null; // Indices of base types for each member (-1 if locally declared)
+	var baseIndices:haxe.ds.Vector<Int> = null; // Indices of base types for each member (-1 if locally declared)
 
 	public function new() {}
 }
@@ -1514,7 +1514,7 @@ class UnionOrIntersectionType extends StructuredType {
 	var types:haxe.ds.Vector<Type> = null;
 	var propertyCache:SymbolTable = null;
 	var propertyCacheWithoutFunctionPropertyAugment:SymbolTable = null;
-	var resolvedProperties:Array<Symbol> = null;
+	var resolvedProperties:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (null: not resolved)
 
 	public function new() {
 		super();

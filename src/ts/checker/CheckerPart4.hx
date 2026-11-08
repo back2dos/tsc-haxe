@@ -1142,7 +1142,7 @@ class CheckerPart4 {
 		});
 	}
 
-	static function getExactOptionalUnassignableProperties(c:Checker, source:Type, target:Type):Array<Symbol> {
+	static function getExactOptionalUnassignableProperties(c:Checker, source:Type, target:Type):haxe.ds.Vector<Symbol> {
 		if (Checker.isTupleType(source) && Checker.isTupleType(target)) {
 			return null;
 		}
@@ -4242,7 +4242,17 @@ class CheckerPart4 {
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
+		return function(yield_:(T) -> Bool):Void {
+			for (i in 0...Core.len(s)) {
+				if (!yield_(s[i])) {
+					return;
+				}
+			}
+		};
+	}
+
+	static extern inline overload function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			if (s != null) {
 				for (v in s) {

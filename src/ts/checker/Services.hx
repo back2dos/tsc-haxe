@@ -291,7 +291,7 @@ class Services {
 				}
 			}
 		}
-		return c.getNamedMembers(propsByName, null);
+		return Core.vectorToArray(c.getNamedMembers(propsByName, null)); // PORT: perf — a copy (services)
 	}
 
 	public static function TryGetMemberInModuleExportsAndProperties(c:Checker, memberName:std.String, moduleSymbol:Symbol):Symbol {
@@ -726,7 +726,7 @@ class Services {
 			if (c.shouldTreatPropertiesOfExternalModuleAsExports(t)) {
 				final props = c.getPropertiesOfType(t);
 				if (Core.len(props) > 0) {
-					exports = exports == null ? props.copy() : exports.concat(props);
+					exports = exports == null ? props.toArray() : exports.concat(props.toArray());
 				}
 			}
 		}
@@ -743,7 +743,7 @@ class Services {
 		if (intrinsics == null) {
 			return null;
 		}
-		return c.GetPropertiesOfType(intrinsics);
+		return Core.vectorToArray(c.GetPropertiesOfType(intrinsics)); // PORT: perf — a copy (services)
 	}
 
 	public static function GetContextualTypeForJsxAttribute(c:Checker, attribute:JsxAttributeLike):Type {

@@ -117,7 +117,7 @@ class Exports {
 		return c.isArrayLikeType(t);
 	}
 
-	public static function GetPropertiesOfType(c:Checker, t:Type):Array<Symbol> {
+	public static function GetPropertiesOfType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		return c.getPropertiesOfType(t);
 	}
 

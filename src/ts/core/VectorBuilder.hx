@@ -26,6 +26,22 @@ abstract VectorBuilder<T>(Array<T>) {
 		return this[i] = x;
 	}
 
+	// go.Slices.SortFunc of the elements so far
+	public inline function sortFunc(cmp:(T, T) -> Int):Void {
+		go.Slices.SortFunc(this, cmp);
+	}
+
+	// head's elements, then this builder's, as one exact-size Vector
+	public inline function buildAfter(head:VectorBuilder<T>):haxe.ds.Vector<T> {
+		final n1 = head.length, n2 = this.length;
+		final v = new haxe.ds.Vector<T>(n1 + n2);
+		for (i in 0...n1)
+			v[i] = head[i];
+		for (i in 0...n2)
+			v[n1 + i] = this[i];
+		return v;
+	}
+
 	// The list so far as an exact-size Vector (the builder can be used on).
 	public inline function build():haxe.ds.Vector<T> {
 		return haxe.ds.Vector.fromArrayCopy(this);

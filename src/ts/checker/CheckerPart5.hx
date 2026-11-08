@@ -2594,7 +2594,7 @@ class CheckerPart5 {
 		return c.anyType;
 	}
 
-	static function getPropertiesOfType(c:Checker, t:Type):Array<Symbol> {
+	static function getPropertiesOfType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		t = c.getReducedApparentType(t);
 		if ((t.flags & TypeFlagsUnionOrIntersection) != 0) {
 			return c.getPropertiesOfUnionOrIntersectionType(t);
@@ -2602,18 +2602,18 @@ class CheckerPart5 {
 		return c.getPropertiesOfObjectType(t);
 	}
 
-	static function getPropertiesOfObjectType(c:Checker, t:Type):Array<Symbol> {
+	static function getPropertiesOfObjectType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		if ((t.flags & TypeFlagsObject) != 0) {
 			return c.resolveStructuredTypeMembers(t).getProperties();
 		}
 		return null;
 	}
 
-	static function getPropertiesOfUnionOrIntersectionType(c:Checker, t:Type):Array<Symbol> {
+	static function getPropertiesOfUnionOrIntersectionType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		final d = t.AsUnionOrIntersectionType();
 		if (d.resolvedProperties == null) {
 			final checked = new Set<std.String>();
-			final props:Array<Symbol> = [];
+			final props = new VectorBuilder<Symbol>();
 			for (current in rangeOf(d.types)) {
 				for (prop in rangeOf(c.getPropertiesOfType(current))) {
 					if (!checked.Has(prop.Name)) {
@@ -2631,7 +2631,7 @@ class CheckerPart5 {
 					break;
 				}
 			}
-			d.resolvedProperties = props;
+			d.resolvedProperties = props.build();
 		}
 		return d.resolvedProperties;
 	}
@@ -2955,7 +2955,7 @@ class CheckerPart5 {
 				final index:Null<Int> = s.lazy.layout.index.get(symbol.Name);
 				if (index != null) {
 					if (s.properties == null) {
-						s.properties = Core.nilSlice(s.lazy.layout.symbols.length);
+						s.properties = new haxe.ds.Vector<Symbol>(s.lazy.layout.symbols.length);
 					}
 					s.properties[index] = symbol;
 				}
@@ -3037,9 +3037,9 @@ class CheckerPart5 {
 	}
 
 	static function createMemberLayout(c:Checker, t:Type, baseTypes:Array<Type>):MemberLayout {
-		final symbols:Array<Symbol> = [];
+		final symbols = new VectorBuilder<Symbol>();
 		final index = new StringMap<Int>();
-		final baseIndices:Array<Int> = [];
+		final baseIndices = new VectorBuilder<Int>();
 		inline function addMember(symbol:Symbol, baseIndex:Int) {
 			if (!index.exists(symbol.Name)) {
 				index.set(symbol.Name, symbols.length);
@@ -3078,9 +3078,9 @@ class CheckerPart5 {
 		}
 		final layout = new MemberLayout();
 		layout.id = c.memberLayoutCount++;
-		layout.symbols = symbols;
+		layout.symbols = symbols.build();
 		layout.index = index;
-		layout.baseIndices = baseIndices;
+		layout.baseIndices = baseIndices.build();
 		return layout;
 	}
 
@@ -3088,7 +3088,7 @@ class CheckerPart5 {
 	// the shared member layout. When operations only process the declaration, flags, and/or name
 	// of members (and not their type), using the layout properties helps defer instantiation of
 	// the members. For example, `keyof T` can be computed entirely from layout properties.
-	static function getLayoutPropertiesOfType(c:Checker, t:Type):Array<Symbol> {
+	static function getLayoutPropertiesOfType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		t = c.getReducedApparentType(t);
 		final lazy = c.getLazyStateOfType(t);
 		if (lazy == null) {
@@ -3547,7 +3547,7 @@ class CheckerPart5 {
 		return t;
 	}
 
-	static function addInheritedMembers(c:Checker, symbols:SymbolTable, baseSymbols:Array<Symbol>):SymbolTable {
+	static function addInheritedMembers(c:Checker, symbols:SymbolTable, baseSymbols:haxe.ds.Vector<Symbol>):SymbolTable {
 		for (base in rangeOf(baseSymbols)) {
 			if (!Checker.isStaticPrivateIdentifierProperty(base)) {
 				final s = symbolTableGet(symbols, base.Name);

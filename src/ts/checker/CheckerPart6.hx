@@ -691,7 +691,7 @@ class CheckerPart6 {
 		}
 	}
 
-	static function createInstantiatedSymbolTable(c:Checker, symbols:Array<Symbol>, m:TypeMapper):SymbolTable {
+	static function createInstantiatedSymbolTable(c:Checker, symbols:haxe.ds.Vector<Symbol>, m:TypeMapper):SymbolTable {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}
@@ -2171,35 +2171,32 @@ class CheckerPart6 {
 		return result != null ? result : c.unknownType;
 	}
 
-	static function getNamedMembers(c:Checker, members:SymbolTable, container:Symbol):Array<Symbol> {
+	// PORT: perf — a Vector (exact size: the declared members and the others sorted apart, then copied in)
+	static function getNamedMembers(c:Checker, members:SymbolTable, container:Symbol):haxe.ds.Vector<Symbol> {
 		if (symbolTableLen(members) == 0) {
 			return null;
 		}
 		// For classes and interfaces, we store explicitly declared members ahead of inherited members. This ensures we process
 		// explicitly declared members first in type relations, which is beneficial because explicitly declared members are more
 		// likely to contain discriminating differences. See for example https://github.com/microsoft/typescript-go/issues/1968.
-		var result:Array<Symbol> = [];
-		var containedCount = 0;
+		final head = new VectorBuilder<Symbol>();
 		if (container != null && (container.Flags & (SymbolFlagsClass | SymbolFlagsInterface)) != 0) {
 			for (id => symbol in members) {
 				if (c.isNamedMember(symbol, id) && c.isDeclarationContainedBy(symbol, container)) {
-					result.push(symbol);
+					head.push(symbol);
 				}
 			}
-			containedCount = result.length;
 		}
+		final tail = new VectorBuilder<Symbol>();
 		for (id => symbol in members) {
 			if (c.isNamedMember(symbol, id) && (container == null || (container.Flags & (SymbolFlagsClass | SymbolFlagsInterface)) == 0 || !c.isDeclarationContainedBy(symbol, container))) {
-				result.push(symbol);
+				tail.push(symbol);
 			}
 		}
-		// PORT: Go sorts the two sub-slices in place (shared backing array); sort copies and join them.
-		final head = result.slice(0, containedCount);
-		final tail = result.slice(containedCount);
-		c.sortSymbols(head);
-		c.sortSymbols(tail);
-		result = head.concat(tail);
-		return result;
+		// PORT: Go sorts the two sub-slices in place (shared backing array): sorted apart, then copied together.
+		head.sortFunc(c.compareSymbols);
+		tail.sortFunc(c.compareSymbols);
+		return tail.buildAfter(head);
 	}
 
 	static function isDeclarationContainedBy(c:Checker, symbol:Symbol, container:Symbol):Bool {
