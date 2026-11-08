@@ -241,7 +241,7 @@ class BindDump {
 			case KindFunctionExpression:
 				ret = node.AsFunctionExpression().ReturnFlowNode;
 			case KindCaseClause | KindDefaultClause:
-				final f = node.AsCaseOrDefaultClause().FallthroughFlowNode;
+				final f = node.CaseOrDefaultClauseData().FallthroughFlowNode;
 				if (f != null) {
 					b.add(" fall=");
 					flowRef(b, f);

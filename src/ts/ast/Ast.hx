@@ -4702,6 +4702,7 @@ class Ast {
 	// see `getDeclarationName`.
 	// PORT: Go returns (string, bool); here the name, or null for false.
 	public static function TryGetAmbientModuleNameFromSymbolName(s:String):String {
+		// PORT: `s.length >= 2`: for `"` Go's s[1:len(s)-1] panics
 		if (StringTools.startsWith(s, "\"") && StringTools.endsWith(s, "\"") && s.length >= 2) {
 			return s.substring(1, s.length - 1);
 		}
@@ -6243,6 +6244,11 @@ class Ast {
 		return null;
 	}
 
+	// PORT: removed in TypeScript main (typescript-go#4797); kept for the 7.0.2 golden test (test/ts/ast)
+	public static function GetImplementsTypeNodes(node:Node):Array<ExpressionWithTypeArgumentsNode> {
+		return GetHeritageElements(node, KindImplementsKeyword);
+	}
+
 	public static function IsTypeKeywordToken(node:Node):Bool {
 		return node.Kind == KindTypeKeyword;
 	}
@@ -6361,6 +6367,11 @@ class Ast {
 			default:
 		}
 		return false;
+	}
+
+	// PORT: removed in TypeScript main (#63931); kept for the 7.0.2 golden test (test/ts/ast)
+	public static function IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration(node:Node):Bool {
+		return FindAncestor(node, IsExclusivelyTypeOnlyImportOrExport) != null;
 	}
 
 	public static function HasResolutionModeOverride(node:Node):Bool {
