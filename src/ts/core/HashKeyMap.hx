@@ -13,16 +13,17 @@ import hxmc.rt.MapSlots.RefSlots;
 import hxmc.rt.Str;
 
 class HashKeyMap<T> {
-	// the index: cap slots of two elements (the key's hash and its entry + 1, 0 an empty slot)
+	// the index: cap slots of two elements (the key's tag: its hash with its length in the low 4 bits; its entry + 1,
+	// 0 an empty slot)
 	var slots:MapSlots<Int>;
-	// per entry (room = cap / 2 entries): the key's length, then its units two per Int (4 Ints)
+	// per entry (room = cap / 2 entries): the key's units two per Int
 	var keys:MapSlots<Int>;
 	var vals:RefSlots;
 	var used:Int;
 	var mask:Int; // cap - 1
 	var long:haxe.ds.StringMap<T>; // the keys of more than 8 units
 
-	static inline final W = 5; // Ints per entry in keys
+	static inline final W = 4; // Ints per entry in keys
 
 	public function new() {
 		used = 0;
@@ -42,6 +43,10 @@ class HashKeyMap<T> {
 		return h ^ (h >>> 15);
 	}
 
+	static inline function tag(h:Int, n:Int):Int {
+		return (h & ~15) | n;
+	}
+
 	// the entry of the key (n, a, b, c, d) with hash h, or -1
 	inline function find(n:Int, a:Int, b:Int, c:Int, d:Int, h:Int):Int {
 		var r = -1;
@@ -52,9 +57,9 @@ class HashKeyMap<T> {
 				final e = slots[2 * i + 1];
 				if (e == 0)
 					break;
-				if (slots[2 * i] == h) {
+				if (slots[2 * i] == tag(h, n)) {
 					final o = W * (e - 1);
-					if (keys[o] == n && keys[o + 1] == a && keys[o + 2] == b && keys[o + 3] == c && keys[o + 4] == d) {
+					if (keys[o] == a && keys[o + 1] == b && keys[o + 2] == c && keys[o + 3] == d) {
 						r = e - 1;
 						break;
 					}
@@ -117,22 +122,29 @@ class HashKeyMap<T> {
 		final slots = this.slots, keys = this.keys, mask = this.mask;
 		final e = used++;
 		final o = W * e;
-		keys[o] = n;
-		keys[o + 1] = a;
-		keys[o + 2] = b;
-		keys[o + 3] = c;
-		keys[o + 4] = d;
+		keys[o] = a;
+		keys[o + 1] = b;
+		keys[o + 2] = c;
+		keys[o + 3] = d;
 		vals[e] = v;
 		var i = h & mask;
 		while (slots[2 * i + 1] != 0)
 			i = (i + 1) & mask;
-		slots[2 * i] = h;
+		slots[2 * i] = tag(h, n);
 		slots[2 * i + 1] = e + 1;
 	}
 
 	// the table with cap slots (room for cap / 2 entries), the entries added again
 	function rebuild(cap:Int):Void {
-		final okeys = keys, ovals = vals, on = used;
+		final oslots = slots, okeys = keys, ovals = vals, on = used, ocap = mask + 1;
+		// the entries' lengths, from the old index's tags (the entries are added again in their order)
+		final lengths = new MapSlots<Int>(on > 0 ? on : 1);
+		for (i in 0...(on > 0 ? ocap : 0)) {
+			final e = oslots[2 * i + 1];
+			if (e != 0) {
+				lengths[e - 1] = oslots[2 * i] & 15;
+			}
+		}
 		final room = cap >> 1;
 		slots = new MapSlots<Int>(2 * cap);
 		keys = new MapSlots<Int>(W * room);
@@ -141,7 +153,7 @@ class HashKeyMap<T> {
 		mask = cap - 1;
 		for (j in 0...on) {
 			final o = W * j;
-			final n = okeys[o], a = okeys[o + 1], b = okeys[o + 2], c = okeys[o + 3], d = okeys[o + 4];
+			final n = lengths[j], a = okeys[o], b = okeys[o + 1], c = okeys[o + 2], d = okeys[o + 3];
 			add(n, a, b, c, d, mix(n, a, b, c, d), ovals[j]);
 		}
 	}
