@@ -701,6 +701,64 @@ class Scanner {
 		v;
 	}
 
+	// PORT: perf — scanASCIIWhile's predicates as classes of ASCII units (bits of asciiClass), for a loop that reads a
+	// one-byte text's bytes in place (hxmc: a raw address, so no function value in the loop)
+	static inline final classIdentifierPart = 1; // a-z, A-Z, 0-9, _ and $
+	static inline final classWhitespace = 2; // ' ', '\t' .. '\r'
+	static inline final classNotLineBreak = 4; // not '\n' or '\r'
+	static inline final classNotStarOrLineBreak = 8; // not '*', '\n' or '\r'
+	static inline final classTemplateText = 16; // not '`', '$', '\\' or '\r'
+	static inline final classDigit = 32; // 0-9
+
+	static final asciiClass:haxe.ds.Vector<Int> = {
+		final v = new haxe.ds.Vector<Int>(128);
+		for (b in 0...128) {
+			var c = 0;
+			if (asciiIdentifierPart[b])
+				c |= classIdentifierPart;
+			if (b == ' '.code || (b >= '\t'.code && b <= '\r'.code))
+				c |= classWhitespace;
+			if (b != '\n'.code && b != '\r'.code)
+				c |= classNotLineBreak;
+			if (b != '*'.code && b != '\n'.code && b != '\r'.code)
+				c |= classNotStarOrLineBreak;
+			if (b != '`'.code && b != '$'.code && b != '\\'.code && b != '\r'.code)
+				c |= classTemplateText;
+			if (b >= '0'.code && b <= '9'.code)
+				c |= classDigit;
+			v[b] = c;
+		}
+		v;
+	}
+
+	// scanASCIIWhile with the predicate "in class cls" (a constant)
+	inline function scanASCIIClass(cls:Int):Void {
+		final text = this.text;
+		final end = this.end;
+		final table = asciiClass;
+		var i = pos;
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (hxmc.rt.Str.isOne(text)) {
+			final p = hxmc.rt.Str.unitsAddr(text);
+			while (i < end) {
+				final b = hxmc.unsafe.Mem.getU8(p, i);
+				if (b >= Utf16.RuneSelf || table[b] & cls == 0) {
+					break;
+				}
+				i++;
+			}
+		} else
+		#end
+		while (i < end) {
+			final b = StringTools.fastCodeAt(text, i);
+			if (b >= Utf16.RuneSelf || table[b] & cls == 0) {
+				break;
+			}
+			i++;
+		}
+		pos = i;
+	}
+
 	inline function scanASCIIWhile(pred:Int->Bool):Void {
 		final text = this.text;
 		final end = this.end;
@@ -741,7 +799,7 @@ class Scanner {
 					tokenFlags |= TokenFlagsPrecedingLineBreak;
 					if (skipTrivia) {
 						pos++;
-						scanASCIIWhile(b -> b == ' '.code || (b >= '\t'.code && b <= '\r'.code));
+						scanASCIIClass(classWhitespace);
 						continue;
 					}
 					if (ch == '\r'.code && charAt(1) == '\n'.code) {
@@ -866,7 +924,7 @@ class Scanner {
 						pos += 2;
 
 						while (true) {
-							scanASCIIWhile(b -> b != '\n'.code && b != '\r'.code);
+							scanASCIIClass(classNotLineBreak);
 							final ch1 = charAndSize();
 							final size = charSize(ch1);
 							if (size == 0 || Stringutil.IsLineBreak(ch1)) {
@@ -891,7 +949,7 @@ class Scanner {
 						var commentClosed = false;
 						var lastLineStart = tokenStart;
 						while (true) {
-							scanASCIIWhile(b -> b != '*'.code && b != '\n'.code && b != '\r'.code);
+							scanASCIIClass(classNotStarOrLineBreak);
 							final ch1 = charAndSize();
 							final size = charSize(ch1);
 							if (size == 0) {
@@ -1765,7 +1823,7 @@ class Scanner {
 		// Fast path for simple ASCII identifiers
 		if (variant != identifierVariantJSX && (Stringutil.IsASCIILetter(ch) || ch == '_'.code || ch == '$'.code)) {
 			pos++;
-			scanASCIIWhile(b -> asciiIdentifierPart[b]); // PORT: perf — (from tsrs) a table of Go's predicate
+			scanASCIIClass(classIdentifierPart); // PORT: perf — (from tsrs) a table of Go's predicate
 			ch = char();
 			if (ch < Utf16.RuneSelf && ch != '\\'.code) {
 				// PORT: perf — a keyword's value is the keyword table's string (no substring: Go's slice of the
@@ -1889,6 +1947,18 @@ class Scanner {
 				if (i < n)
 					c = quote;
 			} else {
+				#if (target.name == "hxmc" && !hxmc.wasm_gc)
+				// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+				if (hxmc.rt.Str.isOne(text)) {
+					final p = hxmc.rt.Str.unitsAddr(text);
+					while (i < n) {
+						c = hxmc.unsafe.Mem.getU8(p, i);
+						if (c == quote || c == '\\'.code || c == '\n'.code || c == '\r'.code)
+							break;
+						i++;
+					}
+				} else
+				#end
 				while (i < n) {
 					c = StringTools.fastCodeAt(text, i);
 					if (c == quote || c == '\\'.code || c == '\n'.code || c == '\r'.code)
@@ -1941,7 +2011,7 @@ class Scanner {
 		final parts = new Array<String>();
 		var token:Kind = KindUnknown;
 		while (true) {
-			scanASCIIWhile(b -> b != '`'.code && b != '$'.code && b != '\\'.code && b != '\r'.code);
+			scanASCIIClass(classTemplateText);
 			final ch = char();
 			if (ch < 0 || ch == '`'.code) {
 				parts.push(text.substring(start, pos));
@@ -2388,7 +2458,7 @@ class Scanner {
 		final result = new StringBuf();
 		while (true) {
 			final before = pos;
-			scanASCIIWhile(b -> b >= '0'.code && b <= '9'.code);
+			scanASCIIClass(classDigit);
 			if (pos > before) {
 				allowSeparator = true;
 				isPreviousTokenSeparator = false;
