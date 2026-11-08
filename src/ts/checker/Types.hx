@@ -151,8 +151,76 @@ class SymbolReferenceLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Type of value symbol
-	var target:Symbol = null;
-	var mapper:TypeMapper = null;
+	// PORT: perf — target and mapper are fields of the links of a transient symbol (TransientValueSymbolLinks,
+	// Checker.valueSymbolLinks), which has them (the checker makes them: instantiated symbols, synthetic
+	// properties); the links of another symbol keep them in the side record (ValueSymbolTargetExtra; none on
+	// t3code-server): those links are 16 B smaller
+	var target(get, set):Symbol;
+	var mapper(get, set):TypeMapper;
+
+	inline function get_target():Symbol {
+		final t = Std.downcast(this, TransientValueSymbolLinks);
+		return t != null ? t.instTarget : extra == null ? null : targetExtraTarget();
+	}
+
+	inline function get_mapper():TypeMapper {
+		final t = Std.downcast(this, TransientValueSymbolLinks);
+		return t != null ? t.instMapper : extra == null ? null : targetExtraMapper();
+	}
+
+	function targetExtraTarget():Symbol {
+		final x = Std.downcast(extra, ValueSymbolTargetExtra);
+		return x == null ? null : x.target;
+	}
+
+	function targetExtraMapper():TypeMapper {
+		final x = Std.downcast(extra, ValueSymbolTargetExtra);
+		return x == null ? null : x.mapper;
+	}
+
+	// the side record with the target and mapper (null when v is nil and there is none: nothing to write)
+	function targetExtra(v:Dynamic):ValueSymbolTargetExtra {
+		var x = Std.downcast(extra, ValueSymbolTargetExtra);
+		if (x == null) {
+			if (v == null) {
+				return null;
+			}
+			x = new ValueSymbolTargetExtra();
+			final o = extra;
+			if (o != null) {
+				x.writeType = o.writeType;
+				x.nameType = o.nameType;
+				x.containingType = o.containingType;
+				x.functionOrConstructorChecked = o.functionOrConstructorChecked;
+			}
+			extra = x;
+		}
+		return x;
+	}
+
+	function set_target(v:Symbol):Symbol {
+		final t = Std.downcast(this, TransientValueSymbolLinks);
+		if (t != null) {
+			return t.instTarget = v;
+		}
+		final x = targetExtra(v);
+		if (x != null) {
+			x.target = v;
+		}
+		return v;
+	}
+
+	function set_mapper(v:TypeMapper):TypeMapper {
+		final t = Std.downcast(this, TransientValueSymbolLinks);
+		if (t != null) {
+			return t.instMapper = v;
+		}
+		final x = targetExtra(v);
+		if (x != null) {
+			x.mapper = v;
+		}
+		return v;
+	}
 	// PORT: perf — from TypeScript main (microsoft/typescript-go#64797): the rarely set fields in a side record
 	// (allocated when one is set to a non-nil value)
 	var extra:ValueSymbolExtra = null;
@@ -230,6 +298,28 @@ class ValueSymbolExtra {
 	var functionOrConstructorChecked:Bool = false;
 
 	public function new() {}
+}
+
+// the value links of a transient symbol (see ValueSymbolLinks.target)
+@:allow(ts.checker)
+class TransientValueSymbolLinks extends ValueSymbolLinks {
+	var instTarget:Symbol = null;
+	var instMapper:TypeMapper = null;
+
+	public function new() {
+		super();
+	}
+}
+
+// the side record of the value links of a symbol that is not transient, with a target or mapper
+@:allow(ts.checker)
+class ValueSymbolTargetExtra extends ValueSymbolExtra {
+	var target:Symbol = null;
+	var mapper:TypeMapper = null;
+
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)

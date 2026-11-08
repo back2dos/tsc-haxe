@@ -1507,7 +1507,9 @@ class Checker {
 	var jsxElementLinks:LinkStore<Node, JsxElementLinks> = new LinkStore<Node, JsxElementLinks>(() -> new JsxElementLinks());
 	var computedNameLinks:LinkStore<Node, ComputedNameNodeLinks> = new LinkStore<Node, ComputedNameNodeLinks>(() -> new ComputedNameNodeLinks());
 	var symbolReferenceLinks:LinkStore<Symbol, SymbolReferenceLinks> = new LinkStore<Symbol, SymbolReferenceLinks>(() -> new SymbolReferenceLinks());
-	var valueSymbolLinks:LinkStore<Symbol, ValueSymbolLinks> = new LinkStore<Symbol, ValueSymbolLinks>(() -> new ValueSymbolLinks());
+	// PORT: perf — a transient symbol's value links have its target and mapper (TransientValueSymbolLinks)
+	var valueSymbolLinks:LinkStore<Symbol, ValueSymbolLinks> = new LinkStore<Symbol, ValueSymbolLinks>(() -> new ValueSymbolLinks(),
+		s -> (s.Flags & SymbolFlagsTransient) != 0 ? new TransientValueSymbolLinks() : new ValueSymbolLinks());
 	var mappedSymbolLinks:LinkStore<Symbol, MappedSymbolLinks> = new LinkStore<Symbol, MappedSymbolLinks>(() -> new MappedSymbolLinks());
 	var deferredSymbolLinks:LinkStore<Symbol, DeferredSymbolLinks> = new LinkStore<Symbol, DeferredSymbolLinks>(() -> new DeferredSymbolLinks());
 	var aliasSymbolLinks:LinkStore<Symbol, AliasSymbolLinks> = new LinkStore<Symbol, AliasSymbolLinks>(() -> new AliasSymbolLinks());

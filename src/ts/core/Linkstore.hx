@@ -14,12 +14,15 @@ package ts.core;
 // entry), so a link is one object (no separate entry: 32 B less per link, one load less per lookup).
 class LinkStore<K, V:LinkEntry> {
 	final arena:Arena<V>;
+	// PORT: perf — the value for a key, when it depends on the key (a subclass with more fields for some keys)
+	final forKey:Null<K->V>;
 	#if tshx_parallel
 	static final insertMutex = new sys.thread.Mutex();
 	#end
 
-	public function new(factory:() -> V) {
+	public function new(factory:() -> V, ?forKey:K->V) {
 		this.arena = new Arena<V>(factory);
+		this.forKey = forKey;
 	}
 
 	// PORT: perf — inline: the key's first entry (most often this store's: the last one to add a link to the key)
@@ -39,7 +42,7 @@ class LinkStore<K, V:LinkEntry> {
 				return cast e;
 			e = e.linkNext;
 		}
-		final value:LinkEntry = arena.New();
+		final value:LinkEntry = forKey != null ? forKey(key) : arena.New();
 		value.linkStore = self;
 		#if tshx_parallel
 		// PORT: hxmc (-D tshx-parallel) — the key's list is shared by the stores of all checkers: the
