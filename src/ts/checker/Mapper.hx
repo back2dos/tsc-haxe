@@ -105,6 +105,46 @@ class ArrayTypeMapper extends TypeMapperBase {
 	public override function MapsThisOnly():Bool {
 		return Core.len(sources) == 1 && Checker.isThisTypeParameter(sources[0]);
 	}
+
+	// the targets as Go's slice (see ThisArgumentTypeMapper)
+	function targetCount():Int {
+		return Core.len(targets);
+	}
+
+	function targetAt(i:Int):Type {
+		return targets[i];
+	}
+}
+
+// PORT: perf — Go's ArrayTypeMapper of a class or interface reference's members (resolveObjectTypeMembers):
+// sources the target's type parameters (outer, local, this), targets `append(typeArguments, t)`. The targets are
+// the reference's type arguments (not copied) and the this argument: no new slice per resolved reference (1M on
+// t3code-server). Maps and compares as Go's ArrayTypeMapper with the concatenated targets.
+@:allow(ts.checker)
+class ThisArgumentTypeMapper extends ArrayTypeMapper {
+	var thisArgument:Type = null; // targets[len(sources) - 1]
+
+	public function new() {
+		super();
+	}
+
+	public override function Map(t:Type):Type {
+		final n = sources.length;
+		for (i in 0...n) {
+			if (t == sources[i]) {
+				return i < n - 1 ? targets[i] : thisArgument;
+			}
+		}
+		return t;
+	}
+
+	override function targetCount():Int {
+		return Core.len(targets) + 1;
+	}
+
+	override function targetAt(i:Int):Type {
+		return i < Core.len(targets) ? targets[i] : thisArgument;
+	}
 }
 
 @:allow(ts.checker)

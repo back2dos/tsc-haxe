@@ -2868,27 +2868,30 @@ class CheckerPart5 {
 		var constructSignatures:Array<Signature> = null;
 		var indexInfos:Array<IndexInfo> = null;
 		final source = Checker.getTargetType(t);
+		// PORT: perf — Go appends t to typeArguments (a new slice); here appendThis says so and the slice is not made
+		// (len(typeArguments) + 1 in the comparisons, t as its last element, a ThisArgumentTypeMapper)
+		var appendThis = false;
 		if ((t.objectFlags & ObjectFlagsReference) != 0) {
 			typeParameters = source.AsInterfaceType().allTypeParameters;
 			typeArguments = c.getTypeArguments(t);
 			if (Core.len(typeArguments) == Core.len(typeParameters) - 1) {
-				typeArguments = Core.Concatenate(typeArguments, [t]);
+				appendThis = true;
 			}
 		}
 		final resolved = c.resolveDeclaredMembers(source);
-		if (Slices.Equal(typeParameters, typeArguments)) {
+		if (appendThis ? equalWithThis(typeParameters, typeArguments, t) : Slices.Equal(typeParameters, typeArguments)) {
 			callSignatures = resolved.declaredCallSignatures;
 			constructSignatures = resolved.declaredConstructSignatures;
 			indexInfos = resolved.declaredIndexInfos;
 		} else {
-			mapper = Checker.newTypeMapper(typeParameters, typeArguments);
+			mapper = appendThis ? Checker.newThisArgumentTypeMapper(typeParameters, typeArguments, t) : Checker.newTypeMapper(typeParameters, typeArguments);
 			callSignatures = c.instantiateSignatures(resolved.declaredCallSignatures, mapper);
 			constructSignatures = c.instantiateSignatures(resolved.declaredConstructSignatures, mapper);
 			indexInfos = c.instantiateIndexInfos(resolved.declaredIndexInfos, mapper);
 		}
 		final baseTypes = c.getBaseTypes(source);
 		var instantiatedBaseTypes = baseTypes;
-		final thisArgument = Core.LastOrNil(typeArguments);
+		final thisArgument = appendThis ? t : Core.LastOrNil(typeArguments);
 		if (Core.len(baseTypes) != 0 && thisArgument != null) {
 			instantiatedBaseTypes = [
 				for (baseType in baseTypes)
@@ -2923,6 +2926,17 @@ class CheckerPart5 {
 		t.AsTypeReference().lazy = lazyState;
 		c.propagateResolvedDeclaredMembers();
 		c.resolvingObjectTypeStack.pop();
+	}
+
+	// slices.Equal(typeParameters, append(typeArguments, t)) (len(typeParameters) == len(typeArguments) + 1)
+	static function equalWithThis(typeParameters:Array<Type>, typeArguments:Array<Type>, t:Type):Bool {
+		final n = Core.len(typeArguments);
+		for (i in 0...n) {
+			if (typeParameters[i] != typeArguments[i]) {
+				return false;
+			}
+		}
+		return typeParameters[n] == t;
 	}
 
 	static function propagateResolvedDeclaredMembers(c:Checker):Void {

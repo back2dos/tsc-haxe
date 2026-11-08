@@ -3768,6 +3768,19 @@ class Checker {
 		return m;
 	}
 
+	// PORT: perf — newTypeMapper(sources, append(typeArguments, thisArgument)) without the new slice
+	// (ThisArgumentTypeMapper); len(sources) == len(typeArguments) + 1
+	static function newThisArgumentTypeMapper(sources:Array<Type>, typeArguments:Array<Type>, thisArgument:Type):TypeMapper {
+		if (sources.length == 1) {
+			return newSimpleTypeMapper(sources[0], thisArgument);
+		}
+		final m = new ThisArgumentTypeMapper();
+		m.sources = sources;
+		m.targets = typeArguments;
+		m.thisArgument = thisArgument;
+		return m;
+	}
+
 	static function newArrayToSingleTypeMapper(sources:Array<Type>, target:Type):TypeMapper {
 		final m = new ArrayToSingleTypeMapper();
 		m.sources = sources;
@@ -6018,7 +6031,18 @@ class Checker {
 				if (c != 0) {
 					return c;
 				}
-				return compareTypeLists(m1.targets, m2.targets);
+				// PORT: perf — compareTypeLists(m1.targets, m2.targets) over the targets as Go's (ThisArgumentTypeMapper)
+				final n1 = m1.targetCount(), n2 = m2.targetCount();
+				if (n1 != n2) {
+					return n1 - n2;
+				}
+				for (i in 0...n1) {
+					final c = CompareTypes(m1.targetAt(i), m2.targetAt(i));
+					if (c != 0) {
+						return c;
+					}
+				}
+				return 0;
 			case TypeMapperKindMerged:
 				final m1:MergedTypeMapper = cast m1;
 				final m2:MergedTypeMapper = cast m2;
