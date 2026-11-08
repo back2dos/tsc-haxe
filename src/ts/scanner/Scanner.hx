@@ -598,11 +598,11 @@ class Scanner {
 				return;
 			}
 			start = i + 1;
-			if ((tokenFlags & TokenFlagsPrecedingJSDocWithDeprecated) == 0 && hasJSDocTag(text, start, commentEnd, "deprecated")) {
+			if ((tokenFlags & TokenFlagsPrecedingJSDocWithDeprecated) == 0 && hasJSDocTag(text, start, commentEnd, jsdocDeprecatedTags)) {
 				tokenFlags |= TokenFlagsPrecedingJSDocWithDeprecated;
 			}
 			if ((tokenFlags & TokenFlagsPrecedingJSDocWithSeeOrLink) == 0
-				&& hasJSDocTag(text, start, commentEnd, "see", "link", "linkcode", "linkplain")) {
+				&& hasJSDocTag(text, start, commentEnd, jsdocSeeOrLinkTags)) {
 				tokenFlags |= TokenFlagsPrecedingJSDocWithSeeOrLink;
 			}
 			if ((tokenFlags & (TokenFlagsPrecedingJSDocWithDeprecated | TokenFlagsPrecedingJSDocWithSeeOrLink)) == (TokenFlagsPrecedingJSDocWithDeprecated | TokenFlagsPrecedingJSDocWithSeeOrLink)) {
@@ -614,7 +614,11 @@ class Scanner {
 	// hasJSDocTag reports whether text starts with one of the given tag names followed
 	// by a valid JSDoc tag terminator (whitespace, '}', '*', or end-of-string).
 	// PORT: `text` is Go's text[start:] (see scanJSDocCommentForTags), up to `end`.
-	static function hasJSDocTag(text:String, start:Int, end:Int, ...tags:String):Bool {
+	// PORT: perf — the tag lists of Go's variadic calls as arrays made once (a rest argument made one per '@')
+	static final jsdocDeprecatedTags = ["deprecated"];
+	static final jsdocSeeOrLinkTags = ["see", "link", "linkcode", "linkplain"];
+
+	static function hasJSDocTag(text:String, start:Int, end:Int, tags:Array<String>):Bool {
 		for (tag in tags) {
 			if (end - start < tag.length || !hasPrefixAt(text, start, tag)) {
 				continue;
