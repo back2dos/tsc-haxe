@@ -1421,6 +1421,7 @@ class Checker {
 	var memberLayoutCount:Int = 0;
 	var resolvingObjectTypeStack:Array<ResolvingObjectType> = [];
 	var markerTypes:Set<Type> = new Set<Type>();
+	var resolvingExplicitTypeOfSymbol:Set<Symbol> = new Set<Symbol>();
 	var undefinedSymbol:Symbol = null;
 	var argumentsSymbol:Symbol = null;
 	var requireSymbol:Symbol = null;

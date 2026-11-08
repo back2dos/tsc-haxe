@@ -840,13 +840,13 @@ class Flow {
 	}
 
 	static function isMatchingConstructorReference(c:Checker, f:FlowState, expr:Node):Bool {
-		if (Ast.IsAccessExpression(expr)) {
-			final accessed = c.getAccessedPropertyName(expr);
-			if (accessed != null && accessed == "constructor" && c.isMatchingReference(f.reference, expr.Expression())) {
-				return true;
-			}
+		var name:Node = null;
+		if (Ast.IsPropertyAccessExpression(expr)) {
+			name = expr.AsPropertyAccessExpression().Name();
+		} else if (Ast.IsElementAccessExpression(expr) && Ast.IsStringLiteralLike(expr.AsElementAccessExpression().ArgumentExpression)) {
+			name = expr.AsElementAccessExpression().ArgumentExpression;
 		}
-		return false;
+		return name != null && name.Text() == "constructor" && c.isMatchingReference(f.reference, expr.Expression());
 	}
 
 	static function narrowTypeByConstructor(c:Checker, t:Type, operator_:Kind, identifier:Node, assumeTrue:Bool):Type {
@@ -2292,6 +2292,20 @@ class Flow {
 
 	static function getExplicitTypeOfSymbol(c:Checker, symbol:Symbol, diagnostic:Diagnostic):Type {
 		symbol = c.resolveSymbol(symbol);
+		if (!c.resolvingExplicitTypeOfSymbol.AddIfAbsent(symbol)) {
+			return null;
+		}
+		// PORT: defer c.resolvingExplicitTypeOfSymbol.Delete(symbol)
+		final result = try getExplicitTypeOfSymbolWorker(c, symbol, diagnostic) catch (e:Dynamic) {
+			c.resolvingExplicitTypeOfSymbol.Delete(symbol);
+			throw e;
+		};
+		c.resolvingExplicitTypeOfSymbol.Delete(symbol);
+		return result;
+	}
+
+	// PORT: the body of Go's getExplicitTypeOfSymbol after its defer.
+	static function getExplicitTypeOfSymbolWorker(c:Checker, symbol:Symbol, diagnostic:Diagnostic):Type {
 		if ((symbol.Flags & (SymbolFlagsFunction | SymbolFlagsMethod | SymbolFlagsClass | SymbolFlagsValueModule)) != 0) {
 			return c.getTypeOfSymbol(symbol);
 		}
@@ -2669,7 +2683,7 @@ class Flow {
 			}
 			final flags = flow.Flags;
 			if ((flags & FlowFlagsShared) != 0) {
-				if (!noCacheCheck) {
+				if (!noCacheCheck && Core.len(f.reduceLabels) == 0) {
 					if (c.flowNodeReachable.exists(flow)) {
 						return c.flowNodeReachable.get(flow);
 					}
@@ -2827,9 +2841,6 @@ class Flow {
 	}
 
 	static function ensureAssignmentsMarked(c:Checker, symbol:Symbol):Void {
-		if (c.markedAssignmentSymbolLinks.Get(symbol).lastAssignmentPos != 0) {
-			return;
-		}
 		final parent = Ast.FindAncestor(symbol.ValueDeclaration, Ast.IsFunctionOrSourceFile);
 		if (parent == null) {
 			return;
