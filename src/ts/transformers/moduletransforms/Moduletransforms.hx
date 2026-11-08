@@ -21,6 +21,8 @@ class Moduletransforms {
 		tx.compilerOptions = compilerOptions;
 		tx.resolver = opts.Resolver;
 		tx.getEmitModuleFormatOfFile = opts.GetEmitModuleFormatOfFile;
+		tx.contentMapperExtensionRewrites = opts.ContentMapperExtensionRewrites;
+		tx.ignoreCase = opts.IgnoreCase;
 		tx.topLevelVisitor = emitContext.NewNodeVisitor(tx.visitTopLevel);
 		tx.topLevelNestedVisitor = emitContext.NewNodeVisitor(tx.visitTopLevelNested);
 		tx.discardedValueVisitor = emitContext.NewNodeVisitor(tx.visitDiscardedValue);
@@ -38,6 +40,8 @@ class Moduletransforms {
 		tx.compilerOptions = compilerOptions;
 		tx.resolver = opts.Resolver;
 		tx.getEmitModuleFormatOfFile = opts.GetEmitModuleFormatOfFile;
+		tx.contentMapperExtensionRewrites = opts.ContentMapperExtensionRewrites;
+		tx.ignoreCase = opts.IgnoreCase;
 		return tx.Transformer.NewTransformer(tx.visit, opts.Context);
 	}
 
@@ -209,13 +213,20 @@ class Moduletransforms {
 		return false;
 	}
 
-	static function rewriteModuleSpecifier(emitContext:EmitContext, node:Expression, compilerOptions:CompilerOptions):Expression {
-		// PORT: content mappers (main's tspath.ExtensionRewrite list, rewrites) are not ported; without rewrites,
-		// ModuleSpecifier.ShouldRewriteExtension is Core.ShouldRewriteModuleSpecifier and RewriteExtension never rewrites.
-		if (node == null || !Ast.IsStringLiteralLike(node) || !Core.ShouldRewriteModuleSpecifier(node.Text(), compilerOptions)) {
+	static function rewriteModuleSpecifier(emitContext:EmitContext, node:Expression, compilerOptions:CompilerOptions,
+			rewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>>, ignoreCase:Bool):Expression {
+		if (node == null || !Ast.IsStringLiteralLike(node) || !compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
 			return node;
 		}
-		final updatedText = Tspath.ChangeExtension(node.Text(), Outputpaths.GetOutputExtension(node.Text(), compilerOptions.Jsx));
+		final specifier = node.Text();
+		if (!ts.tspath.Tspath.ExtensionRewrites.ShouldRewriteExtension(specifier, rewrites, ignoreCase)) {
+			return node;
+		}
+		final r = ts.tspath.Tspath.ExtensionRewrites.RewriteSpecifierExtension(specifier, rewrites, ignoreCase);
+		var updatedText = r.value;
+		if (!r.ok) {
+			updatedText = Tspath.ChangeExtension(node.Text(), Outputpaths.GetOutputExtension(node.Text(), compilerOptions.Jsx));
+		}
 		if (updatedText != node.Text()) {
 			var updated:Expression;
 			if (Ast.IsStringLiteral(node)) {

@@ -76,4 +76,5 @@ enum abstract InternalFlags(Int) from Int to Int {
 	var InternalFlagsNoSyntacticPrinter = 1 << 1;
 	var InternalFlagsDoNotIncludeSymbolChain = 1 << 2;
 	var InternalFlagsAllowUnresolvedNames = 1 << 3;
+	var InternalFlagsRewriteModuleSpecifiers = 1 << 4;
 }

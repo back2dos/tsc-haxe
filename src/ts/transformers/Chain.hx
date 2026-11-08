@@ -29,6 +29,9 @@ class TransformOptions {
 	public var Resolver:ReferenceResolver = null;
 	public var EmitResolver:EmitResolver = null;
 	public var GetEmitModuleFormatOfFile:(file:HasFileName) -> ModuleKind = null;
+	public var ContentMapperExtensionRewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>> = null;
+	// PORT: tspath.CaseSensitivity → ignoreCase
+	public var IgnoreCase:Bool = false;
 
 	public function new() {}
 }

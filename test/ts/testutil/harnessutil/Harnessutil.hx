@@ -1240,6 +1240,9 @@ class CompilationResult {
 				path = Tspath.CombinePaths(Tspath.ResolvePath(this.Host.GetCurrentDirectory(), this.Options.OutDir), path);
 			}
 		}
+		if (ext == Tspath.GetDeclarationEmitExtensionForPath(path)) {
+			return Outputpaths.ChangeToDeclarationExtension(path, this.Program.Program());
+		}
 		return Tspath.ChangeExtension(path, ext);
 	}
 
@@ -1315,13 +1318,14 @@ class CompilationResult {
 			final sourceMapSpanWriter = SourceMapSpanWriter.newSourceMapSpanWriter(sourceMapRecorder, sourceMapData.SourceMap, currentFile);
 			final mapper = ts.sourcemap.Sourcemap.DecodeMappings(sourceMapData.SourceMap.Mappings);
 			for (decodedSourceMapping in mapper.Values()) {
-				var currentSourceFile:SourceFile = null;
-				if (decodedSourceMapping.IsSourceMapping()) {
-					currentSourceFile = this.Program.GetSourceFile(sourceMapData.InputSourceFileNames[decodedSourceMapping.SourceIndex]);
+				if (!decodedSourceMapping.IsSourceMapping()) {
+					sourceMapSpanWriter.recordSourceMapSpan(decodedSourceMapping);
+					continue;
 				}
+				final currentSourceFile = this.Program.GetSourceFile(sourceMapData.InputSourceFileNames[decodedSourceMapping.SourceIndex]);
 				if (currentSourceFile != prevSourceFile) {
 					if (currentSourceFile != null) {
-						sourceMapSpanWriter.recordNewSourceFileSpan(decodedSourceMapping, currentSourceFile.Text());
+						sourceMapSpanWriter.recordNewSourceFileSpan(decodedSourceMapping, currentSourceFile.OriginalText());
 					}
 					prevSourceFile = currentSourceFile;
 				} else {

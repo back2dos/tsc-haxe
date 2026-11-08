@@ -816,7 +816,7 @@ class Declarations {
 
 	static final declarationEmitNodeBuilderFlags:Flags = cast 531469;
 
-	static final declarationEmitInternalNodeBuilderFlags:InternalFlags = cast 8;
+	static final declarationEmitInternalNodeBuilderFlags:InternalFlags = cast(8 | 16); // AllowUnresolvedNames | RewriteModuleSpecifiers
 
 	static function throwDiagnostic(result:SymbolAccessibilityResult):SymbolAccessibilityDiagnostic {
 		throw "Diagnostic emitted without context";

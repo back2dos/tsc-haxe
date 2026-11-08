@@ -89,6 +89,8 @@ class Compiler {
 		opts.Resolver = referenceResolver;
 		opts.EmitResolver = emitResolver;
 		opts.GetEmitModuleFormatOfFile = host.GetEmitModuleFormatOfFile;
+		opts.ContentMapperExtensionRewrites = host.ContentMapperExtensionRewrites();
+		opts.IgnoreCase = !host.UseCaseSensitiveFileNames();
 
 		// transform TypeScript syntax
 		{

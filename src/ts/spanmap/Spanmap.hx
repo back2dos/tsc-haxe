@@ -373,6 +373,28 @@ class Spanmap {
 		return new Pair(seg.OriginalStart, FidelityAtom);
 	}
 
+	// VirtualToOriginalPositionExact maps a position only when it is unambiguously in verbatim content.
+	// A boundary touching an atom is rejected because the same virtual position can describe either side.
+	public static function VirtualToOriginalPositionExact(m:Null<Spanmap>, pos:Int):ValueOk<Int> {
+		final r = VirtualToOriginalPosition(m, pos);
+		final mapped = r.a, fidelity = r.b;
+		if (fidelity != FidelityExact || m == null) {
+			return new ValueOk(mapped, fidelity == FidelityExact);
+		}
+		final idx = m.segmentIndexAt(pos);
+		final index = idx.value;
+		if (!idx.ok || m.segments[index].Kind != KindVerbatim) {
+			return new ValueOk(mapped, false);
+		}
+		if (index > 0) {
+			final previous = m.segments[index - 1];
+			if (previous.VirtualEnd == pos && (previous.Kind != KindVerbatim || previous.OriginalEnd != m.segments[index].OriginalStart)) {
+				return new ValueOk(mapped, false);
+			}
+		}
+		return new ValueOk(mapped, true);
+	}
+
 	// AliasForVirtualSpan returns the alias segment exactly covering r.
 	public static function AliasForVirtualSpan(m:Null<Spanmap>, r:TextRange):ValueOk<Segment> {
 		if (m == null) {

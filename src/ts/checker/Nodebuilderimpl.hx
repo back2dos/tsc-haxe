@@ -1195,10 +1195,23 @@ class NodeBuilderImpl {
 
 	// PORT: Go takes the result by value and returns a modified copy.
 	function moduleSpecifierResultForSymbol(result:ModuleSpecifierResult, importAttributesType:Type, symbol:Symbol):ModuleSpecifierResult {
+		var attributesType = result.importAttributesType;
 		if (importAttributesType != null && this.moduleSpecifierResolvesToSymbol(result.specifier, importAttributesType, symbol)) {
-			return new ModuleSpecifierResult(result.specifier, importAttributesType);
+			attributesType = importAttributesType;
 		}
-		return result;
+		// PORT: Go value struct: a new result (the cached one is shared).
+		return new ModuleSpecifierResult(this.rewriteContentMappedModuleSpecifier(result.specifier), attributesType);
+	}
+
+	function rewriteContentMappedModuleSpecifier(specifier:std.String):std.String {
+		if (((this.ctx.internalFlags : Int) & (InternalFlagsRewriteModuleSpecifiers : Int)) != 0 && this.ch.compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
+			final rewrites = this.ctx.host.ContentMapperExtensionRewrites();
+			final ignoreCase = !this.ctx.host.UseCaseSensitiveFileNames();
+			if (ts.tspath.Tspath.ExtensionRewrites.ShouldRewriteExtension(specifier, rewrites, ignoreCase)) {
+				return ts.tspath.Tspath.ExtensionRewrites.RewriteSpecifierExtension(specifier, rewrites, ignoreCase).value;
+			}
+		}
+		return specifier;
 	}
 
 	function moduleSpecifierResolvesToSymbol(specifier:std.String, importAttributesType:Type, symbol:Symbol):Bool {
