@@ -118,7 +118,10 @@ class GenAst {
 		"CallExpression" => ["Symbol", "QuestionDotToken", "TypeArguments"],
 		"PropertyAccessExpression" => ["QuestionDotToken"],
 		"PropertyAssignment" => ["PostfixToken", "Type", "modifiers"],
+		"ParameterDeclaration" => ["DotDotDotToken", "Initializer"],
+		"VariableDeclaration" => ["ExclamationToken"],
 		"ShorthandPropertyAssignment" => ["EqualsToken", "ObjectAssignmentInitializer", "PostfixToken", "Type", "modifiers"],
+		"BindingElement" => ["LocalSymbol", "Initializer", "DotDotDotToken"],
 	];
 
 	static final HAXE_KEYWORDS = [

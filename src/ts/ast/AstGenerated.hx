@@ -1633,9 +1633,19 @@ class VariableDeclaration extends NodeDefault implements DeclarationBase impleme
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var name:BindingName = null;
-	public var ExclamationToken:ExclamationToken = null;
+	public var ExclamationToken(get, set):ExclamationToken; // (in VariableDeclarationRare)
 	public var Type:TypeNode = null;
 	public var Initializer:Expression = null;
+	inline function get_ExclamationToken():ExclamationToken return links == null ? null : rare_ExclamationToken();
+	function rare_ExclamationToken():ExclamationToken {
+		final r = VariableDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.ExclamationToken;
+	}
+	function set_ExclamationToken(v:ExclamationToken):ExclamationToken {
+		final r = v != null ? VariableDeclarationRare.store.Get(this) : VariableDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.ExclamationToken = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
@@ -1648,8 +1658,9 @@ class VariableDeclaration extends NodeDefault implements DeclarationBase impleme
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = VariableDeclarationRare.store.TryGetInline(this);
 		return Ast.visit(v, this.name)
-			|| Ast.visit(v, this.ExclamationToken)
+			|| Ast.visit(v, (r == null ? null : r.ExclamationToken))
 			|| Ast.visit(v, this.Type)
 			|| Ast.visit(v, this.Initializer);
 	}
@@ -1682,6 +1693,17 @@ class VariableDeclaration extends NodeDefault implements DeclarationBase impleme
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few VariableDeclaration nodes set (see GenAst.RARE_FIELDS)
+class VariableDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, VariableDeclarationRare>(() -> new VariableDeclarationRare());
+
+	public var ExclamationToken:ExclamationToken = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -1772,11 +1794,31 @@ class ParameterDeclaration extends NodeDefault implements DeclarationBase implem
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var facts(get, set):Int = 0;
-	public var DotDotDotToken:DotDotDotToken = null;
+	public var DotDotDotToken(get, set):DotDotDotToken; // (in ParameterDeclarationRare)
 	public var name:BindingName = null;
 	public var QuestionToken:QuestionToken = null;
 	public var Type:TypeNode = null;
-	public var Initializer:Expression = null;
+	public var Initializer(get, set):Expression; // (in ParameterDeclarationRare)
+	inline function get_DotDotDotToken():DotDotDotToken return links == null ? null : rare_DotDotDotToken();
+	function rare_DotDotDotToken():DotDotDotToken {
+		final r = ParameterDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.DotDotDotToken;
+	}
+	function set_DotDotDotToken(v:DotDotDotToken):DotDotDotToken {
+		final r = v != null ? ParameterDeclarationRare.store.Get(this) : ParameterDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.DotDotDotToken = v;
+		return v;
+	}
+	inline function get_Initializer():Expression return links == null ? null : rare_Initializer();
+	function rare_Initializer():Expression {
+		final r = ParameterDeclarationRare.store.TryGetInline(this);
+		return r == null ? null : r.Initializer;
+	}
+	function set_Initializer(v:Expression):Expression {
+		final r = v != null ? ParameterDeclarationRare.store.Get(this) : ParameterDeclarationRare.store.TryGetInline(this);
+		if (r != null) r.Initializer = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -1789,12 +1831,13 @@ class ParameterDeclaration extends NodeDefault implements DeclarationBase implem
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = ParameterDeclarationRare.store.TryGetInline(this);
 		return Ast.visitModifiers(v, this.modifiers)
-			|| Ast.visit(v, this.DotDotDotToken)
+			|| Ast.visit(v, (r == null ? null : r.DotDotDotToken))
 			|| Ast.visit(v, this.name)
 			|| Ast.visit(v, this.QuestionToken)
 			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.Initializer);
+			|| Ast.visit(v, (r == null ? null : r.Initializer));
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -1835,23 +1878,63 @@ class ParameterDeclaration extends NodeDefault implements DeclarationBase implem
 
 }
 
+// the fields that few ParameterDeclaration nodes set (see GenAst.RARE_FIELDS)
+class ParameterDeclarationRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ParameterDeclarationRare>(() -> new ParameterDeclarationRare());
+
+	public var DotDotDotToken:DotDotDotToken = null;
+	public var Initializer:Expression = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // BindingElement
 // ──────────────────────────────────────────────────────────────────────
 
 class BindingElement extends NodeDefault implements DeclarationBase implements ExportableBase implements FlowNodeBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var LocalSymbol(get, set):Symbol = null;
+	public var LocalSymbol(get, set):Symbol; // (in BindingElementRare)
 	@:isVar public var FlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
-	public var DotDotDotToken:DotDotDotToken = null;
+	public var DotDotDotToken(get, set):DotDotDotToken; // (in BindingElementRare)
 	public var PropertyName:PropertyName = null;
 	public var name:BindingName = null;
-	public var Initializer:Expression = null;
+	public var Initializer(get, set):Expression; // (in BindingElementRare)
+	inline function get_LocalSymbol():Symbol return links == null ? null : rare_LocalSymbol();
+	function rare_LocalSymbol():Symbol {
+		final r = BindingElementRare.store.TryGetInline(this);
+		return r == null ? null : r.LocalSymbol;
+	}
+	function set_LocalSymbol(v:Symbol):Symbol {
+		final r = v != null ? BindingElementRare.store.Get(this) : BindingElementRare.store.TryGetInline(this);
+		if (r != null) r.LocalSymbol = v;
+		return v;
+	}
+	inline function get_Initializer():Expression return links == null ? null : rare_Initializer();
+	function rare_Initializer():Expression {
+		final r = BindingElementRare.store.TryGetInline(this);
+		return r == null ? null : r.Initializer;
+	}
+	function set_Initializer(v:Expression):Expression {
+		final r = v != null ? BindingElementRare.store.Get(this) : BindingElementRare.store.TryGetInline(this);
+		if (r != null) r.Initializer = v;
+		return v;
+	}
+	inline function get_DotDotDotToken():DotDotDotToken return links == null ? null : rare_DotDotDotToken();
+	function rare_DotDotDotToken():DotDotDotToken {
+		final r = BindingElementRare.store.TryGetInline(this);
+		return r == null ? null : r.DotDotDotToken;
+	}
+	function set_DotDotDotToken(v:DotDotDotToken):DotDotDotToken {
+		final r = v != null ? BindingElementRare.store.Get(this) : BindingElementRare.store.TryGetInline(this);
+		if (r != null) r.DotDotDotToken = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_LocalSymbol():Symbol return LocalSymbol;
-	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
 	inline function get_facts():Int return facts;
@@ -1862,10 +1945,11 @@ class BindingElement extends NodeDefault implements DeclarationBase implements E
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visit(v, this.DotDotDotToken)
+		final r = BindingElementRare.store.TryGetInline(this);
+		return Ast.visit(v, (r == null ? null : r.DotDotDotToken))
 			|| Ast.visit(v, this.PropertyName)
 			|| Ast.visit(v, this.name)
-			|| Ast.visit(v, this.Initializer);
+			|| Ast.visit(v, (r == null ? null : r.Initializer));
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -1900,6 +1984,19 @@ class BindingElement extends NodeDefault implements DeclarationBase implements E
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few BindingElement nodes set (see GenAst.RARE_FIELDS)
+class BindingElementRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, BindingElementRare>(() -> new BindingElementRare());
+
+	public var LocalSymbol:Symbol = null;
+	public var Initializer:Expression = null;
+	public var DotDotDotToken:DotDotDotToken = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
