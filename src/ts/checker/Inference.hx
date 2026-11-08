@@ -19,8 +19,12 @@ class InferenceKey {
 
 	// PORT: struct map key (map[InferenceKey]…), same convention as the key types in Checker.hx.
 	// priority, contravariant and bivariant packed into one Int as main's CacheHashKey.Hi does.
+	public static inline function keyRest(priority:InferencePriority, contravariant:Bool, bivariant:Bool):Int {
+		return ((priority : Int) << 2) | (contravariant ? 2 : 0) | (bivariant ? 1 : 0);
+	}
+
 	public static inline function keyOf(source:TypeId, target:TypeId, priority:InferencePriority, contravariant:Bool, bivariant:Bool):std.String {
-		return go.MapKey.i3(source, target, ((priority : Int) << 2) | (contravariant ? 2 : 0) | (bivariant ? 1 : 0));
+		return go.MapKey.i3(source, target, keyRest(priority, contravariant, bivariant));
 	}
 
 	public function Key():std.String {
@@ -39,7 +43,9 @@ class InferenceState {
 	var bivariant:Bool = false;
 	var expandingFlags:ExpandingFlags = 0;
 	var propagationType:Type = null;
-	var visited:StringMap<InferencePriority> /* key: checker.InferenceKey */ = null;
+	// PORT: perf — map[InferenceKey]InferencePriority as a ScratchKeyMap of (source id, target id, the rest packed as
+	// InferenceKey.keyOf does): no key string per lookup, and its table kept when the pooled state is put back
+	var visited:ts.core.ScratchKeyMap = null;
 	var sourceStack:Array<Type> = null;
 	var targetStack:Array<Type> = null;
 	var next:InferenceState = null;
@@ -419,16 +425,19 @@ class Inference {
 	// such that we would go on inferring forever, even though we would never infer
 	// between the same pair of types.
 	static function invokeOnce(c:Checker, n:InferenceState, source:Type, target:Type, action:(c:Checker, n:InferenceState, source:Type, target:Type) -> Void):Void {
-		final key = InferenceKey.keyOf(source.id, target.id, n.priority, n.contravariant, n.bivariant);
-		if (n.visited != null && n.visited.exists(key)) {
-			final status = n.visited.get(key);
+		final keyRest = InferenceKey.keyRest(n.priority, n.contravariant, n.bivariant);
+		var visited = n.visited;
+		if (visited == null) {
+			visited = n.visited = new ts.core.ScratchKeyMap();
+		}
+		final seen = visited.index(source.id, target.id, keyRest);
+		if (seen >= 0) {
+			final status:InferencePriority = visited.valueAt(seen);
 			n.inferencePriority = minPriority(n.inferencePriority, status);
 			return;
 		}
-		if (n.visited == null) {
-			n.visited = new StringMap<InferencePriority>();
-		}
-		n.visited.set(key, InferencePriorityCircularity);
+		// (the entry keeps its number while the action adds others: n.visited is cleared only when n is put back)
+		final entry = visited.add(source.id, target.id, keyRest, InferencePriorityCircularity);
 		final saveInferencePriority = n.inferencePriority;
 		n.inferencePriority = InferencePriorityMaxValue;
 		// We stop inferring and report a circularity if we encounter duplicate recursion identities on both
@@ -456,7 +465,7 @@ class Inference {
 		n.targetStack.resize(n.targetStack.length - 1);
 		n.sourceStack.resize(n.sourceStack.length - 1);
 		n.expandingFlags = saveExpandingFlags;
-		n.visited.set(key, n.inferencePriority);
+		visited.setValueAt(entry, n.inferencePriority);
 		n.inferencePriority = minPriority(n.inferencePriority, saveInferencePriority);
 	}
 
