@@ -5856,25 +5856,22 @@ class Ast {
 	// (PORTING.md §5). "import"/"require" are ASCII, so the matching is the same.
 	static function findImportOrRequire(text:String, start:Int):Pair<Int, Int> {
 		var index = start > 0 ? start : 0;
-		var size = 0;
 		final n = text.length;
+		// PORT: perf — Go's strings.IndexAny + slice comparison as one unit loop (no substring per 'i'/'r')
 		while (index < n) {
-			final next = Strings.IndexAnyFrom(text, "ir", index); // PORT: perf (Go text[index:] is free; hxcpp substring copies: quadratic)
-			if (next < 0) {
-				break;
-			}
-			index += next;
-
-			var expected:String;
-			if (StringTools.fastCodeAt(text, index) == "i".code) {
-				size = 6;
-				expected = "import";
-			} else {
-				size = 7;
-				expected = "require";
-			}
-			if (index + size <= n && text.substring(index, index + size) == expected) {
-				return new Pair(index, size);
+			final c = StringTools.fastCodeAt(text, index);
+			if (c == "i".code) {
+				if (index + 6 <= n && StringTools.fastCodeAt(text, index + 1) == "m".code && StringTools.fastCodeAt(text, index + 2) == "p".code
+					&& StringTools.fastCodeAt(text, index + 3) == "o".code && StringTools.fastCodeAt(text, index + 4) == "r".code
+					&& StringTools.fastCodeAt(text, index + 5) == "t".code) {
+					return new Pair(index, 6);
+				}
+			} else if (c == "r".code) {
+				if (index + 7 <= n && StringTools.fastCodeAt(text, index + 1) == "e".code && StringTools.fastCodeAt(text, index + 2) == "q".code
+					&& StringTools.fastCodeAt(text, index + 3) == "u".code && StringTools.fastCodeAt(text, index + 4) == "i".code
+					&& StringTools.fastCodeAt(text, index + 5) == "r".code && StringTools.fastCodeAt(text, index + 6) == "e".code) {
+					return new Pair(index, 7);
+				}
 			}
 			index++;
 		}
