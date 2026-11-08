@@ -182,33 +182,57 @@ class Scanner {
 
 	// PORT: perf — identifier texts shared between the identifiers of the files this scanner scans (Go's
 	// substrings share the source text; a Haxe substring is a copy that the AST keeps and the minor GC
-	// copies again). A direct-mapped cache by length and a few units: a miss (or a collision) makes the
-	// substring and takes the slot. Values only: the strings are equal either way.
-	static inline final ID_CACHE_BITS = 14;
+	// copies again). A direct-mapped cache: a miss (or a collision) makes the substring and takes the slot.
+	// Each slot keeps the length and the first 11 units (ASCII, as the fast path scans them) packed in three
+	// Ints, and the last four in a fourth: up to 11 units the tags are the text, so a hit reads no string
+	// (the cached ones are old and cold); a longer one is compared with the cached string. Values only: the
+	// strings are equal either way.
+	static inline final ID_CACHE_BITS = 11;
 
-	var idCache:haxe.ds.Vector<String> = null;
+	var idStrings:haxe.ds.Vector<String> = null;
+	var idTags:haxe.ds.Vector<Int> = null;
 
+	// text[start:end], an ASCII identifier
 	function identifierText(start:Int, end:Int):String {
-		var c = idCache;
-		if (c == null)
-			c = idCache = new haxe.ds.Vector<String>(1 << ID_CACHE_BITS);
+		var strs = idStrings;
+		var tags = idTags;
+		if (strs == null) {
+			strs = idStrings = new haxe.ds.Vector<String>(1 << ID_CACHE_BITS);
+			tags = idTags = new haxe.ds.Vector<Int>(4 << ID_CACHE_BITS);
+		}
 		final t = text;
 		final n = end - start;
-		final mid = start + (n >> 1);
-		final a = StringTools.fastCodeAt(t, start) | (StringTools.fastCodeAt(t, mid) << 8) | (StringTools.fastCodeAt(t, end - 1) << 16) | (n << 24);
-		final b = StringTools.fastCodeAt(t, start + (n > 1 ? 1 : 0)) | (StringTools.fastCodeAt(t, end - (n > 1 ? 2 : 1)) << 8)
-			| (StringTools.fastCodeAt(t, mid - (n > 2 ? 1 : 0)) << 16);
-		final h = ((a * 0x9E3779B1) ^ (b * 0x85EBCA77)) >>> (32 - ID_CACHE_BITS);
-		final k = c[h];
-		if (k != null && k.length == n) {
-			var i = 0;
-			while (i < n && StringTools.fastCodeAt(k, i) == StringTools.fastCodeAt(t, start + i))
+		inline function u(i:Int):Int
+			return i < end ? StringTools.fastCodeAt(t, i) : 0;
+		final a = n | (u(start) << 8) | (u(start + 1) << 16) | (u(start + 2) << 24);
+		var b = 0, c = 0, d = 0;
+		if (n > 3) {
+			b = u(start + 3) | (u(start + 4) << 8) | (u(start + 5) << 16) | (u(start + 6) << 24);
+			if (n > 7) {
+				c = u(start + 7) | (u(start + 8) << 8) | (u(start + 9) << 16) | (u(start + 10) << 24);
+				if (n > 11)
+					d = StringTools.fastCodeAt(t, end - 1) | (StringTools.fastCodeAt(t, end - 2) << 8) | (StringTools.fastCodeAt(t, end - 3) << 16)
+						| (StringTools.fastCodeAt(t, end - 4) << 24);
+			}
+		}
+		final h = ((a * 0x9E3779B1) ^ (b * 0x85EBCA77) ^ (c * 0xC2B2AE3D) ^ (d * 0x27D4EB2F)) >>> (32 - ID_CACHE_BITS);
+		final ti = h << 2;
+		if (tags[ti] == a && tags[ti + 1] == b && tags[ti + 2] == c && tags[ti + 3] == d) {
+			final k = strs[h];
+			if (n <= 11)
+				return k;
+			var i = 11;
+			while (i < n - 4 && StringTools.fastCodeAt(k, i) == StringTools.fastCodeAt(t, start + i))
 				i++;
-			if (i == n)
+			if (i >= n - 4)
 				return k;
 		}
 		final s = t.substring(start, end);
-		c[h] = s;
+		strs[h] = s;
+		tags[ti] = a;
+		tags[ti + 1] = b;
+		tags[ti + 2] = c;
+		tags[ti + 3] = d;
 		return s;
 	}
 
