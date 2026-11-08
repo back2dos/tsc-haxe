@@ -324,9 +324,10 @@ class TransientValueSymbolLinks extends ValueSymbolLinks {
 }
 
 // the value links of a synthetic (union or intersection) or mapped property, which have a containing type and
-// most often a name type (see ValueSymbolLinks.get_nameType)
+// most often a name type (see ValueSymbolLinks.get_nameType), and no target or mapper (one set would go to
+// the side record: none on t3code-server)
 @:allow(ts.checker)
-class SyntheticValueSymbolLinks extends TransientValueSymbolLinks {
+class SyntheticValueSymbolLinks extends ValueSymbolLinks {
 	var synNameType:Type = null;
 	var synContainingType:Type = null;
 
