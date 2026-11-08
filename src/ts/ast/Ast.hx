@@ -3201,8 +3201,9 @@ class Ast {
 		return id;
 	}
 
-	// PORT: pointer: Go `data *SymbolTable` → a getter/setter pair for the field.
-	public static function GetSymbolTable(get:() -> SymbolTable, set:(SymbolTable) -> Void):SymbolTable {
+	// PORT: pointer: Go `data *SymbolTable` → a getter/setter pair for the field. PORT: perf — inline: the getter and
+	// setter are inlined too, no closures per call.
+	public static inline function GetSymbolTable(get:() -> SymbolTable, set:(SymbolTable) -> Void):SymbolTable {
 		if (get() == null) {
 			set(new SymbolTable());
 		}
