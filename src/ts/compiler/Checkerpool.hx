@@ -241,16 +241,18 @@ class CheckerPool_ implements CheckerPool {
 				final release = this.lock(checkerIdx);
 				final t0 = haxe.Timer.stamp();
 				#end
+				var count = 0;
 				for (i in 0...files.length) {
 					final file = files[i];
 					final checker = this.checkers[checkerIdx];
 					if (checker == this.fileAssociations.get(file)) {
 						cb(checker, i, file);
+						count++;
 					}
 				}
 				#if tshx_parallel
 				if (Sys.getEnv("TSHX_DEBUG") != null)
-					Sys.stderr().writeString("checker " + checkerIdx + " on slot " + go.Par.slot + ": " + Std.int((haxe.Timer.stamp() - t0) * 1000) + " ms\n");
+					Sys.stderr().writeString("checker " + checkerIdx + " on slot " + go.Par.slot + ": " + count + " files, " + Std.int((haxe.Timer.stamp() - t0) * 1000) + " ms\n");
 				release();
 				#end
 			});
