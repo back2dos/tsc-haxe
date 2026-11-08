@@ -4844,8 +4844,18 @@ class PropertyAccessExpression extends NodeDefault implements MemberExpressionBa
 	@:isVar public var FlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var Expression:Expression = null;
-	public var QuestionDotToken:QuestionDotToken = null;
+	public var QuestionDotToken(get, set):QuestionDotToken; // (in PropertyAccessExpressionRare)
 	public var name:MemberName = null;
+	inline function get_QuestionDotToken():QuestionDotToken return links == null ? null : rare_QuestionDotToken();
+	function rare_QuestionDotToken():QuestionDotToken {
+		final r = PropertyAccessExpressionRare.store.TryGetInline(this);
+		return r == null ? null : r.QuestionDotToken;
+	}
+	function set_QuestionDotToken(v:QuestionDotToken):QuestionDotToken {
+		final r = v != null ? PropertyAccessExpressionRare.store.Get(this) : PropertyAccessExpressionRare.store.TryGetInline(this);
+		if (r != null) r.QuestionDotToken = v;
+		return v;
+	}
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
 	inline function get_facts():Int return facts;
@@ -4856,7 +4866,8 @@ class PropertyAccessExpression extends NodeDefault implements MemberExpressionBa
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visit(v, this.Expression) || Ast.visit(v, this.QuestionDotToken) || Ast.visit(v, this.name);
+		final r = PropertyAccessExpressionRare.store.TryGetInline(this);
+		return Ast.visit(v, this.Expression) || Ast.visit(v, (r == null ? null : r.QuestionDotToken)) || Ast.visit(v, this.name);
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -4887,6 +4898,17 @@ class PropertyAccessExpression extends NodeDefault implements MemberExpressionBa
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few PropertyAccessExpression nodes set (see GenAst.RARE_FIELDS)
+class PropertyAccessExpressionRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, PropertyAccessExpressionRare>(() -> new PropertyAccessExpressionRare());
+
+	public var QuestionDotToken:QuestionDotToken = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -4951,30 +4973,33 @@ class CallExpression extends NodeDefault implements LeftHandSideExpressionBase i
 	public var QuestionDotToken(get, set):QuestionDotToken; // (in CallExpressionRare)
 	public var TypeArguments(get, set):TypeList; // (in CallExpressionRare)
 	public var Arguments:ElementList = null;
-	inline function get_Symbol():Symbol {
-		final r = links == null ? null : CallExpressionRare.store.TryGet(this);
+	inline function get_Symbol():Symbol return links == null ? null : rare_Symbol();
+	function rare_Symbol():Symbol {
+		final r = CallExpressionRare.store.TryGetInline(this);
 		return r == null ? null : r.Symbol;
 	}
 	function set_Symbol(v:Symbol):Symbol {
-		final r = v != null ? CallExpressionRare.store.Get(this) : links == null ? null : CallExpressionRare.store.TryGet(this);
+		final r = v != null ? CallExpressionRare.store.Get(this) : CallExpressionRare.store.TryGetInline(this);
 		if (r != null) r.Symbol = v;
 		return v;
 	}
-	inline function get_QuestionDotToken():QuestionDotToken {
-		final r = links == null ? null : CallExpressionRare.store.TryGet(this);
+	inline function get_QuestionDotToken():QuestionDotToken return links == null ? null : rare_QuestionDotToken();
+	function rare_QuestionDotToken():QuestionDotToken {
+		final r = CallExpressionRare.store.TryGetInline(this);
 		return r == null ? null : r.QuestionDotToken;
 	}
 	function set_QuestionDotToken(v:QuestionDotToken):QuestionDotToken {
-		final r = v != null ? CallExpressionRare.store.Get(this) : links == null ? null : CallExpressionRare.store.TryGet(this);
+		final r = v != null ? CallExpressionRare.store.Get(this) : CallExpressionRare.store.TryGetInline(this);
 		if (r != null) r.QuestionDotToken = v;
 		return v;
 	}
-	inline function get_TypeArguments():TypeList {
-		final r = links == null ? null : CallExpressionRare.store.TryGet(this);
+	inline function get_TypeArguments():TypeList return links == null ? null : rare_TypeArguments();
+	function rare_TypeArguments():TypeList {
+		final r = CallExpressionRare.store.TryGetInline(this);
 		return r == null ? null : r.TypeArguments;
 	}
 	function set_TypeArguments(v:TypeList):TypeList {
-		final r = v != null ? CallExpressionRare.store.Get(this) : links == null ? null : CallExpressionRare.store.TryGet(this);
+		final r = v != null ? CallExpressionRare.store.Get(this) : CallExpressionRare.store.TryGetInline(this);
 		if (r != null) r.TypeArguments = v;
 		return v;
 	}
@@ -4986,9 +5011,10 @@ class CallExpression extends NodeDefault implements LeftHandSideExpressionBase i
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
+		final r = CallExpressionRare.store.TryGetInline(this);
 		return Ast.visit(v, this.Expression)
-			|| Ast.visit(v, this.QuestionDotToken)
-			|| Ast.visitNodeList(v, this.TypeArguments)
+			|| Ast.visit(v, (r == null ? null : r.QuestionDotToken))
+			|| Ast.visitNodeList(v, (r == null ? null : r.TypeArguments))
 			|| Ast.visitNodeList(v, this.Arguments);
 	}
 

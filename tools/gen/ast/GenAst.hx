@@ -116,6 +116,7 @@ class GenAst {
 	// all of them (class <Node>Rare, see generateRareRecord). Pointer fields only (their zero is null).
 	static final RARE_FIELDS:Map<String, Array<String>> = [
 		"CallExpression" => ["Symbol", "QuestionDotToken", "TypeArguments"],
+		"PropertyAccessExpression" => ["QuestionDotToken"],
 	];
 
 	static final HAXE_KEYWORDS = [
@@ -586,15 +587,17 @@ class GenAst {
 		}
 		for (f in rare) {
 			final r = '${node.name}Rare';
-			w.write('inline function get_${f.name}():${f.hxType} {');
+			// (inline: the test of the links; the lookup is a call, so that the callers stay small)
+			w.write('inline function get_${f.name}():${f.hxType} return links == null ? null : rare_${f.name}();');
+			w.write('function rare_${f.name}():${f.hxType} {');
 			w.push();
-			w.write('final r = links == null ? null : $r.store.TryGet(this);');
+			w.write('final r = $r.store.TryGetInline(this);');
 			w.write('return r == null ? null : r.${f.name};');
 			w.pop();
 			w.write('}');
 			w.write('function set_${f.name}(v:${f.hxType}):${f.hxType} {');
 			w.push();
-			w.write('final r = v != null ? $r.store.Get(this) : links == null ? null : $r.store.TryGet(this);');
+			w.write('final r = v != null ? $r.store.Get(this) : $r.store.TryGetInline(this);');
 			w.write('if (r != null) r.${f.name} = v;');
 			w.write('return v;');
 			w.pop();
@@ -675,9 +678,14 @@ class GenAst {
 		if (node.handWrittenVisitor) {
 			w.write('return Ast.forEachChild_${node.name}(this, v);');
 		} else {
+			// the rare fields' record is looked up once
+			final rare = rareFields(node, flattenFields(node, []));
+			final isRare = (n:String) -> Lambda.exists(rare, f -> f.name == n);
+			if (Lambda.exists(childMembers, m -> isRare(m.name)))
+				w.write('final r = ${node.name}Rare.store.TryGetInline(this);');
 			final parts = [
 				for (m in childMembers) {
-					final access = 'this.${m.name}';
+					final access = isRare(m.name) ? '(r == null ? null : r.${m.name})' : 'this.${m.name}';
 					switch (m.listKind) {
 						case "raw": 'Ast.visitNodes(v, $access)';
 						case "ModifierList": 'Ast.visitModifiers(v, $access)';
