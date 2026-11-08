@@ -3465,8 +3465,11 @@ class CheckerPart4 {
 				if (!c.compilerOptions.GetResolveJsonModule() && Tspath.FileExtensionIs(moduleReference, Tspath.ExtensionJson)) {
 					c.error(errorNode, Diagnostics.Cannot_find_module_0_Consider_using_resolveJsonModule_to_import_module_with_json_extension, moduleReference);
 				} else if (mode == Core.ResolutionModeESM && resolutionIsNode16OrNext && isExtensionlessRelativePathImport) {
-					final absoluteRef = Tspath.GetNormalizedAbsolutePath(moduleReference, Tspath.GetDirectoryPath(importingSourceFile.FileName()));
-					final suggestedExt = c.getSuggestedImportExtension(absoluteRef);
+					var suggestedExt = "";
+					if (!Tspath.HasTrailingDirectorySeparator(moduleReference)) {
+						final absoluteRef = Tspath.GetNormalizedAbsolutePath(moduleReference, Tspath.GetDirectoryPath(importingSourceFile.FileName()));
+						suggestedExt = c.getSuggestedImportExtension(absoluteRef);
+					}
 					if (suggestedExt != "") {
 						c.error(errorNode,
 							Diagnostics.Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Did_you_mean_0,
