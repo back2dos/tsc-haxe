@@ -21,10 +21,13 @@ class Emitter {
 	var writeFile:(fileName:std.String, text:std.String, data:WriteFileData) -> Null<Error> = null;
 	var tr:Tracing = null;
 	var part:Int = 0; // PORT: hxmc (-D tshx-parallel) — 0: both outputs, 1: the .js only, 2: the .d.ts only
+	var prints:Array<() -> Void> = null;
 
 	public function new() {}
 
-	function emit():Void {
+	// transform runs the JS and declaration transformers for the file, the part of emit that uses the checker. print
+	// prints and writes what transform produced.
+	function transform():Void {
 		var done:() -> Void = null;
 		if (this.tr != null) {
 			final args = new StringMap<Any>();
@@ -36,6 +39,29 @@ class Emitter {
 				this.emitJSFile(this.sourceFile, this.paths.JsFilePath(), this.paths.SourceMapFilePath());
 			if (this.part != 1)
 				this.emitDeclarationFile(this.sourceFile, this.paths.DeclarationFilePath(), this.paths.DeclarationMapPath());
+		} catch (e:Dynamic) {
+			if (done != null)
+				done();
+			throw e;
+		}
+		if (done != null)
+			done();
+	}
+
+	// print prints and writes the outputs transformed by transform. It must not use the checker, which may be in use by
+	// another file by then.
+	function print():Void {
+		var done:() -> Void = null;
+		if (this.tr != null) {
+			final args = new StringMap<Any>();
+			args.set("path", (this.sourceFile.Path() : std.String));
+			done = this.tr.Push(PhaseEmit, "emitPrint", args, true);
+		}
+		try {
+			for (print in this.prints) {
+				print();
+			}
+			this.prints = null;
 			this.emitResult.Diagnostics = this.emitterDiagnostics.GetDiagnostics();
 		} catch (e:Dynamic) {
 			if (done != null)
@@ -44,6 +70,12 @@ class Emitter {
 		}
 		if (done != null)
 			done();
+	}
+
+	function addPrint(print:() -> Void):Void {
+		if (this.prints == null)
+			this.prints = [];
+		this.prints.push(print);
 	}
 
 	function getDeclarationTransformers(emitContext:EmitContext, declarationFilePath:std.String, declarationMapPath:std.String):Array<DeclarationTransformer> {
@@ -122,8 +154,9 @@ class Emitter {
 			done = this.tr.Push(PhaseEmit, "emitJsFileOrBundle", args, true);
 		}
 
-		final ec = Printer.GetEmitContext();
-		final emitContext = ec.a, putEmitContext = ec.b;
+		// PORT: TypeScript main (#64649) dropped the pool of emit contexts (Go 7.0.2's GetEmitContext): the context
+		// lives until the deferred print (#64922)
+		final emitContext = Printer.NewEmitContext();
 		try {
 			sourceFile = this.runScriptTransformers(emitContext, sourceFile);
 
@@ -140,14 +173,15 @@ class Emitter {
 			// create a printer to print the nodes
 			final printer = Printer.NewPrinter(printerOptions, new PrintHandlers(/* !!! */), emitContext);
 
-			this.printSourceFile(jsFilePath, sourceMapFilePath, sourceFile, printer, options, Compiler.shouldEmitSourceMaps(options, sourceFile));
+			final transformed = sourceFile;
+			this.addPrint(function() {
+				this.printSourceFile(jsFilePath, sourceMapFilePath, transformed, printer, options, Compiler.shouldEmitSourceMaps(options, transformed));
+			});
 		} catch (e:Dynamic) {
-			putEmitContext();
 			if (done != null)
 				done();
 			throw e;
 		}
-		putEmitContext();
 		if (done != null)
 			done();
 	}
@@ -166,17 +200,14 @@ class Emitter {
 			done = this.tr.Push(PhaseEmit, "emitDeclarationFileOrBundle", args, true);
 		}
 
-		final ec = Printer.GetEmitContext();
-		final emitContext = ec.a, putEmitContext = ec.b;
+		final emitContext = Printer.NewEmitContext();
 		try {
 			this.emitDeclarationFileWorker(emitContext, sourceFile, declarationFilePath, declarationMapPath, options);
 		} catch (e:Dynamic) {
-			putEmitContext();
 			if (done != null)
 				done();
 			throw e;
 		}
-		putEmitContext();
 		if (done != null)
 			done();
 	}
@@ -228,8 +259,10 @@ class Emitter {
 		declarationMapOptions.SourceRoot = options.SourceRoot;
 		declarationMapOptions.MapRoot = options.MapRoot;
 		// Explicitly do not pass through either inline option.
-		this.printSourceFile(declarationFilePath, declarationMapPath, sourceFile, printer, declarationMapOptions,
-			Compiler.shouldEmitSourceMaps(declarationMapOptions, sourceFile));
+		this.addPrint(function() {
+			this.printSourceFile(declarationFilePath, declarationMapPath, sourceFile, printer, declarationMapOptions,
+				Compiler.shouldEmitSourceMaps(declarationMapOptions, sourceFile));
+		});
 	}
 
 	function printSourceFile(jsFilePath:std.String, sourceMapFilePath:std.String, sourceFile:SourceFile, printer_:Printer, mapOptions:CompilerOptions,

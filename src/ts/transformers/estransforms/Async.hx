@@ -771,7 +771,10 @@ class AsyncTransformer {
 			result = Factory().NewAwaiterHelper(hasLexicalThis, argumentsExpression, innerParameters, asyncBody);
 
 			if (captureLexicalArguments && lexicalArguments.used) {
-				final block = convertToFunctionBlock(result);
+				final block = EmitContext().ConvertToFunctionBlock(result, true /*multiLine*/);
+				if (!Ast.IsBlock(result)) {
+					EmitContext().SetOriginal(block.StatementList().Nodes[0], result);
+				}
 				result = Factory().UpdateBlock(block.AsBlock(),
 					EmitContext().MergeEnvironmentList(block.StatementList(), [createCaptureArgumentsStatement()]), block.AsBlock().MultiLine);
 			}
@@ -809,20 +812,6 @@ class AsyncTransformer {
 		list.Loc = body.Loc;
 		final block = Factory().NewBlock(list, false /*multiLine*/);
 		block.Loc = body.Loc;
-		return block;
-	}
-
-	function convertToFunctionBlock(node:Node):Node {
-		if (Ast.IsBlock(node)) {
-			return node;
-		}
-		final ret = Factory().NewReturnStatement(node);
-		ret.Loc = node.Loc;
-		EmitContext().SetOriginal(ret, node);
-		final list = Factory().NewNodeList([ret]);
-		list.Loc = node.Loc;
-		final block = Factory().NewBlock(list, true);
-		block.Loc = node.Loc;
 		return block;
 	}
 

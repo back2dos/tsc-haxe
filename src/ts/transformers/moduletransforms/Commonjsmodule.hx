@@ -1127,7 +1127,11 @@ class CommonJSModuleTransformer {
 	// Visits a top-level nested `with` statement as it may contain `var` declarations that are hoisted and may still be
 	// exported with `export {}`.
 	function visitTopLevelNestedWithStatement(node:WithStatement):Node {
-		return Factory().UpdateWithStatement(node, Visitor().VisitNode(node.Expression), topLevelNestedVisitor.VisitEmbeddedStatement(node.Statement));
+		var statement = topLevelNestedVisitor.VisitEmbeddedStatement(node.Statement);
+		if (statement == null) {
+			statement = Factory().NewEmptyStatement();
+		}
+		return Factory().UpdateWithStatement(node, Visitor().VisitNode(node.Expression), statement);
 	}
 
 	// Visits a top-level nested `if` statement as it may contain `var` declarations that are hoisted and may still be
@@ -1180,12 +1184,12 @@ class CommonJSModuleTransformer {
 
 	function visitForStatement(node:ForStatement):Node {
 		return Factory().UpdateForStatement(node, discardedValueVisitor.VisitNode(node.Initializer), Visitor().VisitNode(node.Condition),
-			discardedValueVisitor.VisitNode(node.Incrementor), EmitContext().VisitIterationBody(node.Statement, topLevelNestedVisitor));
+			discardedValueVisitor.VisitNode(node.Incrementor), EmitContext().VisitIterationBody(node.Statement, Visitor()));
 	}
 
 	function visitForInOrOfStatement(node:ForInOrOfStatement):Node {
 		return Factory().UpdateForInOrOfStatement(node, node.AwaitModifier, discardedValueVisitor.VisitNode(node.Initializer),
-			Visitor().VisitNode(node.Expression), EmitContext().VisitIterationBody(node.Statement, topLevelNestedVisitor));
+			Visitor().VisitNode(node.Expression), EmitContext().VisitIterationBody(node.Statement, Visitor()));
 	}
 
 	// Visits an expression statement whose value will be discarded at runtime.
@@ -1601,7 +1605,7 @@ class CommonJSModuleTransformer {
 				needsRewrite = true;
 			}
 		}
-		if (Ast.IsImportCall(node.AsNode()) && shouldTransformImportCall()) {
+		if (node.Expression.Kind == KindImportKeyword && shouldTransformImportCall()) {
 			return visitImportCallExpression(node, needsRewrite);
 		}
 		if (needsRewrite) {
@@ -1646,7 +1650,7 @@ class CommonJSModuleTransformer {
 			&& (firstArgument == null || !Ast.IsStringLiteral(firstArgument) || firstArgument.Text() != externalModuleName.Text())) {
 			argument = externalModuleName;
 		} else if (firstArgument != null && rewriteOrShim) {
-			if (Ast.IsStringLiteral(firstArgument)) {
+			if (Ast.IsStringLiteralLike(firstArgument)) {
 				argument = Moduletransforms.rewriteModuleSpecifier(EmitContext(), firstArgument, compilerOptions);
 			} else {
 				argument = Factory().NewRewriteRelativeImportExtensionsHelper(firstArgument, compilerOptions.Jsx == JsxEmitPreserve);
@@ -1724,7 +1728,7 @@ class CommonJSModuleTransformer {
 		final expression = Visitor().VisitNode(node.Expression);
 		var argumentsList = node.Arguments;
 		if (Core.len(node.Arguments.Nodes) > 0) {
-			var firstArgument = node.Arguments.Nodes[0];
+			var firstArgument = Visitor().VisitNode(node.Arguments.Nodes[0]);
 			var firstArgumentChanged = false;
 			if (Ast.IsStringLiteralLike(firstArgument)) {
 				final rewritten = Moduletransforms.rewriteModuleSpecifier(EmitContext(), firstArgument, compilerOptions);

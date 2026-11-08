@@ -39,7 +39,7 @@ class LogicalAssignmentTransformer {
 				return Visitor().VisitEachChild(node.AsNode());
 		}
 
-		var left = Ast.SkipParentheses(Visitor().VisitNode(node.Left));
+		var left = Ast.SkipOuterExpressions(Visitor().VisitNode(node.Left), OEKParentheses | OEKPartiallyEmittedExpressions);
 		var assignmentTarget = left;
 		final right = Ast.SkipParentheses(Visitor().VisitNode(node.Right));
 

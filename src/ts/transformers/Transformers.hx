@@ -263,13 +263,13 @@ class Transformers {
 			emitContext.AssignCommentAndSourceMapRanges(elision, element.AsNode());
 			return elision;
 		}
+		final expression = convertBindingNameToAssignmentElementTarget(emitContext, element.Name());
 		if (element.DotDotDotToken != null) {
-			final spread = emitContext.Factory.NewSpreadElement(element.Name());
+			final spread = emitContext.Factory.NewSpreadElement(expression);
 			emitContext.SetOriginal(spread, element.AsNode());
 			emitContext.AssignCommentAndSourceMapRanges(spread, element.AsNode());
 			return spread;
 		}
-		final expression = convertBindingNameToAssignmentElementTarget(emitContext, element.Name());
 		if (element.Initializer != null) {
 			final assignment = emitContext.Factory.NewAssignmentExpression(expression, element.Initializer);
 			emitContext.SetOriginal(assignment, element.AsNode());

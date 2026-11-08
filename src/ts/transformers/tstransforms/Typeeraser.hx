@@ -112,8 +112,14 @@ class TypeEraserTransformer {
 					&& Ast.HasDecorators(node)) {
 					// declare/abstract props with decorators must be preserved until the decorator transform can process them and remove them
 					final n = node.AsPropertyDeclaration();
-					return Factory().UpdatePropertyDeclaration(n, Visitor().VisitModifiers(n.Modifiers()), Visitor().VisitNode(n.Name()), null, null,
+					final updated = Factory().UpdatePropertyDeclaration(n, Visitor().VisitModifiers(n.Modifiers()), Visitor().VisitNode(n.Name()), null, null,
 						Visitor().VisitNode(n.Initializer));
+					if (updated != node && !Ast.HasSyntacticModifier(node, ModifierFlagsAmbient)) {
+						// `abstract` is elided by VisitModifiers; mark the rebuilt node ambient so the decorator transform
+						// erases the field and treats its computed name like a `declare` property's.
+						updated.Flags |= NodeFlagsAmbient;
+					}
+					return updated;
 				}
 				if (Ast.HasSyntacticModifier(node, ModifierFlagsAmbient | ModifierFlagsAbstract)) {
 					// TypeScript `declare` fields are elided
@@ -302,7 +308,14 @@ class TypeEraserTransformer {
 					return null;
 				}
 				final name = n.Name();
-				final namedBindings = Visitor().VisitNode(n.NamedBindings);
+				var namedBindings = Visitor().VisitNode(n.NamedBindings);
+				// Empty {} due to type-only import erasure can be skipped if there is also a default import
+				if (name != null && namedBindings != null && Ast.IsNamedImports(namedBindings)
+					&& Core.len(namedBindings.AsNamedImports().Elements.Nodes) == 0
+					&& Core.len(n.NamedBindings.AsNamedImports().Elements.Nodes) != 0) {
+					// the default binding keeps the import; a source-written {} is left as is
+					namedBindings = null;
+				}
 				if (name == null && namedBindings == null) {
 					// all import bindings were elided
 					return null;
@@ -370,10 +383,15 @@ class TypeEraserTransformer {
 				return node;
 
 			case KindEnumDeclaration:
-				if (Ast.IsEnumConst(node)) {
+				if (!Ast.IsEnumConst(node)) {
+					return Visitor().VisitEachChild(node);
+				}
+				if (!compilerOptions.ShouldPreserveConstEnums()) {
 					return node;
 				}
-				return Visitor().VisitEachChild(node);
+				// Preserve the const modifier for the runtime syntax transform.
+				final n = node.AsEnumDeclaration();
+				return Factory().UpdateEnumDeclaration(n, n.Modifiers(), n.Name(), Visitor().VisitNodes(n.Members));
 
 			default:
 				return Visitor().VisitEachChild(node);

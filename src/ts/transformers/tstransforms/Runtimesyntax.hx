@@ -550,7 +550,12 @@ class RuntimeSyntaxTransformer {
 			return Visitor().VisitEachChild(node.AsNode());
 		}
 
-		final moduleReference = Factory().CreateExpressionFromEntityName(node.ModuleReference);
+		var moduleReference = Factory().CreateExpressionFromEntityName(node.ModuleReference);
+		if (Ast.IsIdentifier(moduleReference)) {
+			moduleReference = visitExpressionIdentifier(moduleReference);
+		} else {
+			moduleReference = Visitor().VisitNode(moduleReference);
+		}
 		EmitContext().SetEmitFlags(moduleReference, EFNoComments | EFNoNestedComments);
 		if (!isExportOfNamespace(node.AsNode())) {
 			//  export var ${name} = ${moduleReference};
@@ -660,7 +665,10 @@ class RuntimeSyntaxTransformer {
 		}
 
 		var name = Visitor().VisitNode(node.Name());
-		if (name == null && (exported || Ast.ChildIsDecorated(compilerOptions.ExperimentalDecorators.IsTrue(), node.AsNode(), null))) {
+		if (name == null && (exported
+			|| Ast.ChildIsDecorated(compilerOptions.ExperimentalDecorators.IsTrue(), node.AsNode(), null)
+			|| (node.AsNode().ModifierFlags() & ModifierFlagsExportDefault) != ModifierFlagsExportDefault
+			&& Ast.NodeIsDecorated(compilerOptions.ExperimentalDecorators.IsTrue(), node.AsNode(), null, null))) {
 			name = Factory().NewGeneratedNameForNode(node.AsNode());
 		}
 		final heritageClauses = Visitor().VisitNodes(node.HeritageClauses);

@@ -1046,7 +1046,7 @@ class Printer {
 		final state = enterNode(node.AsNode());
 		emitEntityName(node.Left);
 		writePunctuation(".");
-		emitIdentifierName(node.Right.AsIdentifier());
+		emitMemberName(node.Right);
 		exitNode(node.AsNode(), state);
 	}
 
@@ -2014,9 +2014,11 @@ class Printer {
 				writePunctuation("?");
 			}
 		}
-		writePunctuation(":");
-		writeSpace();
-		emitTypeNodeOutsideExtends(node.Type);
+		if (node.Type != null) {
+			writePunctuation(":");
+			writeSpace();
+			emitTypeNodeOutsideExtends(node.Type);
+		}
 		writeTrailingSemicolon();
 		if (node.Members != null) {
 			if (Core.len(node.Members.Nodes) > 0) {
@@ -2416,8 +2418,9 @@ class Printer {
 		final state = enterNode(node.AsNode());
 		emitToken(KindNewKeyword, node.Pos(), WriteKindKeyword, node.AsNode());
 		writeSpace();
-		if (Ast.SkipPartiallyEmittedExpressions(node.Expression).Kind == KindCallExpression) {
-			// Parenthesize `C()` inside of a NewExpression so it is treated as `new (C())` and not `new C()`
+		if (hasUnparenthesizedCallAtStartOfMemberChain(node.Expression)) {
+			// Parenthesize `C()` or `C().D` inside of a NewExpression so it is treated as `new (C())` or `new (C().D)`
+			// and not `new C()` or `new C().D`
 			emitExpression(node.Expression, OperatorPrecedenceParentheses);
 		} else {
 			emitExpression(node.Expression, OperatorPrecedenceMember);
@@ -2821,10 +2824,6 @@ class Printer {
 		exitNode(node.AsNode(), state);
 	}
 
-	function emitExpressionWithTypeArgumentsNode(node:ExpressionWithTypeArgumentsNode):Void {
-		emitExpressionWithTypeArguments(node.AsExpressionWithTypeArguments());
-	}
-
 	function emitAsExpression(node:AsExpression):Void {
 		final state = enterNode(node.AsNode());
 		emitExpression(node.Expression, OperatorPrecedenceRelational);
@@ -2854,8 +2853,8 @@ class Printer {
 
 	function emitMetaProperty(node:MetaProperty):Void {
 		final state = enterNode(node.AsNode());
-		emitToken(node.KeywordToken, node.Pos(), WriteKindPunctuation, node.AsNode());
-		writePunctuation(".");
+		final pos = emitToken(node.KeywordToken, node.Pos(), WriteKindPunctuation, node.AsNode());
+		emitToken(KindDotToken, pos, WriteKindPunctuation, node.AsNode());
 		emitIdentifierName(node.AsNode().Name().AsIdentifier());
 		exitNode(node.AsNode(), state);
 	}
@@ -4280,8 +4279,19 @@ class Printer {
 		writeSpace();
 		emitToken(node.Token, node.Pos(), WriteKindKeyword, node.AsNode());
 		writeSpace();
-		emitList(fn_emitExpressionWithTypeArgumentsNode, node.AsNode(), node.Types, LFHeritageClauseTypes);
+		emitList(fn_emitHeritageClauseElement, node.AsNode(), node.Types, LFHeritageClauseTypes);
 		exitNode(node.AsNode(), state);
+	}
+
+	function emitHeritageClauseElement(node:Node):Void {
+		switch (node.Kind) {
+			case KindExpressionWithTypeArguments:
+				emitExpressionWithTypeArguments(node.AsExpressionWithTypeArguments());
+			case KindTypeReference:
+				emitTypeReference(node.AsTypeReferenceNode());
+			default:
+				throw 'unhandled HeritageClauseElement: ${node.Kind}';
+		}
 	}
 
 	function emitHeritageClauseNode(node:HeritageClauseNode):Void {
@@ -4866,7 +4876,7 @@ class Printer {
 		setSourceFile(sourceFile);
 		this.writer = writer;
 		this.writer.Clear();
-		if (sourceFile != null) {
+		if (sourceFile != null && node == sourceFile.AsNode()) {
 			if (Std.isOfType(this.writer, Grower)) {
 				final grower:Grower = cast this.writer;
 				grower.Grow(sourceFile.Text().length);
@@ -5866,7 +5876,7 @@ class Printer {
 	// Returns a value indicating whether a name is unique globally or within the current file.
 	function isFileLevelUniqueNameInCurrentFile(name:std.String, _:Bool):Bool {
 		if (currentSourceFile != null) {
-			return IsFileLevelUniqueName(currentSourceFile, name, HasGlobalName);
+			return emitContext.IsFileLevelUniqueName(currentSourceFile, name, HasGlobalName);
 		} else {
 			return true;
 		}
@@ -5993,7 +6003,7 @@ class Printer {
 	static final fn_emitExportSpecifierNode:(p:Printer, node:Node) -> Void = (p, node) -> p.emitExportSpecifierNode(node);
 	static final fn_emitJsxChild:(p:Printer, node:Node) -> Void = (p, node) -> p.emitJsxChild(node);
 	static final fn_emitJsxAttributeLike:(p:Printer, node:Node) -> Void = (p, node) -> p.emitJsxAttributeLike(node);
-	static final fn_emitExpressionWithTypeArgumentsNode:(p:Printer, node:Node) -> Void = (p, node) -> p.emitExpressionWithTypeArgumentsNode(node);
+	static final fn_emitHeritageClauseElement:(p:Printer, node:Node) -> Void = (p, node) -> p.emitHeritageClauseElement(node);
 	static final fn_IsModifier:(node:Node) -> Bool = node -> Ast.IsModifier(node);
 	static final fn_IsDecorator:(node:Node) -> Bool = node -> Ast.IsDecorator(node);
 
@@ -6020,16 +6030,6 @@ class Printer {
 		final c = new EmitContext();
 		c.Factory = NewNodeFactory(c);
 		return c;
-	}
-
-	// PORT: Go keeps EmitContexts in a sync.Pool; single-threaded, a new context is created and the
-	// release function resets it (as Go does before returning it to the pool).
-	// Go returns (*EmitContext, func()) → Pair.
-	public static function GetEmitContext():Pair<EmitContext, () -> Void> {
-		final c = NewEmitContext();
-		return new Pair<EmitContext, () -> Void>(c, function() {
-			c.Reset();
-		});
 	}
 
 	static function isHoistedVariable(node:VariableDeclarationNode):Bool {
@@ -6679,8 +6679,17 @@ class Printer {
 		h.Name = "typescript:rewriteRelativeImportExtensions";
 		h.ImportName = "__rewriteRelativeImportExtension";
 		h.Scoped = false;
-		h.Text = "var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExtension) || function (path, preserveJsx) {\n"
+		h.Text = "var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExtension) || function (path, preserveJsx, extraExtensions, ignoreCase) {\n"
 			+ "    if (typeof path === \"string\" && /^\\.\\.?\\//.test(path)) {\n"
+			+ "        if (extraExtensions) {\n"
+			+ "            for (var extension in extraExtensions) {\n"
+			+ "                var suffix = path.slice(-extension.length);\n"
+			+ "                if (suffix === extension || ignoreCase && suffix.toLowerCase() === extension.toLowerCase()) {\n"
+			+ "                    var output = extraExtensions[extension];\n"
+			+ "                    return output === extension ? path : path.slice(0, -extension.length) + output;\n"
+			+ "                }\n"
+			+ "            }\n"
+			+ "        }\n"
 			+ "        return path.replace(/\\.(tsx)$|((?:\\.d)?)((?:\\.[^./]+?)?)\\.([cm]?)ts$/i, function (m, tsx, d, ext, cm) {\n"
 			+ "            return tsx ? preserveJsx ? \".jsx\" : \".js\" : d && (!ext || !cm) ? m : (d + ext + \".\" + cm.toLowerCase() + \"js\");\n"
 			+ "        });\n"
@@ -7376,6 +7385,30 @@ class Printer {
 		return node.Kind == KindNewExpression && node.ArgumentList() == null;
 	}
 
+	// Determines whether the expression of a NewExpression would be emitted with an unparenthesized CallExpression at the
+	// start of its member chain, such as `C()` in `C().D`. Such an expression must be parenthesized when used as the
+	// expression of a NewExpression, since `new C().D()` would be parsed as `(new C()).D()` rather than `new (C().D)()`.
+	static function hasUnparenthesizedCallAtStartOfMemberChain(node:Expression):Bool {
+		while (true) {
+			node = Ast.SkipPartiallyEmittedExpressions(node);
+			if ((Ast.GetExpressionPrecedence(node) : Int) < (OperatorPrecedenceMember : Int)) {
+				// Each expression in the member chain is emitted with member precedence, so this expression will already
+				// be parenthesized, which ends the member chain.
+				return false;
+			}
+			switch (node.Kind) {
+				case KindCallExpression:
+					return true;
+				case KindPropertyAccessExpression | KindElementAccessExpression | KindExpressionWithTypeArguments:
+					node = node.Expression();
+				case KindTaggedTemplateExpression:
+					node = node.AsTaggedTemplateExpression().Tag;
+				default:
+					return false;
+			}
+		}
+	}
+
 	static function isBinaryOperation(node:Node, token:Kind):Bool {
 		node = Ast.SkipPartiallyEmittedExpressions(node);
 		return node.Kind == KindBinaryExpression && node.AsBinaryExpression().OperatorToken.Kind == token;
@@ -7398,13 +7431,6 @@ class Printer {
 		}
 		node = Ast.SkipPartiallyEmittedExpressions(node.Expression());
 		return Ast.IsFunctionExpression(node) || Ast.IsArrowFunction(node);
-	}
-
-	public static function IsFileLevelUniqueName(sourceFile:SourceFile, name:std.String, hasGlobalName:(std.String) -> Bool):Bool {
-		if (hasGlobalName != null && hasGlobalName(name)) {
-			return false;
-		}
-		return sourceFile.Identifiers == null || !sourceFile.Identifiers.exists(name);
 	}
 
 	static function hasLeadingHash(text:std.String):Bool {

@@ -238,7 +238,7 @@ class ClassFieldsTransformer {
 			return visitIdentifier(node.AsIdentifier());
 		}
 		if (node.Kind == KindPropertyAccessExpression && Ast.IsIdentifier(node.AsPropertyAccessExpression().Name())) {
-			return visitPropertyAccessExpressionForSubstitution(node.AsPropertyAccessExpression());
+			return visitPropertyAccessExpressionForSubstitution(node.AsPropertyAccessExpression(), substitutionVisitor);
 		}
 		return substitutionVisitor.VisitEachChild(node);
 	}
@@ -664,9 +664,9 @@ class ClassFieldsTransformer {
 		}
 
 		// leave invalid code untransformed
-		final info = accessPrivateIdentifier(node.Name());
+		final info = getPrivateIdentifier(getPrivateIdentifierEnvironment(), node.Name()).value;
 		Debug.Assert(info != null, "Undeclared private name for property declaration.");
-		if (!info.isValid) {
+		if (info.kind == PrivateIdentifierKindUntransformed || !info.isValid) {
 			return node;
 		}
 
@@ -874,11 +874,11 @@ class ClassFieldsTransformer {
 	function transformPrivateFieldInitializer(node:PropertyDeclaration):Node {
 		if (shouldTransformClassElementToWeakMap(node.AsNode())) {
 			// If we are transforming private elements into WeakMap/WeakSet, we should elide the node.
-			final info = accessPrivateIdentifier(node.Name());
+			final info = getPrivateIdentifier(getPrivateIdentifierEnvironment(), node.Name()).value;
 			Debug.Assert(info != null, "Undeclared private name for property declaration.");
 
 			// Leave invalid code untransformed
-			if (!info.isValid) {
+			if (info.kind == PrivateIdentifierKindUntransformed || !info.isValid) {
 				return node.AsNode();
 			}
 
@@ -1035,7 +1035,7 @@ class ClassFieldsTransformer {
 		// Private identifier names are still visited through VisitEachChild so they can be
 		// transformed by visitPrivateIdentifier.
 		if (Ast.IsIdentifier(node.Name())) {
-			return visitPropertyAccessExpressionForSubstitution(node);
+			return visitPropertyAccessExpressionForSubstitution(node, Visitor());
 		}
 		return Visitor().VisitEachChild(node.AsNode());
 	}
@@ -1043,8 +1043,8 @@ class ClassFieldsTransformer {
 	// visitPropertyAccessExpressionForSubstitution visits only the expression of a PropertyAccessExpression,
 	// leaving the name unchanged. This prevents the name from being treated as a standalone identifier
 	// reference and incorrectly substituted with a class alias.
-	function visitPropertyAccessExpressionForSubstitution(node:PropertyAccessExpression):Node {
-		final expression = Visitor().VisitNode(node.Expression);
+	function visitPropertyAccessExpressionForSubstitution(node:PropertyAccessExpression, visitor:NodeVisitor):Node {
+		final expression = visitor.VisitNode(node.Expression);
 		if (expression != node.Expression) {
 			return Factory().UpdatePropertyAccessExpression(node, expression, node.QuestionDotToken, node.Name(), node.Flags);
 		}
@@ -1884,21 +1884,20 @@ class ClassFieldsTransformer {
 		}
 
 		final staticPropertiesOrClassStaticBlocks = getStaticPropertiesAndClassStaticBlock(node);
+		final hasTransformableStatics = (shouldTransformPrivateElementsOrClassStaticBlocks || nodeHasTransformPrivateStaticElementsFlag(node))
+			&& Core.Some(staticPropertiesOrClassStaticBlocks, function(n:Node):Bool {
+				return Ast.IsClassStaticBlockDeclaration(n) || Ast.IsPrivateIdentifierClassElementDeclaration(n)
+					|| (shouldTransformInitializers && Ast.IsInitializedProperty(n));
+			});
 
 		// Pre-compute whether the class expression will need a temp variable wrapper.
 		// Strada registers class aliases AFTER transformClassMembers (since onSubstituteNode runs
 		// at emit time), but we must predict this before visiting members since we substitute
 		// eagerly. This requires pre-detecting willHavePrivatePendingExpressions.
 		var isClassWithConstructorReference = false;
-		var hasTransformableStatics = false;
 		var deferTempDeclaration = false;
 		if (!isDecoratedClassDeclaration) {
 			isClassWithConstructorReference = classContainsConstructorReference(node);
-			hasTransformableStatics = (shouldTransformPrivateElementsOrClassStaticBlocks || nodeHasTransformPrivateStaticElementsFlag(node))
-				&& Core.Some(staticPropertiesOrClassStaticBlocks, function(n:Node):Bool {
-					return Ast.IsClassStaticBlockDeclaration(n) || Ast.IsPrivateIdentifierClassElementDeclaration(n)
-						|| (shouldTransformInitializers && Ast.IsInitializedProperty(n));
-				});
 
 			// Private instance elements (fields, methods, accessors) transformed to
 			// WeakMap/WeakSet will add initialization expressions to pendingExpressions
@@ -1981,7 +1980,7 @@ class ClassFieldsTransformer {
 			} else {
 				expressions.push(classExpression);
 			}
-		} else {
+		} else if (hasTransformableStatics || Core.len(pendingExpressions) > 0) {
 			// Decorated class declaration path: emit static properties as separate statements
 			// via pendingStatements, matching the class declaration output structure.
 
@@ -2012,6 +2011,8 @@ class ClassFieldsTransformer {
 			} else {
 				expressions.push(classExpression);
 			}
+		} else {
+			expressions.push(classExpression);
 		}
 
 		if (expressions.length > 1) {
@@ -3144,7 +3145,7 @@ class ClassFieldsTransformer {
 	}
 
 	function visitObjectAssignmentElement(node:Node):Node {
-		Debug.Assert(node != null && Ast.IsObjectBindingOrAssignmentElement(node));
+		Debug.Assert(node != null && Ast.IsObjectLiteralElement(node));
 		if (Ast.IsSpreadAssignment(node)) {
 			return visitAssignmentRestProperty(node);
 		}
