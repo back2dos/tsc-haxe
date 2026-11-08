@@ -313,16 +313,7 @@ class FilesParser {
 			// and depth): no size needed
 			final info = tasks.length > 1 && !loaded ? loader.opts.Host.FS().Stat(task.normalizedFilePath) : null;
 			sizes.push(info != null ? info.Size() : 0);
-			queued.push(function() {
-				data.mu.acquire(); // PORT: hxmc (-D tshx-parallel) — data.mu.Lock(); defer data.mu.Unlock()
-				try {
-					this.runTask(loader, task, data, loaded, depth);
-				} catch (e:Dynamic) {
-					data.mu.release();
-					throw e;
-				}
-				data.mu.release();
-			});
+			queued.push(() -> this.runTaskLocked(loader, task, data, loaded, depth));
 			#else
 			this.wg.Queue(() -> this.runTask(loader, task, data, loaded, depth));
 			#end
@@ -334,6 +325,46 @@ class FilesParser {
 			this.wg.Queue(queued[i]);
 		#end
 	}
+
+	#if tshx_parallel
+	// PORT: hxmc (-D tshx-parallel) — data.mu.Lock(); defer data.mu.Unlock() around runTask. Go parks a goroutine
+	// that waits for the lock (while the holder parses the file) and runs others on its thread; a pool thread
+	// would sit idle (cal-diy: ~0.3 s of waiting over the parse phase). A task that finds its file's data held
+	// is handed to the holding thread instead, which runs it after its own: still one at a time per file, in
+	// the order they came (Go's lock order is unspecified).
+	function runTaskLocked(loader:FileLoader, task:ParseTask, data:ParseTaskData, loaded:Bool, depth:Int):Void {
+		data.mu.acquire();
+		if (data.held) {
+			data.waiting.push(() -> this.runTask(loader, task, data, loaded, depth));
+			data.mu.release();
+			return;
+		}
+		data.held = true;
+		data.mu.release();
+		var next:() -> Void = null;
+		while (true) {
+			try {
+				if (next == null)
+					this.runTask(loader, task, data, loaded, depth);
+				else
+					next();
+			} catch (e:Dynamic) {
+				data.mu.acquire();
+				data.held = false;
+				data.mu.release();
+				throw e;
+			}
+			data.mu.acquire();
+			if (data.waiting.length == 0) {
+				data.held = false;
+				data.mu.release();
+				return;
+			}
+			next = data.waiting.shift();
+			data.mu.release();
+		}
+	}
+	#end
 
 	// PORT: the body of Go's goroutine in start (a method: see there)
 	function runTask(loader:FileLoader, task:ParseTask, data:ParseTaskData, loaded:Bool, depth:Int):Void {
@@ -690,6 +721,10 @@ class ParseTaskData {
 	// PORT: mu sync.Mutex dropped (single-threaded)
 	#if tshx_parallel
 	final mu = new sys.thread.Mutex(); // PORT: hxmc (-D tshx-parallel)
+	// PORT: hxmc (-D tshx-parallel) — under mu: a thread runs this file's tasks; the tasks it runs next
+	// (FilesParser.runTaskLocked)
+	var held = false;
+	final waiting:Array<() -> Void> = [];
 	#end
 	var lowestDepth:Int = 0;
 	var startedSubTasks:Bool = false;
