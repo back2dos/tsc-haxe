@@ -1203,6 +1203,11 @@ class Inference {
 		final props = c.getPropertiesOfType(r.source);
 		if (props != null) {
 			for (prop in props) {
+				// Private and protected properties are never produced by keyof, so they have no counterpart in a
+				// reverse mapped type. Copying them would surface them as public properties of the inferred type.
+				if ((Checker.getDeclarationModifierFlagsFromSymbol(prop) & ModifierFlagsNonPublicAccessibilityModifier) != 0) {
+					continue;
+				}
 				// In case of a reverse mapped type with an intersection constraint, if we were able to
 				// extract the filtering type literals we skip those properties that are not assignable to them,
 				// because the extra properties wouldn't get through the application of the mapped type anyway

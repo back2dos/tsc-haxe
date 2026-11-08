@@ -3672,6 +3672,10 @@ class CheckerPart4 {
 		c.valueSymbolLinks.Get(newSymbol).nameType = c.getStringLiteralType("default");
 		c.aliasSymbolLinks.Get(newSymbol).aliasTarget = c.resolveSymbol(symbol);
 		memberTable.set(Ast.InternalSymbolNameDefault, newSymbol);
+		if (anonymousSymbol == null && originalSymbol != null) {
+			anonymousSymbol = c.newSymbol(SymbolFlagsObjectLiteral, Ast.InternalSymbolNameObject);
+			anonymousSymbol.Declarations = originalSymbol.Declarations;
+		}
 		return c.newAnonymousType(anonymousSymbol, memberTable, null, null, null);
 	}
 
