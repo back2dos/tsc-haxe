@@ -392,6 +392,8 @@ enum abstract Kind(Int) from Int to Int {
 	var KindSyntheticReferenceExpression = 350;
 	var KindNotEmittedTypeElement = 351;
 	var KindCount = 352;
+	var kindFlowSwitchClauseData = 353; // flow.go
+	var kindFlowReduceLabelData = 354; // flow.go
 	var KindFirstAssignment = KindEqualsToken;
 	var KindLastAssignment = KindCaretEqualsToken;
 	var KindFirstCompoundAssignment = KindPlusEqualsToken;
@@ -783,6 +785,8 @@ enum abstract Kind(Int) from Int to Int {
 		"KindSyntheticReferenceExpression",
 		"KindNotEmittedTypeElement",
 		"KindCount",
+		"kindFlowSwitchClauseData",
+		"kindFlowReduceLabelData",
 	];
 
 	public function String():String {

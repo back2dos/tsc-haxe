@@ -29,7 +29,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 var kindChoices = map[string][]ast.Kind{

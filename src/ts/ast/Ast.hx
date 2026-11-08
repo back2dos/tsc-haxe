@@ -2555,14 +2555,14 @@ class Ast {
 		node.SwitchStatement = switchStatement;
 		node.ClauseStart = clauseStart;
 		node.ClauseEnd = clauseEnd;
-		return newNode(KindUnknown, node, new NodeFactoryHooks());
+		return newNode(kindFlowSwitchClauseData, node, new NodeFactoryHooks());
 	}
 
 	public static function NewFlowReduceLabelData(target:FlowLabel, antecedents:FlowList):Node {
 		final node = new FlowReduceLabelData();
 		node.Target = target;
 		node.Antecedents = antecedents;
-		return newNode(KindUnknown, node, new NodeFactoryHooks());
+		return newNode(kindFlowReduceLabelData, node, new NodeFactoryHooks());
 	}
 
 	// --- functionflags.go ---
@@ -4479,15 +4479,6 @@ class Ast {
 		return new Pair<ClassLikeDeclaration, Bool>(null, false);
 	}
 
-	// PORT: TypeScript 7.0.2's name (replaced in main by TryGetClassImplementingOrExtendingHeritageClauseElement); kept
-	// for callers not yet ported.
-	public static function TryGetClassImplementingOrExtendingExpressionWithTypeArguments(node:Node):Pair<ClassLikeDeclaration, Bool> {
-		if (!IsExpressionWithTypeArguments(node)) {
-			return new Pair<ClassLikeDeclaration, Bool>(null, false);
-		}
-		return TryGetClassImplementingOrExtendingHeritageClauseElement(node);
-	}
-
 	public static function GetNameOfDeclaration(declaration:Node):Node {
 		if (declaration == null) {
 			return null;
@@ -4774,10 +4765,6 @@ class Ast {
 
 	public static function GetContainingClass(node:Node):Node {
 		return FindAncestor(node.Parent, IsClassLike);
-	}
-
-	public static function GetExtendsHeritageClauseElement(node:Node):ExpressionWithTypeArgumentsNode {
-		return Core.FirstOrNil(GetExtendsHeritageClauseElements(node));
 	}
 
 	public static function GetExtendsHeritageClauseElements(node:Node):Array<ExpressionWithTypeArgumentsNode> {
@@ -6244,11 +6231,6 @@ class Ast {
 		return null;
 	}
 
-	// PORT: removed in TypeScript main (typescript-go#4797); kept for the 7.0.2 golden test (test/ts/ast)
-	public static function GetImplementsTypeNodes(node:Node):Array<ExpressionWithTypeArgumentsNode> {
-		return GetHeritageElements(node, KindImplementsKeyword);
-	}
-
 	public static function IsTypeKeywordToken(node:Node):Bool {
 		return node.Kind == KindTypeKeyword;
 	}
@@ -6367,11 +6349,6 @@ class Ast {
 			default:
 		}
 		return false;
-	}
-
-	// PORT: removed in TypeScript main (#63931); kept for the 7.0.2 golden test (test/ts/ast)
-	public static function IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration(node:Node):Bool {
-		return FindAncestor(node, IsExclusivelyTypeOnlyImportOrExport) != null;
 	}
 
 	public static function HasResolutionModeOverride(node:Node):Bool {
@@ -7705,8 +7682,39 @@ class NodeFactory implements NodeFactoryCoercible {
 	// --- ast_generated.go: New*() / Update*() factory methods ---
 
 	public function NewToken(kind:TokenSyntaxKind):Node {
-		final data = new Token();
-		return this.newNode(kind, data);
+		if (!Ast.IsTokenKind(kind)) {
+			throw "Invalid token kind";
+		}
+		switch (kind) {
+			case KindNumericLiteral:
+				return this.newNode(kind, new NumericLiteral());
+			case KindBigIntLiteral:
+				return this.newNode(kind, new BigIntLiteral());
+			case KindStringLiteral:
+				return this.newNode(kind, new StringLiteral());
+			case KindJsxText:
+				return this.newNode(kind, new JsxText());
+			case KindRegularExpressionLiteral:
+				return this.newNode(kind, new RegularExpressionLiteral());
+			case KindNoSubstitutionTemplateLiteral:
+				return this.newNode(kind, new NoSubstitutionTemplateLiteral());
+			case KindTemplateHead:
+				return this.newNode(kind, new TemplateHead());
+			case KindTemplateMiddle:
+				return this.newNode(kind, new TemplateMiddle());
+			case KindTemplateTail:
+				return this.newNode(kind, new TemplateTail());
+			case KindIdentifier:
+				return this.newNode(kind, new Identifier());
+			case KindPrivateIdentifier:
+				return this.newNode(kind, new PrivateIdentifier());
+			case KindFalseKeyword | KindImportKeyword | KindNullKeyword | KindSuperKeyword | KindThisKeyword | KindTrueKeyword:
+				return this.newNode(kind, new KeywordExpression());
+			case KindVoidKeyword | KindAnyKeyword | KindBooleanKeyword | KindIntrinsicKeyword | KindNeverKeyword | KindNumberKeyword | KindObjectKeyword | KindStringKeyword | KindSymbolKeyword | KindUndefinedKeyword | KindUnknownKeyword | KindBigIntKeyword:
+				return this.newNode(kind, new KeywordTypeNode());
+			default:
+				return this.newNode(kind, new Token());
+		}
 	}
 
 	public function NewIdentifier(text:String):Node {
