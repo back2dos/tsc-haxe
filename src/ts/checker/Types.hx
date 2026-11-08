@@ -798,6 +798,15 @@ class TypeAlias {
 }
 
 @:allow(ts.checker)
+class TypeExtra {
+	var flowType:FlowType = null;
+	var objectTypeWithoutAbstractConstructSignatures:Type = null;
+	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
+
+	public function new() {}
+}
+
+@:allow(ts.checker)
 class Type implements TypeSystemEntity {
 	var flags:TypeFlags = 0;
 	var objectFlags:ObjectFlags = 0;
@@ -807,9 +816,26 @@ class Type implements TypeSystemEntity {
 	var checker:Checker = null;
 	// PORT: perf — no `data` field: Go's `data` (Type specific data) is always the type itself here (every
 	// TypeData is a TypeBase, a subclass of Type), so the As*() casts are of `this`.
+	// PORT: perf — the rarely set fields of a type (its FlowType; an object type's instantiations and type without
+	// abstract construct signatures) in a side record, allocated when one is set to a non-nil value
+	var extra:TypeExtra = null;
 	// PORT: perf — FlowType{t: this, incomplete: false}, made once (Go returns FlowType by value); the incomplete
 	// one hangs off it (FlowType.twin).
-	var flowType:FlowType = null;
+	var flowType(get, set):FlowType;
+
+	inline function get_flowType():FlowType {
+		return extra == null ? null : extra.flowType;
+	}
+
+	function set_flowType(v:FlowType):FlowType {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new TypeExtra();
+		}
+		return extra.flowType = v;
+	}
 
 	public function new() {}
 
@@ -1135,7 +1161,23 @@ class StructuredType extends ConstrainedType {
 	var signatures:Array<Signature> = null; // Signatures (call + construct)
 	var callSignatureCount:Int = 0; // Count of call signatures
 	var indexInfos:Array<IndexInfo> = null;
-	var objectTypeWithoutAbstractConstructSignatures:Type = null;
+	var objectTypeWithoutAbstractConstructSignatures(get, set):Type; // (in TypeExtra)
+
+	inline function get_objectTypeWithoutAbstractConstructSignatures():Type {
+		final x = (cast this : Type).extra;
+		return x == null ? null : x.objectTypeWithoutAbstractConstructSignatures;
+	}
+
+	function set_objectTypeWithoutAbstractConstructSignatures(v:Type):Type {
+		final t:Type = cast this;
+		if (t.extra == null) {
+			if (v == null) {
+				return v;
+			}
+			t.extra = new TypeExtra();
+		}
+		return t.extra.objectTypeWithoutAbstractConstructSignatures = v;
+	}
 
 	public function new() {
 		super();
@@ -1245,7 +1287,23 @@ class StructuredType extends ConstrainedType {
 class ObjectType extends StructuredType {
 	var target:Type = null; // Target of instantiated type
 	var mapper:TypeMapper = null; // Type mapper for instantiated type
-	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null; // Map of type instantiations
+	var instantiations(get, set):ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */; // Map of type instantiations (in TypeExtra)
+
+	inline function get_instantiations():ts.core.HashKeyMap<Type> {
+		final x = (cast this : Type).extra;
+		return x == null ? null : x.instantiations;
+	}
+
+	function set_instantiations(v:ts.core.HashKeyMap<Type>):ts.core.HashKeyMap<Type> {
+		final t:Type = cast this;
+		if (t.extra == null) {
+			if (v == null) {
+				return v;
+			}
+			t.extra = new TypeExtra();
+		}
+		return t.extra.instantiations = v;
+	}
 
 	public function new() {
 		super();
