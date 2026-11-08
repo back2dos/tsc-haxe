@@ -133,6 +133,26 @@ class CheckerPool_ implements CheckerPool {
 				isDeclarationFile[i] = file.IsDeclarationFile;
 			}
 			final policy = CheckerAssociation.policy(totalBaseWeight, declarationBaseWeight, checkerCount);
+			if (policy.prioritizeSourceFiles && !CheckerAssociation.shouldPrioritizeSourceFiles(totalBaseWeight, declarationBaseWeight, checkerCount)) {
+				// PORT: perf — our prioritized-source deviation (see CheckerAssociation.policy) places the source files
+				// first, largest first. When one source file outweighs half of an average checker's share of the source
+				// weight, that file and the files drawn to it by affinity fill a checker that has little to check
+				// (mui-docs: mui-icons-material/lib/index.mjs re-exports ~2000 icon modules, weight 610k from its import
+				// fanout; that checker took 60 ms of 3.5 s): use Go's choice (strong balance) there.
+				final w = CheckerAssociation.weights(baseWeights, importCounts);
+				var sourceWeight = 0, maxSourceWeight = 0;
+				for (i in 0...files.length)
+					if (!isDeclarationFile[i]) {
+						sourceWeight += w[i];
+						if (w[i] > maxSourceWeight)
+							maxSourceWeight = w[i];
+					}
+				if (maxSourceWeight * 2 * checkerCount > sourceWeight) {
+					policy.prioritizeSourceFiles = false;
+					policy.sourceFileWeightMultiplier = CheckerAssociation.SourceFileWeightMultiplier;
+					policy.balancePenaltyMultiplier = CheckerAssociation.BalancePenaltyMultiplier;
+				}
+			}
 			// PORT: debug knob, not in Go. TSHX_POLICY=p,m,b overrides the policy (p: 1 = prioritize source files,
 			// m: source file weight multiplier, b: balance penalty multiplier); TSHX_POLICY=show prints the chosen one.
 			final policyEnv = Sys.getEnv("TSHX_POLICY");
@@ -310,6 +330,12 @@ class CheckerAssociation {
 	static inline final TextWeightDivisor = 100;
 	static inline final PrioritizedSourcePenalty = 12;
 	static inline final StrongBalanceMinCheckerCount = 4;
+	public static inline final SourceFileWeightMultiplier = 4;
+	public static inline final BalancePenaltyMultiplier = 16;
+
+	public static function shouldPrioritizeSourceFiles(totalWeight:Int, declarationWeight:Int, checkerCount:Int):Bool {
+		return declarationWeight * checkerCount * 2 <= totalWeight;
+	}
 
 	public static function policy(totalWeight:Int, declarationWeight:Int, checkerCount:Int):{prioritizeSourceFiles:Bool, sourceFileWeightMultiplier:Int, balancePenaltyMultiplier:Int} {
 		// PORT: Go uses "strong balance" (source weight x4, penalty 16) at >= 4 checkers when declarations are a large
