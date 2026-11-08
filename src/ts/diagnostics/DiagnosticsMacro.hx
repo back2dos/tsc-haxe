@@ -41,7 +41,10 @@ class DiagnosticsMacro {
 		// PORT: jvm — one static initializer with all ~3,000 messages exceeds the JVM's 64 KB
 		// limit per method. On JVM the fields are plain statics assigned by chunk functions
 		// (called from __init__, i.e. from the class initializer, in the same order).
-		final chunked = Context.defined("jvm");
+		// PORT: perf — the same for hxmc's wasm32-wasi: V8's baseline compiler (Liftoff) took 502 MB
+		// (110 ms) for the one 428 KB initializer of 2,243 locals (its state per block holds every
+		// local), ~300 MB of it still resident at the end of a run (node's malloc heap).
+		final chunked = Context.defined("jvm") || Context.definedValue("hxmc.target") == "wasm32-wasi";
 		final inits:Array<Expr> = [];
 		for (code in codes) {
 			final e = byCode.get(code);
