@@ -742,7 +742,7 @@ trace: 'package.json' has a 'typesVersions' field with version-specific path map
 trace: 'package.json' has a 'typesVersions' entry 'not a range' that is not a valid semver range.
 trace: 'package.json' does not have a 'typings' field.
 trace: 'package.json' has 'types' field 'index.d.ts' that references '/w/node_modules/tv/index.d.ts'.
-trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.0.2', looking for a pattern to match module name 'index.d.ts'.
+trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.1.0-dev', looking for a pattern to match module name 'index.d.ts'.
 trace: Module name 'index.d.ts', matched pattern '*'.
 trace: Trying substitution 'ts4/*', candidate module location: 'ts4/index.d.ts'.
 trace: File '/w/node_modules/tv/ts4/index.d.ts' exists - use it as a name resolution result.
@@ -763,7 +763,7 @@ trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in i
 trace: File '/w/node_modules/tv/package.json' exists according to earlier cached lookups.
 trace: 'package.json' has a 'typesVersions' field with version-specific path mappings.
 trace: 'package.json' has a 'typesVersions' entry 'not a range' that is not a valid semver range.
-trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.0.2', looking for a pattern to match module name 'sub'.
+trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.1.0-dev', looking for a pattern to match module name 'sub'.
 trace: Module name 'sub', matched pattern '*'.
 trace: Trying substitution 'ts4/*', candidate module location: 'ts4/sub'.
 trace: File '/w/node_modules/tv/ts4/sub.ts' does not exist.
@@ -786,7 +786,7 @@ trace: Directory '/w/src/node_modules' does not exist, skipping all lookups in i
 trace: File '/w/node_modules/tv/package.json' exists according to earlier cached lookups.
 trace: 'package.json' has a 'typesVersions' field with version-specific path mappings.
 trace: 'package.json' has a 'typesVersions' entry 'not a range' that is not a valid semver range.
-trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.0.2', looking for a pattern to match module name 'special'.
+trace: 'package.json' has a 'typesVersions' entry '>=4.0' that matches compiler version '7.1.0-dev', looking for a pattern to match module name 'special'.
 trace: Module name 'special', matched pattern 'special'.
 trace: Trying substitution 'ts4/sp.d.ts', candidate module location: 'ts4/sp.d.ts'.
 trace: File '/w/node_modules/tv/ts4/sp.d.ts' exists - use it as a name resolution result.
@@ -848,7 +848,7 @@ trace: File '/w/node_modules/tvnomatch.ts' does not exist.
 trace: File '/w/node_modules/tvnomatch.tsx' does not exist.
 trace: File '/w/node_modules/tvnomatch.d.ts' does not exist.
 trace: 'package.json' has a 'typesVersions' field with version-specific path mappings.
-trace: 'package.json' does not have a 'typesVersions' entry that matches version '7.0'.
+trace: 'package.json' does not have a 'typesVersions' entry that matches version '7.1'.
 trace: 'package.json' had a falsy 'typings' field.
 trace: Expected type of 'types' field in 'package.json' to be 'string', got 'number'.
 trace: 'package.json' does not have a 'types' field.

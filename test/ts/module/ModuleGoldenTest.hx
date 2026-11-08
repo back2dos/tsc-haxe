@@ -7,12 +7,12 @@ import ts.module.ModuleTest.ResolutionHostStub;
 
 // PORT: extra (not upstream). Golden test against the Go resolver: the scenarios in
 // golden/scenarios.json (file systems, options, resolution requests) are run here and by a Go
-// dump (zz_golden_test.go, run with `go test -overlay` in upstream/tsc/internal/module); the
-// traces (--traceResolution messages, in order) and results must match golden/expected.txt
-// line by line. Regenerate expected.txt (from upstream/tsc):
+// dump (zz_golden_test.go, run with `go test -overlay` in upstream-main/tsc/internal/module: the
+// oracle is TypeScript main); the traces (--traceResolution messages, in order) and results must
+// match golden/expected.txt line by line. Regenerate expected.txt (from upstream-main/tsc):
 //   echo '{"Replace":{"'$PWD'/internal/module/zz_golden_test.go":"<repo>/test/ts/module/golden/zz_golden_test.go.txt"}}' > /tmp/ov.json
 //   GOLDEN_IN=<repo>/test/ts/module/golden/scenarios.json GOLDEN_OUT=<repo>/test/ts/module/golden/expected.txt \
-//     GOTOOLCHAIN=go1.26.9 go test ./internal/module -run TestGoldenDump -overlay /tmp/ov.json -count=1
+//     GOTOOLCHAIN=go1.27.3 go test ./internal/module -run TestGoldenDump -overlay /tmp/ov.json -count=1
 class ModuleGoldenTest {
 	static inline final DIR = "test/ts/module/golden/";
 

@@ -572,10 +572,10 @@ class CoreTest {
 		// --- extra: other files ---
 
 		T.run("Stringers (extra)", () -> {
-			// Go: ScriptTarget(13) ESNext ModuleKind(8) Preserve Tristate(3) ScriptKind(-1) LanguageVariantJSX
-			T.eq("ScriptTarget(13)", (13 : ScriptTarget).String());
+			// Go (TypeScript main: ES2026 = 13): ScriptTarget(14) ESNext ModuleKind(8) Preserve Tristate(3) ScriptKind(-1) LanguageVariantJSX
+			T.eq("ScriptTarget(14)", (14 : ScriptTarget).String());
 			T.eq("ESNext", ScriptTarget.ScriptTargetLatest.String());
-			T.eq("ES2025", ScriptTarget.ScriptTargetLatestStandard.String());
+			T.eq("ES2026", ScriptTarget.ScriptTargetLatestStandard.String());
 			T.eq("None", ScriptTarget.ScriptTargetNone.String());
 			T.eq("JSON", ScriptTarget.ScriptTargetJSON.String());
 			T.eq("ModuleKind(8)", (8 : ModuleKind).String());
@@ -621,7 +621,7 @@ class CoreTest {
 			T.eq(ModuleResolutionKindBundler, opts.GetModuleResolutionKind());
 			T.eq(ModuleDetectionKindAuto, opts.GetEmitModuleDetectionKind());
 			T.isTrue(opts.GetResolveJsonModule());
-			T.eq(ScriptTargetES2025, opts.GetEmitScriptTarget());
+			T.eq(ScriptTargetES2026, opts.GetEmitScriptTarget());
 			T.isTrue(opts.GetEmitStandardClassFields());
 			T.isTrue(opts.GetUseDefineForClassFields());
 			T.isTrue(opts.GetStrictOptionValue(TSUnknown));
@@ -667,7 +667,7 @@ class CoreTest {
 				fields++;
 				T.isTrue(v == Reflect.field(c2, f), "Clone field " + f);
 			}
-			T.eq(130, fields);
+			T.eq(132, fields); // TypeScript main: + DisableDynamicImportExtensionRewriting, RunExternalCode
 
 			T.eq(NewLineKindCRLF, Core.GetNewLineKind("\r\n"));
 			T.eq(NewLineKindLF, Core.GetNewLineKind("\n"));

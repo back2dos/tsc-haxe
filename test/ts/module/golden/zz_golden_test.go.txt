@@ -10,14 +10,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-json-experiment/json/jsontext"
-	"github.com/microsoft/typescript-go/internal/collections"
-	"github.com/microsoft/typescript-go/internal/core"
-	"github.com/microsoft/typescript-go/internal/json"
-	"github.com/microsoft/typescript-go/internal/locale"
-	"github.com/microsoft/typescript-go/internal/module"
-	"github.com/microsoft/typescript-go/internal/vfs"
-	"github.com/microsoft/typescript-go/internal/vfs/vfstest"
+	"encoding/json/jsontext"
+	"github.com/microsoft/TypeScript/tsc/internal/collections"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/json"
+	"github.com/microsoft/TypeScript/tsc/internal/locale"
+	"github.com/microsoft/TypeScript/tsc/internal/module"
+	"github.com/microsoft/TypeScript/tsc/internal/packagejson"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/vfs"
+	"github.com/microsoft/TypeScript/tsc/internal/vfs/vfstest"
 )
 
 type gHost struct {
@@ -26,7 +28,7 @@ type gHost struct {
 }
 
 func (h *gHost) FS() vfs.FS                  { return h.fs }
-func (h *gHost) GetCurrentDirectory() string { return h.cwd }
+func (h *gHost) GetCurrentDirectory() tspath.RootedDirectoryPath { return tspath.RootedDirectoryPath(h.cwd) }
 
 type gOptions struct {
 	ModuleResolution          string                                     `json:"moduleResolution"`
@@ -121,7 +123,11 @@ func TestGoldenDump(t *testing.T) {
 			files[p] = vfstest.Symlink(target)
 		}
 		caseSensitive := s.CaseSensitive == nil || *s.CaseSensitive
-		fs := vfstest.FromMap(files, caseSensitive)
+		cs := tspath.CaseInsensitive
+		if caseSensitive {
+			cs = tspath.CaseSensitive
+		}
+		fs := vfstest.FromMap(files, cs)
 		host := &gHost{fs: fs, cwd: "/"}
 		o := &core.CompilerOptions{}
 		switch s.Options.ModuleResolution {
@@ -146,9 +152,9 @@ func TestGoldenDump(t *testing.T) {
 			o.TraceResolution = core.TSTrue
 		}
 		o.Paths = s.Options.Paths
-		o.PathsBasePath = s.Options.PathsBasePath
-		o.RootDirs = s.Options.RootDirs
-		o.TypeRoots = s.Options.TypeRoots
+		o.PathsBasePath = tspath.RootedDirectoryPath(s.Options.PathsBasePath)
+		o.RootDirs = rootedDirs(s.Options.RootDirs)
+		o.TypeRoots = rootedDirs(s.Options.TypeRoots)
 		o.Types = s.Options.Types
 		o.CustomConditions = s.Options.CustomConditions
 		o.ModuleSuffixes = s.Options.ModuleSuffixes
@@ -158,12 +164,12 @@ func TestGoldenDump(t *testing.T) {
 		o.ResolvePackageJsonExports = tri(s.Options.ResolvePackageJsonExports)
 		o.ResolvePackageJsonImports = tri(s.Options.ResolvePackageJsonImports)
 		o.PreserveSymlinks = tri(s.Options.PreserveSymlinks)
-		o.OutDir = s.Options.OutDir
-		o.DeclarationDir = s.Options.DeclarationDir
-		o.RootDir = s.Options.RootDir
-		o.ConfigFilePath = s.Options.ConfigFilePath
+		o.OutDir = tspath.RootedDirectoryPath(s.Options.OutDir)
+		o.DeclarationDir = tspath.RootedDirectoryPath(s.Options.DeclarationDir)
+		o.RootDir = tspath.RootedDirectoryPath(s.Options.RootDir)
+		o.ConfigFilePath = tspath.RootedFilePath(s.Options.ConfigFilePath)
 
-		resolver := module.NewResolver(host, o, s.TypingsLocation, s.ProjectName)
+		resolver := module.NewResolver(module.ResolverOptions{Host: host, CompilerOptions: o, TypingsLocation: tspath.RootedDirectoryPath(s.TypingsLocation), ProjectName: s.ProjectName})
 		for _, op := range s.Ops {
 			mode := core.ModuleKindNone
 			switch op.Mode {
@@ -191,25 +197,25 @@ func TestGoldenDump(t *testing.T) {
 			}
 			switch op.Op {
 			case "module":
-				r, traces := resolver.ResolveModuleName(op.Name, op.From, mode, nil)
+				r, traces, _ := resolver.ResolveModuleName(op.Name, tspath.RootedFilePath(op.From), mode, nil)
 				writeTraces(traces)
 				writeModule(r)
 			case "typeRef":
-				r, traces := resolver.ResolveTypeReferenceDirective(op.Name, op.From, mode, nil)
+				r, traces := resolver.ResolveTypeReferenceDirective(op.Name, tspath.RootedFilePath(op.From), mode, nil)
 				writeTraces(traces)
 				fmt.Fprintf(&b, "resolved: %q original: %q primary: %s external: %s pkg: %q\n",
 					r.ResolvedFileName, r.OriginalPath, boolStr(r.Primary), boolStr(r.IsExternalLibraryImport), r.PackageId.String())
 			case "packageDir":
-				writeModule(resolver.ResolvePackageDirectory(op.Name, op.From, mode, nil))
+				writeModule(resolver.ResolvePackageDirectory(op.Name, tspath.RootedFilePath(op.From), mode, nil))
 			case "config":
-				writeModule(module.ResolveConfig(op.Name, op.From, host))
+				writeModule(module.ResolveConfig(op.Name, tspath.RootedFilePath(op.From), host.fs))
 			case "packageScope":
-				scope := resolver.GetPackageScopeForPath(op.Dir)
-				fmt.Fprintf(&b, "scope: %q exists: %s\n", scope.GetDirectory(), boolStr(scope.Exists()))
+				scope := resolver.GetPackageScopeForPath(tspath.RootedDirectoryPath(op.Dir))
+				fmt.Fprintf(&b, "scope: %q exists: %s\n", scopeDir(scope), boolStr(scope.Exists()))
 			case "automaticTypes":
-				fmt.Fprintf(&b, "types: %s\n", strings.Join(module.GetAutomaticTypeDirectiveNames(o, host), ","))
+				fmt.Fprintf(&b, "types: %s\n", strings.Join(module.GetAutomaticTypeDirectiveNames(o, tspath.RootedDirectoryPath(host.cwd), host.fs), ","))
 			case "entrypoints":
-				scope := resolver.GetPackageScopeForPath(op.Dir)
+				scope := resolver.GetPackageScopeForPath(tspath.RootedDirectoryPath(op.Dir))
 				for _, e := range resolver.GetEntrypointsFromPackageJsonInfo(scope, op.PackageName, op.DirSearch) {
 					fmt.Fprintf(&b, "entrypoint: %q %q %q ending: %d include: %s exclude: %s\n", e.OriginalFileName, e.ResolvedFileName, e.ModuleSpecifier, e.Ending, setStr(e.IncludeConditions), setStr(e.ExcludeConditions))
 				}
@@ -231,4 +237,23 @@ func setStr(s *collections.Set[string]) string {
 	}
 	slices.Sort(keys)
 	return "[" + strings.Join(keys, ",") + "]"
+}
+
+func rootedDirs(xs []string) []tspath.RootedDirectoryPath {
+	if xs == nil {
+		return nil
+	}
+	r := make([]tspath.RootedDirectoryPath, len(xs))
+	for i, x := range xs {
+		r[i] = tspath.RootedDirectoryPath(x)
+	}
+	return r
+}
+
+// PORT: TypeScript main dropped InfoCacheEntry.GetDirectory (7.0.2: "" for a nil entry)
+func scopeDir(p *packagejson.InfoCacheEntry) string {
+	if p == nil {
+		return ""
+	}
+	return p.PackageDirectory.String()
 }
