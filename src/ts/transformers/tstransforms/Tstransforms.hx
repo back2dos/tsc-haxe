@@ -341,8 +341,9 @@ class Tstransforms {
 
 	static function getAccessorTypeNode(node:Node, container:Node):Node {
 		final accessors = Ast.GetAllAccessorDeclarations(container.Members(), node);
-		if (accessors.SetAccessor != null) {
-			return getSetAccessorTypeAnnotationNode(accessors.SetAccessor);
+		final typeNode = getSetAccessorTypeAnnotationNode(accessors.SetAccessor);
+		if (typeNode != null) {
+			return typeNode;
 		}
 		if (accessors.GetAccessor != null) {
 			return accessors.GetAccessor.Type;

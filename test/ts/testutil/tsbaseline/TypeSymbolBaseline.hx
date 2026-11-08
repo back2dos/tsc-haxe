@@ -52,15 +52,12 @@ class TypeWriterWalker {
 		final fc = this.getTypeCheckerForCurrentFile();
 		final fileChecker = fc.a, done = fc.b;
 
-		final ec = Printer.GetEmitContext();
-		final ctx = ec.a, putCtx = ec.b;
+		final ctx = Printer.NewEmitContext();
 
 		final r = try this.writeTypeOrSymbolWorker(node, isSymbolWalk, line, sourceText, fileChecker, ctx) catch (e:haxe.Exception) {
-			putCtx();
 			done();
 			throw e;
 		}
-		putCtx();
 		done();
 		return r;
 	}
@@ -105,7 +102,6 @@ class TypeWriterWalker {
 				&& !Tsbaseline.isIntrinsicJsxTag(node, this.currentSourceFile)) {
 				typeString = t.AsIntrinsicType().IntrinsicName();
 			} else {
-				ctx.Reset();
 				final builder = Checker.NewNodeBuilder(fileChecker, ctx);
 				final typeFormatFlags:TypeFormatFlags = TypeFormatFlagsNoTruncation | TypeFormatFlagsAllowUniqueESSymbolType | TypeFormatFlagsGenerateNamesForShadowedTypeParams;
 				var typeNode = builder.TypeToTypeNode(t, node.Parent, ((typeFormatFlags & TypeFormatFlagsNodeBuilderFlagsMask : Int) : Flags) | FlagsIgnoreErrors,

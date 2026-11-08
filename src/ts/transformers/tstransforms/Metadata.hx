@@ -33,6 +33,8 @@ class MetadataTransformer {
 				return visitClassDeclaration(node.AsClassDeclaration());
 			case KindClassExpression:
 				return visitClassExpression(node.AsClassExpression());
+			case KindObjectLiteralExpression:
+				return visitObjectLiteralExpression(node);
 			case KindPropertyDeclaration:
 				return visitPropertyDeclaration(node.AsPropertyDeclaration());
 			case KindMethodDeclaration:
@@ -68,6 +70,14 @@ class MetadataTransformer {
 
 	function setCurrentLexicalScope(node:Node):Void {
 		this.currentLexicalScope = node;
+	}
+
+	function visitObjectLiteralExpression(node:Node):Node {
+		final oldParent = parent;
+		this.parent = node;
+		final r = Visitor().VisitEachChild(node);
+		setParent(oldParent); // PORT: defer
+		return r;
 	}
 
 	function visitClassExpression(node:ClassExpression):Node {

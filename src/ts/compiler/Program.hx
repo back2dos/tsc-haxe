@@ -1749,68 +1749,109 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		final emitters:Array<Emitter> = [];
 		final sourceFiles = this.getSourceFilesToEmit(options.TargetSourceFile, options.EmitOnly == EmitOnlyForcedDts);
 
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — a file's .js and its .d.ts have an emitter each, so that their two prints
+		// are two tasks (Go: one print task per file); the two emitters stay next to each other in input order
+		// (same results). fileEmitters[i]: the emitters of sourceFiles[i], transformed in this order (.js first, as Go).
+		final parts = options.EmitOnly == EmitAll ? [1, 2] : [0];
+		#else
+		final parts = [0];
+		#end
+		final fileEmitters:Array<Array<Emitter>> = [];
 		if (sourceFiles != null) {
-			#if tshx_parallel
-			// PORT: hxmc (-D tshx-parallel) — Go starts a goroutine per file, so the largest file starts at once;
-			// go.Par runs the queue in order on a fixed set of threads: queued largest first, so the largest
-			// file's emit does not start last (emitters stays in input order: same results)
-			final queue:Array<() -> Void> = [];
-			final sizes:Array<Int> = [];
-			#end
 			for (sourceFile in sourceFiles) {
-				#if tshx_parallel
-				// PORT: hxmc (-D tshx-parallel) — a file's .js and its .d.ts are written by two tasks (Go: one goroutine
-				// per file), so that the largest file's two outputs are printed at the same time; the two emitters
-				// stay next to each other in input order (same results)
-				final parts = options.EmitOnly == EmitAll ? [1, 2] : [0];
-				#else
-				final parts = [0];
-				#end
+				final own:Array<Emitter> = [];
 				for (part in parts) {
-				final emitter = new Emitter();
-				emitter.writer = null;
-				emitter.sourceFile = sourceFile;
-				emitter.emitOnly = options.EmitOnly;
-				emitter.writeFile = options.WriteFile;
-				emitter.tr = this.opts.Tracing;
-				emitter.part = part;
-				emitters.push(emitter);
+					final emitter = new Emitter();
+					emitter.writer = null;
+					emitter.sourceFile = sourceFile;
+					emitter.emitOnly = options.EmitOnly;
+					emitter.writeFile = options.WriteFile;
+					emitter.tr = this.opts.Tracing;
+					emitter.part = part;
+					emitters.push(emitter);
+					own.push(emitter);
+				}
+				fileEmitters.push(own);
+			}
+		}
+		final transformFile = function(emitter:Emitter) {
+			final sourceFile = emitter.sourceFile;
+			final h = Compiler.newEmitHost(ctx, this, sourceFile);
+			final host = h.a, hostDone = h.b;
+			try {
+				emitter.host = host;
+				emitter.paths = Outputpaths.GetOutputPathsFor(sourceFile, host.Options(), host, options.EmitOnly == EmitOnlyForcedDts);
+				emitter.transform();
+			} catch (e:Dynamic) {
+				hostDone();
+				throw e;
+			}
+			hostDone();
+		};
+		final printFile = function(emitter:Emitter) {
+			// take an unused writer
+			// PORT: sync.Pool of writers → a new writer per file (Go clears a pooled writer before use).
+			final writer = Printer.NewTextWriter(newLine, 0);
+			writer.Clear();
+
+			// attach writer and print
+			emitter.writer = writer;
+			emitter.print();
+			emitter.writer = null;
+
+			// put the writer back in the pool
+		};
+		if (sourceFiles != null) {
+			if (this.compilerCheckerPool != null && !this.SingleThreaded()) {
+				// Transform the files of each checker in one task. Transforming can create types and resolve symbols, so a
+				// checker shared by concurrent tasks would do that work in an order that depends on scheduling. Files are
+				// transformed in reverse program order, the order in which a single-threaded work group runs per-file tasks,
+				// so that a program with one checker produces the same output whether or not it is single-threaded. Printing
+				// does not use the checker, so it runs in tasks of its own. Single-threaded programs emit file by file instead,
+				// since queued prints would only run after every file is transformed.
+				final groups = this.compilerCheckerPool.groupFilesByChecker(sourceFiles);
 				#if tshx_parallel
-				sizes.push(sourceFile.Text().length);
-				queue.push(function() {
-				#else
-				wg.Queue(function() {
+				// PORT: hxmc (-D tshx-parallel) — go.Par runs the queue in order on a fixed set of threads (Go: a
+				// goroutine per task): the groups are queued largest first, so the largest one does not start last
+				// (which checker transforms which file is unchanged: same results)
+				final sizes = [for (group in groups) {
+					var size = 0;
+					for (i in group)
+						size += sourceFiles[i].Text().length;
+					size;
+				}];
+				final order = [for (i in 0...groups.length) i];
+				order.sort((a, b) -> sizes[a] != sizes[b] ? sizes[b] - sizes[a] : a - b);
+				final groups = [for (i in order) groups[i]];
 				#end
-					final h = Compiler.newEmitHost(ctx, this, sourceFile);
-					final host = h.a, hostDone = h.b;
-					try {
-						emitter.host = host;
-
-						// take an unused writer
-						final writer = Printer.NewTextWriter(newLine, 0);
-						writer.Clear();
-
-						// attach writer and perform emit
-						emitter.writer = writer;
-						emitter.paths = Outputpaths.GetOutputPathsFor(sourceFile, host.Options(), host, options.EmitOnly == EmitOnlyForcedDts);
-						emitter.emit();
-						emitter.writer = null;
-
-						// put the writer back in the pool
-					} catch (e:Dynamic) {
-						hostDone();
-						throw e;
+				for (group in groups) {
+					if (Core.len(group) == 0) {
+						continue;
 					}
-					hostDone();
-				});
+					wg.Queue(function() {
+						var i = group.length - 1;
+						while (i >= 0) {
+							for (emitter in fileEmitters[group[i]]) {
+								transformFile(emitter);
+								wg.Queue(function() {
+									printFile(emitter);
+								});
+							}
+							i--;
+						}
+					});
+				}
+			} else {
+				for (own in fileEmitters) {
+					wg.Queue(function() {
+						for (emitter in own) {
+							transformFile(emitter);
+							printFile(emitter);
+						}
+					});
 				}
 			}
-			#if tshx_parallel
-			final order = [for (i in 0...queue.length) i];
-			order.sort((a, b) -> sizes[a] != sizes[b] ? sizes[b] - sizes[a] : a - b);
-			for (i in order)
-				wg.Queue(queue[i]);
-			#end
 		}
 
 		// wait for emit to complete

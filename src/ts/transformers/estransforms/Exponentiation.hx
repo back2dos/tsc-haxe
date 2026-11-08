@@ -40,17 +40,25 @@ class ExponentiationTransformer {
 	function visitExponentiationAssignmentExpression(node:BinaryExpression):Node {
 		var target:Node = null;
 		var value:Node = null;
-		final left = Visitor().VisitNode(node.Left);
+		final left = Ast.SkipOuterExpressions(Visitor().VisitNode(node.Left), OEKParentheses | OEKPartiallyEmittedExpressions);
 		final right = Visitor().VisitNode(node.Right);
+		var expressionTemp:Node = null;
+		var objExpr:Node = null;
+		if (Ast.IsAccessExpression(left)) {
+			expressionTemp = left.Expression();
+			objExpr = expressionTemp;
+			if (expressionTemp.Kind != KindSuperKeyword) {
+				expressionTemp = Factory().NewTempVariable();
+				EmitContext().AddVariableDeclaration(expressionTemp);
+				objExpr = Factory().NewAssignmentExpression(expressionTemp, left.Expression());
+				objExpr.Loc = left.Expression().Loc;
+			}
+		}
 		if (Ast.IsElementAccessExpression(left)) {
 			// Transforms `a[x] **= b` into `(_a = a)[_x = x] = Math.pow(_a[_x], b)`
-			final expressionTemp = Factory().NewTempVariable();
-			EmitContext().AddVariableDeclaration(expressionTemp);
 			final argumentExpressionTemp = Factory().NewTempVariable();
 			EmitContext().AddVariableDeclaration(argumentExpressionTemp);
 
-			final objExpr = Factory().NewAssignmentExpression(expressionTemp, left.Expression());
-			objExpr.Loc = left.Expression().Loc;
 			final accessExpr = Factory().NewAssignmentExpression(argumentExpressionTemp, left.AsElementAccessExpression().ArgumentExpression);
 			accessExpr.Loc = left.AsElementAccessExpression().ArgumentExpression.Loc;
 
@@ -60,11 +68,7 @@ class ExponentiationTransformer {
 			value.Loc = left.Loc;
 		} else if (Ast.IsPropertyAccessExpression(left)) {
 			// Transforms `a.x **= b` into `(_a = a).x = Math.pow(_a.x, b)`
-			final expressionTemp = Factory().NewTempVariable();
-			EmitContext().AddVariableDeclaration(expressionTemp);
-			final assignment = Factory().NewAssignmentExpression(expressionTemp, left.Expression());
-			assignment.Loc = left.Expression().Loc;
-			target = Factory().NewPropertyAccessExpression(assignment, null, left.Name(), NodeFlagsNone);
+			target = Factory().NewPropertyAccessExpression(objExpr, null, left.Name(), NodeFlagsNone);
 			target.Loc = left.Loc;
 
 			value = Factory().NewPropertyAccessExpression(expressionTemp, null, left.Name(), NodeFlagsNone);

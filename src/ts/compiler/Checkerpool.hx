@@ -152,6 +152,20 @@ class CheckerPool_ implements CheckerPool {
 		}
 	}
 
+	// groupFilesByChecker returns, per checker, the indices of the given files associated with it (TypeScript main's
+	// #64922: emit transforms the files of each checker in one task).
+	function groupFilesByChecker(files:Array<SourceFile>):Array<Array<Int>> {
+		this.createCheckers();
+		final groups:Array<Array<Int>> = [for (_ in 0...this.checkers.length) null];
+		for (i in 0...files.length) {
+			final idx = this.checkers.indexOf(this.fileAssociations.get(files[i]));
+			if (groups[idx] == null)
+				groups[idx] = [];
+			groups[idx].push(i);
+		}
+		return groups;
+	}
+
 	// getImportAdjacency returns an undirected import graph represented by file
 	// index. A directed import from A to B makes both files adjacent because either
 	// file can benefit from sharing checker caches with the other.

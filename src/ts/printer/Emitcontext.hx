@@ -3,7 +3,7 @@ package ts.printer;
 import haxe.ds.IntMap;
 import go.IdentityMap;
 
-// Port of emitcontext.go (types and methods; NewEmitContext, GetEmitContext, isHoistedVariable and
+// Port of emitcontext.go (types and methods; NewEmitContext, isHoistedVariable and
 // nextAutoGenerateId are package statics in class Printer).
 
 // Stores side-table information used during transformation that can be read by the printer to customize emit
@@ -25,19 +25,6 @@ class EmitContext {
 	static final fn_newEmitNode:() -> EmitNode = () -> new EmitNode();
 
 	public function new() {}
-
-	public function Reset():Void {
-		// PORT: Go `*c = EmitContext{Factory: c.Factory}` → every field back to its zero value.
-		autoGenerate = null;
-		textSource = null;
-		original = null;
-		emitNodes = new LinkStore<Node, EmitNode>(fn_newEmitNode);
-		assignedName = null;
-		classThis = null;
-		varScopeStack = new Stack<VarScope>();
-		letScopeStack = new Stack<VarScope>();
-		emitHelpers = new OrderedSet<EmitHelper>();
-	}
 
 	function onCreate(node:Node):Void {
 		node.Flags |= NodeFlagsSynthesized;
@@ -487,6 +474,16 @@ class EmitContext {
 		return null;
 	}
 
+	public function IsFileLevelUniqueName(sourceFile:SourceFile, name:std.String, hasGlobalName:(std.String) -> Bool):Bool {
+		if (hasGlobalName != null && hasGlobalName(name)) {
+			return false;
+		}
+		sourceFile = MostOriginal(sourceFile.AsNode()).AsSourceFile();
+		// PORT: TypeScript main collects the identifiers lazily (SourceFile.HasIdentifier, typescript-go#4731); here
+		// the parser's Identifiers map (Go 7.0.2) is still used
+		return sourceFile.Identifiers == null || !sourceFile.Identifiers.exists(name);
+	}
+
 	public function EmitFlags(node:Node):EmitFlags {
 		final emitNode = emitNodes.TryGet(node);
 		if (emitNode != null) {
@@ -821,6 +818,19 @@ class EmitContext {
 		scope.initializationStatements = Printer.appendNode(scope.initializationStatements, node);
 	}
 
+	public function ConvertToFunctionBlock(node:Node, multiLine:Bool):Node {
+		if (Ast.IsBlock(node)) {
+			return node;
+		}
+		final returnStatement = Factory.NewReturnStatement(node);
+		returnStatement.Loc = node.Loc;
+		final statements = Factory.NewNodeList([returnStatement]);
+		statements.Loc = node.Loc;
+		final block = Factory.NewBlock(statements, multiLine);
+		block.Loc = node.Loc;
+		return block;
+	}
+
 	public function VisitFunctionBody(node:BlockOrExpression, visitor:NodeVisitor):BlockOrExpression {
 		// !!! c.resumeVariableEnvironment()
 		final updated = visitor.VisitNode(node);
@@ -834,8 +844,9 @@ class EmitContext {
 		}
 
 		if (!Ast.IsBlock(updated)) {
-			final statements = MergeEnvironment([Factory.NewReturnStatement(updated)], declarations);
-			return Factory.NewBlock(Factory.NewNodeList(statements), false /*multiLine*/);
+			AddEmitFlags(updated, EFNoComments);
+			final block = ConvertToFunctionBlock(updated, false /*multiLine*/);
+			return Factory.UpdateBlock(block.AsBlock(), MergeEnvironmentList(block.StatementList(), declarations), block.AsBlock().MultiLine);
 		}
 
 		return Factory.UpdateBlock(updated.AsBlock(), MergeEnvironmentList(updated.StatementList(), declarations), updated.AsBlock().MultiLine);

@@ -2021,7 +2021,7 @@ class EsDecoratorTransformer {
 	}
 
 	function visitArrayAssignmentElement(node:Node):Node {
-		Debug.Assert(Ast.IsArrayBindingOrAssignmentElement(node));
+		Debug.Assert(node != null && Ast.IsExpression(node));
 		if (Ast.IsSpreadElement(node)) {
 			return visitAssignmentRestElement(node);
 		}
@@ -2085,7 +2085,7 @@ class EsDecoratorTransformer {
 	}
 
 	function visitObjectAssignmentElement(node:Node):Node {
-		Debug.Assert(Ast.IsObjectBindingOrAssignmentElement(node));
+		Debug.Assert(node != null && Ast.IsObjectLiteralElement(node));
 		if (Ast.IsSpreadAssignment(node)) {
 			return visitAssignmentRestProperty(node);
 		}
