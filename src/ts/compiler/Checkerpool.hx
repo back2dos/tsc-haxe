@@ -108,10 +108,26 @@ class CheckerPool_ implements CheckerPool {
 			});
 		}
 
+		// PORT: perf — Go's len(file.Text()) is O(1); the UTF-8 length of a UTF-16 string is a scan of the whole
+		// text: done in chunks on the work group, next to the checkers' creation (nuxt: 9 ms on one thread)
+		final files = this.program.processedFiles.files;
+		final textLengths:Array<Int> = checkerCount > 1 ? [for (_ in 0...files.length) 0] : null;
+		if (checkerCount > 1) {
+			final chunk = 256;
+			var start = 0;
+			while (start < files.length) {
+				final from = start, to = start + chunk < files.length ? start + chunk : files.length;
+				wg.Queue(function() {
+					for (i in from...to)
+						textLengths[i] = go.Utf8.ByteLen(files[i].Text());
+				});
+				start = to;
+			}
+		}
+
 		wg.RunAndWait();
 
 		this.fileAssociations = new IdentityMap();
-		final files = this.program.processedFiles.files;
 		// PORT: perf — TypeScript 7.1's assignment of files to checkers by balanced import affinity
 		// (microsoft/typescript-go#4313) in place of i % checkerCount: which checker checks a file, not what
 		// is checked (output identical at any checker count, gated)
@@ -124,7 +140,7 @@ class CheckerPool_ implements CheckerPool {
 			var declarationBaseWeight = 0;
 			for (i in 0...files.length) {
 				final file = files[i];
-				final baseWeight = CheckerAssociation.baseWeight(file.NodeCount, go.Utf8.ByteLen(file.Text()));
+				final baseWeight = CheckerAssociation.baseWeight(file.NodeCount, textLengths[i]);
 				totalBaseWeight += baseWeight;
 				if (file.IsDeclarationFile)
 					declarationBaseWeight += baseWeight;
