@@ -37,6 +37,17 @@ enum abstract TypeSystemPropertyName(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
+class ConstructorAccessibilityError {
+	var kind:ModifierFlags = ModifierFlagsNone;
+	var declaringClass:Type = null;
+
+	public function new(kind:ModifierFlags, declaringClass:Type) {
+		this.kind = kind;
+		this.declaringClass = declaringClass;
+	}
+}
+
+@:allow(ts.checker)
 class TypeResolution {
 	var target:TypeSystemEntity = null;
 	var propertyName:TypeSystemPropertyName = 0;
@@ -131,6 +142,8 @@ enum abstract CachedTypeKind(Int) from Int to Int {
 	var CachedTypeKindDecoratorContextStatic = 19;
 	var CachedTypeKindDecoratorContextPrivate = 20;
 	var CachedTypeKindDecoratorContextPrivateStatic = 21;
+	var CachedTypeKindSimplifiedConditionalTypeForReading = 22;
+	var CachedTypeKindSimplifiedConditionalTypeForWriting = 23;
 }
 
 @:allow(ts.checker)
@@ -382,6 +395,7 @@ enum abstract InferenceFlags(Int) from Int to Int {
 	var InferenceFlagsNoDefault = 1 << 0; // Infer silentNeverType for no inferences (otherwise anyType or unknownType)
 	var InferenceFlagsAnyDefault = 1 << 1; // Infer anyType (in JS files) for no inferences (otherwise unknownType)
 	var InferenceFlagsSkippedGenericFunction = 1 << 2; // A generic function was skipped during inference
+	var InferenceFlagsNoConstraintChecks = 1 << 3;
 }
 
 @:allow(ts.checker)
@@ -768,6 +782,7 @@ class CallState {
 	var argCheckMode:CheckMode = 0;
 	var isSingleNonGenericCandidate:Bool = false;
 	var signatureHelpTrailingComma:Bool = false;
+	var recursiveResolution:Bool = false;
 	var candidatesForArgumentError:Array<Signature> = null;
 	var candidateForArgumentArityError:Signature = null;
 	var candidateForTypeArgumentError:Signature = null;
@@ -1364,7 +1379,7 @@ class Checker {
 	public var SignatureCount:Int = 0;
 	public var TotalInstantiationCount:Int = 0;
 	var instantiationCount:Int = 0;
-	var instantiationDepth:Int = 0;
+	var instantiationStack:Array<Type> = [];
 	var conditionalConstraintDepth:Int = 0;
 	var inlineLevel:Int = 0;
 	var serializationLevel:Int = 0;
@@ -1387,7 +1402,6 @@ class Checker {
 	var exactOptionalPropertyTypes:Bool = false;
 	var canCollectSymbolAliasAccessibilityData:Bool = false;
 	var wasCanceled:Bool = false;
-	var saveDeferredDiagnostics:Bool = false;
 	var arrayVariances:Array<VarianceFlags> = null;
 	var globals:SymbolTable = null;
 	var evaluate:Evaluator_ = null; // PORT: Go evaluator.Evaluator is the func type Evaluator_
@@ -1406,7 +1420,7 @@ class Checker {
 	var subtypeReductionCache:StringMap<Array<Type>> /* key: checker.CacheHashKey */ = null;
 	var cachedTypes:StringMap<Type> /* key: checker.CachedTypeKey */ = null;
 	var cachedSignatures:StringMap<Signature> /* key: checker.CachedSignatureKey */ = null;
-	var undefinedProperties:StringMap<Symbol> = null;
+	var undefinedProperties:IdentityMap<Symbol, Symbol> = null;
 	var narrowedTypes:StringMap<Type> /* key: checker.NarrowedTypeKey */ = null;
 	var assignmentReducedTypes:StringMap<Type> /* key: checker.AssignmentReducedKey */ = null;
 	var discriminatedContextualTypes:StringMap<Type> /* key: checker.DiscriminatedContextualTypeKey */ = null;
@@ -1460,6 +1474,7 @@ class Checker {
 	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new Symbol());
 	var signatureArena:Arena<Signature> = new Arena<Signature>(() -> new Signature());
 	var indexInfoArena:Arena<IndexInfo> = new Arena<IndexInfo>(() -> new IndexInfo());
+	var mergedExportsChecked:Set<Symbol> = new Set<Symbol>();
 	var mergedSymbols:LinkStore<Symbol, MergedSymbolLinks> = null; // PORT: perf — from TypeScript 7.1 (#64869)
 	var factory:NodeFactory = new NodeFactory();
 	var nodeLinks:LinkStore<Node, NodeLinks> = new LinkStore<Node, NodeLinks>(() -> new NodeLinks());
@@ -1471,6 +1486,7 @@ class Checker {
 	var arrayLiteralLinks:LinkStore<Node, ArrayLiteralLinks> = new LinkStore<Node, ArrayLiteralLinks>(() -> new ArrayLiteralLinks());
 	var switchStatementLinks:LinkStore<Node, SwitchStatementLinks> = new LinkStore<Node, SwitchStatementLinks>(() -> new SwitchStatementLinks());
 	var jsxElementLinks:LinkStore<Node, JsxElementLinks> = new LinkStore<Node, JsxElementLinks>(() -> new JsxElementLinks());
+	var computedNameLinks:LinkStore<Node, ComputedNameNodeLinks> = new LinkStore<Node, ComputedNameNodeLinks>(() -> new ComputedNameNodeLinks());
 	var symbolReferenceLinks:LinkStore<Symbol, SymbolReferenceLinks> = new LinkStore<Symbol, SymbolReferenceLinks>(() -> new SymbolReferenceLinks());
 	var valueSymbolLinks:LinkStore<Symbol, ValueSymbolLinks> = new LinkStore<Symbol, ValueSymbolLinks>(() -> new ValueSymbolLinks());
 	var mappedSymbolLinks:LinkStore<Symbol, MappedSymbolLinks> = new LinkStore<Symbol, MappedSymbolLinks>(() -> new MappedSymbolLinks());
@@ -1583,6 +1599,7 @@ class Checker {
 	var typeResolutions:Array<TypeResolution> = null;
 	var typeResolutionCount = 0; // PORT: perf (the stack's depth; its entries are reused)
 	var resolutionStart:Int = 0;
+	var callResolutionStack:Array<Node> = [];
 	var inVarianceComputation:Bool = false;
 	var apparentArgumentCount:Null<Int> /* PORT: pointer */ = null;
 	var lastGetCombinedNodeFlagsNode:Node = null;
@@ -1857,7 +1874,7 @@ class Checker {
 		c.subtypeReductionCache = new StringMap<Array<Type>>();
 		c.cachedTypes = new StringMap<Type>();
 		c.cachedSignatures = new StringMap<Signature>();
-		c.undefinedProperties = new StringMap<Symbol>();
+		c.undefinedProperties = new IdentityMap<Symbol, Symbol>();
 		c.narrowedTypes = new StringMap<Type>();
 		c.assignmentReducedTypes = new StringMap<Type>();
 		c.discriminatedContextualTypes = new StringMap<Type>();
@@ -5327,6 +5344,28 @@ class Checker {
 			&& node.AsTypeReferenceNode().TypeName.Text() == "const";
 	}
 
+	// isConstTypeReferenceName reports whether node is the `const` type name of a `const`
+	// assertion (`x as const` / `<const>x`), which must not be resolved as a real name.
+	static function isConstTypeReferenceName(node:Node):Bool {
+		return node != null && Ast.IsIdentifier(node) && node.Parent != null && isConstTypeReference(node.Parent) && node.Parent.Parent != null
+			&& Ast.IsAssertionExpression(node.Parent.Parent);
+	}
+
+	// isExportAssignmentExpressionName reports whether node is (the root entity name of) the
+	// expression of an `export =` / `export default` assignment. Referencing a namespace or
+	// type-only name there is legal, and checkExportAssignment decides whether it is an error,
+	// so checkIdentifier must not report a value-usage error for it.
+	static function isExportAssignmentExpressionName(node:Node):Bool {
+		if (node == null) {
+			return false;
+		}
+		var current = node;
+		while (current.Parent != null && Ast.IsPropertyAccessOrQualifiedName(current.Parent)) {
+			current = current.Parent;
+		}
+		return current.Parent != null && Ast.IsExportAssignment(current.Parent) && current.Parent.Expression() == current;
+	}
+
 	public static function GetSingleVariableOfVariableStatement(node:Node):Node {
 		if (!Ast.IsVariableStatement(node)) {
 			return null;
@@ -5541,10 +5580,32 @@ class Checker {
 		if (t1.flags & (TypeFlagsAny | TypeFlagsUnknown | TypeFlagsString | TypeFlagsNumber | TypeFlagsBoolean | TypeFlagsBigInt | TypeFlagsESSymbol | TypeFlagsVoid | TypeFlagsUndefined | TypeFlagsNull | TypeFlagsNever | TypeFlagsNonPrimitive) != 0) {
 			// Only distinguished by type IDs, handled below.
 		} else if (t1.flags & TypeFlagsObject != 0) {
-			// Order unnamed or identically named object types by symbol.
-			c = Utilities.compareSymbolsWorker(t1.checker, t1.symbol, t2.symbol);
-			if (c != 0) {
-				return c;
+			// Order instantiation expression types without relying on lazy symbol IDs.
+			// Order other unnamed or identically named object types by symbol.
+			if (t1.objectFlags & ObjectFlagsInstantiationExpressionType != 0 && t2.objectFlags & ObjectFlagsInstantiationExpressionType != 0) {
+				var declaration1:Node = null;
+				var declaration2:Node = null;
+				if (t1.symbol != null && Core.len(t1.symbol.Declarations) != 0) {
+					declaration1 = t1.symbol.Declarations[0];
+				}
+				if (t2.symbol != null && Core.len(t2.symbol.Declarations) != 0) {
+					declaration2 = t2.symbol.Declarations[0];
+				}
+				// A single instantiation expression can produce multiple types for union constituents,
+				// so compare their source declarations before comparing the shared expression node.
+				c = t1.checker.compareNodes(declaration1, declaration2);
+				if (c != 0) {
+					return c;
+				}
+				c = t1.checker.compareNodes(t1.AsInstantiationExpressionType().node, t2.AsInstantiationExpressionType().node);
+				if (c != 0) {
+					return c;
+				}
+			} else {
+				c = Utilities.compareSymbolsWorker(t1.checker, t1.symbol, t2.symbol);
+				if (c != 0) {
+					return c;
+				}
 			}
 			// When object types have the same or no symbol, order by kind. We order type references before other kinds.
 			if (t1.objectFlags & ObjectFlagsReference != 0 && t2.objectFlags & ObjectFlagsReference != 0) {
@@ -5582,14 +5643,40 @@ class Checker {
 			} else if (t2.objectFlags & ObjectFlagsReference != 0) {
 				return 1;
 			} else {
-				// Order unnamed non-reference object types by kind associated type mappers. Reverse mapped types have
-				// neither symbols nor mappers so they're ultimately ordered by unstable type IDs, but given their rarity
-				// this should be fine.
+				// Order unnamed non-reference object types by kind and instantiation data.
 				c = ((t1.objectFlags & ObjectFlagsObjectTypeKindMask) : Int) - ((t2.objectFlags & ObjectFlagsObjectTypeKindMask) : Int);
 				if (c != 0) {
 					return c;
 				}
-				c = compareTypeMappers(t1.AsObjectType().mapper, t2.AsObjectType().mapper);
+				if (t1.objectFlags & ObjectFlagsReverseMapped != 0) {
+					final r1 = t1.AsReverseMappedType();
+					final r2 = t2.AsReverseMappedType();
+					c = CompareTypes(r1.source, r2.source);
+					if (c != 0) {
+						return c;
+					}
+					c = CompareTypes(r1.mappedType, r2.mappedType);
+					if (c != 0) {
+						return c;
+					}
+					c = CompareTypes(r1.constraintType, r2.constraintType);
+					if (c != 0) {
+						return c;
+					}
+				}
+				var m1 = t1.AsObjectType().mapper;
+				var m2 = t2.AsObjectType().mapper;
+				if (t1.objectFlags & ObjectFlagsMapped != 0) {
+					// instantiateAnonymousType prepends a fresh type parameter mapping.
+					// Compare the effective instantiation, not the identity of that fresh parameter.
+					if (m1 != null) {
+						m1 = (cast m1.data : CompositeTypeMapper).m2;
+					}
+					if (m2 != null) {
+						m2 = (cast m2.data : CompositeTypeMapper).m2;
+					}
+				}
+				c = compareTypeMappers(m1, m2);
 				if (c != 0) {
 					return c;
 				}
@@ -5634,6 +5721,11 @@ class Checker {
 		} else if (t1.flags & TypeFlagsNumberLiteral != 0) {
 			// Numeric literal types are ordered by their values.
 			c = compareNumbers((t1.AsLiteralType().value : Float), (t2.AsLiteralType().value : Float));
+			if (c != 0) {
+				return c;
+			}
+		} else if (t1.flags & TypeFlagsBigIntLiteral != 0) {
+			c = getBigIntLiteralValue(t1).Compare(getBigIntLiteralValue(t2));
 			if (c != 0) {
 				return c;
 			}
@@ -5719,10 +5811,10 @@ class Checker {
 		final s1 = getTypeNameSymbol(t1);
 		final s2 = getTypeNameSymbol(t2);
 		if (s1 == s2) {
-			if (t1.alias != null) {
-				return compareTypeLists(t1.alias.typeArguments, t2.alias.typeArguments);
-			}
-			return 0;
+			// PORT: Go's nil-safe alias.TypeArguments()
+			final a1:Array<Type> = t1.alias != null ? t1.alias.typeArguments : null;
+			final a2:Array<Type> = t2.alias != null ? t2.alias.typeArguments : null;
+			return compareTypeLists(a1, a2);
 		}
 		if (s1 == null) {
 			return 1;
@@ -5730,7 +5822,12 @@ class Checker {
 		if (s2 == null) {
 			return -1;
 		}
-		return Strings.Compare(s1.Name, s2.Name);
+		final c = Strings.Compare(s1.Name, s2.Name);
+		if (c != 0) {
+			return c;
+		}
+		// Keep distinct same-named declarations together before comparing alias arguments or structure.
+		return Utilities.compareSymbolsWorker(t1.checker, s1, s2);
 	}
 
 	static function getTypeNameSymbol(t:Type):Symbol {
@@ -5870,6 +5967,20 @@ class Checker {
 	}
 
 	static function getDeclarationModifierFlagsFromSymbolEx(s:Symbol, isWrite:Bool):ModifierFlags {
+		if (s.CheckFlags & CheckFlagsSynthetic != 0) {
+			var accessModifier:ModifierFlags = ModifierFlagsNone;
+			if (!isWrite && s.CheckFlags & CheckFlagsContainsPublic != 0 || isWrite && s.CheckFlags & CheckFlagsContainsWritePublic != 0) {
+				accessModifier = ModifierFlagsPublic;
+			} else if (!isWrite && s.CheckFlags & CheckFlagsContainsProtected != 0 || isWrite && s.CheckFlags & CheckFlagsContainsWriteProtected != 0) {
+				accessModifier = ModifierFlagsProtected;
+			} else if (!isWrite && s.CheckFlags & CheckFlagsContainsPrivate != 0 || isWrite && s.CheckFlags & CheckFlagsContainsWritePrivate != 0) {
+				accessModifier = ModifierFlagsPrivate;
+			}
+			if (s.CheckFlags & CheckFlagsContainsStatic != 0) {
+				return accessModifier | ModifierFlagsStatic;
+			}
+			return accessModifier;
+		}
 		if (s.ValueDeclaration != null) {
 			var declaration:Node = null;
 			if (isWrite) {
@@ -5886,21 +5997,6 @@ class Checker {
 				return flags;
 			}
 			return flags & ~ModifierFlagsAccessibilityModifier;
-		}
-		if (s.CheckFlags & CheckFlagsSynthetic != 0) {
-			var accessModifier:ModifierFlags = ModifierFlagsNone;
-			if (s.CheckFlags & CheckFlagsContainsPrivate != 0) {
-				accessModifier = ModifierFlagsPrivate;
-			} else if (s.CheckFlags & CheckFlagsContainsPublic != 0) {
-				accessModifier = ModifierFlagsPublic;
-			} else {
-				accessModifier = ModifierFlagsProtected;
-			}
-			var staticModifier:ModifierFlags = ModifierFlagsNone;
-			if (s.CheckFlags & CheckFlagsContainsStatic != 0) {
-				staticModifier = ModifierFlagsStatic;
-			}
-			return accessModifier | staticModifier;
 		}
 		if (s.Flags & SymbolFlagsPrototype != 0) {
 			return ModifierFlagsPublic | ModifierFlagsStatic;
@@ -6229,6 +6325,30 @@ class Checker {
 		return null;
 	}
 
+	// Limits on the size of a template literal type produced by getTemplateLiteralType. Recursive instantiations
+	// such as `Recur<any, `${S}_${S}`>` double the text (or the number of placeholders) on every iteration and
+	// exhaust memory long before the tail recursion limit in getConditionalType is reached (see #63271).
+	static inline final maxTemplateLiteralTypeLength = 50000000;
+	static inline final maxTemplateLiteralTypeSpans = 100000;
+
+	static function quotedAndCommaSeparated(items:Array<std.String>):std.String {
+		return [for (item in items) "'" + item + "'"].join(", ");
+	}
+
+	static function isContainedByNamespace(node:Node):Bool {
+		var container = node.Parent;
+		if (!Ast.IsSourceFile(container)) {
+			container = container.Parent;
+		}
+		return Ast.IsModuleDeclaration(container) && !Ast.IsAmbientModule(container);
+	}
+
+	static function isInvalidComputedPropertyName(node:Node):Bool {
+		return (Ast.IsTypeLiteralNode(node.Parent.Parent) || Ast.IsClassLike(node.Parent.Parent) || Ast.IsInterfaceDeclaration(node.Parent.Parent))
+			&& Ast.IsBinaryExpression(node.Expression()) && node.Expression().AsBinaryExpression().OperatorToken.Kind == KindInKeyword
+			&& !Ast.IsAccessor(node.Parent);
+	}
+
 	static function isImportTypeQualifierPart(node:Node):Node {
 		var parent = node.Parent;
 		while (Ast.IsQualifiedName(parent)) {
@@ -6414,6 +6534,9 @@ class Checker {
 			add("Array", "es2022", ["at"]);
 			add("Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Iterator", "es2015", []);
+			add("IteratorConstructor", "es2026", ["concat"]);
+			add("RawJSON", "es2026", []);
+			add("JSON", "es2026", ["isRawJSON", "rawJSON"]);
 			add("AsyncIterator", "es2015", []);
 			add("ArrayBuffer", "es2024", ["maxByteLength", "resizable", "resize", "detached", "transfer", "transferToFixedLength"]);
 			add("Atomics", "es2017", ["add", "and", "compareExchange", "exchange", "isLockFree", "load", "or", "store", "sub", "wait", "notify", "xor"]);
@@ -6430,7 +6553,7 @@ class Checker {
 			add("RegExpConstructor", "es2025", ["escape"]);
 			add("Reflect", "es2015", ["apply", "construct", "defineProperty", "deleteProperty", "get", "getOwnPropertyDescriptor", "getPrototypeOf", "has", "isExtensible", "ownKeys", "preventExtensions", "set", "setPrototypeOf"]);
 			add("ArrayConstructor", "es2015", ["from", "of"]);
-			add("ArrayConstructor", "esnext", ["fromAsync"]);
+			add("ArrayConstructor", "es2026", ["fromAsync"]);
 			add("ObjectConstructor", "es2015", ["assign", "getOwnPropertySymbols", "keys", "is", "setPrototypeOf"]);
 			add("ObjectConstructor", "es2017", ["values", "entries", "getOwnPropertyDescriptors"]);
 			add("ObjectConstructor", "es2019", ["fromEntries"]);
@@ -6439,8 +6562,9 @@ class Checker {
 			add("NumberConstructor", "es2015", ["isFinite", "isInteger", "isNaN", "isSafeInteger", "parseFloat", "parseInt"]);
 			add("Math", "es2015", ["clz32", "imul", "sign", "log10", "log2", "log1p", "expm1", "cosh", "sinh", "tanh", "acosh", "asinh", "atanh", "hypot", "trunc", "fround", "cbrt"]);
 			add("Math", "es2025", ["f16round"]);
+			add("Math", "es2026", ["sumPrecise"]);
 			add("Map", "es2015", ["entries", "keys", "values"]);
-			add("Map", "esnext", ["getOrInsert", "getOrInsertComputed"]);
+			add("Map", "es2026", ["getOrInsert", "getOrInsertComputed"]);
 			add("MapConstructor", "es2024", ["groupBy"]);
 			add("Set", "es2015", ["entries", "keys", "values"]);
 			add("Set", "es2025", ["union", "intersection", "difference", "symmetricDifference", "isSubsetOf", "isSupersetOf", "isDisjointFrom"]);
@@ -6452,7 +6576,7 @@ class Checker {
 			add("Symbol", "es2015", ["for", "keyFor"]);
 			add("Symbol", "es2019", ["description"]);
 			add("WeakMap", "es2015", []);
-			add("WeakMap", "esnext", ["getOrInsert", "getOrInsertComputed"]);
+			add("WeakMap", "es2026", ["getOrInsert", "getOrInsertComputed"]);
 			add("WeakSet", "es2015", []);
 			add("String", "es2015", ["codePointAt", "includes", "endsWith", "normalize", "repeat", "startsWith", "anchor", "big", "blink", "bold", "fixed", "fontcolor", "fontsize", "italics", "link", "small", "strike", "sub", "sup"]);
 			add("String", "es2017", ["padStart", "padEnd"]);
@@ -6483,6 +6607,7 @@ class Checker {
 			add("Int8Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Uint8Array", "es2022", ["at"]);
 			add("Uint8Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
+			add("Uint8Array", "es2026", ["toBase64", "setFromBase64", "toHex", "setFromHex"]);
 			add("Uint8ClampedArray", "es2022", ["at"]);
 			add("Uint8ClampedArray", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Int16Array", "es2022", ["at"]);
@@ -6505,8 +6630,8 @@ class Checker {
 			add("BigUint64Array", "es2022", ["at"]);
 			add("BigUint64Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Error", "es2022", ["cause"]);
-			add("ErrorConstructor", "esnext", ["isError"]);
-			add("Uint8ArrayConstructor", "esnext", ["fromBase64", "fromHex"]);
+			add("ErrorConstructor", "es2026", ["isError"]);
+			add("Uint8ArrayConstructor", "es2026", ["fromBase64", "fromHex"]);
 			add("DisposableStack", "esnext", []);
 			add("AsyncDisposableStack", "esnext", []);
 			add("Date", "esnext", ["toTemporalInstant"]);

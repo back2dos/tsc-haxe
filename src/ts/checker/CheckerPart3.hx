@@ -239,16 +239,9 @@ class CheckerPart3 {
 		// Check if the index type is assignable to 'keyof T' for the object type.
 		final objectType = t.AsIndexedAccessType().objectType;
 		final indexType = t.AsIndexedAccessType().indexType;
-		// skip index type deferral on remapping mapped types
-		var objectIndexType:Type = null;
-		if (c.isGenericMappedType(objectType) && c.getMappedTypeNameTypeKind(objectType) == MappedTypeNameTypeKindRemapping) {
-			objectIndexType = c.getIndexTypeForMappedType(objectType, IndexFlagsNone);
-		} else {
-			objectIndexType = c.getIndexTypeEx(objectType, IndexFlagsNone);
-		}
 		final hasNumberIndexInfo = c.getIndexInfoOfType(objectType, c.numberType) != null;
 		if (Checker.everyType(indexType, (t:Type) -> {
-			return c.isTypeAssignableTo(t, objectIndexType) || hasNumberIndexInfo && c.isApplicableIndexType(t, c.numberType);
+			return c.isTypeAssignableTo(t, c.getIndexTypeEx(objectType, IndexFlagsNone)) || hasNumberIndexInfo && c.isApplicableIndexType(t, c.numberType);
 		})) {
 			if (accessNode.Kind == KindElementAccessExpression && Ast.IsAssignmentTarget(accessNode) && objectType.objectFlags & ObjectFlagsMapped != 0
 				&& Checker.getMappedTypeModifiers(objectType) & MappedTypeModifiersIncludeReadonly != 0) {
@@ -627,7 +620,16 @@ class CheckerPart3 {
 		// that the user will not add any.
 		final constructSignatures = c.getSignaturesOfType(expressionType, SignatureKindConstruct);
 		if (Core.len(constructSignatures) != 0) {
-			if (!c.isConstructorAccessible(node, constructSignatures[0])) {
+			final accessibilityError = c.getConstructorAccessibilityError(node, constructSignatures, ModifierFlagsNonPublicAccessibilityModifier);
+			if (accessibilityError != null) {
+				if (accessibilityError.kind & ModifierFlagsPrivate != 0) {
+					c.error(node, Diagnostics.Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration,
+						c.TypeToString(accessibilityError.declaringClass));
+				}
+				if (accessibilityError.kind & ModifierFlagsProtected != 0) {
+					c.error(node, Diagnostics.Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration,
+						c.TypeToString(accessibilityError.declaringClass));
+				}
 				return c.resolveErrorCall(node);
 			}
 			// If the expression is a class of abstract type, or an abstract construct signature,
@@ -670,36 +672,31 @@ class CheckerPart3 {
 		return c.resolveErrorCall(node);
 	}
 
-	static function isConstructorAccessible(c:Checker, node:Node, signature:Signature):Bool {
-		if (signature == null || signature.declaration == null) {
-			return true;
-		}
-		final declaration = signature.declaration;
-		final modifiers = Checker.getSelectedModifierFlags(declaration, ModifierFlagsNonPublicAccessibilityModifier);
-		// (1) Public constructors and (2) constructor functions are always accessible.
-		if (modifiers == 0 || !Ast.IsConstructorDeclaration(declaration)) {
-			return true;
-		}
-		final declaringClassDeclaration = Ast.GetClassLikeDeclarationOfSymbol(declaration.Parent.Symbol());
-		final declaringClass = c.getDeclaredTypeOfSymbol(declaration.Parent.Symbol());
-		// A private or protected constructor can only be instantiated within its own class (or a subclass, for protected)
-		if (!c.isNodeWithinClass(node, declaringClassDeclaration)) {
-			final containingClass = Ast.GetContainingClass(node);
-			if (containingClass != null && modifiers & ModifierFlagsProtected != 0) {
-				final containingType = c.getDeclaredTypeOfSymbol(containingClass.Symbol());
-				if (c.typeHasProtectedAccessibleBase(declaration.Parent.Symbol(), containingType)) {
-					return true;
+	static function getConstructorAccessibilityError(c:Checker, node:Node, signatures:Array<Signature>, modifiersMask:ModifierFlags):ConstructorAccessibilityError {
+		for (signature in signatures) {
+			if (signature.declaration == null) {
+				continue;
+			}
+			final declaration = signature.declaration;
+			final modifiers = Checker.getSelectedModifierFlags(declaration, modifiersMask);
+			// (1) Public constructors and (2) constructor functions are always accessible.
+			if (modifiers == 0 || !Ast.IsConstructorDeclaration(declaration)) {
+				continue;
+			}
+			final declaringClassDeclaration = Ast.GetClassLikeDeclarationOfSymbol(declaration.Parent.Symbol());
+			// A private or protected constructor can only be instantiated within its own class (or a subclass, for protected)
+			if (!c.isNodeWithinClass(node, declaringClassDeclaration)) {
+				final containingClass = Ast.GetContainingClass(node);
+				if (containingClass != null && modifiers & ModifierFlagsProtected != 0) {
+					final containingType = c.getTypeOfNode(containingClass);
+					if (c.typeHasProtectedAccessibleBase(declaration.Parent.Symbol(), containingType)) {
+						continue;
+					}
 				}
+				return new ConstructorAccessibilityError(modifiers, c.getDeclaredTypeOfSymbol(declaration.Parent.Symbol()));
 			}
-			if (modifiers & ModifierFlagsPrivate != 0) {
-				c.error(node, Diagnostics.Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration, c.TypeToString(declaringClass));
-			}
-			if (modifiers & ModifierFlagsProtected != 0) {
-				c.error(node, Diagnostics.Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration, c.TypeToString(declaringClass));
-			}
-			return false;
 		}
-		return true;
+		return null;
 	}
 
 	static function typeHasProtectedAccessibleBase(c:Checker, target:Symbol, t:Type):Bool {
@@ -780,8 +777,8 @@ class CheckerPart3 {
 		}
 		final headMessage = c.getDiagnosticHeadMessageForDecoratorResolution(node);
 		if (Core.len(callSignatures) == 0) {
-			final diag = Ast.NewDiagnosticChain(c.invocationErrorDetails(node.Expression(), apparentType, SignatureKindCall), headMessage);
-			c.addDiagnostic(diag);
+			var diag = Ast.NewDiagnosticChain(c.invocationErrorDetails(node.Expression(), apparentType, SignatureKindCall), headMessage);
+			diag = c.addDiagnostic(diag);
 			c.invocationErrorRecovery(apparentType, SignatureKindCall, diag);
 			return c.resolveErrorCall(node);
 		}
@@ -934,12 +931,15 @@ class CheckerPart3 {
 		// is just important for choosing the best signature. So in the case where there is only one
 		// signature, the subtype pass is useless. So skipping it is an optimization.
 		var result:Signature = null;
+		s.recursiveResolution = c.callResolutionStack.indexOf(s.node) >= 0;
+		c.callResolutionStack.push(s.node);
 		if (s.candidates.length > 1) {
 			result = c.chooseOverload(s, c.subtypeRelation);
 		}
 		if (result == null) {
 			result = c.chooseOverload(s, c.assignableRelation);
 		}
+		c.callResolutionStack.pop();
 		if (candidatesOutArray != null) {
 			// PORT: pointer. chooseOverload may have replaced an element of s.candidates (visible through the shared Go slice).
 			for (i in 0...s.candidates.length) {
@@ -1080,8 +1080,11 @@ class CheckerPart3 {
 						continue;
 					}
 				} else {
-					inferenceContext = c.newInferenceContext(candidate.typeParameters, candidate,
-						Core.IfElse(Ast.IsInJSFile(s.node), InferenceFlagsAnyDefault, InferenceFlagsNone) /*flags*/, null);
+					// When we are recursively resolving a call with a single candidate, we skip constraints checks during
+					// type inference to avoid circularity errors. For example, see #64192.
+					final inferenceFlags:InferenceFlags = Core.IfElse(s.recursiveResolution && s.candidates.length == 1, InferenceFlagsNoConstraintChecks,
+						InferenceFlagsNone) | Core.IfElse(Ast.IsInJSFile(s.node), InferenceFlagsAnyDefault, InferenceFlagsNone);
+					inferenceContext = c.newInferenceContext(candidate.typeParameters, candidate, inferenceFlags /*flags*/, null);
 					typeArgumentTypes = c.inferTypeArguments(s.node, candidate, s.args, s.argCheckMode | CheckModeSkipGenericFunctions, inferenceContext);
 					if (inferenceContext.flags & InferenceFlagsSkippedGenericFunction != 0) {
 						s.argCheckMode |= CheckModeSkipGenericFunctions;
@@ -1233,7 +1236,7 @@ class CheckerPart3 {
 				return 2;
 			case KindMethodDeclaration, KindGetAccessor, KindSetAccessor:
 				// For decorators with only two parameters we supply only two arguments
-				if (Core.len(signature.parameters) <= 2) {
+				if (c.getParameterCount(signature) <= 2) {
 					return 2;
 				}
 				return 3;
@@ -1272,12 +1275,13 @@ class CheckerPart3 {
 					errorNode = typeArgumentNodes[i];
 				}
 				final diags:Array<Diagnostic> = [];
-				if (!c.checkTypeAssignableToEx(typeArgument, c.getTypeWithThisArgument(c.instantiateType(constraint, mapper), typeArgument, false), errorNode,
-					typeArgumentHeadMessage, diags)) {
+				final instantiatedConstraint = c.getTypeWithThisArgument(c.instantiateType(constraint, mapper), typeArgument, false);
+				if (!c.checkTypeAssignableToEx(typeArgument, instantiatedConstraint, errorNode, typeArgumentHeadMessage, diags)) {
 					if (diags.length != 0) {
 						var diagnostic = diags[0];
 						if (headMessage != null) {
-							diagnostic = Ast.NewDiagnosticChain(diagnostic, Diagnostics.Type_0_does_not_satisfy_the_constraint_1);
+							diagnostic = Ast.NewDiagnosticChain(diagnostic, Diagnostics.Type_0_does_not_satisfy_the_constraint_1, c.typeToString(typeArgument, null),
+								c.typeToString(instantiatedConstraint, null));
 						}
 						c.addDiagnostic(diagnostic);
 					}
@@ -2061,11 +2065,11 @@ class CheckerPart3 {
 	}
 
 	static function invocationError(c:Checker, errorTarget:Node, apparentType:Type, kind:SignatureKind, relatedInformation:Diagnostic):Void {
-		final diagnostic = c.invocationErrorDetails(errorTarget, apparentType, kind);
+		var diagnostic = c.invocationErrorDetails(errorTarget, apparentType, kind);
 		if (relatedInformation != null) {
 			diagnostic.AddRelatedInfo(relatedInformation);
 		}
-		c.addDiagnostic(diagnostic);
+		diagnostic = c.addDiagnostic(diagnostic);
 		c.invocationErrorRecovery(apparentType, kind, diagnostic);
 	}
 
@@ -2182,11 +2186,15 @@ class CheckerPart3 {
 
 	static function checkClassExpressionDeferred(c:Checker, node:Node):Void {
 		c.checkSourceElements(node.Members());
+		c.checkConstructorDeclaredProperties(node);
 		c.registerForUnusedIdentifiersCheck(node);
 	}
 
 	static function checkFunctionExpressionOrObjectLiteralMethod(c:Checker, node:Node, checkMode:CheckMode):Type {
 		c.checkNodeDeferred(node);
+		if (node.FunctionLikeData().FullSignature != null) {
+			c.checkSourceElement(node.FunctionLikeData().FullSignature);
+		}
 		if (Ast.IsFunctionExpression(node)) {
 			c.checkCollisionsForDeclarationName(node, node.Name());
 		}
@@ -2270,7 +2278,9 @@ class CheckerPart3 {
 					}
 				}
 				if (contextualSignature != null && c.getReturnTypeFromAnnotation(node) == null && signature.resolvedReturnType == null) {
-					final returnType = c.getReturnTypeFromBody(node, checkMode);
+					// resolvedReturnType is cached indefinitely, so the return type here has to be computed without CheckModeSkipContextSensitive;
+					// otherwise anyFunctionType could leak as part of the computed (and cached) return type.
+					final returnType = c.getReturnTypeFromBody(node, checkMode & ~CheckModeSkipContextSensitive);
 					if (signature.resolvedReturnType == null) {
 						signature.resolvedReturnType = returnType;
 					}
@@ -2801,8 +2811,10 @@ class CheckerPart3 {
 					hasSignatures = hasSignatures || Core.len(resolved.CallSignatures()) != 0 || Core.len(resolved.ConstructSignatures()) != 0;
 					hasApplicableSignature = hasApplicableSignature || Core.len(callSignatures) != 0 || Core.len(constructSignatures) != 0;
 					if (!Core.Same(callSignatures, resolved.CallSignatures()) || !Core.Same(constructSignatures, resolved.ConstructSignatures())) {
-						final result = c.newObjectType(ObjectFlagsAnonymous | (Checker.ObjectFlagsInstantiationExpressionType : ObjectFlags),
-							c.newSymbol(SymbolFlagsNone, Ast.InternalSymbolNameInstantiationExpression));
+						final symbol = c.newSymbol(SymbolFlagsNone, Ast.InternalSymbolNameInstantiationExpression);
+						Debug.Assert(t.symbol != null, "Instantiation expression source type must have a symbol");
+						symbol.Declarations = t.symbol.Declarations;
+						final result = c.newObjectType(ObjectFlagsAnonymous | (Checker.ObjectFlagsInstantiationExpressionType : ObjectFlags), symbol);
 						c.setStructuredTypeMembers(result, resolved.getMembers(), callSignatures, constructSignatures, resolved.indexInfos);
 						result.AsInstantiationExpressionType().node = node;
 						return result;
@@ -3073,6 +3085,14 @@ class CheckerPart3 {
 
 	static function checkYieldExpression(c:Checker, node:Node):Type {
 		c.checkGrammarYieldExpression(node);
+		// Always check the operand so its identifiers are resolved even when the yield is
+		// outside a generator, keeping diagnostics stable regardless of traversal order.
+		var yieldExpressionType:Type = null;
+		if (node.Expression() != null) {
+			yieldExpressionType = c.checkExpression(node.Expression());
+		} else {
+			yieldExpressionType = c.undefinedWideningType;
+		}
 		final fn = Ast.GetContainingFunction(node);
 		if (fn == null) {
 			return c.anyType;
@@ -3105,12 +3125,6 @@ class CheckerPart3 {
 		}
 		final signatureYieldType = Core.OrElse(iterationTypes.yieldType, c.anyType);
 		final signatureNextType = Core.OrElse(iterationTypes.nextType, c.anyType);
-		var yieldExpressionType:Type = null;
-		if (node.Expression() != null) {
-			yieldExpressionType = c.checkExpression(node.Expression());
-		} else {
-			yieldExpressionType = c.undefinedWideningType;
-		}
 		final yieldedType = c.getYieldedTypeOfYieldExpression(node, yieldExpressionType, signatureNextType, isAsync);
 		if (returnType != null && yieldedType != null) {
 			c.checkTypeAssignableToAndOptionallyElaborate(yieldedType, signatureYieldType, Core.OrElse(node.Expression(), node), node.Expression(), null, null);
@@ -3480,7 +3494,10 @@ class CheckerPart3 {
 					return c.anyType;
 				}
 				if (right.Text() != "" && !c.checkAndReportErrorForExtendingInterface(node)) {
+					c.addDeferredDiagnostic(() -> {
+					// must be deferred because reporting this error can cause us to materialize the containing type completely (to print it), leading to erroneous circularity errors
 					c.reportNonexistentProperty(right, Core.IfElse(Checker.isThisTypeParameter(leftType), apparentType, leftType), isUncheckedJS);
+				});
 				}
 				return c.errorType;
 			}
@@ -3545,11 +3562,12 @@ class CheckerPart3 {
 		if (c.strictNullChecks && prop != null) {
 			final declaration = prop.ValueDeclaration;
 			if (declaration != null) {
-				if (c.strictPropertyInitialization && Ast.IsAccessExpression(node) && node.Expression().Kind == KindThisKeyword
-					&& c.isPropertyWithoutInitializer(declaration) && !Ast.IsStatic(declaration)) {
-					final flowContainer = c.getControlFlowContainer(node);
-					if (Ast.IsConstructorDeclaration(flowContainer) && flowContainer.Parent == declaration.Parent && declaration.Flags & NodeFlagsAmbient == 0) {
-						assumeUninitialized = true;
+				if (c.strictPropertyInitialization && Ast.IsAccessExpression(node) && node.Expression().Kind == KindThisKeyword) {
+					if (c.isPropertyWithoutInitializer(declaration) && !Ast.IsStatic(declaration)) {
+						final flowContainer = c.getControlFlowContainer(node);
+						if (Ast.IsConstructorDeclaration(flowContainer) && flowContainer.Parent == declaration.Parent && declaration.Flags & NodeFlagsAmbient == 0) {
+							assumeUninitialized = true;
+						}
 					}
 				} else if (Ast.IsBinaryExpression(declaration) && Ast.IsPropertyAccessExpression(declaration.AsBinaryExpression().Left)
 					&& c.getControlFlowContainer(node) == c.getControlFlowContainer(declaration)) {
@@ -3995,11 +4013,16 @@ class CheckerPart3 {
 		// Property is known to be private or protected at this point
 		// Private property is accessible if the property is within the declaring class
 		if (flags & ModifierFlagsPrivate != 0) {
-			final declaringClassDeclaration = Ast.GetClassLikeDeclarationOfSymbol(c.getParentOfSymbol(prop));
-			if (!c.isNodeWithinClass(location, declaringClassDeclaration)) {
+			var declaringClassDeclaration:Node = null;
+			final parent = c.getParentOfSymbol(prop);
+			if (parent != null) {
+				declaringClassDeclaration = Ast.GetClassLikeDeclarationOfSymbol(parent);
+			}
+			if (declaringClassDeclaration == null || !c.isNodeWithinClass(location, declaringClassDeclaration)) {
 				if (errorNode != null) {
+					final class_ = Core.OrElse(c.getDeclaringClass(prop), containingType);
 					c.error(errorNode, Diagnostics.Property_0_is_private_and_only_accessible_within_class_1, c.symbolToString(prop),
-						c.TypeToString(c.getDeclaringClass(prop)));
+						c.TypeToString(class_));
 				}
 				return false;
 			}

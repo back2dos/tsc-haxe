@@ -36,4 +36,21 @@ final class PseudoBigInt {
 		}
 		return 1;
 	}
+
+	public function Compare(other:PseudoBigInt):Int {
+		final s1 = Sign();
+		final s2 = other.Sign();
+		if (s1 != s2) {
+			return s1 < s2 ? -1 : 1;
+		}
+		var c = Base10Value.length < other.Base10Value.length ? -1 : Base10Value.length > other.Base10Value.length ? 1 : 0;
+		if (c == 0) {
+			// PORT: ASCII digits, so code-unit order equals Go's byte order
+			c = Base10Value < other.Base10Value ? -1 : Base10Value > other.Base10Value ? 1 : 0;
+		}
+		if (Negative) {
+			c = -c;
+		}
+		return c;
+	}
 }

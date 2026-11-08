@@ -62,7 +62,7 @@ class Grammarchecks {
 					lastError.AddRelatedInfo(err);
 				} else if (lastError == null || start != lastError.Pos()) {
 					lastError = Ast.NewDiagnostic(sourceFile, Core.NewTextRange(start, start + length), message, ...args);
-					c.addDiagnostic(lastError);
+					lastError = c.addDiagnostic(lastError);
 				}
 			}
 			c.regExpScanner.SetOnError(onError);
@@ -794,9 +794,6 @@ class Grammarchecks {
 		if (!Checker.everyType(t, t -> c.isValidIndexKeyType(t))) {
 			return c.grammarErrorOnNode(parameter.Name(), Diagnostics.An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type);
 		}
-		if (node.Type == null) {
-			return c.grammarErrorOnNode(node.AsNode(), Diagnostics.An_index_signature_must_have_a_type_annotation);
-		}
 		return false;
 	}
 
@@ -875,24 +872,6 @@ class Grammarchecks {
 						return c.grammarErrorOnFirstToken(typeNodes[1], Diagnostics.Classes_can_only_extend_a_single_class);
 					}
 
-					if (Core.len(typeNodes) > 0) {
-						for (j in rangeOf(node.EagerJSDoc(file))) {
-							if (j.AsJSDoc().Tags == null) {
-								continue;
-							}
-							for (tag in rangeOf(j.AsJSDoc().Tags.Nodes)) {
-								if (tag.Kind == KindJSDocAugmentsTag) {
-									final target = typeNodes[0].AsExpressionWithTypeArguments();
-									final source = tag.ClassName().AsExpressionWithTypeArguments();
-									final targetName = Checker.getIdentifierFromEntityNameExpression(target.Expression);
-									final sourceName = Checker.getIdentifierFromEntityNameExpression(source.Expression);
-									if (targetName != null && sourceName != null && targetName.Text() != sourceName.Text()) {
-										return c.grammarErrorOnNode(sourceName, Diagnostics.JSDoc_0_1_does_not_match_the_extends_2_clause, tag.TagName().Text(), sourceName.Text(), targetName.Text());
-									}
-								}
-							}
-						}
-					}
 					seenExtendsClause = true;
 				} else {
 					if (heritageClause.Token != KindImplementsKeyword) {
@@ -1803,7 +1782,7 @@ class Grammarchecks {
 						}
 					} else {
 						if (isCallee) {
-							return c.grammarErrorOnNode(nodeName, Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_or_defer, nameText);
+							return c.grammarErrorOnNode(nodeName, Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_defer_or_source, nameText);
 						}
 						return c.grammarErrorOnNode(nodeName, Diagnostics.X_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2, nameText, Scanner.TokenToString(node.KeywordToken), "meta");
 					}
@@ -2078,6 +2057,19 @@ class Grammarchecks {
 			default:
 		}
 		return false;
+	}
+
+	static function checkGrammarImportAttributeValues(c:Checker, node:ImportAttributes):Bool {
+		var hasError = false;
+		for (attribute in node.Attributes.Nodes) {
+			final value = attribute.AsImportAttribute().Value;
+			if (Ast.IsStringLiteral(value)) {
+				continue;
+			}
+			hasError = true;
+			c.error(value, Diagnostics.Import_attribute_values_must_be_string_literal_expressions);
+		}
+		return hasError;
 	}
 
 	static function checkGrammarTypeOnlyNamedImportsOrExports(c:Checker, namedBindings:Node):Bool {

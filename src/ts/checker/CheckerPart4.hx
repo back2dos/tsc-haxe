@@ -278,6 +278,10 @@ class CheckerPart4 {
 
 	static function checkAssertion(c:Checker, node:Node, checkMode:CheckMode):Type {
 		if (node.Kind == KindTypeAssertionExpression) {
+			final file = Ast.GetSourceFileOfNode(node);
+			if (file != null && Tspath.FileExtensionIsOneOf(file.FileName(), [Tspath.ExtensionMts, Tspath.ExtensionCts])) {
+				c.grammarErrorOnNode(node, Diagnostics.This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Use_an_as_expression_instead);
+			}
 			if (c.shouldCheckErasableSyntax(node)) {
 				c.addDiagnostic(Ast.NewDiagnostic(Ast.GetSourceFileOfNode(node),
 					Core.NewTextRange(Scanner.SkipTrivia(Ast.GetSourceFileOfNode(node).Text(), node.Pos()), node.Expression().Pos()),
@@ -286,6 +290,10 @@ class CheckerPart4 {
 		}
 		final typeNode = node.Type();
 		final exprType = c.checkExpressionEx(node.Expression(), checkMode);
+		// Always check the type node so its identifiers are resolved. resolveName knows not
+		// to resolve (or report an error for) the `const` in a `const` assertion, so this is
+		// safe even for `x as const` and keeps diagnostics stable regardless of traversal order.
+		c.checkSourceElement(typeNode);
 		if (Checker.isConstTypeReference(typeNode)) {
 			if (!c.isValidConstAssertionArgument(node.Expression())) {
 				c.error(node.Expression(), Diagnostics.A_const_assertion_can_only_be_applied_to_references_to_enum_members_or_string_number_boolean_array_or_object_literals);
@@ -294,7 +302,6 @@ class CheckerPart4 {
 		}
 		final links = c.assertionLinks.Get(node);
 		links.exprType = exprType;
-		c.checkSourceElement(typeNode);
 		c.checkNodeDeferred(node);
 		return c.getTypeFromTypeNode(typeNode);
 	}
@@ -607,6 +614,11 @@ class CheckerPart4 {
 		final property = properties[propertyIndex];
 		if (Ast.IsPropertyAssignment(property) || Ast.IsShorthandPropertyAssignment(property)) {
 			final name = property.Name();
+
+			if (name != null && Ast.IsPrivateIdentifier(name)) {
+				c.grammarErrorOnNode(name, Diagnostics.Private_identifiers_cannot_be_used_in_destructuring_patterns);
+			}
+
 			final exprType = c.getLiteralTypeFromPropertyName(name);
 			if (Checker.isTypeUsableAsPropertyName(exprType)) {
 				final text = Checker.getPropertyNameFromType(exprType);
@@ -974,13 +986,26 @@ class CheckerPart4 {
 				return PredicateSemanticsSometimes;
 			case KindBinaryExpression:
 				// List of operators that can produce null/undefined:
-				// || ||= && &&=
+				// || ||= && &&= ?? ??=
 				switch (node.AsBinaryExpression().OperatorToken.Kind) {
 					case KindBarBarToken | KindBarBarEqualsToken | KindAmpersandAmpersandToken | KindAmpersandAmpersandEqualsToken:
 						return PredicateSemanticsSometimes;
 					// For these operator kinds, the right operand is effectively controlling
-					case KindCommaToken | KindEqualsToken | KindQuestionQuestionToken | KindQuestionQuestionEqualsToken:
+					case KindCommaToken | KindEqualsToken:
 						return c.getSyntacticNullishnessSemantics(node.AsBinaryExpression().Right);
+					// For nullish coalescing: result is the left operand when left is non-null,
+					// or the right operand when left is null/undefined. The nullishness of the
+					// result combines both paths: the left's non-null path contributes Never,
+					// and when left can be null, the right's semantics are also included.
+					case KindQuestionQuestionToken | KindQuestionQuestionEqualsToken:
+						final leftSemantics = c.getSyntacticNullishnessSemantics(node.AsBinaryExpression().Left);
+						// The non-null path (left is non-null): left branch taken, result has Never bit
+						var result = leftSemantics & PredicateSemanticsNever;
+						// The null path (left is null/undefined): right branch taken, result inherits right's semantics
+						if ((leftSemantics & PredicateSemanticsAlways) != 0) {
+							result |= c.getSyntacticNullishnessSemantics(node.AsBinaryExpression().Right);
+						}
+						return result;
 					default:
 				}
 				return PredicateSemanticsNever;
@@ -1759,8 +1784,15 @@ class CheckerPart4 {
 			// destructuring from the narrowed parent type.
 			if (Ast.IsBindingElement(declaration) && declaration.Initializer() == null && !Checker.hasDotDotDotToken(declaration)
 				&& Core.len(declaration.Parent.Elements()) >= 2) {
+				final rootDeclaration = Ast.GetRootDeclaration(declaration);
+				final rootInitializer = rootDeclaration.Initializer();
+				// Avoid declaration circularity without blocking binding defaults or nested callbacks.
+				// PORT: Go `break` out of the switch case; the rest of the case is in the else branch.
+				if (rootInitializer != null
+					&& Ast.IsNodeDescendantOf(location, rootInitializer)
+					&& c.getControlFlowContainer(declaration) == c.getControlFlowContainer(location)) {
+				} else {
 				final parent = declaration.Parent.Parent;
-				final rootDeclaration = Ast.GetRootDeclaration(parent);
 				if (Ast.IsVariableDeclaration(rootDeclaration) && (c.getCombinedNodeFlagsCached(rootDeclaration) & NodeFlagsConstant) != 0
 					|| Ast.IsParameterDeclaration(rootDeclaration)) {
 					final links = c.nodeLinks.Get(parent);
@@ -1771,6 +1803,8 @@ class CheckerPart4 {
 						if (parentType != null) {
 							parentTypeConstraint = c.mapType(parentType, t -> c.getBaseConstraintOrType(t));
 						}
+						// Guard parent-type resolution only; flow analysis should allow re-entrant narrowing
+						links.flags &= ~NodeCheckFlagsInCheckIdentifier;
 						if (parentTypeConstraint != null && (parentTypeConstraint.flags & TypeFlagsUnion) != 0
 							&& !(Ast.IsParameterDeclaration(rootDeclaration) && c.isSomeSymbolAssigned(rootDeclaration))) {
 							final pattern = declaration.Parent;
@@ -1785,8 +1819,8 @@ class CheckerPart4 {
 								t = c.getBindingElementTypeFromParentType(declaration, narrowedType, true /*noTupleBoundsCheck*/);
 							}
 						}
-						links.flags &= ~NodeCheckFlagsInCheckIdentifier;
 					}
+				}
 				}
 				// If we have a const-like parameter with no type annotation or initializer, and if the parameter is contextually
 				// typed by a signature with a single rest parameter of a union of tuple types, one or more of the parameters may
@@ -1924,7 +1958,7 @@ class CheckerPart4 {
 		if (resolvedSymbol != null && resolvedSymbol != c.unknownSymbol) {
 			return resolvedSymbol;
 		}
-		return c.resolveName(reference, reference.Text(), SymbolFlagsValue | SymbolFlagsExportValue | SymbolFlagsAlias, null, true /*isUse*/,
+		return c.resolveName(reference, reference.Text(), SymbolFlagsValue | SymbolFlagsExportValue | SymbolFlagsAlias, null, false /*isUse*/,
 			false /*excludeGlobals*/);
 	}
 
@@ -1990,16 +2024,15 @@ class CheckerPart4 {
 
 	public static function GetGlobalDiagnostics(c:Checker):Array<Diagnostic> {
 		c.checkNotCanceled();
+		c.produceDeferredDiagnostics();
 		return c.diagnostics.GetGlobalDiagnostics();
 	}
 
 	static function addDeferredDiagnostic(c:Checker, callback:() -> Void):Void {
-		if (c.saveDeferredDiagnostics) {
-			if (c.deferredDiagnosticCallbacks == null) {
-				c.deferredDiagnosticCallbacks = [];
-			}
-			c.deferredDiagnosticCallbacks.push(callback);
+		if (c.deferredDiagnosticCallbacks == null) {
+			c.deferredDiagnosticCallbacks = [];
 		}
+		c.deferredDiagnosticCallbacks.push(callback);
 	}
 
 	static function produceDeferredDiagnostics(c:Checker):Void {
@@ -2009,24 +2042,24 @@ class CheckerPart4 {
 		c.deferredDiagnosticCallbacks = null;
 	}
 
-	static function addDiagnostic(c:Checker, diagnostic:Diagnostic):Void {
+	static function addDiagnostic(c:Checker, diagnostic:Diagnostic):Diagnostic {
 		// Discard diagnostics created while at the maximum number of recursive TypeToString invocations.
 		if (c.serializationLevel < Checker.maxSerializationLevel) {
-			c.diagnostics.Add(diagnostic);
+			return c.diagnostics.Add(diagnostic);
 		}
+		return diagnostic;
 	}
 
-	static function addSuggestionDiagnostic(c:Checker, diagnostic:Diagnostic):Void {
+	static function addSuggestionDiagnostic(c:Checker, diagnostic:Diagnostic):Diagnostic {
 		// Discard diagnostics created while at the maximum number of recursive TypeToString invocations.
 		if (c.serializationLevel < Checker.maxSerializationLevel) {
-			c.suggestionDiagnostics.Add(diagnostic);
+			return c.suggestionDiagnostics.Add(diagnostic);
 		}
+		return diagnostic;
 	}
 
 	static function error(c:Checker, location:Node, message:Message, ...args:Any):Diagnostic {
-		final diagnostic = Checker.NewDiagnosticForNode(location, message, ...args);
-		c.addDiagnostic(diagnostic);
-		return diagnostic;
+		return c.addDiagnostic(Checker.NewDiagnosticForNode(location, message, ...args));
 	}
 
 	static function errorSkippedOnNoEmit(c:Checker, location:Node, message:Message, ...args:Any):Diagnostic {
@@ -2297,13 +2330,7 @@ class CheckerPart4 {
 	}
 
 	static function lookupOrIssueError(c:Checker, location:Node, message:Message, ...args:Any):Diagnostic {
-		final diagnostic = Checker.NewDiagnosticForNode(location, message, ...args);
-		final existing = c.diagnostics.Lookup(diagnostic);
-		if (existing != null) {
-			return existing;
-		}
-		c.addDiagnostic(diagnostic);
-		return diagnostic;
+		return c.addDiagnostic(Checker.NewDiagnosticForNode(location, message, ...args));
 	}
 
 	static function cloneSymbol(c:Checker, symbol:Symbol):Symbol {
@@ -2599,19 +2626,19 @@ class CheckerPart4 {
 		return resolved;
 	}
 
-	static function getTargetOfNamespaceImport(c:Checker, node:Node):Symbol {
+	static function getTargetOfNamespaceImport(c:Checker, node:Node, dontRecursivelyResolve:Bool):Symbol {
 		final moduleSpecifier = c.getModuleSpecifierForImportOrExport(node);
 		final immediate = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/);
-		final resolved = c.resolveESModuleSymbol(immediate, node, moduleSpecifier);
+		final resolved = c.resolveESModuleSymbol(immediate, node, moduleSpecifier, dontRecursivelyResolve);
 		c.markSymbolOfAliasDeclarationIfTypeOnly(node, null);
 		return resolved;
 	}
 
-	static function getTargetOfNamespaceExport(c:Checker, node:Node):Symbol {
+	static function getTargetOfNamespaceExport(c:Checker, node:Node, dontRecursivelyResolve:Bool):Symbol {
 		final moduleSpecifier = c.getModuleSpecifierForImportOrExport(node);
 		if (moduleSpecifier != null) {
 			final immediate = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/);
-			final resolved = c.resolveESModuleSymbol(immediate, node, moduleSpecifier);
+			final resolved = c.resolveESModuleSymbol(immediate, node, moduleSpecifier, dontRecursivelyResolve);
 			c.markSymbolOfAliasDeclarationIfTypeOnly(node, null);
 			return resolved;
 		}
@@ -2656,7 +2683,7 @@ class CheckerPart4 {
 			return null;
 		}
 		final nameText = name.Text();
-		final targetSymbol = c.resolveESModuleSymbol(moduleSymbol, specifier, moduleSpecifier);
+		final targetSymbol = c.resolveESModuleSymbol(moduleSymbol, specifier, moduleSpecifier, false /*dontRecursivelyResolve*/);
 		if (targetSymbol != null) {
 			// Note: The empty string is a valid module export name:
 			//
@@ -2952,6 +2979,14 @@ class CheckerPart4 {
 	}
 
 	static function getTargetOfExportAssignment(c:Checker, node:Node):Symbol {
+		// An `export =` / `export default` inside a namespace/module block is a grammar error;
+		// checkExportAssignment reports it and returns without resolving the expression. Mirror that
+		// bail-out here (using the same container computation) so that alias resolution triggered by
+		// the emit resolver does not resolve — and report "Cannot find name" diagnostics on — the
+		// expression, which would produce diagnostics inconsistent with checking.
+		if (Checker.isContainedByNamespace(node)) {
+			return null;
+		}
 		final resolved = c.getTargetOfAliasLikeExpression(node.Expression());
 		c.markSymbolOfAliasDeclarationIfTypeOnly(node, null);
 		return resolved;
@@ -3075,7 +3110,11 @@ class CheckerPart4 {
 		} else {
 			specifier = Ast.GetExternalModuleName(declaration);
 		}
-		final moduleSymbol = c.resolveExternalModuleNameWorker(specifier, specifier /*moduleNotFoundError*/, null, false, false); // TODO: GH#18217
+		// This is only used by emit and type printing, after checking has already reported any
+		// resolution errors for this specifier. Resolve with ignoreErrors so that these queries
+		// don't add new diagnostics (e.g. an implicit-any-module suggestion) as a side effect.
+		// PORT: main also passes the import attributes type (#63931, not ported yet)
+		final moduleSymbol = c.resolveExternalModuleNameWorker(specifier, specifier, null /*moduleNotFoundError*/, true /*ignoreErrors*/, false /*isForAugmentation*/);
 		if (moduleSymbol == null) {
 			return null;
 		}
@@ -3483,8 +3522,11 @@ class CheckerPart4 {
 
 	// Resolves the given external module symbol, possibly removing call and construct signatures or creating a
 	// wrapper module with a synthetic default.
-	static function resolveESModuleSymbol(c:Checker, moduleSymbol:Symbol, node:Node, moduleSpecifier:Node):Symbol {
+	static function resolveESModuleSymbol(c:Checker, moduleSymbol:Symbol, node:Node, moduleSpecifier:Node, dontRecursivelyResolve:Bool):Symbol {
 		var symbol = c.resolveExternalModuleSymbol(moduleSymbol, true /*dontResolveAlias*/);
+		if (dontRecursivelyResolve) {
+			return symbol;
+		}
 		if (Ast.IsNonLocalAlias(symbol, SymbolFlagsValue | SymbolFlagsType | SymbolFlagsNamespace)) {
 			// When the module has an export= with a pure alias, we transitively resolve and propagate any typeOnlyDeclaration
 			symbol = c.getMergedSymbol(c.resolveIndirectionAlias(c.getSymbolOfDeclaration(node), symbol));
@@ -3648,7 +3690,7 @@ class CheckerPart4 {
 		return result;
 	}
 
-	static function getTargetOfAliasDeclaration(c:Checker, node:Node):Symbol {
+	static function getTargetOfAliasDeclaration(c:Checker, node:Node, dontRecursivelyResolve:Bool):Symbol {
 		if (node == null) {
 			return null;
 		}
@@ -3658,9 +3700,9 @@ class CheckerPart4 {
 			case KindImportClause:
 				return c.getTargetOfImportClause(node);
 			case KindNamespaceImport:
-				return c.getTargetOfNamespaceImport(node);
+				return c.getTargetOfNamespaceImport(node, dontRecursivelyResolve);
 			case KindNamespaceExport:
-				return c.getTargetOfNamespaceExport(node);
+				return c.getTargetOfNamespaceExport(node, dontRecursivelyResolve);
 			case KindImportSpecifier | KindBindingElement:
 				return c.getTargetOfImportSpecifier(node);
 			case KindExportSpecifier:

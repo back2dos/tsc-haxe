@@ -137,39 +137,123 @@ class CheckerPart8 {
 			case ReferenceHintDecorator:
 				c.markDecoratorAliasReferenced(location);
 			case ReferenceHintUnspecified:
+				if ((location.Flags & NodeFlagsInWithStatement) != 0) {
+					// We cannot answer semantic questions within a with block, do not proceed any further
+					return;
+				}
 				if (Ast.IsJsxTagName(location) && Checker.isJsxIntrinsicTagName(location)) {
 					return; // builtin JSX tag names aren't real type refs by most metrics, but are expressions, so must be filtered
 				}
-				if (Ast.FindAncestor(location, n -> Ast.IsMetaProperty(n)) != null) {
-					return; // identifiers in meta properties shouldn't be resolved, but are expressions, so must be filtered
-				}
-				// Identifiers in expression contexts are emitted, so we need to follow their referenced aliases and mark them as used
-				// Some non-expression identifiers are also treated as expression identifiers for this purpose, eg, `a` in `b = {a}` or `q` in `import r = q`
-				// This is the exception, rather than the rule - most non-expression identifiers are declaration names.
-				if (Ast.IsIdentifier(location)
-					&& (Ast.IsExpressionNode(location)
-						|| Ast.IsShorthandPropertyAssignment(location.Parent)
-						|| (Ast.IsImportEqualsDeclaration(location.Parent)
-							&& location.Parent.AsImportEqualsDeclaration().ModuleReference == location))
-					&& Checker.shouldMarkIdentifierAliasReferenced(location)) {
-					if (Ast.IsPropertyAccessOrQualifiedName(location.Parent)) {
-						var left:Node = null;
-						if (Ast.IsPropertyAccessExpression(location.Parent)) {
-							left = location.Parent.Expression();
-						} else {
-							left = location.Parent.AsQualifiedName().Left;
-						}
-						if (left != location) {
-							return; // Only mark the LHS (the RHS is a property lookup)
+				if (Ast.IsIdentifier(location)) {
+					// A shorthand property with an object-assignment-initializer (e.g. `{ s = 5 }`) is only valid inside a
+					// destructuring assignment target. When it appears in an ordinary object literal expression, the checker
+					// checks the initializer and never resolves the property name, so resolving it here would report a spurious
+					// "No value exists in scope for the shorthand property" diagnostic. Skip such names to match checking.
+					final parent = location.Parent;
+					if (Ast.IsShorthandPropertyAssignment(parent)
+						&& parent.Name() == location
+						&& parent.AsShorthandPropertyAssignment().ObjectAssignmentInitializer != null
+						&& !Ast.IsAssignmentTarget(parent.Parent)) {
+						return;
+					}
+					// PORT: ast.FindManyAncestors(location, IsMetaProperty, IsDecorator, IsForInOrOfStatement, IsComputedPropertyName,
+					// IsHeritageClause) as a loop (no closure array).
+					var metaProperty:Node = null;
+					var decorator:Node = null;
+					var forNode:Node = null;
+					var computedName:Node = null;
+					var heritageClause:Node = null;
+					{
+						var n = location;
+						while (n != null) {
+							if (metaProperty == null && Ast.IsMetaProperty(n)) {
+								metaProperty = n;
+							} else if (decorator == null && Ast.IsDecorator(n)) {
+								decorator = n;
+							} else if (forNode == null && Ast.IsForInOrOfStatement(n)) {
+								forNode = n;
+							} else if (computedName == null && Ast.IsComputedPropertyName(n)) {
+								computedName = n;
+							} else if (heritageClause == null && Ast.IsHeritageClause(n)) {
+								heritageClause = n;
+							}
+							if (metaProperty != null && decorator != null && forNode != null && computedName != null && heritageClause != null) {
+								break;
+							}
+							n = n.Parent;
 						}
 					}
-					c.markIdentifierAliasReferenced(location);
-					return;
+					if (metaProperty != null) {
+						return; // identifiers in meta properties shouldn't be resolved, but are expressions, so must be filtered
+					}
+					if (decorator != null) {
+						// Decorators on nodes that cannot be decorated (e.g. class expressions, static blocks,
+						// `this` parameters) are never resolved during normal checking, so resolving them here would
+						// report spurious diagnostics. Only bail out for such invalid-position decorators; valid
+						// decorator expressions must still be resolved and marked for emit.
+						final decorated = decorator.Parent;
+						if (decorated != null && !Ast.NodeCanBeDecorated(c.legacyDecorators, decorated, decorated.Parent, decorated.Parent.Parent)) {
+							return;
+						}
+					}
+					// The right-hand side of a 'for-in'/'for-of' statement whose initializer is an empty variable
+					// declaration list (a grammar error, e.g. `for (var of X)`) is never checked, because the RHS
+					// is only checked while inferring the type of a variable declaration and there is none here.
+					// Resolving identifiers in the RHS here would report spurious diagnostics.
+					if (forNode != null) {
+						final data = forNode.AsForInOrOfStatement();
+						if (Ast.IsVariableDeclarationList(data.Initializer)
+							&& Core.len(data.Initializer.AsVariableDeclarationList().Declarations.Nodes) == 0
+							&& data.Expression != null
+							&& (location == data.Expression || Ast.IsNodeDescendantOf(location, data.Expression))) {
+							return;
+						}
+					}
+					if (computedName != null) {
+						if (Checker.isInvalidComputedPropertyName(computedName)) {
+							return;
+						}
+					}
+					if (heritageClause != null) {
+						// extends heritage clauses on interfaces are not expressions and are unchecked if they are
+						if (Ast.IsInterfaceDeclaration(heritageClause.Parent)) {
+							return;
+						}
+						// On a class, only the first `extends` type is resolved as a value (the base class); any
+						// additional `extends` types are grammar errors (e.g. `class C extends A extends B` or
+						// `class C extends A, B`) and are never resolved during checking.
+						if (Ast.IsClassLike(heritageClause.Parent) && heritageClause.AsHeritageClause().Token == KindExtendsKeyword) {
+							final firstExtends = Ast.GetClassExtendsHeritageElement(heritageClause.Parent);
+							if (firstExtends != null && location != firstExtends && !Ast.IsNodeDescendantOf(location, firstExtends)) {
+								return;
+							}
+						}
+					}
+					// Identifiers in expression contexts are emitted, so we need to follow their referenced aliases and mark them as used
+					// Some non-expression identifiers are also treated as expression identifiers for this purpose, eg, `a` in `b = {a}` or `q` in `import r = q`
+					// This is the exception, rather than the rule - most non-expression identifiers are declaration names.
+					if ((Ast.IsExpressionNode(location) || Ast.IsShorthandPropertyAssignment(location.Parent))
+						&& Checker.shouldMarkIdentifierAliasReferenced(location)) {
+						if (Ast.IsPropertyAccessOrQualifiedName(location.Parent)) {
+							var left:Node = null;
+							if (Ast.IsPropertyAccessExpression(location.Parent)) {
+								left = location.Parent.Expression();
+							} else {
+								left = location.Parent.AsQualifiedName().Left;
+							}
+							if (left != location) {
+								return; // Only mark the LHS (the RHS is a property lookup)
+							}
+						}
+						c.markIdentifierAliasReferenced(location);
+						return;
+					}
 				}
 				if (Ast.IsPropertyAccessOrQualifiedName(location)) {
 					var topProp = location;
 					while (Ast.IsPropertyAccessOrQualifiedName(topProp)) {
-						if (Ast.IsPartOfTypeNode(topProp)) {
+						// Names in an import type's qualifier (`ns.y` in `typeof import("./b").ns.y`) are exports of the imported module, not references to this file's imports
+						if (Ast.IsPartOfTypeNode(topProp) || Checker.isImportTypeQualifierPart(topProp) != null) {
 							return;
 						}
 						topProp = topProp.Parent;
@@ -212,8 +296,11 @@ class CheckerPart8 {
 	}
 
 	static function markIdentifierAliasReferenced(c:Checker, location:IdentifierNode):Void {
+		if (Ast.IsThisInTypeQuery(location)) {
+			return;
+		}
 		final symbol = c.getResolvedSymbol(location);
-		if (symbol != null && symbol != c.argumentsSymbol && symbol != c.unknownSymbol && !Ast.IsThisInTypeQuery(location)) {
+		if (symbol != null && symbol != c.argumentsSymbol && symbol != c.unknownSymbol) {
 			c.markAliasReferenced(symbol, location);
 		}
 	}
@@ -927,6 +1014,8 @@ class CheckerPart8 {
 		final newTexts:Array<std.String> = [];
 		var sb = new StringBuf();
 		sb.add(texts[0]);
+		var textLength = 0; // combined length of the segments already moved into newTexts
+		var tooLarge = false;
 		var addSpans:(Array<std.String>, Array<Type>) -> Bool = null;
 		addSpans = function(texts:Array<std.String>, types:Array<Type>):Bool {
 			for (i in 0...Core.len(types)) {
@@ -943,15 +1032,25 @@ class CheckerPart8 {
 				} else if (c.isGenericIndexType(t) || c.isPatternLiteralPlaceholderType(t)) {
 					newTypes.push(t);
 					newTexts.push(Stringutil.CombineSurrogatePairs(sb.toString()));
+					textLength += sb.length;
 					sb = new StringBuf();
 					sb.add(texts[i + 1]);
 				} else {
+					return false;
+				}
+				// PORT: lengths in UTF-16 code units, not Go's bytes (only matters for texts near the 50M limit)
+				if (textLength + sb.length > Checker.maxTemplateLiteralTypeLength || newTypes.length > Checker.maxTemplateLiteralTypeSpans) {
+					tooLarge = true;
 					return false;
 				}
 			}
 			return true;
 		};
 		if (!addSpans(texts, types)) {
+			if (tooLarge) {
+				c.error(c.currentNode, Diagnostics.Type_instantiation_is_excessively_deep_and_possibly_infinite);
+				return c.errorType;
+			}
 			return c.stringType;
 		}
 		if (newTypes.length == 0) {
@@ -1370,8 +1469,9 @@ class CheckerPart8 {
 
 	static function getContextualTypeForStaticPropertyDeclaration(c:Checker, declaration:Node, contextFlags:ContextFlags):Type {
 		if (Ast.IsExpression(declaration.Parent)) {
+			// Don't contextually type a static property by its own class, its type might still be in-progress and that would cause spurious circularities
 			final parentType = c.getContextualType(declaration.Parent, contextFlags);
-			if (parentType != null) {
+			if (parentType != null && parentType.symbol != c.getSymbolOfDeclaration(declaration.Parent)) {
 				return c.getTypeOfPropertyOfContextualType(parentType, c.getSymbolOfDeclaration(declaration).Name);
 			}
 		}

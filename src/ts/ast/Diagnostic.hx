@@ -186,10 +186,50 @@ class DiagnosticsCollection {
 	var fileDiagnosticsSorted:Set<String> = new Set<String>();
 	var nonFileDiagnostics:Array<Diagnostic> = null;
 	var nonFileDiagnosticsSorted:Bool = false;
+	// PORT: TypeScript main's dedup index (#4825); diagnosticLocationKey {path, loc, code} encoded as a string
+	var diagnosticIndex:StringMap<Diagnostic> = null;
+	var diagnosticCollisions:StringMap<Array<Diagnostic>> = null;
 
 	public function new() {}
 
-	public function Add(diagnostic:Diagnostic):Void {
+	static function getDiagnosticLocationKey(diagnostic:Diagnostic):String {
+		final path = diagnostic.File() != null ? diagnostic.File().FileName() : "";
+		return diagnostic.Loc().Pos() + ":" + diagnostic.Loc().End() + ":" + diagnostic.Code() + ":" + path;
+	}
+
+	public function Add(diagnostic:Diagnostic):Diagnostic {
+		final key = getDiagnosticLocationKey(diagnostic);
+		final existing = diagnosticIndex == null ? null : diagnosticIndex.get(key);
+		if (existing != null) {
+			if (Ast.EqualDiagnostics(existing, diagnostic)) {
+				return existing;
+			}
+			final collisions = diagnosticCollisions == null ? null : diagnosticCollisions.get(key);
+			if (collisions != null) {
+				for (collision in collisions) {
+					if (Ast.EqualDiagnostics(collision, diagnostic)) {
+						return collision;
+					}
+				}
+			}
+		}
+		if (diagnosticIndex == null) {
+			diagnosticIndex = new StringMap();
+		}
+		if (existing == null) {
+			diagnosticIndex.set(key, diagnostic);
+		} else {
+			if (diagnosticCollisions == null) {
+				diagnosticCollisions = new StringMap();
+			}
+			var list = diagnosticCollisions.get(key);
+			if (list == null) {
+				list = [];
+				diagnosticCollisions.set(key, list);
+			}
+			list.push(diagnostic);
+		}
+
 		count++;
 
 		if (diagnostic.File() != null) {
@@ -210,6 +250,7 @@ class DiagnosticsCollection {
 			nonFileDiagnostics.push(diagnostic);
 			nonFileDiagnosticsSorted = false;
 		}
+		return diagnostic;
 	}
 
 	public function Lookup(diagnostic:Diagnostic):Diagnostic {

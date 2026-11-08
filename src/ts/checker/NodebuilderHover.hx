@@ -487,7 +487,7 @@ class NodebuilderHover {
 			// Handle alias/re-export symbols
 			if (m.Flags & SymbolFlagsAlias != 0) {
 				final aliasDecl = b.ch.getDeclarationOfAliasSymbol(m);
-				final target = b.ch.getMergedSymbol(b.ch.getTargetOfAliasDeclaration(aliasDecl));
+				final target = b.ch.getMergedSymbol(b.ch.getTargetOfAliasDeclaration(aliasDecl, false /*dontRecursivelyResolve*/));
 				if (target != null) {
 					// If the alias target is a local symbol (not itself an export), emit its declaration first
 					if (target.Flags & (SymbolFlagsBlockScopedVariable | SymbolFlagsFunctionScopedVariable | SymbolFlagsProperty) != 0) {

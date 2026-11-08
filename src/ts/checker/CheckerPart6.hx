@@ -1415,6 +1415,7 @@ class CheckerPart6 {
 				var modifiers:ModifierFlags = ModifierFlagsNone;
 				if (prop != null) {
 					modifiers = Checker.getDeclarationModifierFlagsFromSymbol(prop);
+					final writeModifiers = Checker.getDeclarationModifierFlagsFromSymbolEx(prop, true /*isWrite*/);
 					if ((prop.Flags & SymbolFlagsClassMember) != 0) {
 						if (isUnion) {
 							optionalFlag |= (prop.Flags & SymbolFlagsOptional);
@@ -1454,14 +1455,19 @@ class CheckerPart6 {
 					} else if (!isUnion && !c.isReadonlySymbol(prop)) {
 						checkFlags = checkFlags & ~CheckFlagsReadonly;
 					}
-					if ((modifiers & ModifierFlagsNonPublicAccessibilityModifier) == 0) {
+					if ((modifiers & ModifierFlagsProtected) != 0 && (modifiers & ModifierFlagsPublic) == 0) {
+						checkFlags |= CheckFlagsContainsProtected;
+					} else if ((modifiers & ModifierFlagsPrivate) != 0 && (modifiers & ModifierFlagsPublic) == 0) {
+						checkFlags |= CheckFlagsContainsPrivate;
+					} else {
 						checkFlags |= CheckFlagsContainsPublic;
 					}
-					if ((modifiers & ModifierFlagsProtected) != 0) {
-						checkFlags |= CheckFlagsContainsProtected;
-					}
-					if ((modifiers & ModifierFlagsPrivate) != 0) {
-						checkFlags |= CheckFlagsContainsPrivate;
+					if ((writeModifiers & ModifierFlagsProtected) != 0 && (writeModifiers & ModifierFlagsPublic) == 0) {
+						checkFlags |= CheckFlagsContainsWriteProtected;
+					} else if ((writeModifiers & ModifierFlagsPrivate) != 0 && (writeModifiers & ModifierFlagsPublic) == 0) {
+						checkFlags |= CheckFlagsContainsWritePrivate;
+					} else {
+						checkFlags |= CheckFlagsContainsWritePublic;
 					}
 					if ((modifiers & ModifierFlagsStatic) != 0) {
 						checkFlags |= CheckFlagsContainsStatic;
@@ -1501,13 +1507,27 @@ class CheckerPart6 {
 				}
 			}
 		}
-		if (singleProp == null || (isUnion
-			&& (propSet.Size() != 0 || (checkFlags & CheckFlagsPartial) != 0)
-			&& (checkFlags & (CheckFlagsContainsPrivate | CheckFlagsContainsProtected)) != 0
-			&& !(propSet.Size() != 0 && c.hasCommonDeclaration(propSet)))) {
-			// No property was found, or, in a union, a property has a private or protected declaration in one
-			// constituent, but is missing or has a different declaration in another constituent.
+		if (singleProp == null) {
+			// No property was found
 			return null;
+		}
+		if (isUnion
+			&& (propSet.Size() != 0 || (checkFlags & CheckFlagsPartial) != 0)
+			&& (checkFlags & (CheckFlagsContainsPrivate | CheckFlagsContainsProtected | CheckFlagsContainsWritePrivate | CheckFlagsContainsWriteProtected)) != 0
+			&& !(propSet.Size() != 0 && c.hasCommonDeclaration(propSet))) {
+			// A property in a union has a private or protected declaration in one constituent, but is missing
+			// or has a different declaration in another constituent. If the private or protected declaration is
+			// for reading, we don't create a property.
+			if ((checkFlags & (CheckFlagsContainsPrivate | CheckFlagsContainsProtected)) != 0) {
+				return null;
+			}
+			// Otherwise, if the private or protected declaration is for writing, reduce accessibility to that of
+			// the most restricted constituent.
+			if ((checkFlags & CheckFlagsContainsWritePrivate) != 0) {
+				checkFlags = checkFlags & ~(CheckFlagsContainsWritePublic | CheckFlagsContainsWriteProtected);
+			} else if ((checkFlags & CheckFlagsContainsWriteProtected) != 0) {
+				checkFlags = checkFlags & ~CheckFlagsContainsWritePublic;
+			}
 		}
 		if (propSet.Size() == 0 && (checkFlags & CheckFlagsReadPartial) == 0 && Core.len(indexTypes) == 0) {
 			if (!mergedInstantiations) {
@@ -1554,7 +1574,7 @@ class CheckerPart6 {
 					declarations = [];
 				}
 				for (d in prop.Declarations) {
-					declarations.push(d);
+					declarations = Core.AppendIfUnique(declarations, d);
 				}
 			}
 			final t = c.getTypeOfSymbol(prop);
@@ -2150,7 +2170,7 @@ class CheckerPart6 {
 		if (t == null || m == null || !(c.couldContainTypeVariablesWorker(t) || (t.alias != null && Core.len(t.alias.typeArguments) > 0 && Core.Some(t.alias.typeArguments, c.couldContainTypeVariables)))) {
 			return t;
 		}
-		if (c.instantiationDepth == 100 || c.instantiationCount >= 5000000) {
+		if (c.instantiationStack.length == 100 || c.instantiationCount >= 5000000) {
 			// We have reached 100 recursive type instantiations, or 5M type instantiations caused by the same statement
 			// or expression. There is a very high likelihood we're dealing with a combination of infinite generic types
 			// that perpetually generate new type identities, so we stop the recursion here by yielding the error type.
@@ -2158,11 +2178,19 @@ class CheckerPart6 {
 			if (tr != null) {
 				final args = new StringMap<Any>();
 				args.set("typeId", t.id);
-				args.set("instantiationDepth", c.instantiationDepth);
+				args.set("instantiationDepth", c.instantiationStack.length);
 				args.set("instantiationCount", c.instantiationCount);
 				tr.Instant(PhaseCheckTypes, "instantiateType_DepthLimit", args);
 			}
-			c.error(c.currentNode, Diagnostics.Type_instantiation_is_excessively_deep_and_possibly_infinite);
+			final circularTypeNames = c.getCircularTypeNames();
+			if (circularTypeNames.length == 1) {
+				c.error(c.currentNode, Diagnostics.Instantiations_of_type_0_appear_infinitely_circular, circularTypeNames[0]);
+			} else if (circularTypeNames.length > 1) {
+				c.error(c.currentNode, Diagnostics.Instantiations_of_the_following_types_appear_infinitely_circular_Colon_0,
+					Checker.quotedAndCommaSeparated(circularTypeNames));
+			} else {
+				c.error(c.currentNode, Diagnostics.Type_instantiation_is_excessively_deep_and_possibly_infinite);
+			}
 			return c.errorType;
 		}
 		final index = c.findActiveMapper(m);
@@ -2197,7 +2225,7 @@ class CheckerPart6 {
 		}
 		c.TotalInstantiationCount++;
 		c.instantiationCount++;
-		c.instantiationDepth++;
+		c.instantiationStack.push(t);
 		final result = c.instantiateTypeWorker(t, m, alias);
 		if (index == -1) {
 			c.popActiveMapper();
@@ -2206,8 +2234,31 @@ class CheckerPart6 {
 		} else {
 			cache.byKey.set(key, result);
 		}
-		c.instantiationDepth--;
+		c.instantiationStack.pop();
 		return result;
+	}
+
+	static function getCircularTypeNames(c:Checker):Array<std.String> {
+		final typeCounts = new IntMap<Int>();
+		final circularTypeNames:Array<std.String> = [];
+		for (t in c.instantiationStack) {
+			final n:Null<Int> = typeCounts.get(t.id);
+			final count = (n == null ? 0 : n) + 1;
+			typeCounts.set(t.id, count);
+			if (count == 3) {
+				var symbol = t.symbol;
+				if (t.alias != null) {
+					symbol = t.alias.symbol;
+				}
+				if (symbol != null && symbol.Name.length != 0 && StringTools.fastCodeAt(symbol.Name, 0) != 0xFFFE) {
+					final name = c.SymbolToString(symbol);
+					if (circularTypeNames.indexOf(name) < 0) {
+						circularTypeNames.push(name);
+					}
+				}
+			}
+		}
+		return circularTypeNames;
 	}
 
 	static function pushActiveMapper(c:Checker, mapper:TypeMapper):Void {
@@ -2722,7 +2773,7 @@ class CheckerPart6 {
 		if (c.strictNullChecks && (modifiers & MappedTypeModifiersIncludeOptional) != 0 && !c.maybeTypeOfKind(propType, TypeFlagsUndefined | TypeFlagsVoid)) {
 			return c.getOptionalType(propType, true /*isProperty*/);
 		} else if (c.strictNullChecks && (modifiers & MappedTypeModifiersExcludeOptional) != 0 && isOptional) {
-			return c.getTypeWithFacts(propType, TypeFactsNEUndefined);
+			return c.removeMissingOrUndefinedType(propType);
 		} else {
 			return propType;
 		}
@@ -3158,11 +3209,9 @@ class CheckerPart6 {
 	static function getSymbolFromTypeReference(c:Checker, node:Node):Symbol {
 		final links = c.symbolNodeLinks.Get(node);
 		if (links.resolvedSymbol == null) {
-			if (Checker.isConstTypeReference(node) && Ast.IsAssertionExpression(node.Parent)) {
-				links.resolvedSymbol = c.unknownSymbol;
-			} else {
-				links.resolvedSymbol = c.resolveTypeReferenceName(node, SymbolFlagsType, false /*ignoreErrors*/);
-			}
+			// The `const` in a `const` assertion resolves to nothing; resolveName knows not to
+			// report an error for it, so no special-casing is needed here.
+			links.resolvedSymbol = c.resolveTypeReferenceName(node, SymbolFlagsType, false /*ignoreErrors*/);
 		}
 		return links.resolvedSymbol;
 	}
@@ -3481,8 +3530,8 @@ class CheckerPart6 {
 
 	static function isMutableArrayLikeType(c:Checker, t:Type):Bool {
 		// A type is mutable-array-like if it is a reference to the global Array type, or if it is not the
-		// any, undefined or null type and if it is assignable to Array<any>
-		return c.isMutableArrayOrTuple(t) || (t.flags & (TypeFlagsAny | TypeFlagsNullable)) == 0 && c.isTypeAssignableTo(t, c.anyArrayType);
+		// any, undefined, null or never type and if it is assignable to Array<any>
+		return c.isMutableArrayOrTuple(t) || (t.flags & (TypeFlagsAny | TypeFlagsNullable | TypeFlagsNever)) == 0 && c.isTypeAssignableTo(t, c.anyArrayType);
 	}
 
 	static function isEmptyArrayLiteralType(c:Checker, t:Type):Bool {
@@ -3750,6 +3799,9 @@ class CheckerPart6 {
 				}
 			}
 		}
+		if (result != null) {
+			Slices.SortFunc(result, Checker.CompareTypes);
+		}
 		return result;
 	}
 
@@ -3831,7 +3883,7 @@ class CheckerPart6 {
 			for (declaration in rangeOf(symbol.Declarations)) {
 				if (declaration.Kind == KindEnumDeclaration) {
 					for (member in rangeOf(declaration.Members())) {
-						if (c.hasBindableName(member)) {
+						if (!Ast.HasDynamicName(member)) {
 							final memberSymbol = c.getSymbolOfDeclaration(member);
 							final value = c.getEnumMemberValue(member).Value;
 							var memberType:Type;

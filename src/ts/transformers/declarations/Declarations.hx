@@ -614,7 +614,7 @@ class Declarations {
 	}
 
 	static function createBindingElementError(node:Node):Diagnostic {
-		return createDiagnosticForNode(node, Diagnostics.Binding_elements_can_t_be_exported_directly_with_isolatedDeclarations);
+		return createDiagnosticForNode(node, Diagnostics.Binding_elements_with_initializers_can_t_be_exported_directly_with_isolatedDeclarations);
 	}
 
 	static function createVariableOrPropertyError(node:Node):Diagnostic {

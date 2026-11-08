@@ -116,6 +116,14 @@ class CheckerPart2 {
 	}
 
 	static function checkReturnStatement(c:Checker, node:Node):Void {
+		// Always check the return expression so its identifiers are resolved even when the
+		// return statement is misplaced (grammar error), keeping diagnostics stable
+		// regardless of traversal order.
+		final exprNode = node.Expression();
+		var exprType = c.undefinedType;
+		if (exprNode != null) {
+			exprType = c.checkExpressionCached(exprNode);
+		}
 		if (c.checkGrammarStatementInAmbientContext(node)) {
 			return;
 		}
@@ -131,12 +139,7 @@ class CheckerPart2 {
 		final signature = c.getSignatureFromDeclaration(container);
 		final returnType = c.getReturnTypeOfSignature(signature);
 		final functionFlags = Ast.GetFunctionFlags(container);
-		final exprNode = node.Expression();
 		if (c.strictNullChecks || exprNode != null || (returnType.flags & TypeFlagsNever) != 0) {
-			var exprType = c.undefinedType;
-			if (exprNode != null) {
-				exprType = c.checkExpressionCached(exprNode);
-			}
 			if (Ast.IsSetAccessorDeclaration(container)) {
 				if (exprNode != null) {
 					c.error(node, Diagnostics.Setters_cannot_return_a_value);
@@ -325,9 +328,27 @@ class CheckerPart2 {
 		if (node.Name() == null && !Ast.HasSyntacticModifier(node, ModifierFlagsDefault)) {
 			c.grammarErrorOnFirstToken(node, Diagnostics.A_class_declaration_without_the_default_modifier_must_have_a_name);
 		}
+		if (!c.containerAllowsBlockScopedVariable(node.Parent)) {
+			c.grammarErrorOnNode(node, Diagnostics.X_0_declarations_can_only_be_declared_inside_a_block, "class");
+		}
 		c.checkClassLikeDeclaration(node);
 		c.checkSourceElements(node.Members());
+		c.checkConstructorDeclaredProperties(node);
 		c.registerForUnusedIdentifiersCheck(node);
+	}
+
+	static function checkConstructorDeclaredProperties(c:Checker, node:Node):Void {
+		if (!Ast.IsInJSFile(node)) {
+			return;
+		}
+		final classType = c.getDeclaredTypeOfSymbol(c.getSymbolOfDeclaration(node));
+		for (property in rangeOf(c.getPropertiesOfType(classType))) {
+			final kind = c.isConstructorDeclaredThisProperty(property);
+			final constructor = c.isConstructorDeclaredThisPropertyLocation;
+			if (kind == thisAssignmentDeclarationConstructor && constructor.Parent == node) {
+				c.getTypeOfSymbol(property);
+			}
+		}
 	}
 
 	static function checkClassLikeDeclaration(c:Checker, node:Node):Void {
@@ -358,6 +379,7 @@ class CheckerPart2 {
 			if (Core.len(baseTypes) != 0) {
 				final baseType = baseTypes[0];
 				final baseConstructorType = c.getBaseConstructorTypeOfClass(classType);
+				c.checkJSDocAugmentsTagMatchesExtends(node, baseTypeNode, baseType);
 				final staticBaseType = c.getApparentType(baseConstructorType);
 				c.checkBaseTypeAccessibility(staticBaseType, baseTypeNode);
 				c.checkSourceElement(baseTypeNode.Expression());
@@ -529,14 +551,10 @@ class CheckerPart2 {
 
 	static function checkBaseTypeAccessibility(c:Checker, t:Type, node:Node):Void {
 		final signatures = c.getSignaturesOfType(t, SignatureKindConstruct);
-		if (Core.len(signatures) != 0) {
-			final declaration = signatures[0].declaration;
-			if (declaration != null && Ast.HasModifier(declaration, ModifierFlagsPrivate)) {
-				final typeClassDeclaration = Ast.GetClassLikeDeclarationOfSymbol(t.symbol);
-				if (!c.isNodeWithinClass(node, typeClassDeclaration)) {
-					c.error(node, Diagnostics.Cannot_extend_a_class_0_Class_constructor_is_marked_as_private, c.getFullyQualifiedName(t.symbol, null));
-				}
-			}
+		final accessibilityError = c.getConstructorAccessibilityError(node, signatures, ModifierFlagsPrivate);
+		if (accessibilityError != null) {
+			c.error(node, Diagnostics.Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,
+				c.getFullyQualifiedName(accessibilityError.declaringClass.symbol, null));
 		}
 	}
 
@@ -813,79 +831,95 @@ class CheckerPart2 {
 	}
 
 	static function checkMemberForOverrideModifier(c:Checker, node:Node, staticType:Type, baseStaticType:Type, baseWithThis:Type, t:Type, typeWithThis:Type, member:Node):Void {
+		final symbol = c.getSymbolOfDeclaration(member);
+		if (symbol == null) {
+			return;
+		}
+
+		c.checkMemberForOverrideModifierWorker(node, staticType, baseStaticType, baseWithThis, t, typeWithThis, Checker.hasOverrideModifier(member),
+			Ast.HasAbstractModifier(member), Ast.IsStatic(member), Ast.IsParameterDeclaration(member), symbol, member);
+	}
+
+	static function checkMemberForOverrideModifierWorker(c:Checker, node:Node, staticType:Type, baseStaticType:Type, baseWithThis:Type, t:Type, typeWithThis:Type,
+			memberHasOverrideModifier:Bool, memberHasAbstractModifier:Bool, memberIsStatic:Bool, memberIsParameterProperty:Bool, member:Symbol,
+			errorNode:Node):MemberOverrideStatus {
 		final isJs = Ast.IsInJSFile(node);
-		final memberHasOverrideModifier = Checker.hasOverrideModifier(member);
-		if (baseWithThis == null) {
-			if (memberHasOverrideModifier) {
-				c.error(member,
+		if (memberHasOverrideModifier && member.ValueDeclaration != null && Ast.IsClassElement(member.ValueDeclaration)
+			&& member.ValueDeclaration.Name() != null && c.isNonBindableDynamicName(member.ValueDeclaration.Name())) {
+			if (errorNode != null) {
+				c.error(errorNode,
+					Core.IfElse(isJs, Diagnostics.This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_name_is_dynamic,
+						Diagnostics.This_member_cannot_have_an_override_modifier_because_its_name_is_dynamic));
+			}
+			return MemberOverrideStatusHasInvalidOverride;
+		}
+
+		if (baseWithThis != null && (memberHasOverrideModifier || c.compilerOptions.NoImplicitOverride.IsTrue())) {
+			final thisType = Core.IfElse(memberIsStatic, staticType, typeWithThis);
+			final baseType = Core.IfElse(memberIsStatic, baseStaticType, baseWithThis);
+			final prop = c.getPropertyOfType(thisType, member.Name);
+			final baseProp = c.getPropertyOfType(baseType, member.Name);
+
+			if (prop != null && baseProp == null && memberHasOverrideModifier) {
+				if (errorNode != null) {
+					final suggestion = c.getSuggestedSymbolForNonexistentClassMember(Ast.SymbolName(member), baseType);
+					if (suggestion != null) {
+						c.error(errorNode,
+							Core.IfElse(isJs,
+								Diagnostics.This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1,
+								Diagnostics.This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1),
+							c.TypeToString(baseWithThis), c.symbolToString(suggestion));
+					} else {
+						c.error(errorNode,
+							Core.IfElse(isJs,
+								Diagnostics.This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0,
+								Diagnostics.This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0),
+							c.TypeToString(baseWithThis));
+					}
+				}
+				return MemberOverrideStatusHasInvalidOverride;
+			}
+
+			if (prop != null && baseProp != null && Core.len(baseProp.Declarations) > 0 && c.compilerOptions.NoImplicitOverride.IsTrue()
+				&& (node.Flags & NodeFlagsAmbient) == 0) {
+				final baseHasAbstract = Core.Some(baseProp.Declarations, Ast.HasAbstractModifier);
+				if (memberHasOverrideModifier) {
+					return MemberOverrideStatusNone;
+				}
+				if (!baseHasAbstract) {
+					if (errorNode != null) {
+						final message = Core.IfElse(memberIsParameterProperty,
+							Core.IfElse(isJs,
+								Diagnostics.This_parameter_property_must_have_a_JSDoc_comment_with_an_override_tag_because_it_overrides_a_member_in_the_base_class_0,
+								Diagnostics.This_parameter_property_must_have_an_override_modifier_because_it_overrides_a_member_in_base_class_0),
+							Core.IfElse(isJs,
+								Diagnostics.This_member_must_have_a_JSDoc_comment_with_an_override_tag_because_it_overrides_a_member_in_the_base_class_0,
+								Diagnostics.This_member_must_have_an_override_modifier_because_it_overrides_a_member_in_the_base_class_0));
+						c.error(errorNode, message, c.TypeToString(baseWithThis));
+					}
+					return MemberOverrideStatusNeedsOverride;
+				}
+				if (memberHasAbstractModifier) {
+					if (errorNode != null) {
+						c.error(errorNode,
+							Diagnostics.This_member_must_have_an_override_modifier_because_it_overrides_an_abstract_method_that_is_declared_in_the_base_class_0,
+							c.TypeToString(baseWithThis));
+					}
+					return MemberOverrideStatusNeedsOverride;
+				}
+			}
+		} else if (memberHasOverrideModifier) {
+			if (errorNode != null) {
+				c.error(errorNode,
 					Core.IfElse(isJs,
 						Diagnostics.This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_containing_class_0_does_not_extend_another_class,
 						Diagnostics.This_member_cannot_have_an_override_modifier_because_its_containing_class_0_does_not_extend_another_class),
 					c.TypeToString(t));
 			}
-			return;
+			return MemberOverrideStatusHasInvalidOverride;
 		}
-		final sym = member.Symbol();
-		if (memberHasOverrideModifier && sym != null && sym.ValueDeclaration != null && Ast.IsClassElement(member) && member.Name() != null
-			&& c.isNonBindableDynamicName(member.Name())) {
-			c.error(member,
-				Core.IfElse(isJs, Diagnostics.This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_name_is_dynamic,
-					Diagnostics.This_member_cannot_have_an_override_modifier_because_its_name_is_dynamic));
-			return;
-		}
-		if (!memberHasOverrideModifier && !c.compilerOptions.NoImplicitOverride.IsTrue()) {
-			return;
-		}
-		// Here we have a base class and also an override modifier or no override modifier in noImplicitOverride mode
-		final symbol = c.getSymbolOfDeclaration(member);
-		if (symbol == null) {
-			return;
-		}
-		final memberIsStatic = Ast.IsStatic(member);
-		final thisType = Core.IfElse(memberIsStatic, staticType, typeWithThis);
-		final prop = c.getPropertyOfType(thisType, symbol.Name);
-		if (prop == null) {
-			return;
-		}
-		final baseType = Core.IfElse(memberIsStatic, baseStaticType, baseWithThis);
-		final baseProp = c.getPropertyOfType(baseType, symbol.Name);
-		if (baseProp == null && memberHasOverrideModifier) {
-			final suggestion = c.getSuggestedSymbolForNonexistentClassMember(Ast.SymbolName(symbol), baseType);
-			if (suggestion != null) {
-				c.error(member,
-					Core.IfElse(isJs,
-						Diagnostics.This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1,
-						Diagnostics.This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1),
-					c.TypeToString(baseWithThis), c.symbolToString(suggestion));
-				return;
-			}
-			c.error(member,
-				Core.IfElse(isJs,
-					Diagnostics.This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0,
-					Diagnostics.This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0),
-				c.TypeToString(baseWithThis));
-			return;
-		}
-		if (baseProp != null && Core.len(baseProp.Declarations) != 0 && !memberHasOverrideModifier && c.compilerOptions.NoImplicitOverride.IsTrue()
-			&& (node.Flags & NodeFlagsAmbient) == 0) {
-			final baseHasAbstract = Core.Some(baseProp.Declarations, Ast.HasAbstractModifier);
-			if (!baseHasAbstract) {
-				final message = Core.IfElse(Ast.IsParameterDeclaration(member),
-					Core.IfElse(isJs,
-						Diagnostics.This_parameter_property_must_have_a_JSDoc_comment_with_an_override_tag_because_it_overrides_a_member_in_the_base_class_0,
-						Diagnostics.This_parameter_property_must_have_an_override_modifier_because_it_overrides_a_member_in_base_class_0),
-					Core.IfElse(isJs,
-						Diagnostics.This_member_must_have_a_JSDoc_comment_with_an_override_tag_because_it_overrides_a_member_in_the_base_class_0,
-						Diagnostics.This_member_must_have_an_override_modifier_because_it_overrides_a_member_in_the_base_class_0));
-				c.error(member, message, c.TypeToString(baseWithThis));
-				return;
-			}
-			if (Ast.HasAbstractModifier(member) && baseHasAbstract) {
-				c.error(member,
-					Diagnostics.This_member_must_have_an_override_modifier_because_it_overrides_an_abstract_method_that_is_declared_in_the_base_class_0,
-					c.TypeToString(baseWithThis));
-			}
-		}
+
+		return MemberOverrideStatusNone;
 	}
 
 	static function getSuggestedSymbolForNonexistentClassMember(c:Checker, name:std.String, baseType:Type):Symbol {
@@ -1120,16 +1154,19 @@ class CheckerPart2 {
 		c.checkExportsOnMergedDeclarations(node);
 		final symbol = c.getSymbolOfDeclaration(node);
 		c.checkTypeParameterListsIdentical(symbol);
-		// Only check this symbol once
+		// Check once per checker, but report on the first interface declaration,
+		// independently of which declaration is checked first.
 		final links = c.declaredTypeLinks.Get(symbol);
 		if (!links.interfaceChecked) {
 			links.interfaceChecked = true;
+			final firstInterfaceDeclaration = Ast.GetDeclarationOfKind(symbol, KindInterfaceDeclaration);
 			final t = c.getDeclaredTypeOfSymbol(symbol);
 			final typeWithThis = c.getTypeWithThisArgument(t, null, false);
 			// run subsequent checks only if first set succeeded
-			if (c.checkInheritedPropertiesAreIdentical(t, node.Name())) {
+			if (c.checkInheritedPropertiesAreIdentical(t, firstInterfaceDeclaration.Name())) {
 				for (baseType in rangeOf(c.getBaseTypes(t))) {
-					c.checkTypeAssignableTo(typeWithThis, c.getTypeWithThisArgument(baseType, t.AsInterfaceType().thisType, false), node.Name(),
+					c.checkTypeAssignableTo(typeWithThis, c.getTypeWithThisArgument(baseType, t.AsInterfaceType().thisType, false),
+						firstInterfaceDeclaration.Name(),
 						Diagnostics.Interface_0_incorrectly_extends_interface_1);
 				}
 				c.checkIndexConstraints(t, symbol /*isStaticIndex*/, false);
@@ -1218,7 +1255,8 @@ class CheckerPart2 {
 		if (!links.enumChecked) {
 			links.enumChecked = true;
 			if (Core.len(enumSymbol.Declarations) > 1) {
-				final enumIsConst = Ast.IsEnumConst(node);
+				final firstEnumDeclaration = Ast.GetDeclarationOfKind(enumSymbol, KindEnumDeclaration);
+				final enumIsConst = Ast.IsEnumConst(firstEnumDeclaration);
 				// check that const is placed\omitted on all enum declarations
 				for (decl in enumSymbol.Declarations) {
 					if (Ast.IsEnumDeclaration(decl) && Ast.IsEnumConst(decl) != enumIsConst) {
@@ -1252,6 +1290,9 @@ class CheckerPart2 {
 	static function checkEnumMember(c:Checker, node:Node):Void {
 		if (Ast.IsPrivateIdentifier(node.Name())) {
 			c.error(node, Diagnostics.An_enum_member_cannot_be_named_with_a_private_identifier);
+		}
+		if (Ast.IsComputedPropertyName(node.Name())) {
+			c.checkExpression(node.Name().Expression());
 		}
 		if (node.Initializer() != null) {
 			c.checkExpression(node.Initializer());
@@ -1403,6 +1444,7 @@ class CheckerPart2 {
 		}
 		if (c.checkGrammarModuleElementContext(node, diagnostic)) {
 			// If we hit an import declaration in an illegal context, just bail out to avoid cascading errors.
+			c.checkExternalModuleNameInGlobalScope(node);
 			return;
 		}
 		if (!c.checkGrammarModifiers(node) && node.Modifiers() != null) {
@@ -1493,14 +1535,9 @@ class CheckerPart2 {
 		if (!Ast.IsImportEqualsDeclaration(node)) {
 			final attributes = Ast.GetImportAttributes(node);
 			if (attributes != null) {
-				var hasError = false;
-				for (attr in attributes.AsImportAttributes().Attributes.Nodes) {
-					if (!Ast.IsStringLiteral(attr.AsImportAttribute().Value)) {
-						hasError = true;
-						c.error(attr.AsImportAttribute().Value, Diagnostics.Import_attribute_values_must_be_string_literal_expressions);
-					}
+				if (c.checkGrammarImportAttributeValues(attributes.AsImportAttributes())) {
+					return false;
 				}
-				return !hasError;
 			}
 		}
 		return true;
@@ -1592,6 +1629,7 @@ class CheckerPart2 {
 			Diagnostics.An_import_declaration_can_only_be_used_at_the_top_level_of_a_module,
 			Diagnostics.An_import_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module);
 		if (c.checkGrammarModuleElementContext(node, diagnostic)) {
+			c.checkExternalModuleNameInGlobalScope(node);
 			return; // If we hit an import declaration in an illegal context, just bail out to avoid cascading errors.
 		}
 		c.checkGrammarModifiers(node);
@@ -1636,6 +1674,7 @@ class CheckerPart2 {
 			Diagnostics.An_export_declaration_can_only_be_used_at_the_top_level_of_a_module,
 			Diagnostics.An_export_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module);
 		if (c.checkGrammarModuleElementContext(node, diagnostic)) {
+			c.checkExternalModuleNameInGlobalScope(node);
 			return; // If we hit an export in an illegal context, just bail out to avoid cascading errors.
 		}
 		final exportDecl = node.AsExportDeclaration();
@@ -1680,6 +1719,17 @@ class CheckerPart2 {
 		c.checkImportAttributes(node);
 	}
 
+	static function checkExternalModuleNameInGlobalScope(c:Checker, node:Node):Void {
+		if (Checker.getEnclosingContainer(node).Kind != KindSourceFile
+			|| (Ast.IsImportDeclarationOrJSImportDeclaration(node) && node.ImportClause() == null)) {
+			return;
+		}
+		final moduleName = Ast.GetExternalModuleName(node);
+		if (moduleName != null) {
+			c.resolveExternalModuleName(node, moduleName, false);
+		}
+	}
+
 	static function checkExportSpecifier(c:Checker, node:ExportSpecifierNode):Void {
 		c.checkAliasSymbol(node);
 		final hasModuleSpecifier = node.Parent.Parent.ModuleSpecifier() != null;
@@ -1708,6 +1758,10 @@ class CheckerPart2 {
 
 	static function checkExportAssignment(c:Checker, node:Node):Void {
 		final isExportEquals = node.AsExportAssignment().IsExportEquals;
+		// Always check the exported expression so its identifiers are resolved even when the
+		// export assignment is misplaced (grammar error), keeping diagnostics stable
+		// regardless of traversal order.
+		final exprType = c.checkExpressionCached(node.Expression());
 		final illegalContextMessage = Core.IfElse(isExportEquals,
 			Diagnostics.An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration,
 			Diagnostics.A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration);
@@ -1717,11 +1771,7 @@ class CheckerPart2 {
 		if (c.shouldCheckErasableSyntax(node) && node.AsExportAssignment().IsExportEquals && (node.Flags & NodeFlagsAmbient) == 0) {
 			c.error(node, Diagnostics.This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled);
 		}
-		var container = node.Parent;
-		if (!Ast.IsSourceFile(container)) {
-			container = container.Parent;
-		}
-		if (Ast.IsModuleDeclaration(container) && !Ast.IsAmbientModule(container)) {
+		if (Checker.isContainedByNamespace(node)) {
 			// TODO(danielr): should these be grammar errors?
 			if (isExportEquals) {
 				c.error(node, Diagnostics.An_export_assignment_cannot_be_used_in_a_namespace);
@@ -1744,7 +1794,6 @@ class CheckerPart2 {
 				// If not a value, we're interpreting the identifier as a type export, along the lines of (`export { Id as default }`)
 				if ((c.getSymbolFlags(sym) & SymbolFlagsValue) != 0) {
 					// However if it is a value, we need to check it's being used correctly
-					c.checkExpressionCached(id);
 					if (!isIllegalExportDefaultInCJS && (node.Flags & NodeFlagsAmbient) == 0 && c.compilerOptions.VerbatimModuleSyntax.IsTrue()
 						&& typeOnlyDeclaration != null) {
 						final message = Core.IfElse(isExportEquals,
@@ -1780,22 +1829,20 @@ class CheckerPart2 {
 						c.addTypeOnlyDeclarationRelatedInfo(c.error(id, message, id.Text(), c.getIsolatedModulesLikeFlagName()), typeOnlyDeclaration, id.Text());
 					}
 				}
-			} else {
-				c.checkExpressionCached(id);
-				// doesn't resolve, check as expression to mark as error
 			}
-		} else {
-			c.checkExpressionCached(node.Expression());
 		}
 		if (isIllegalExportDefaultInCJS) {
 			c.error(node, Checker.getVerbatimModuleSyntaxErrorMessage(node));
+		}
+		var container = node.Parent;
+		if (!Ast.IsSourceFile(container)) {
+			container = container.Parent;
 		}
 		c.checkExternalModuleExports(container);
 		final typeNode = node.Type();
 		if (typeNode != null && node.Kind == KindExportAssignment) {
 			final t = c.getTypeFromTypeNode(typeNode);
-			final initializerType = c.checkExpressionCached(node.Expression());
-			c.checkTypeAssignableToAndOptionallyElaborate(initializerType, t, node.Expression(), node.Expression(), null /*headMessage*/, null);
+			c.checkTypeAssignableToAndOptionallyElaborate(exprType, t, node.Expression(), node.Expression(), null /*headMessage*/, null);
 		}
 		if (((node.Flags & NodeFlagsAmbient) != 0) && !Ast.IsEntityNameExpression(node.Expression())) {
 			c.grammarErrorOnNode(node.Expression(),
@@ -1959,6 +2006,11 @@ class CheckerPart2 {
 		}
 		if (Ast.IsBindingElement(node)) {
 			final propName = node.PropertyName();
+
+			if (propName != null && Ast.IsPrivateIdentifier(propName)) {
+				c.grammarErrorOnNode(propName, Diagnostics.Private_identifiers_cannot_be_used_in_destructuring_patterns);
+			}
+
 			if (propName != null && Ast.IsIdentifier(node.Name()) && Ast.IsPartOfParameterDeclaration(node)
 				&& Ast.NodeIsMissing(Ast.GetContainingFunction(node).Body())) {
 				// type F = ({a: string}) => void;
@@ -1969,6 +2021,9 @@ class CheckerPart2 {
 					c.renamedBindingElementsInTypes = [];
 				}
 				c.renamedBindingElementsInTypes.push(node);
+				// Still resolve the type like the end of this function does for every other declaration,
+				// so implicit any errors are reported by checking instead of by whatever asks for the type later
+				c.getTypeOfSymbol(c.getSymbolOfDeclaration(node));
 				return;
 			}
 			if (Ast.IsObjectBindingPattern(node.Parent) && Checker.hasDotDotDotToken(node)
@@ -2066,8 +2121,19 @@ class CheckerPart2 {
 					final globalDisposableType = c.getGlobalDisposableType();
 					if (globalDisposableType != c.emptyObjectType) {
 						final optionalDisposableType = c.getUnionType([globalDisposableType, c.nullType, c.undefinedType]);
-						c.checkTypeAssignableTo(c.widenTypeForVariableLikeDeclaration(initializerType, node, false), optionalDisposableType, initializer,
-							Diagnostics.The_initializer_of_a_using_declaration_must_be_either_an_object_with_a_Symbol_dispose_method_or_be_null_or_undefined);
+						final widenedInitializerType = c.widenTypeForVariableLikeDeclaration(initializerType, node, false);
+						final diags:Array<Diagnostic> = [];
+						if (!c.checkTypeAssignableToEx(widenedInitializerType, optionalDisposableType, initializer,
+							Diagnostics.The_initializer_of_a_using_declaration_must_be_either_an_object_with_a_Symbol_dispose_method_or_be_null_or_undefined,
+							diags)) {
+							final globalAsyncDisposableType = c.getGlobalAsyncDisposableType();
+							final optionalAsyncDisposableType = c.getUnionType([globalAsyncDisposableType, c.nullType, c.undefinedType]);
+							if (globalAsyncDisposableType != c.emptyObjectType && c.isTypeAssignableTo(widenedInitializerType, optionalAsyncDisposableType)) {
+								diags[0].AddMessageChain(Ast.NewDiagnosticChain(null,
+									Diagnostics.This_initializer_has_a_Symbol_asyncDispose_method_Did_you_mean_to_use_await_using));
+							}
+							c.addDiagnostic(diags[0]);
+						}
 					}
 				}
 			}
@@ -2987,6 +3053,7 @@ class CheckerPart2 {
 				&& c.program.GetEmitModuleFormatOfFile(hasFileName(Ast.GetSourceFileOfNode(node))) == ModuleKindCommonJS) {
 				c.error(node, Checker.getVerbatimModuleSyntaxErrorMessage(node));
 			} else if (c.moduleKind == ModuleKindPreserve && !Ast.IsImportEqualsDeclaration(node) && !Ast.IsVariableDeclaration(node)
+				&& !Ast.IsBindingElement(node)
 				&& c.program.GetEmitModuleFormatOfFile(hasFileName(Ast.GetSourceFileOfNode(node))) == ModuleKindCommonJS) {
 				// In `--module preserve`, ESM input syntax emits ESM output syntax, but there will be times
 				// when we look at the `impliedNodeFormat` of this file and decide it's CommonJS (i.e., currently,
@@ -2997,9 +3064,11 @@ class CheckerPart2 {
 			if (c.compilerOptions.VerbatimModuleSyntax.IsTrue() && !Ast.IsTypeOnlyImportOrExportDeclaration(node) && (node.Flags & NodeFlagsAmbient) == 0
 				&& (targetFlags & SymbolFlagsConstEnum) != 0) {
 				final constEnumDeclaration = target.ValueDeclaration;
-				final redirect = c.program.GetProjectReferenceFromOutputDts(Ast.GetSourceFileOfNode(constEnumDeclaration).Path());
-				if ((constEnumDeclaration.Flags & NodeFlagsAmbient) != 0 && (redirect == null || !redirect.Resolved.CompilerOptions().ShouldPreserveConstEnums())) {
-					c.error(node, Diagnostics.Cannot_access_ambient_const_enums_when_0_is_enabled, c.getIsolatedModulesLikeFlagName());
+				if (constEnumDeclaration != null && (constEnumDeclaration.Flags & NodeFlagsAmbient) != 0) {
+					final redirect = c.program.GetProjectReferenceFromOutputDts(Ast.GetSourceFileOfNode(constEnumDeclaration).Path());
+					if (redirect == null || !redirect.Resolved.CompilerOptions().ShouldPreserveConstEnums()) {
+						c.error(node, Diagnostics.Cannot_access_ambient_const_enums_when_0_is_enabled, c.getIsolatedModulesLikeFlagName());
+					}
 				}
 			}
 		}
@@ -3069,8 +3138,7 @@ class CheckerPart2 {
 				return;
 			}
 		}
-		// Run the check only for the first declaration in the list.
-		if (Ast.GetDeclarationOfKind(symbol, node.Kind) != node) {
+		if (Core.len(symbol.Declarations) < 2 || !c.mergedExportsChecked.AddIfAbsent(symbol)) {
 			return;
 		}
 		var exportedDeclarationSpaces = DeclarationSpacesNone;
@@ -3214,7 +3282,8 @@ class CheckerPart2 {
 				case KindClassDeclaration | KindClassExpression:
 					c.checkUnusedClassMembers(node);
 					c.checkUnusedTypeParameters(node);
-				case KindSourceFile | KindModuleDeclaration | KindBlock | KindCaseBlock | KindForStatement | KindForInStatement | KindForOfStatement:
+				case KindSourceFile | KindModuleDeclaration | KindBlock | KindCaseBlock | KindForStatement | KindForInStatement | KindForOfStatement
+					| KindClassStaticBlockDeclaration:
 					c.checkUnusedLocalsAndParameters(node);
 				case KindConstructor | KindFunctionExpression | KindFunctionDeclaration | KindArrowFunction | KindMethodDeclaration | KindGetAccessor |
 					KindSetAccessor:
