@@ -3756,21 +3756,30 @@ class CheckerPart6 {
 	}
 
 	static function getOuterTypeParametersOfClassOrInterface(c:Checker, symbol:Symbol):Array<Type> {
-		var declaration = symbol.ValueDeclaration;
-		if ((symbol.Flags & (SymbolFlagsClass | SymbolFlagsFunction)) == 0) {
-			declaration = Core.Find(symbol.Declarations, function(d:Node):Bool {
-				if (Ast.IsInterfaceDeclaration(d)) {
-					return true;
-				}
-				if (!Ast.IsVariableDeclaration(d)) {
-					return false;
-				}
-				final initializer = d.Initializer();
-				return initializer != null && Ast.IsFunctionExpressionOrArrowFunction(initializer);
-			});
-		}
+		final declaration = c.getClassOrInterfaceLikeDeclaration(symbol);
 		Debug.Assert(declaration != null, "Class was missing valueDeclaration -OR- non-class had no interface declarations");
 		return c.getOuterTypeParameters(declaration, false /*includeThisTypes*/);
+	}
+
+	// Returns the declaration used to obtain a class, interface, or function symbol's outer type parameters.
+	static function getClassOrInterfaceLikeDeclaration(c:Checker, symbol:Symbol):Node {
+		if ((symbol.Flags & (SymbolFlagsClass | SymbolFlagsFunction)) != 0) {
+			return symbol.ValueDeclaration;
+		}
+		return Core.Find(symbol.Declarations, function(d:Node):Bool {
+			if (Ast.IsInterfaceDeclaration(d)) {
+				return true;
+			}
+			if (!Ast.IsVariableDeclaration(d)) {
+				return false;
+			}
+			final initializer = d.Initializer();
+			return initializer != null && Ast.IsFunctionExpressionOrArrowFunction(initializer);
+		});
+	}
+
+	static function canGetTypeParametersOfClassOrInterface(c:Checker, symbol:Symbol):Bool {
+		return c.getClassOrInterfaceLikeDeclaration(symbol) != null;
 	}
 
 	// Return the outer type parameters of a node or undefined if the node has no outer type parameters.

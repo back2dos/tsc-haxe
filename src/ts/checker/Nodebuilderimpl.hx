@@ -3527,8 +3527,12 @@ class NodeBuilderImpl {
 			}
 
 			var targetSymbol = symbol;
-			if (symbol.Flags & SymbolFlagsAlias != 0) {
+			if (symbol.Flags & SymbolFlagsAlias != 0 && !this.ch.canGetTypeParametersOfClassOrInterface(symbol)) {
 				targetSymbol = this.ch.resolveAlias(symbol);
+			}
+
+			if (!this.ch.canGetTypeParametersOfClassOrInterface(targetSymbol)) {
+				return null;
 			}
 
 			var params = this.getTypeParametersOfClassOrInterface(targetSymbol);
