@@ -1508,8 +1508,9 @@ class Checker {
 	var symbolReferenceLinks:LinkStore<Symbol, SymbolReferenceLinks> = new LinkStore<Symbol, SymbolReferenceLinks>(() -> new SymbolReferenceLinks());
 	// PORT: perf — a transient symbol's value links have its target and mapper (TransientValueSymbolLinks), a
 	// synthetic or mapped property's its name type and containing type too (SyntheticValueSymbolLinks)
-	var valueSymbolLinks:LinkStore<Symbol, ValueSymbolLinks> = new LinkStore<Symbol, ValueSymbolLinks>(() -> new ValueSymbolLinks(),
-		s -> (s.Flags & SymbolFlagsTransient) == 0 ? new ValueSymbolLinks() : (s.CheckFlags & CheckFlagsMapped) != 0 ? new MappedValueSymbolLinks() : (s.CheckFlags & CheckFlagsSynthetic) != 0 ? new SyntheticValueSymbolLinks() : new TransientValueSymbolLinks());
+	// (an instantiated symbol's are the symbol: ValueSymbolLinks)
+	var valueSymbolLinks:ValueSymbolLinkStore = new ValueSymbolLinkStore(() -> new ValueSymbolLinksRecord(),
+		s -> (s.Flags & SymbolFlagsTransient) == 0 ? new ValueSymbolLinksRecord() : (s.CheckFlags & CheckFlagsMapped) != 0 ? new MappedValueSymbolLinks() : (s.CheckFlags & CheckFlagsSynthetic) != 0 ? new SyntheticValueSymbolLinks() : new TransientValueSymbolLinks());
 	var mappedSymbolLinks:LinkStore<Symbol, MappedSymbolLinks> = new LinkStore<Symbol, MappedSymbolLinks>(() -> new MappedSymbolLinks());
 	var deferredSymbolLinks:LinkStore<Symbol, DeferredSymbolLinks> = new LinkStore<Symbol, DeferredSymbolLinks>(() -> new DeferredSymbolLinks());
 	var aliasSymbolLinks:LinkStore<Symbol, AliasSymbolLinks> = new LinkStore<Symbol, AliasSymbolLinks>(() -> new AliasSymbolLinks());

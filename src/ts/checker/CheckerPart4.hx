@@ -2183,7 +2183,7 @@ class CheckerPart4 {
 
 	static function newSharedDataSymbol(c:Checker, symbol:Symbol):Symbol {
 		c.SymbolCount++;
-		final result = Symbol.NewSharedData(symbol);
+		final result = new InstantiatedSymbol(symbol); // PORT: perf — its value links are fields (ValueSymbolLinks)
 		result.Flags = symbol.Flags | SymbolFlagsTransient;
 		return result;
 	}
@@ -2192,7 +2192,7 @@ class CheckerPart4 {
 	// (MappedValueSymbolLinks, made for a transient symbol with CheckFlagsMapped, which gets the mapped links when
 	// it is made); other symbols' are in mappedSymbolLinks
 	static inline function mappedValueLinks(c:Checker, s:Symbol):MappedValueSymbolLinks {
-		return (s.CheckFlags & CheckFlagsMapped) != 0 && (s.Flags & SymbolFlagsTransient) != 0 ? Std.downcast(c.valueSymbolLinks.TryGet(s), MappedValueSymbolLinks) : null;
+		return (s.CheckFlags & CheckFlagsMapped) != 0 && (s.Flags & SymbolFlagsTransient) != 0 ? Std.downcast(c.valueSymbolLinks.TryGetRecord(s), MappedValueSymbolLinks) : null;
 	}
 
 	static function hasMappedSymbolLinks(c:Checker, s:Symbol):Bool {

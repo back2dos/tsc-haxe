@@ -148,8 +148,170 @@ class SymbolReferenceLinks extends ts.core.Linkstore.LinkEntry {
 	}
 }
 
+// PORT: perf — an instantiated symbol (Checker.instantiateSymbol: most transient symbols, t3code-server 1.7M) has
+// its value links as fields (InstantiatedSymbol, like Strada's TransientSymbol): no links entry (24 B less: its
+// header, store and next entry). ValueSymbolLinks is the instantiated symbol itself or the links entry of another
+// symbol (ValueSymbolLinksRecord); Checker.valueSymbolLinks (ValueSymbolLinkStore) returns one or the other.
 @:allow(ts.checker)
-class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
+abstract ValueSymbolLinks(Any) {
+	var resolvedType(get, set):Type;
+	var target(get, set):Symbol;
+	var mapper(get, set):TypeMapper;
+	var functionOrConstructorChecked(get, set):Bool;
+	var writeType(get, set):Type;
+	var nameType(get, set):Type;
+	var containingType(get, set):Type;
+
+	inline function isInst():Bool {
+		return Std.isOfType(this, InstantiatedSymbol);
+	}
+
+	inline function inst():InstantiatedSymbol {
+		return cast this;
+	}
+
+	inline function rec():ValueSymbolLinksRecord {
+		return cast this;
+	}
+
+	// the links entry (null for an instantiated symbol)
+	inline function record():ValueSymbolLinksRecord {
+		return isInst() ? null : cast this;
+	}
+
+	inline function get_resolvedType():Type {
+		return isInst() ? inst().vResolvedType : rec().resolvedType;
+	}
+
+	inline function set_resolvedType(v:Type):Type {
+		return isInst() ? inst().vResolvedType = v : rec().resolvedType = v;
+	}
+
+	inline function get_target():Symbol {
+		return isInst() ? inst().vTarget : rec().target;
+	}
+
+	inline function set_target(v:Symbol):Symbol {
+		return isInst() ? inst().vTarget = v : rec().target = v;
+	}
+
+	inline function get_mapper():TypeMapper {
+		return isInst() ? inst().vMapper : rec().mapper;
+	}
+
+	inline function set_mapper(v:TypeMapper):TypeMapper {
+		return isInst() ? inst().vMapper = v : rec().mapper = v;
+	}
+
+	inline function get_functionOrConstructorChecked():Bool {
+		return isInst() ? inst().vExtra != null && inst().vExtra.functionOrConstructorChecked : rec().functionOrConstructorChecked;
+	}
+
+	inline function set_functionOrConstructorChecked(v:Bool):Bool {
+		return isInst() ? inst().setFunctionOrConstructorChecked(v) : rec().functionOrConstructorChecked = v;
+	}
+
+	inline function get_writeType():Type {
+		return isInst() ? (inst().vExtra == null ? null : inst().vExtra.writeType) : rec().writeType;
+	}
+
+	inline function set_writeType(v:Type):Type {
+		return isInst() ? inst().setWriteType(v) : rec().writeType = v;
+	}
+
+	inline function get_nameType():Type {
+		return isInst() ? (inst().vExtra == null ? null : inst().vExtra.nameType) : rec().nameType;
+	}
+
+	inline function set_nameType(v:Type):Type {
+		return isInst() ? inst().setNameType(v) : rec().nameType = v;
+	}
+
+	inline function get_containingType():Type {
+		return isInst() ? (inst().vExtra == null ? null : inst().vExtra.containingType) : rec().containingType;
+	}
+
+	inline function set_containingType(v:Type):Type {
+		return isInst() ? inst().setContainingType(v) : rec().containingType = v;
+	}
+}
+
+// Checker.valueSymbolLinks: an instantiated symbol's links are the symbol (see ValueSymbolLinks)
+class ValueSymbolLinkStore {
+	final store:LinkStore<Symbol, ValueSymbolLinksRecord>;
+
+	public function new(factory:() -> ValueSymbolLinksRecord, forKey:Symbol->ValueSymbolLinksRecord) {
+		store = new LinkStore<Symbol, ValueSymbolLinksRecord>(factory, forKey);
+	}
+
+	public inline function Get(s:Symbol):ValueSymbolLinks {
+		return Std.isOfType(s, InstantiatedSymbol) ? cast s : cast store.Get(s);
+	}
+
+	public inline function TryGet(s:Symbol):Null<ValueSymbolLinks> {
+		return Std.isOfType(s, InstantiatedSymbol) ? cast s : cast store.TryGet(s);
+	}
+
+	public inline function Has(s:Symbol):Bool {
+		return Std.isOfType(s, InstantiatedSymbol) || store.Has(s);
+	}
+
+	// the links entry of a symbol that is not instantiated
+	public inline function TryGetRecord(s:Symbol):Null<ValueSymbolLinksRecord> {
+		return Std.isOfType(s, InstantiatedSymbol) ? null : store.TryGet(s);
+	}
+}
+
+// a symbol made by Checker.instantiateSymbol (Go main's newSharedDataSymbol: its target's data), with its value links
+@:allow(ts.checker)
+@:access(ts.ast.Symbol)
+class InstantiatedSymbol extends Symbol {
+	var vResolvedType:Type = null;
+	var vExtra:ValueSymbolExtra = null; // (Go's rarely set fields, see ValueSymbolLinksRecord.extra)
+	var vTarget:Symbol = null;
+	var vMapper:TypeMapper = null;
+
+	public function new(other:Symbol) {
+		super();
+		data = other.data;
+	}
+
+	function newExtra():ValueSymbolExtra {
+		return vExtra = new ValueSymbolExtra();
+	}
+
+	function setFunctionOrConstructorChecked(b:Bool):Bool {
+		if (vExtra == null && !b) {
+			return b;
+		}
+		return (vExtra != null ? vExtra : newExtra()).functionOrConstructorChecked = b;
+	}
+
+	function setWriteType(t:Type):Type {
+		if (vExtra == null && t == null) {
+			return t;
+		}
+		return (vExtra != null ? vExtra : newExtra()).writeType = t;
+	}
+
+	function setNameType(t:Type):Type {
+		if (vExtra == null && t == null) {
+			return t;
+		}
+		return (vExtra != null ? vExtra : newExtra()).nameType = t;
+	}
+
+	function setContainingType(t:Type):Type {
+		if (vExtra == null && t == null) {
+			return t;
+		}
+		return (vExtra != null ? vExtra : newExtra()).containingType = t;
+	}
+}
+
+// the value links entry of a symbol that is not instantiated (see ValueSymbolLinks)
+@:allow(ts.checker)
+class ValueSymbolLinksRecord extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Type of value symbol
 	// PORT: perf — target and mapper are fields of the links of a transient symbol (TransientValueSymbolLinks,
 	// Checker.valueSymbolLinks), which has them (the checker makes them: instantiated symbols, synthetic
@@ -314,7 +476,7 @@ class ValueSymbolExtra {
 
 // the value links of a transient symbol (see ValueSymbolLinks.target)
 @:allow(ts.checker)
-class TransientValueSymbolLinks extends ValueSymbolLinks {
+class TransientValueSymbolLinks extends ValueSymbolLinksRecord {
 	var instTarget:Symbol = null;
 	var instMapper:TypeMapper = null;
 
@@ -327,7 +489,7 @@ class TransientValueSymbolLinks extends ValueSymbolLinks {
 // most often a name type (see ValueSymbolLinks.get_nameType), and no target or mapper (one set would go to
 // the side record: none on t3code-server)
 @:allow(ts.checker)
-class SyntheticValueSymbolLinks extends ValueSymbolLinks {
+class SyntheticValueSymbolLinks extends ValueSymbolLinksRecord {
 	var synNameType:Type = null;
 	var synContainingType:Type = null;
 
