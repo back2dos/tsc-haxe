@@ -372,7 +372,7 @@ class CheckerPart2 {
 			c.checkClassForStaticPropertyNameConflicts(node);
 		}
 
-		final baseTypeNode = Ast.GetExtendsHeritageClauseElement(node);
+		final baseTypeNode = Ast.GetClassExtendsHeritageElement(node);
 		if (baseTypeNode != null) {
 			c.checkSourceElements(baseTypeNode.TypeArguments());
 			final baseTypes = c.getBaseTypes(classType);
@@ -433,9 +433,11 @@ class CheckerPart2 {
 		final implementedTypeNodes = Ast.GetImplementsHeritageClauseElements(node);
 		if (implementedTypeNodes != null) {
 			for (typeRefNode in implementedTypeNodes) {
-				final expr = typeRefNode.Expression();
-				if (!Ast.IsEntityNameExpression(expr) || Ast.IsOptionalChain(expr)) {
-					c.error(expr, Diagnostics.A_class_can_only_implement_an_identifier_Slashqualified_name_with_optional_type_arguments);
+				if (Ast.IsExpressionWithTypeArguments(typeRefNode)) {
+					final expr = typeRefNode.Expression();
+					if (!Ast.IsEntityNameExpression(expr) || Ast.IsOptionalChain(expr)) {
+						c.error(expr, Diagnostics.A_class_can_only_implement_an_identifier_Slashqualified_name_with_optional_type_arguments);
+					}
 				}
 				c.checkTypeReferenceNode(typeRefNode);
 				final t = c.getReducedType(c.getTypeFromTypeNode(typeRefNode));
@@ -807,7 +809,7 @@ class CheckerPart2 {
 
 	static function checkMembersForOverrideModifier(c:Checker, node:Node, t:Type, typeWithThis:Type, staticType:Type):Void {
 		var baseWithThis:Type = null;
-		final baseTypeNode = Ast.GetExtendsHeritageClauseElement(node);
+		final baseTypeNode = Ast.GetClassExtendsHeritageElement(node);
 		if (baseTypeNode != null) {
 			final baseTypes = c.getBaseTypes(t);
 			if (Core.len(baseTypes) > 0) {
@@ -1174,9 +1176,11 @@ class CheckerPart2 {
 		}
 		c.checkObjectTypeForDuplicateDeclarations(node, false /*checkPrivateNames*/);
 		for (heritageElement in rangeOf(Ast.GetExtendsHeritageClauseElements(node))) {
-			final expr = heritageElement.Expression();
-			if (!Ast.IsEntityNameExpression(expr) || Ast.IsOptionalChain(expr)) {
-				c.error(expr, Diagnostics.An_interface_can_only_extend_an_identifier_Slashqualified_name_with_optional_type_arguments);
+			if (Ast.IsExpressionWithTypeArguments(heritageElement)) {
+				final expr = heritageElement.Expression();
+				if (!Ast.IsEntityNameExpression(expr) || Ast.IsOptionalChain(expr)) {
+					c.error(expr, Diagnostics.An_interface_can_only_extend_an_identifier_Slashqualified_name_with_optional_type_arguments);
+				}
 			}
 			c.checkTypeReferenceNode(heritageElement);
 		}
@@ -4178,7 +4182,7 @@ class CheckerPart2 {
 		}
 		// at this point the only legal case for parent is ClassLikeDeclaration
 		final classLikeDeclaration = container.Parent;
-		if (Ast.GetExtendsHeritageClauseElement(classLikeDeclaration) == null) {
+		if (Ast.GetClassExtendsHeritageElement(classLikeDeclaration) == null) {
 			c.error(node, Diagnostics.X_super_can_only_be_referenced_in_a_derived_class);
 			return c.errorType;
 		}

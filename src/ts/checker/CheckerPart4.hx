@@ -254,7 +254,7 @@ class CheckerPart4 {
 
 	static function checkThisBeforeSuper(c:Checker, node:Node, container:Node, diagnosticMessage:Message):Void {
 		final containingClassDecl = container.Parent;
-		final baseTypeNode = Ast.GetExtendsHeritageClauseElement(containingClassDecl);
+		final baseTypeNode = Ast.GetClassExtendsHeritageElement(containingClassDecl);
 		// If a containing class does not have extends clause or the class extends null
 		// skip checking whether super statement is called before "this" accessing.
 		if (baseTypeNode != null && !c.classDeclarationExtendsNull(containingClassDecl)) {

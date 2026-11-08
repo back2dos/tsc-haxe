@@ -3693,11 +3693,11 @@ class CheckerPart8 {
 			name = name.Parent;
 		}
 
-		if (Checker.isInNameOfExpressionWithTypeArguments(name)) {
+		if (Checker.isInNameOfExpressionWithTypeArgumentsOrHeritageTypeReference(name)) {
 			var meaning:SymbolFlags = SymbolFlagsNone;
-			if (name.Parent.Kind == KindExpressionWithTypeArguments) {
-				// An 'ExpressionWithTypeArguments' may appear in type space (interface Foo extends Bar<T>),
-				// value space (return foo<T>), or both(class Foo extends Bar<T>); ensure the meaning matches.
+			if (name.Parent.Kind == KindExpressionWithTypeArguments || name.Parent.Kind == KindTypeReference) {
+				// A heritage element name may appear in type space, value space, or both;
+				// ensure the meaning matches its context.
 				meaning = Core.IfElse(Ast.IsPartOfTypeNode(name), SymbolFlagsType, SymbolFlagsValue);
 
 				// In a class 'extends' clause we are also looking for a value.
@@ -3773,6 +3773,9 @@ class CheckerPart8 {
 			if (symbol != null && symbol != c.unknownSymbol) {
 				return symbol;
 			}
+			if (Ast.IsNameOfHeritageClauseTypeReference(name)) {
+				return null;
+			}
 			return c.getUnresolvedSymbolForEntityName(name);
 		}
 
@@ -3811,7 +3814,7 @@ class CheckerPart8 {
 			return c.errorType;
 		}
 
-		final r = Ast.TryGetClassImplementingOrExtendingExpressionWithTypeArguments(node);
+		final r = Ast.TryGetClassImplementingOrExtendingHeritageClauseElement(node);
 		final classDecl = r.a;
 		final isImplements = r.b;
 		var classType:Type = null;

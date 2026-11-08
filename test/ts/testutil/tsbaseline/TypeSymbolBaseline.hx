@@ -35,7 +35,8 @@ class TypeWriterWalker {
 		final nodes = Tsbaseline.forEachASTNode(node);
 		final results:Array<TypeWriterResult> = [];
 		for (n in nodes) {
-			if (Ast.IsExpressionNode(n) || n.Kind == KindIdentifier || Ast.IsDeclarationName(n)) {
+			if (Ast.IsExpressionNode(n) || n.Kind == KindIdentifier || Ast.IsDeclarationName(n)
+				|| Ast.IsQualifiedName(n) && Ast.IsNameOfHeritageClauseTypeReference(n) && (isSymbolWalk || Ast.IsQualifiedName(n.Parent))) {
 				final result = this.writeTypeOrSymbol(n, isSymbolWalk);
 				if (result != null) {
 					results.push(result);

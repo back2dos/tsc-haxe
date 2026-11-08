@@ -2790,7 +2790,7 @@ class Checker {
 	static function getBaseTypeNodeOfClass(t:Type):Node {
 		final decl = Ast.GetClassLikeDeclarationOfSymbol(t.symbol);
 		if (decl != null) {
-			return Ast.GetExtendsHeritageClauseElement(decl);
+			return Ast.GetClassExtendsHeritageElement(decl);
 		}
 		return null;
 	}
@@ -6413,12 +6413,12 @@ class Checker {
 		return null;
 	}
 
-	static function isInNameOfExpressionWithTypeArguments(node:Node):Bool {
-		while (node.Parent.Kind == KindPropertyAccessExpression) {
+	static function isInNameOfExpressionWithTypeArgumentsOrHeritageTypeReference(node:Node):Bool {
+		while (node.Parent.Kind == KindPropertyAccessExpression || node.Parent.Kind == KindQualifiedName) {
 			node = node.Parent;
 		}
 
-		return node.Parent.Kind == KindExpressionWithTypeArguments;
+		return node.Parent.Kind == KindExpressionWithTypeArguments || Ast.IsNameOfHeritageClauseTypeReference(node);
 	}
 
 	static function getIndexSymbolFromSymbolTable(symbolTable:SymbolTable):Symbol {

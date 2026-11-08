@@ -1754,7 +1754,7 @@ class CheckerPart1 {
 		// Constructors of classes with no extends clause may not contain super calls, whereas
 		// constructors of derived classes must contain at least one super call somewhere in their function body.
 		final containingClassDecl = node.Parent;
-		if (Ast.GetExtendsHeritageClauseElement(containingClassDecl) == null) {
+		if (Ast.GetClassExtendsHeritageElement(containingClassDecl) == null) {
 			return;
 		}
 		final classExtendsNull = c.classDeclarationExtendsNull(containingClassDecl);

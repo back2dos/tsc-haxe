@@ -496,7 +496,7 @@ class CheckerPart3 {
 			if (!c.isErrorType(superType)) {
 				// In super call, the candidate signatures are the matching arity signatures of the base constructor function instantiated
 				// with the type arguments specified in the extends clause.
-				final baseTypeNode = Ast.GetExtendsHeritageClauseElement(Ast.GetContainingClass(node));
+				final baseTypeNode = Ast.GetClassExtendsHeritageElement(Ast.GetContainingClass(node));
 				if (baseTypeNode != null) {
 					final baseConstructors = c.getInstantiatedConstructorsForTypeArguments(superType, baseTypeNode.TypeArguments(), baseTypeNode);
 					return c.resolveCall(node, baseConstructors, candidatesOutArray, checkMode, SignatureFlagsNone, null);
@@ -3849,12 +3849,11 @@ class CheckerPart3 {
 	}
 
 	/**
-	 * Climbs up parents to an ExpressionWithTypeArguments, and returns its expression,
-	 * but returns undefined if that expression is not an EntityNameExpression.
+	 * Climbs up parents to a heritage clause element and returns its entity name.
 	 */
 	static function getEntityNameForExtendingInterface(c:Checker, node:Node):Node {
 		switch (node.Kind) {
-			case KindIdentifier, KindPropertyAccessExpression:
+			case KindIdentifier, KindQualifiedName, KindPropertyAccessExpression:
 				if (node.Parent != null) {
 					return c.getEntityNameForExtendingInterface(node.Parent);
 				}

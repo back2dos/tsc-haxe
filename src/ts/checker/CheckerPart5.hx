@@ -1344,8 +1344,9 @@ class CheckerPart5 {
 				}
 				final baseTypeNodes = Ast.GetExtendsHeritageClauseElements(declaration);
 				for (node in rangeOf(baseTypeNodes)) {
-					if (Ast.IsEntityNameExpression(node.Expression())) {
-						final baseSymbol = c.resolveEntityName(node.Expression(), SymbolFlagsType, true /*ignoreErrors*/, false, null);
+					final name = Ast.GetHeritageClauseElementName(node);
+					if (Ast.IsEntityName(name) || Ast.IsEntityNameExpression(name)) {
+						final baseSymbol = c.resolveEntityName(name, SymbolFlagsType, true /*ignoreErrors*/, false, null);
 						if (baseSymbol == null || (baseSymbol.Flags & SymbolFlagsInterface) == 0
 							|| c.getDeclaredTypeOfClassOrInterface(baseSymbol).AsInterfaceType().thisType != null) {
 							return false;
