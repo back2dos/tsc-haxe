@@ -5819,6 +5819,9 @@ class Ast {
 	// Returns a token if position is in [start-of-leading-trivia, end), includes JSDoc only if requested
 	public static function GetNodeAtPosition(file:SourceFile, position:Int, includeJSDoc:Bool):Node {
 		var current = file.AsNode();
+		// PORT: perf — one visitor for the walk (Go's closure per level is free; here it and its captured
+		// `child` are two allocations per level)
+		final finder = new NodeAtPositionFinder(position);
 		while (true) {
 			var child:Node = null;
 			if (includeJSDoc) {
@@ -5833,13 +5836,9 @@ class Ast {
 				}
 			}
 			if (child == null) {
-				current.ForEachChild(function(node:Node):Bool {
-					if (nodeContainsPosition(node, position)) {
-						child = node;
-						return true;
-					}
-					return false;
-				});
+				finder.child = null;
+				current.ForEachChild(finder.visit);
+				child = finder.child;
 			}
 			if (child == null || IsMetaProperty(child)) {
 				return current;
@@ -13399,5 +13398,25 @@ class ContentMapperSourceFileInfo {
 		r.SupplementalSourceFiles = SupplementalSourceFiles;
 		r.CanonicalSourceFile = CanonicalSourceFile;
 		return r;
+	}
+}
+
+// PORT: perf — GetNodeAtPosition's ForEachChild callback with its result (see there)
+private class NodeAtPositionFinder {
+	public final position:Int;
+	public var child:Node = null;
+	public final visit:Node->Bool;
+
+	public function new(position:Int) {
+		this.position = position;
+		visit = visitNode;
+	}
+
+	function visitNode(node:Node):Bool {
+		if (@:privateAccess Ast.nodeContainsPosition(node, position)) {
+			child = node;
+			return true;
+		}
+		return false;
 	}
 }

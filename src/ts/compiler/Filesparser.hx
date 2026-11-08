@@ -295,90 +295,37 @@ class FilesParser {
 			#if tshx_parallel
 			this.taskDataMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — SyncMap.LoadOrStore
 			#end
-			var data = this.taskDataByPath.get(task.path);
-			final loaded = data != null;
+			var data0 = this.taskDataByPath.get(task.path);
+			final loaded = data0 != null;
 			if (!loaded) {
-				data = Compiler.getParseTaskData(task);
-				this.taskDataByPath.set(task.path, data);
+				data0 = Compiler.getParseTaskData(task);
+				this.taskDataByPath.set(task.path, data0);
 			}
 			#if tshx_parallel
 			this.taskDataMutex.release();
 			#end
+			final data = data0;
 
-			final run = function() {
-				// PORT: data.mu dropped (single-threaded)
-				var startSubtasks = false;
-				if (loaded) {
-					final existingTask = data.tasks.get(task.normalizedFilePath);
-					if (existingTask != null) {
-						tasks[i].loadedTask = existingTask;
-					} else {
-						data.tasks.set(task.normalizedFilePath, task);
-						// This is new task for file name - so load subtasks if there was loading for any other casing
-						startSubtasks = data.startedSubTasks;
-					}
-				}
-
-				// Propagate packageId to data if we have one and data doesn't yet
-				if (data.packageId.Name == "" && task.packageId.Name != "") {
-					data.packageId = task.packageId;
-				}
-
-				final currentDepth = Core.IfElse(task.increaseDepth, depth + 1, depth);
-				final lowered = currentDepth < data.lowestDepth;
-				if (lowered) {
-					// If we're seeing this task at a lower depth than before,
-					// reprocess its subtasks to ensure they are loaded.
-					data.lowestDepth = currentDepth;
-					startSubtasks = true;
-					data.startedSubTasks = true;
-				}
-
-				if (task.elideOnDepth && currentDepth > this.maxDepth) {
-					return;
-				}
-
-				// PORT: Go map iteration order is random; StringMap order is used.
-				for (taskByFileName in data.tasks) {
-					var loadSubTasks = startSubtasks;
-					if (!taskByFileName.loaded) {
-						taskByFileName.load(loader);
-						if (taskByFileName.redirectedParseTask != null) {
-							// Always load redirected task
-							loadSubTasks = true;
-							data.startedSubTasks = true;
-						}
-					}
-					if (loadSubTasks && (lowered || !taskByFileName.startedSubTasks)) {
-						taskByFileName.startedSubTasks = true;
-						this.start(loader, taskByFileName.subTasks, data.lowestDepth);
-					}
-				}
-			};
+			// PORT: perf — Go's goroutine body is the method runTask (one closure per task, no captured
+			// mutable variable)
 			#if tshx_parallel
 			// PORT: perf — a loaded path's file is parsed or queued already (this task only records its casing
 			// and depth): no size needed
 			final info = tasks.length > 1 && !loaded ? loader.opts.Host.FS().Stat(task.normalizedFilePath) : null;
 			sizes.push(info != null ? info.Size() : 0);
 			queued.push(function() {
-			#else
-			this.wg.Queue(function() {
-			#end
-				#if tshx_parallel
 				data.mu.acquire(); // PORT: hxmc (-D tshx-parallel) — data.mu.Lock(); defer data.mu.Unlock()
-				#end
-				#if tshx_parallel
 				try {
-					run();
+					this.runTask(loader, task, data, loaded, depth);
 				} catch (e:Dynamic) {
 					data.mu.release();
 					throw e;
 				}
 				data.mu.release();
-				#else
-				run();
-				#end
 			});
+			#else
+			this.wg.Queue(() -> this.runTask(loader, task, data, loaded, depth));
+			#end
 		}
 		#if tshx_parallel
 		final order = [for (i in 0...queued.length) i];
@@ -386,6 +333,58 @@ class FilesParser {
 		for (i in order)
 			this.wg.Queue(queued[i]);
 		#end
+	}
+
+	// PORT: the body of Go's goroutine in start (a method: see there)
+	function runTask(loader:FileLoader, task:ParseTask, data:ParseTaskData, loaded:Bool, depth:Int):Void {
+		// PORT: data.mu dropped (single-threaded)
+		var startSubtasks = false;
+		if (loaded) {
+			final existingTask = data.tasks.get(task.normalizedFilePath);
+			if (existingTask != null) {
+				task.loadedTask = existingTask; // PORT: Go tasks[i] (= task)
+			} else {
+				data.tasks.set(task.normalizedFilePath, task);
+				// This is new task for file name - so load subtasks if there was loading for any other casing
+				startSubtasks = data.startedSubTasks;
+			}
+		}
+
+		// Propagate packageId to data if we have one and data doesn't yet
+		if (data.packageId.Name == "" && task.packageId.Name != "") {
+			data.packageId = task.packageId;
+		}
+
+		final currentDepth = Core.IfElse(task.increaseDepth, depth + 1, depth);
+		final lowered = currentDepth < data.lowestDepth;
+		if (lowered) {
+			// If we're seeing this task at a lower depth than before,
+			// reprocess its subtasks to ensure they are loaded.
+			data.lowestDepth = currentDepth;
+			startSubtasks = true;
+			data.startedSubTasks = true;
+		}
+
+		if (task.elideOnDepth && currentDepth > this.maxDepth) {
+			return;
+		}
+
+		// PORT: Go map iteration order is random; StringMap order is used.
+		for (taskByFileName in data.tasks) {
+			var loadSubTasks = startSubtasks;
+			if (!taskByFileName.loaded) {
+				taskByFileName.load(loader);
+				if (taskByFileName.redirectedParseTask != null) {
+					// Always load redirected task
+					loadSubTasks = true;
+					data.startedSubTasks = true;
+				}
+			}
+			if (loadSubTasks && (lowered || !taskByFileName.startedSubTasks)) {
+				taskByFileName.startedSubTasks = true;
+				this.start(loader, taskByFileName.subTasks, data.lowestDepth);
+			}
+		}
 	}
 
 	function getProcessedFiles(loader:FileLoader):ProcessedFiles {
