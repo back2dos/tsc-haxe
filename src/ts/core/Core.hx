@@ -1609,7 +1609,7 @@ class Core {
 	// --- version.go ---
 
 	// This is a var so it can be overridden by ldflags.
-	static var version = "7.0.2";
+	static var version = "7.1.0-dev";
 
 	public static function Version():String {
 		return version;

@@ -882,9 +882,9 @@ class CoreTest {
 			for (_ in Core.NodeCoreModules().keys())
 				n++;
 			T.eq(54 * 2 + 5, n);
-			// Go: 7.0.2 7.0
-			T.eq("7.0.2", Core.Version());
-			T.eq("7.0", Core.VersionMajorMinor());
+			// Go (TypeScript main): 7.1.0-dev 7.1
+			T.eq("7.1.0-dev", Core.Version());
+			T.eq("7.1", Core.VersionMajorMinor());
 		});
 	}
 }
