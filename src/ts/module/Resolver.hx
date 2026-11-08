@@ -800,6 +800,22 @@ class ResolutionState {
 
 	function loadModuleFromNearestNodeModulesDirectoryWorker(ext:Extensions, mode:ResolutionMode, typesScopeOnly:Bool):Null<Resolved> {
 		final r = this;
+		// PORT: perf — untraced: the same walk over a memo of the containing directory's ancestors and
+		// whether their node_modules exists (see NodeModulesAncestors)
+		if (r.tracer == null) {
+			final ancestors = r.resolver.nodeModulesAncestors(r.containingDirectory);
+			final dirs = ancestors.directories;
+			for (i in 0...dirs.length) {
+				if (!ancestors.nodeModulesExists(r.resolver, i)) {
+					continue; // loadModuleFromImmediateNodeModulesDirectory: continueSearching
+				}
+				final result = r.loadModuleFromImmediateNodeModulesDirectory(ext, dirs[i], typesScopeOnly);
+				if (!result.shouldContinueSearching()) {
+					return result;
+				}
+			}
+			return null;
+		}
 		final result = Tspath.ForEachAncestorDirectory(r.containingDirectory, function(directory:String):ValueOk<Resolved> {
 			// !!! stop at global cache
 			if (Tspath.GetBaseFileName(directory) != "node_modules") {
@@ -1967,6 +1983,17 @@ class ResolutionState {
 class Resolver {
 	// PORT: embedded `caches` → composition field.
 	public var caches:Caches = new Caches();
+	// PORT: perf — loadModuleFromNearestNodeModulesDirectoryWorker's walk by containing directory
+	final nodeModulesAncestorsCache:SyncMap<String, NodeModulesAncestors> = new SyncMap<String, NodeModulesAncestors>();
+
+	public function nodeModulesAncestors(containingDirectory:String):NodeModulesAncestors {
+		final cached = this.nodeModulesAncestorsCache.Load(containingDirectory).value;
+		if (cached != null) {
+			return cached;
+		}
+		return this.nodeModulesAncestorsCache.LoadOrStore(containingDirectory, new NodeModulesAncestors(containingDirectory)).value;
+	}
+
 	// PORT: perf — getPackageScopeForPath results by directory (see there)
 	public var packageScopeCache:SyncMap<String, Null<InfoCacheEntry>> = new SyncMap<String, Null<InfoCacheEntry>>();
 	public var host:ResolutionHost = null;
@@ -2304,5 +2331,42 @@ class ResolvedEntrypoint {
 			return this.OriginalFileName;
 		}
 		return this.ResolvedFileName;
+	}
+}
+
+// PORT: perf — the directories that loadModuleFromNearestNodeModulesDirectoryWorker's ForEachAncestorDirectory
+// passes to loadModuleFromImmediateNodeModulesDirectory (ancestors of a containing directory, in order, but those
+// named node_modules), and whether directory/node_modules exists, asked of the file system the first time a walk
+// gets there (the same DirectoryExists call as loadModuleFromImmediateNodeModulesDirectory's). A walk then skips
+// the ancestors without node_modules (untraced, these only return continueSearching) instead of combining the
+// path, hashing it and looking it up in the file system cache again for every module name.
+class NodeModulesAncestors {
+	public final directories:Array<String> = [];
+
+	// 0: not asked yet, 1: exists, 2: does not exist (a benign race: threads store the same value)
+	final state:Array<Int> = [];
+
+	public function new(containingDirectory:String) {
+		var directory = containingDirectory;
+		while (true) {
+			if (Tspath.GetBaseFileName(directory) != "node_modules") {
+				directories.push(directory);
+				state.push(0);
+			}
+			final parentPath = Tspath.GetDirectoryPath(directory);
+			if (parentPath == directory) {
+				break;
+			}
+			directory = parentPath;
+		}
+	}
+
+	public function nodeModulesExists(resolver:Resolver, i:Int):Bool {
+		var s = state[i];
+		if (s == 0) {
+			s = resolver.host.FS().DirectoryExists(Tspath.CombinePaths(directories[i], "node_modules")) ? 1 : 2;
+			state[i] = s;
+		}
+		return s == 1;
 	}
 }
