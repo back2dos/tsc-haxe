@@ -4067,7 +4067,7 @@ class CheckerPart4 {
 
 	static function getResolvedMembersOrExportsOfSymbol(c:Checker, symbol:Symbol, resolutionKind:MembersOrExportsResolutionKind):SymbolTable {
 		final links = c.membersAndExportsLinks.Get(symbol);
-		if (links[(resolutionKind : Int)] == null) {
+		if (links.get((resolutionKind : Int)) == null) {
 			final isStatic = resolutionKind == MembersOrExportsResolutionKindResolvedExports;
 			var earlySymbols = symbol.Exports;
 			if (!isStatic) {
@@ -4075,7 +4075,7 @@ class CheckerPart4 {
 			} else if ((symbol.Flags & SymbolFlagsModule) != 0) {
 				earlySymbols = c.getExportsOfModuleWorker(symbol).a;
 			}
-			links[(resolutionKind : Int)] = earlySymbols;
+			links.set((resolutionKind : Int), earlySymbols);
 			// fill in any as-yet-unresolved late-bound members.
 			var lateSymbols:SymbolTable = null;
 			for (decl in rangeOf(symbol.Declarations)) {
@@ -4108,9 +4108,9 @@ class CheckerPart4 {
 					}
 				}
 			}
-			links[(resolutionKind : Int)] = c.combineSymbolTables(earlySymbols, lateSymbols);
+			links.set((resolutionKind : Int), c.combineSymbolTables(earlySymbols, lateSymbols));
 		}
-		return links[(resolutionKind : Int)];
+		return links.get((resolutionKind : Int));
 	}
 
 	// Performs late-binding of a dynamic member. This performs the same function for

@@ -140,14 +140,16 @@ typedef TypeId = Int;
 typedef SignatureId = Int;
 
 @:allow(ts.checker)
-class SymbolReferenceLinks {
+class SymbolReferenceLinks extends ts.core.Linkstore.LinkEntry {
 	var referenceKinds:SymbolFlags = 0; // Flags for the meanings of the symbol that were referenced
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class ValueSymbolLinks {
+class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Type of value symbol
 	var writeType:Type = null;
 	var target:Symbol = null;
@@ -156,88 +158,108 @@ class ValueSymbolLinks {
 	var containingType:Type = null; // Mapped type for mapped type property, containing union or intersection type for synthetic property
 	var functionOrConstructorChecked:Bool = false;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class MappedSymbolLinks {
+class MappedSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var keyType:Type = null; // Key type for mapped type member
 	var syntheticOrigin:Symbol = null; // For a property on a mapped or spread type, points back to the original property
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class DeferredSymbolLinks {
+class DeferredSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var parent:Type = null; // Source union/intersection of a deferred type
 	var constituents:Array<Type> = null; // Calculated list of constituents for a deferred type
 	var writeConstituents:Array<Type> = null; // Constituents of a deferred `writeType`
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class AliasSymbolLinks {
+class AliasSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var immediateTarget:Symbol = null; // Immediate target of an alias. May be another alias. Do not access directly, use `checker.getImmediateAliasedSymbol` instead.
 	var aliasTarget:Symbol = null; // Resolved (non-alias) target of an alias
 	var referenced:Bool = false; // True if alias symbol has been referenced as a value that can be emitted
 	var typeOnlyDeclaration:Node = null; // First resolved alias declaration that makes the symbol only usable in type constructs
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class ModuleSymbolLinks {
+class ModuleSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedExports:SymbolTable = null; // Resolved exports of module or combined early- and late-bound static members of a class.
 	var typeOnlyExportStarMap:StringMap<Node> = null; // Set on a module symbol when some of its exports were resolved through a 'export type * from "mod"' declaration
 	var exportsChecked:Bool = false;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class ReverseMappedSymbolLinks {
+class ReverseMappedSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var propertyType:Type = null;
 	var mappedType:Type = null; // References a mapped type
 	var constraintType:Type = null; // References an index type
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class LateBoundLinks {
+class LateBoundLinks extends ts.core.Linkstore.LinkEntry {
 	var lateSymbol:Symbol = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class ExportTypeLinks {
+class ExportTypeLinks extends ts.core.Linkstore.LinkEntry {
 	var target:Symbol = null; // Target symbol
 	var originatingImport:Node = null; // Import declaration which produced the symbol, present if the symbol is marked as uncallable but had call signatures in `resolveESModuleSymbol`
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class TypeAliasLinks {
+class TypeAliasLinks extends ts.core.Linkstore.LinkEntry {
 	var declaredType:Type = null;
 	var typeParameters:Array<Type> = null; // Type parameters of type alias (undefined if non-generic)
 	var instantiations:StringMap<Type> /* key: checker.CacheHashKey */ = null; // Instantiations of generic type alias (undefined if non-generic)
 	var isConstructorDeclaredProperty:Bool = false;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class DeclaredTypeLinks {
+class DeclaredTypeLinks extends ts.core.Linkstore.LinkEntry {
 	var declaredType:Type = null;
 	var interfaceChecked:Bool = false;
 	var indexSignaturesChecked:Bool = false;
 	var typeParametersChecked:Bool = false;
 	var enumChecked:Bool = false;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 enum abstract ExhaustiveState(Int) from Int to Int {
@@ -248,23 +270,27 @@ enum abstract ExhaustiveState(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
-class SwitchStatementLinks {
+class SwitchStatementLinks extends ts.core.Linkstore.LinkEntry {
 	var exhaustiveState:ExhaustiveState = 0; // Switch statement exhaustiveness
 	var switchTypesComputed:Bool = false;
 	var witnessesComputed:Bool = false;
 	var switchTypes:Array<Type> = null;
 	var witnesses:Array<std.String> = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class ArrayLiteralLinks {
+class ArrayLiteralLinks extends ts.core.Linkstore.LinkEntry {
 	var indicesComputed:Bool = false;
 	var firstSpreadIndex:Int = 0; // Index of first spread expression (or -1 if none)
 	var lastSpreadIndex:Int = 0; // Index of last spread expression (or -1 if none)
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 enum abstract MembersOrExportsResolutionKind(Int) from Int to Int {
@@ -272,29 +298,56 @@ enum abstract MembersOrExportsResolutionKind(Int) from Int to Int {
 	var MembersOrExportsResolutionKindResolvedMembers = 1;
 }
 
-typedef MembersAndExportsLinks = Array<SymbolTable>;
+// PORT: perf — Go `[2]SymbolTable` (by MembersOrExportsResolutionKind) as two fields of a link object (see LinkStore)
+@:allow(ts.checker)
+class MembersAndExportsLinks extends ts.core.Linkstore.LinkEntry {
+	var resolvedExports:SymbolTable = null; // [MembersOrExportsResolutionKindResolvedExports]
+	var resolvedMembers:SymbolTable = null; // [MembersOrExportsResolutionKindResolvedMembers]
+
+	public function new() {
+		super();
+	}
+
+	inline function get(kind:Int):SymbolTable {
+		return kind == 0 ? resolvedExports : resolvedMembers;
+	}
+
+	inline function set(kind:Int, table:SymbolTable):Void {
+		if (kind == 0) {
+			resolvedExports = table;
+		} else {
+			resolvedMembers = table;
+		}
+	}
+}
 
 // PORT: perf — TypeScript 7.1's merged symbols in a symbol link store (microsoft/TypeScript#64869)
 @:allow(ts.checker)
-class MergedSymbolLinks {
+class MergedSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var target:Symbol = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class SpreadLinks {
+class SpreadLinks extends ts.core.Linkstore.LinkEntry {
 	var leftSpread:Symbol = null; // Left source for synthetic spread property
 	var rightSpread:Symbol = null; // Right source for synthetic spread property
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class VarianceLinks {
+class VarianceLinks extends ts.core.Linkstore.LinkEntry {
 	var variances:Array<VarianceFlags> = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 enum abstract VarianceFlags(Int) from Int to Int {
@@ -339,11 +392,13 @@ enum abstract VarianceFlags(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
-class MarkedAssignmentSymbolLinks {
+class MarkedAssignmentSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var lastAssignmentPos:Int = 0;
 	var hasDefiniteAssignment:Bool = false; // Symbol is definitely assigned somewhere
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
@@ -356,12 +411,14 @@ class AccessibleChainCacheKey {
 }
 
 @:allow(ts.checker)
-class ContainingSymbolLinks {
+class ContainingSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var extendedContainersByFile:IntMap<Array<Symbol>> = null; // Symbols of nodes which which logically contain this one, cached by file the request is made within
 	var extendedContainers:Array<Symbol> = null; // Containers (other than the parent) which this symbol is aliased in
 	var accessibleChainCache:StringMap<Array<Symbol>> /* key: checker.accessibleChainCacheKey */ = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 enum abstract AccessFlags(Int) from Int to Int {
@@ -400,27 +457,33 @@ enum abstract NodeCheckFlags(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
-class NodeLinks {
+class NodeLinks extends ts.core.Linkstore.LinkEntry {
 	var flags:NodeCheckFlags = 0; // Set of flags specific to Node
 	var declarationRequiresScopeChange:Tristate = 0; // Set by `useOuterVariableScopeInParameter` in checker when downlevel emit would change the name resolution scope inside of a parameter.
 	var hasReportedStatementInAmbientContext:Bool = false; // Cache boolean if we report statements in ambient context
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class SymbolNodeLinks {
+class SymbolNodeLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedSymbol:Symbol = null; // Resolved symbol associated with node
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class TypeNodeLinks {
+class TypeNodeLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Resolved type associated with node
 	var outerTypeParameters:Array<Type> = null; // Outer type parameters of anonymous object type
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 enum abstract MemberOverrideStatus(Int) from Int to Int {
@@ -430,29 +493,35 @@ enum abstract MemberOverrideStatus(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
-class ComputedNameNodeLinks {
+class ComputedNameNodeLinks extends ts.core.Linkstore.LinkEntry {
 	var hasName:Tristate = 0; // If the node has a computable name
 	var name:std.String = ""; // Resolved name associated with the type of the node
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class EnumMemberLinks {
+class EnumMemberLinks extends ts.core.Linkstore.LinkEntry {
 	var value:Result = new Result() /* PORT: Go zero struct */; // Constant value of enum member
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class AssertionLinks {
+class AssertionLinks extends ts.core.Linkstore.LinkEntry {
 	var exprType:Type = null; // Assertion expression type
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class SourceFileLinks {
+class SourceFileLinks extends ts.core.Linkstore.LinkEntry {
 	var typeChecked:Bool = false;
 	var unusedChecked:Bool = false;
 	var externalHelpersModule:Symbol = null;
@@ -465,16 +534,20 @@ class SourceFileLinks {
 	var localJsxFragmentFactory:EntityName = null;
 	var jsxFragmentType:Type = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class SignatureLinks {
+class SignatureLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedSignature:Signature = null; // Cached signature of signature node or call expression
 	var effectsSignature:Signature = null; // Signature with possible control flow effects
 	var decoratorSignature:Signature = null; // Signature for decorator as if invoked by the runtime
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 enum abstract TypeFlags(Int) from Int to Int {

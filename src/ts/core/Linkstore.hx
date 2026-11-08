@@ -10,7 +10,9 @@ package ts.core;
 // value): a lookup reads the key, which the caller has just used, and follows a few entries,
 // instead of hashing into a large table (ts6-compiler: the checker's link stores were the
 // largest share of map lookups). No store iterates over its keys.
-class LinkStore<K, V> {
+// PORT: perf — the list is intrusive: every value class extends LinkEntry (its store and the next
+// entry), so a link is one object (no separate entry: 32 B less per link, one load less per lookup).
+class LinkStore<K, V:LinkEntry> {
 	final arena:Arena<V>;
 	#if tshx_parallel
 	static final insertMutex = new sys.thread.Mutex();
@@ -25,7 +27,7 @@ class LinkStore<K, V> {
 		final h:LinkHolder = cast key;
 		final e = h.links;
 		final self:LinkStore<Dynamic, Dynamic> = cast this;
-		return e != null && e.store == self ? cast e.value : getSlow(key);
+		return e != null && e.linkStore == self ? cast e : getSlow(key);
 	}
 
 	function getSlow(key:K):V {
@@ -33,30 +35,33 @@ class LinkStore<K, V> {
 		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.store == self)
-				return cast e.value;
-			e = e.next;
+			if (e.linkStore == self)
+				return cast e;
+			e = e.linkNext;
 		}
-		final value = arena.New();
+		final value:LinkEntry = arena.New();
+		value.linkStore = self;
 		#if tshx_parallel
 		// PORT: hxmc (-D tshx-parallel) — the key's list is shared by the stores of all checkers: the
 		// entry is complete before it is published, readers need no lock (entries never change)
 		#if (target.name == "hxmc")
 		// PORT: perf — no lock: the entry is prepended by a compare-and-swap of the key's list head (each
 		// checker's store is used by one thread at a time; a failed swap means another checker prepended)
-		final e = new LinkEntry(self, value, null);
+		final e = value;
 		do
-			e.next = h.links
-		while (!casLinks(h, e.next, e));
+			e.linkNext = h.links
+		while (!casLinks(h, e.linkNext, e));
 		#else
 		insertMutex.acquire();
-		h.links = new LinkEntry(self, value, h.links);
+		value.linkNext = h.links;
+		h.links = value;
 		insertMutex.release();
 		#end
 		#else
-		h.links = new LinkEntry(self, value, h.links);
+		value.linkNext = h.links;
+		h.links = value;
 		#end
-		return value;
+		return cast value;
 	}
 
 	public function Has(key:K):Bool {
@@ -64,9 +69,9 @@ class LinkStore<K, V> {
 		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.store == self)
+			if (e.linkStore == self)
 				return true;
-			e = e.next;
+			e = e.linkNext;
 		}
 		return false;
 	}
@@ -89,9 +94,9 @@ class LinkStore<K, V> {
 		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.store == self)
-				return cast e.value;
-			e = e.next;
+			if (e.linkStore == self)
+				return cast e;
+			e = e.linkNext;
 		}
 		return null;
 	}
@@ -104,14 +109,11 @@ class LinkHolder {
 	public function new() {}
 }
 
+// The base class of a LinkStore's values: the store whose value this is and the key's next link (both set by
+// LinkStore.getSlow before the entry is published, never changed after).
 class LinkEntry {
-	public final store:LinkStore<Dynamic, Dynamic>;
-	public final value:Dynamic;
-	public var next:LinkEntry; // (set before the entry is published)
+	public var linkStore:LinkStore<Dynamic, Dynamic> = null;
+	public var linkNext:LinkEntry = null;
 
-	public function new(store:LinkStore<Dynamic, Dynamic>, value:Dynamic, next:LinkEntry) {
-		this.store = store;
-		this.value = value;
-		this.next = next;
-	}
+	public function new() {}
 }

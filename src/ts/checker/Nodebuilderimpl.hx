@@ -41,18 +41,22 @@ class CompositeTypeCacheIdentity {
 }
 
 @:allow(ts.checker)
-class NodeBuilderLinks {
+class NodeBuilderLinks extends ts.core.Linkstore.LinkEntry {
 	var serializedTypes:StringMap<SerializedTypeEntry> /* key: checker.CompositeTypeCacheIdentity */ = null; // Collection of types serialized at this location
 	var fakeScopeForSignatureDeclaration:Null<std.String> /* PORT: pointer */ = null; // If present, this is a fake scope injected into an enclosing declaration chain.
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class NodeBuilderSymbolLinks {
+class NodeBuilderSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var specifierCache:ModeAwareCache<ModuleSpecifierResult> = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 // PORT: Go value struct moduleSpecifierResult; copied (never shared) where Go mutates a copy.

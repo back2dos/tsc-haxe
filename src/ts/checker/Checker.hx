@@ -1507,7 +1507,7 @@ class Checker {
 	var moduleSymbolLinks:LinkStore<Symbol, ModuleSymbolLinks> = new LinkStore<Symbol, ModuleSymbolLinks>(() -> new ModuleSymbolLinks());
 	var lateBoundLinks:LinkStore<Symbol, LateBoundLinks> = new LinkStore<Symbol, LateBoundLinks>(() -> new LateBoundLinks());
 	var exportTypeLinks:LinkStore<Symbol, ExportTypeLinks> = new LinkStore<Symbol, ExportTypeLinks>(() -> new ExportTypeLinks());
-	var membersAndExportsLinks:LinkStore<Symbol, MembersAndExportsLinks> = new LinkStore<Symbol, MembersAndExportsLinks>(() -> [for (_ in 0...2) null]);
+	var membersAndExportsLinks:LinkStore<Symbol, MembersAndExportsLinks> = new LinkStore<Symbol, MembersAndExportsLinks>(() -> new MembersAndExportsLinks());
 	var typeAliasLinks:LinkStore<Symbol, TypeAliasLinks> = new LinkStore<Symbol, TypeAliasLinks>(() -> new TypeAliasLinks());
 	var declaredTypeLinks:LinkStore<Symbol, DeclaredTypeLinks> = new LinkStore<Symbol, DeclaredTypeLinks>(() -> new DeclaredTypeLinks());
 	var spreadLinks:LinkStore<Symbol, SpreadLinks> = new LinkStore<Symbol, SpreadLinks>(() -> new SpreadLinks());

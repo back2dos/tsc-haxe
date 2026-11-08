@@ -1055,7 +1055,7 @@ class SynthesizedComment {
 }
 
 // PORT: unexported Go type `emitNode` → EmitNode (PORTING.md §1).
-class EmitNode {
+class EmitNode extends ts.core.Linkstore.LinkEntry {
 	public var flags:EmitNodeFlags = 0;
 	public var emitFlags:EmitFlags = EFNone;
 	public var commentRange:TextRange = new TextRange(0, 0);
@@ -1067,7 +1067,9 @@ class EmitNode {
 	public var trailingComments:Array<SynthesizedComment> = null;
 	public var typeNode:TypeNode = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 
 	// NOTE: This method is not guaranteed to be thread-safe
 	public function copyFrom(source:EmitNode):Void {

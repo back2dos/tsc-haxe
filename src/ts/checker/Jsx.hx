@@ -23,14 +23,16 @@ enum abstract JsxReferenceKind(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
-class JsxElementLinks {
+class JsxElementLinks extends ts.core.Linkstore.LinkEntry {
 	var jsxFlags:JsxFlags = 0; // Flags for the JSX element
 	var resolvedJsxElementAttributesType:Type = null; // Resolved element attributes type of a JSX opening-like element
 	var jsxNamespace:Symbol = null; // Resolved JSX namespace symbol for this node
 	var jsxImplicitImportContainer:Symbol = null; // Resolved module symbol the implicit JSX import of this file should refer to
 	var firstJSXTagInFile:Node = null; // The first JSX tag in the file
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)

@@ -5,24 +5,30 @@ package ts.checker;
 
 // Links for jsx
 @:allow(ts.checker)
-class JSXLinks {
+class JSXLinks extends ts.core.Linkstore.LinkEntry {
 	var importRef:Node = null;
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class DeclarationLinks {
+class DeclarationLinks extends ts.core.Linkstore.LinkEntry {
 	var isVisible:Tristate = 0; // if declaration is depended upon by exported declarations
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
-class DeclarationFileLinks {
+class DeclarationFileLinks extends ts.core.Linkstore.LinkEntry {
 	var aliasesMarked:Bool = false; // if file has had alias visibility marked
 
-	public function new() {}
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
