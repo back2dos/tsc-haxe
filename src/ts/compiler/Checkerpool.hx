@@ -108,10 +108,26 @@ class CheckerPool_ implements CheckerPool {
 			});
 		}
 
+		// PORT: perf — Go's len(file.Text()) is O(1); the UTF-8 length of a UTF-16 string is a scan of the whole
+		// text: done in chunks on the work group, next to the checkers' creation (nuxt: 9 ms on one thread)
+		final files = this.program.processedFiles.files;
+		final textLengths:Array<Int> = checkerCount > 1 ? [for (_ in 0...files.length) 0] : null;
+		if (checkerCount > 1) {
+			final chunk = 256;
+			var start = 0;
+			while (start < files.length) {
+				final from = start, to = start + chunk < files.length ? start + chunk : files.length;
+				wg.Queue(function() {
+					for (i in from...to)
+						textLengths[i] = go.Utf8.ByteLen(files[i].Text());
+				});
+				start = to;
+			}
+		}
+
 		wg.RunAndWait();
 
 		this.fileAssociations = new IdentityMap();
-		final files = this.program.processedFiles.files;
 		// PORT: perf — TypeScript 7.1's assignment of files to checkers by balanced import affinity
 		// (microsoft/typescript-go#4313) in place of i % checkerCount: which checker checks a file, not what
 		// is checked (output identical at any checker count, gated)
@@ -124,7 +140,7 @@ class CheckerPool_ implements CheckerPool {
 			var declarationBaseWeight = 0;
 			for (i in 0...files.length) {
 				final file = files[i];
-				final baseWeight = CheckerAssociation.baseWeight(file.NodeCount, go.Utf8.ByteLen(file.Text()));
+				final baseWeight = CheckerAssociation.baseWeight(file.NodeCount, textLengths[i]);
 				totalBaseWeight += baseWeight;
 				if (file.IsDeclarationFile)
 					declarationBaseWeight += baseWeight;
@@ -133,6 +149,26 @@ class CheckerPool_ implements CheckerPool {
 				isDeclarationFile[i] = file.IsDeclarationFile;
 			}
 			final policy = CheckerAssociation.policy(totalBaseWeight, declarationBaseWeight, checkerCount);
+			if (policy.prioritizeSourceFiles && !CheckerAssociation.shouldPrioritizeSourceFiles(totalBaseWeight, declarationBaseWeight, checkerCount)) {
+				// PORT: perf — our prioritized-source deviation (see CheckerAssociation.policy) places the source files
+				// first, largest first. When one source file outweighs half of an average checker's share of the source
+				// weight, that file and the files drawn to it by affinity fill a checker that has little to check
+				// (mui-docs: mui-icons-material/lib/index.mjs re-exports ~2000 icon modules, weight 610k from its import
+				// fanout; that checker took 60 ms of 3.5 s): use Go's choice (strong balance) there.
+				final w = CheckerAssociation.weights(baseWeights, importCounts);
+				var sourceWeight = 0, maxSourceWeight = 0;
+				for (i in 0...files.length)
+					if (!isDeclarationFile[i]) {
+						sourceWeight += w[i];
+						if (w[i] > maxSourceWeight)
+							maxSourceWeight = w[i];
+					}
+				if (maxSourceWeight * 2 * checkerCount > sourceWeight) {
+					policy.prioritizeSourceFiles = false;
+					policy.sourceFileWeightMultiplier = CheckerAssociation.SourceFileWeightMultiplier;
+					policy.balancePenaltyMultiplier = CheckerAssociation.BalancePenaltyMultiplier;
+				}
+			}
 			// PORT: debug knob, not in Go. TSHX_POLICY=p,m,b overrides the policy (p: 1 = prioritize source files,
 			// m: source file weight multiplier, b: balance penalty multiplier); TSHX_POLICY=show prints the chosen one.
 			final policyEnv = Sys.getEnv("TSHX_POLICY");
@@ -310,6 +346,12 @@ class CheckerAssociation {
 	static inline final TextWeightDivisor = 100;
 	static inline final PrioritizedSourcePenalty = 12;
 	static inline final StrongBalanceMinCheckerCount = 4;
+	public static inline final SourceFileWeightMultiplier = 4;
+	public static inline final BalancePenaltyMultiplier = 16;
+
+	public static function shouldPrioritizeSourceFiles(totalWeight:Int, declarationWeight:Int, checkerCount:Int):Bool {
+		return declarationWeight * checkerCount * 2 <= totalWeight;
+	}
 
 	public static function policy(totalWeight:Int, declarationWeight:Int, checkerCount:Int):{prioritizeSourceFiles:Bool, sourceFileWeightMultiplier:Int, balancePenaltyMultiplier:Int} {
 		// PORT: Go uses "strong balance" (source weight x4, penalty 16) at >= 4 checkers when declarations are a large

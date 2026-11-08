@@ -315,7 +315,14 @@ class Vfsmatch {
 		final n = fileMatcher.includes.length > 1 ? fileMatcher.includes.length : 1;
 		final v = new GlobVisitor(host, fileMatcher, directoryMatcher, extensions, useCaseSensitiveFileNames, [for (_ in 0...n) null]);
 
-		for (basePath in getBasePaths(path, includes, useCaseSensitiveFileNames)) {
+		final basePaths = getBasePaths(path, includes, useCaseSensitiveFileNames);
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — TypeScript main's prefetchDirectories (#64877, prefetch.go): the
+		// directories the walk is expected to visit are read on the pool's threads first (Go: GOMAXPROCS readers)
+		v.prefetched = DirectoryPrefetcher.prefetchDirectories(host, directoryMatcher, useCaseSensitiveFileNames,
+			[for (basePath in basePaths) Tspath.CombinePaths(currentDirectory, basePath)], depth);
+		#end
+		for (basePath in basePaths) {
 			v.visit(basePath, Tspath.CombinePaths(currentDirectory, basePath), depth, "");
 		}
 
@@ -668,6 +675,9 @@ class GlobVisitor {
 	final visited = new Set<String>();
 
 	public final results:Array<Null<Array<String>>>;
+	#if tshx_parallel
+	public var prefetched:Null<StringMap<PrefetchedDirectory>> = null;
+	#end
 
 	public function new(host:FS, fileMatcher:GlobMatcher, directoryMatcher:GlobMatcher, extensions:Null<Array<String>>, useCaseSensitiveFileNames:Bool,
 			results:Array<Null<Array<String>>>) {
@@ -685,9 +695,16 @@ class GlobVisitor {
 	// called to resolve symlinks.
 	public function visit(path:String, absolutePath:String, depth:Int, resolvedRealPath:String):Void {
 		// Detect symlink cycles
+		#if tshx_parallel
+		final prefetched = this.prefetched != null ? this.prefetched.get(absolutePath) : null;
+		#end
 		var realPath:String;
 		if (resolvedRealPath != "") {
 			realPath = resolvedRealPath;
+		#if tshx_parallel
+		} else if (prefetched != null) {
+			realPath = prefetched.realPath;
+		#end
 		} else {
 			realPath = this.host.Realpath(absolutePath);
 		}
@@ -697,7 +714,11 @@ class GlobVisitor {
 		}
 		this.visited.Add(canonicalPath);
 
+		#if tshx_parallel
+		final entries = prefetched != null ? prefetched.entries : this.host.GetAccessibleEntries(absolutePath);
+		#else
 		final entries = this.host.GetAccessibleEntries(absolutePath);
+		#end
 
 		final pathPrefix = Vfsmatch.ensureTrailingSlash(path);
 		final absPrefix = Vfsmatch.ensureTrailingSlash(absolutePath);
@@ -773,3 +794,140 @@ class SpecMatcher {
 		return -1;
 	}
 }
+
+#if tshx_parallel
+// --- prefetch.go (TypeScript main #64877) ---
+@:allow(ts.vfs.vfsmatch)
+class PrefetchedDirectory {
+	final realPath:String;
+	final entries:Entries;
+
+	function new(realPath:String, entries:Entries) {
+		this.realPath = realPath;
+		this.entries = entries;
+	}
+}
+
+private class PrefetchItem {
+	public final path:String;
+	// realPath is empty when it must be resolved with the host.
+	public final realPath:String;
+	public final depth:Int;
+
+	public function new(path:String, realPath:String, depth:Int) {
+		this.path = path;
+		this.realPath = realPath;
+		this.depth = depth;
+	}
+}
+
+// prefetchDirectories reads the directories that GlobVisitor.visit is expected to walk on the pool's threads, so
+// the subsequent ordered walk does not wait on sequential directory reads. The walk remains the source of truth and
+// reads anything missing from the result itself.
+//
+// Each directory is queued at most once. Base paths are all marked as queued before any is read, so a walk from an
+// ancestor base path stops at a descendant base path rather than reading its subtree again.
+//
+// Symlinked directories are not followed. Every prefetched directory is then reached through its only non-aliased
+// spelling below a base path, so the prefetch cannot cycle and its result does not depend on scheduling. The walk
+// reads symlinked subtrees itself, exactly as it would without a prefetch.
+// PORT: keys are the walk's absolute path strings (Go: RootedDirectoryPath); a host exception is rethrown by
+// the work group (Go: recovered, then re-raised on the calling goroutine).
+@:allow(ts.vfs.vfsmatch)
+class DirectoryPrefetcher {
+	final host:FS;
+	final directoryMatcher:GlobMatcher;
+	final useCaseSensitiveFileNames:Bool;
+	final wg = new ts.core.Workgroup.ParallelWorkGroup();
+	final mutex = new sys.thread.Mutex();
+	final scheduled = new StringMap<Bool>();
+	final results = new StringMap<PrefetchedDirectory>();
+
+	function new(host:FS, directoryMatcher:GlobMatcher, useCaseSensitiveFileNames:Bool) {
+		this.host = host;
+		this.directoryMatcher = directoryMatcher;
+		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+	}
+
+	static function prefetchDirectories(host:FS, directoryMatcher:GlobMatcher, useCaseSensitiveFileNames:Bool, basePaths:Array<String>,
+			depth:Int):StringMap<PrefetchedDirectory> {
+		final p = new DirectoryPrefetcher(host, directoryMatcher, useCaseSensitiveFileNames);
+		final items:Array<PrefetchItem> = [];
+		for (basePath in basePaths) {
+			if (!p.scheduled.exists(basePath)) {
+				p.scheduled.set(basePath, true);
+				items.push(new PrefetchItem(basePath, "", depth));
+			}
+		}
+		for (item in items)
+			p.queue(item);
+		p.wg.RunAndWait();
+		return p.results;
+	}
+
+	function queue(item:PrefetchItem):Void {
+		this.wg.Queue(() -> this.run(item));
+	}
+
+	function run(item:PrefetchItem):Void {
+		final children:Array<PrefetchItem> = [];
+		final dir = this.fetch(item, children);
+		final unscheduled:Array<PrefetchItem> = [];
+		this.mutex.acquire();
+		this.results.set(item.path, dir);
+		for (child in children) {
+			if (!this.scheduled.exists(child.path)) {
+				this.scheduled.set(child.path, true);
+				unscheduled.push(child);
+			}
+		}
+		this.mutex.release();
+		for (child in unscheduled)
+			this.queue(child);
+	}
+
+	function fetch(item:PrefetchItem, children:Array<PrefetchItem>):PrefetchedDirectory {
+		var realPath = item.realPath;
+		if (realPath == "") {
+			realPath = this.host.Realpath(item.path);
+		}
+		final entries = this.host.GetAccessibleEntries(item.path);
+		final dir = new PrefetchedDirectory(realPath, entries);
+
+		var depth = item.depth;
+		if (depth != Vfsmatch.UnlimitedDepth) {
+			depth--;
+			if (depth == 0) {
+				return dir;
+			}
+		}
+
+		// the same spellings as GlobVisitor.visit: its absPrefix + dir and Tspath.CombinePaths(realPath, dir)
+		final absPrefix = Vfsmatch.ensureTrailingSlash(item.path);
+		if (entries.Directories != null) {
+			for (name in entries.Directories) {
+				if (!this.directoryMatcher.matchesDirectoryParts(absPrefix, name)) {
+					continue;
+				}
+				final childPath = absPrefix + name;
+				var childRealPath = Tspath.CombinePaths(realPath, name);
+				if (entries.Symlinks != null) {
+					if (entries.Symlinks.exists(name)) {
+						continue;
+					}
+				} else {
+					// The host does not report symlinks; resolve the child to find out.
+					final resolved = this.host.Realpath(childPath);
+					if (Tspath.GetCanonicalFileName(resolved, this.useCaseSensitiveFileNames)
+						!= Tspath.GetCanonicalFileName(childRealPath, this.useCaseSensitiveFileNames)) {
+						continue;
+					}
+					childRealPath = resolved;
+				}
+				children.push(new PrefetchItem(childPath, childRealPath, depth));
+			}
+		}
+		return dir;
+	}
+}
+#end

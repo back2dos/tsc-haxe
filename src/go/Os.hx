@@ -123,6 +123,11 @@ class Os {
 
 	// os.ReadFile
 	public static function ReadFile(name:String):ValueError<Bytes> {
+		// PORT: perf — read first, stat only to classify a failure (a directory fails at read): one stat per
+		// file read less (Go: open, fstat, read)
+		try {
+			return new ValueError<Bytes>(sys.io.File.getBytes(name), null);
+		} catch (e:Dynamic) {}
 		final st = OsNative.stat(name, true);
 		if (st.err != null) {
 			return new ValueError<Bytes>(null, new PathError("open", name, Errno.of(st.err)));
