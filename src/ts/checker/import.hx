@@ -220,3 +220,4 @@ using ts.checker.CheckerPart6;
 using ts.checker.CheckerPart7;
 using ts.checker.CheckerPart8;
 using ts.ast.Deepclone;
+import ts.checker.FlowMemo; // PORT: perf — (from tsrs) FlowMemoSlot, FlowMemoShadowHit

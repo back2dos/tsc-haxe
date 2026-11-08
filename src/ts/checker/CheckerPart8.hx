@@ -1644,6 +1644,7 @@ class CheckerPart8 {
 		// that could cause infinite recursion. Instead, return anySignature.
 		var signature:Signature;
 		if (c.signatureLinks.Get(callTarget).resolvedSignature == c.resolvingSignature) {
+			c.flowMemo.taint(0); // PORT: perf — (from tsrs) not the final contextual type (flow memo)
 			signature = c.resolvingSignature;
 		} else {
 			signature = c.getResolvedSignature(callTarget, null, CheckModeNormal);

@@ -2504,6 +2504,7 @@ class CheckerPart5 {
 		r.target = target;
 		r.propertyName = propertyName;
 		r.result = true;
+		r.serial = c.flowMemo.sourceNow(); // PORT: perf — (from tsrs) flow memo
 		return true;
 	}
 
@@ -2526,6 +2527,9 @@ class CheckerPart5 {
 				return -1;
 			}
 			if (resolution.target == target && resolution.propertyName == propertyName) {
+				// PORT: perf — (from tsrs) a circular or in-progress resolution: what the caller does next is not final
+				// until this resolution is done (flow memo).
+				c.flowMemo.taint(resolution.serial);
 				return i;
 			}
 			i--;

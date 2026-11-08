@@ -60,6 +60,12 @@ class FlowType {
 class SharedFlow {
 	var flow:FlowNode = null;
 	var flowType:FlowType = FlowType.nil;
+	// PORT: perf — (from tsrs) flow memo (FlowMemo.hx): the taint sources and flags of the frame that computed the
+	// value, and the height of the sub-walk it stands for.
+	var transient:Int = 0;
+	var reference:Int = 0;
+	var height:Int = 0;
+	var memoFlags:Int = 0;
 
 	public function new() {}
 }
@@ -75,6 +81,19 @@ class FlowState {
 	var sharedFlowStart:Int = 0;
 	var reduceLabels:Array<FlowReduceLabelData> = null;
 	var next:FlowState = null;
+	// PORT: perf — (from tsrs) flow memo (FlowMemo.hx): the walk's taint source, its key (memoKeyState 0: not
+	// computed, 1: none, 2: memoRoot and memoHash), whether it used a memo answer, whether it reached the depth limit
+	// after that, whether it is the redo of such a walk (no memo answers), how many transient sharedFlows values it
+	// has, and how many reduce labels it is under.
+	var walkFloor:Int = 0;
+	var memoKeyState:Int = 0;
+	var memoRoot:ts.ast.Symbol = null;
+	var memoHash:Int = 0;
+	var memoUsed:Bool = false;
+	var memoAborted:Bool = false;
+	var memoFaithful:Bool = false;
+	var impureShared:Int = 0;
+	var reduceDepth:Int = 0;
 
 	public function new() {}
 }
@@ -129,6 +148,13 @@ class Flow {
 		f.depth = 0;
 		f.sharedFlowStart = 0;
 		f.reduceLabels = reduceLabels;
+		f.memoKeyState = 0;
+		f.memoRoot = null;
+		f.memoUsed = false;
+		f.memoAborted = false;
+		f.memoFaithful = false;
+		f.impureShared = 0;
+		f.reduceDepth = 0;
 		f.next = c.freeFlowState;
 		c.freeFlowState = f;
 	}
@@ -154,7 +180,29 @@ class Flow {
 		f.flowContainer = flowContainer;
 		f.sharedFlowStart = c.sharedFlowsLen;
 		c.flowInvocationCount++;
-		final evolvedType = c.getTypeAtFlowNode(f, flowNode).t;
+		// PORT: perf — (from tsrs) flow memo (FlowMemo.hx)
+		final m = c.flowMemo;
+		f.walkFloor = m.nextSerial();
+		if (m.mode != FlowMemo.MODE_OFF) {
+			c.computeFlowMemoKey(f);
+		}
+		// A nested walk counts its depth from 0: its frames' heights are not this frame's.
+		final savedHeight = m.rHeight;
+		m.rHeight = 0;
+		var flowType = c.getTypeAtFlowNode(f, flowNode);
+		if (f.memoAborted) {
+			// The walk used memo results and then reached the depth limit. Go's walk computes those sub-walks and
+			// keeps their shared nodes in sharedFlows, so it may not be this deep here: walk again without the memo.
+			c.sharedFlowsLen = f.sharedFlowStart;
+			f.memoAborted = false;
+			f.memoUsed = false;
+			f.memoFaithful = true;
+			f.impureShared = 0;
+			f.depth = 0;
+			flowType = c.getTypeAtFlowNode(f, flowNode);
+		}
+		m.rHeight = savedHeight;
+		final evolvedType = flowType.t;
 		c.sharedFlowsLen = f.sharedFlowStart;
 		c.putFlowState(f);
 		// When the reference is 'x' in an 'x.length', 'x.push(value)', 'x.unshift(value)' or x[n] = value' operation,
@@ -176,7 +224,14 @@ class Flow {
 	}
 
 	static function getTypeAtFlowNode(c:Checker, f:FlowState, flow:FlowNode):FlowType {
+		final m = c.flowMemo;
 		if (f.depth == 2000) {
+			if (f.memoUsed) {
+				// PORT: perf — (from tsrs) Go, which walked the sub-graphs this walk took from the memo, may not be
+				// this deep here: getFlowTypeOfReferenceEx walks again without the memo.
+				f.memoAborted = true;
+				return FlowType.of(c.errorType, false);
+			}
 			// We have made 2000 recursive invocations. To avoid overflowing the call stack we report an error
 			// and disable further control flow analysis in the containing function or module body.
 			final tr = c.tracer;
@@ -185,27 +240,124 @@ class Flow {
 				args.set("depth", f.depth);
 				tr.Instant(PhaseCheckTypes, "getTypeAtFlowNode_DepthLimit", args);
 			}
+			m.taint(0); // PORT: perf — (from tsrs) flow memo
 			c.flowAnalysisDisabled = true;
 			c.reportFlowControlError(f.reference);
 			return FlowType.of(c.errorType, false);
 		}
-		f.depth++;
+		// PORT: perf — (from tsrs) flow memo (FlowMemo.hx): in a walk with a memo key every call is a frame, which
+		// asks the memo at its first node, at the node that ends its iteration and at checkpoints, and stores its
+		// answer under them. The key's meaning holds only outside inlined conditions and reduce labels, while flow
+		// analysis is on. A walk without a key does no bookkeeping: what it consumes reaches the frames of enclosing
+		// walks through the memo's registers directly, and nothing of it is stored.
+		final entryFlow = flow;
+		final entryDepth = f.depth;
+		final tracked = f.memoKeyState == 2;
+		var frameStart = 0;
+		var pTransient = 0;
+		var pReference = 0;
+		var pHeight = 0;
+		var pFlags = 0;
+		var frameInstantiationCount = 0;
+		var frameTotalInstantiationCount = 0;
+		var frameCreated = 0;
+		var frameInInstantiation = false;
+		if (tracked) {
+			frameStart = m.nextSerial();
+			pTransient = m.rTransient;
+			pReference = m.rReference;
+			pHeight = m.rHeight;
+			pFlags = m.rFlags;
+			m.rTransient = FlowMemo.UNTAINTED;
+			m.rReference = FlowMemo.UNTAINTED;
+			m.rHeight = 0;
+			m.rFlags = 0;
+			frameInstantiationCount = c.instantiationCount;
+			frameTotalInstantiationCount = c.TotalInstantiationCount;
+			frameCreated = c.TypeCount + c.SymbolCount + c.SignatureCount;
+			frameInInstantiation = c.activeMappers != null && c.activeMappers.length != 0;
+		}
+		final memo = tracked && c.inlineLevel == 0 && !c.flowAnalysisDisabled && f.reduceDepth == 0;
+		final checkpointStart = m.checkpointsLen;
+		final shadowStart = m.shadowHits.length;
+		var steps = 0;
+		var hit:FlowMemoSlot = null;
+		f.depth = entryDepth + 1;
 		var sharedFlow:FlowNode = null;
+		var t:FlowType = FlowType.nil;
 		while (true) {
+			steps++;
 			final flags = flow.Flags;
 			if ((flags & FlowFlagsShared) != 0) {
 				// We cache results of flow type resolution for shared nodes that were previously visited in
 				// the same getFlowTypeOfReference invocation. A node is considered shared when it is the
 				// antecedent of more than one node.
 				for (i in f.sharedFlowStart...c.sharedFlowsLen) {
-					if (c.sharedFlows[i].flow == flow) {
-						f.depth--;
-						return c.sharedFlows[i].flowType;
+					final shared = c.sharedFlows[i];
+					if (shared.flow == flow) {
+						f.depth = entryDepth;
+						if (tracked) {
+							// A later walk of this frame may compute the node instead: it consumes what that took.
+							c.flowMemoConsume(shared.transient, shared.reference);
+							m.rFlags |= shared.memoFlags;
+							c.flowMemoFrameCounters(frameInstantiationCount, frameTotalInstantiationCount, frameCreated, frameInInstantiation);
+							m.endFrame(frameStart, pTransient, pReference, pHeight, pFlags, shared.height);
+							if (memo) {
+								m.checkpointsLen = checkpointStart;
+								if (m.shadowHits.length > shadowStart) {
+									c.flowMemoShadowSettle(f, shadowStart, entryDepth, shared.flowType);
+								}
+							}
+						}
+						return shared.flowType;
 					}
 				}
 				sharedFlow = flow;
 			}
-			var t:FlowType;
+			if (memo) {
+				// Whether to ask the memo before the handler of this node: at the frame's first node, at a node that
+				// ends its iteration (a condition, a switch clause, a label with more than one antecedent), and at
+				// checkpoints, chosen by the node itself so that walks starting at different places agree on them.
+				// The answer at any of them is the frame's answer (the nodes iterated past pass the type on).
+				final endsIteration = (flags & (FlowFlagsCondition | FlowFlagsSwitchClause)) != 0
+					|| (flags & (FlowFlagsBranchLabel | FlowFlagsLoopLabel)) != 0 && flow.Antecedents != null && flow.Antecedents.Next != null;
+				var ask = true;
+				if (!endsIteration && flow != entryFlow) {
+					if (FlowMemo.isCheckpoint(flow)) {
+						if (m.checkpointsLen == m.checkpoints.length) {
+							m.checkpoints.push(flow);
+						} else {
+							m.checkpoints[m.checkpointsLen] = flow;
+						}
+						m.checkpointsLen++;
+					} else {
+						ask = false;
+					}
+				}
+				if (ask) {
+					final slot = m.lookup(flow, f);
+					if (slot != null && c.flowMemoConsultOk(f, slot) && entryDepth + slot.height < FlowMemo.DEPTH_LIMIT) {
+						if (m.mode == FlowMemo.MODE_SHADOW) {
+							final sh = new FlowMemoShadowHit();
+							sh.flow = flow;
+							sh.t = slot.t;
+							sh.height = slot.height;
+							sh.originRef = slot.originRef;
+							sh.originDepth = slot.originDepth;
+							m.shadowHits.push(sh);
+						} else {
+							if (!endsIteration) {
+								// Go walks on from here and records the last shared node of the whole iteration, which
+								// this frame does not know; leave the record out (a later visit walks or hits again).
+								sharedFlow = null;
+							}
+							hit = slot;
+							t = FlowType.of(slot.t, false);
+							break;
+						}
+					}
+				}
+			}
 			if ((flags & FlowFlagsAssignment) != 0) {
 				t = c.getTypeAtFlowAssignment(f, flow);
 				if (t.isNil()) {
@@ -242,11 +394,17 @@ class Flow {
 					continue;
 				}
 			} else if ((flags & FlowFlagsReduceLabel) != 0) {
+				// PORT: perf — (from tsrs) flow memo: the antecedents of a branch label below depend on the reduce
+				// labels above it, which the memo key does not have; and Go's sharedFlows keep what a shared node got
+				// under a reduce label for the rest of the walk.
+				m.taint(0);
 				if (f.reduceLabels == null) {
 					f.reduceLabels = [];
 				}
 				f.reduceLabels.push(flow.Node.AsFlowReduceLabelData());
+				f.reduceDepth++;
 				t = c.getTypeAtFlowNode(f, flow.Antecedent);
+				f.reduceDepth--;
 				f.reduceLabels.resize(f.reduceLabels.length - 1);
 			} else if ((flags & FlowFlagsStart) != 0) {
 				// Check if we should continue with the control flow of the containing function.
@@ -263,27 +421,237 @@ class Flow {
 				// simply return the non-auto declared type to reduce follow-on errors.
 				t = FlowType.of(c.convertAutoToAny(f.declaredType), false);
 			}
+			break;
+		}
+		f.depth = entryDepth;
+		if (!tracked) {
 			if (sharedFlow != null) {
-				// Record visited node and the associated type in the cache.
-				// PORT: perf — Go appends a SharedFlow value to c.sharedFlows; the objects past
-				// sharedFlowsLen (the slice's length) are reused.
-				if (c.sharedFlows == null) {
-					c.sharedFlows = [];
-				}
-				var sf:SharedFlow;
-				if (c.sharedFlowsLen < c.sharedFlows.length) {
-					sf = c.sharedFlows[c.sharedFlowsLen];
-				} else {
-					sf = new SharedFlow();
-					c.sharedFlows.push(sf);
-				}
-				c.sharedFlowsLen++;
-				sf.flow = sharedFlow;
-				sf.flowType = t;
+				c.pushSharedFlow(sharedFlow, t, FlowMemo.UNTAINTED, FlowMemo.UNTAINTED, 0, 0);
 			}
-			f.depth--;
 			return t;
 		}
+		if (f.memoAborted) {
+			c.flowMemoFrameCounters(frameInstantiationCount, frameTotalInstantiationCount, frameCreated, frameInInstantiation);
+			m.endFrame(frameStart, pTransient, pReference, pHeight, pFlags, m.rHeight);
+			if (memo) {
+				m.checkpointsLen = checkpointStart;
+				m.shadowHits.resize(shadowStart);
+			}
+			return t;
+		}
+		if (hit != null) {
+			// This frame's answer came from the memo: its height is that sub-walk's (iteration adds no depth).
+			f.memoUsed = true;
+			if (hit.height > m.rHeight) {
+				m.rHeight = hit.height;
+			}
+			if (hit.epoch != 0) {
+				m.rFlags |= FlowMemo.FLAG_TYPE_CACHE;
+			}
+			if (hit.countReset) {
+				m.rFlags |= FlowMemo.FLAG_COUNT_RESET;
+			}
+		}
+		c.flowMemoFrameCounters(frameInstantiationCount, frameTotalInstantiationCount, frameCreated, frameInInstantiation);
+		final height = m.rHeight;
+		m.endFrame(frameStart, pTransient, pReference, pHeight, pFlags, height);
+		if (sharedFlow != null) {
+			// Record visited node and the associated type in the cache.
+			if (m.lastTransient != FlowMemo.UNTAINTED) {
+				f.impureShared++;
+			}
+			c.pushSharedFlow(sharedFlow, t, m.lastTransient, m.lastReference, height, m.lastFlags);
+		}
+		if (memo) {
+			c.flowMemoFill(f, checkpointStart, shadowStart, entryFlow, flow, entryDepth, t, height, steps, hit);
+			m.checkpointsLen = checkpointStart;
+		}
+		return t;
+	}
+
+	// PORT: perf — Go appends a SharedFlow value to c.sharedFlows; the objects past sharedFlowsLen (the slice's
+	// length) are reused.
+	static function pushSharedFlow(c:Checker, flow:FlowNode, t:FlowType, transient:Int, reference:Int, height:Int, memoFlags:Int):Void {
+		if (c.sharedFlows == null) {
+			c.sharedFlows = [];
+		}
+		var sf:SharedFlow;
+		if (c.sharedFlowsLen < c.sharedFlows.length) {
+			sf = c.sharedFlows[c.sharedFlowsLen];
+		} else {
+			sf = new SharedFlow();
+			c.sharedFlows.push(sf);
+		}
+		c.sharedFlowsLen++;
+		sf.flow = flow;
+		sf.flowType = t;
+		sf.transient = transient;
+		sf.reference = reference;
+		sf.height = height;
+		sf.memoFlags = memoFlags;
+	}
+
+	// PORT: perf — (from tsrs) flow memo: adds what a frame did to the instantiation counters to its flags. With no
+	// instantiation in it, the count can only have stayed or gone to 0 (a checkExpression reset); if it was 0 at the
+	// start, a reset cannot be told apart.
+	static inline function flowMemoFrameCounters(c:Checker, instantiationCount:Int, totalInstantiationCount:Int, created:Int, inInstantiation:Bool):Void {
+		if (c.TotalInstantiationCount != totalInstantiationCount || inInstantiation
+			|| c.TypeCount + c.SymbolCount + c.SignatureCount != created) {
+			c.flowMemo.rFlags |= FlowMemo.FLAG_EFFECTS;
+		}
+		if (instantiationCount == 0 || c.instantiationCount != instantiationCount) {
+			c.flowMemo.rFlags |= FlowMemo.FLAG_COUNT_RESET;
+		}
+	}
+
+	// PORT: perf — (from tsrs) flow memo: propagates the taint of a sharedFlows entry to the frames that consume it.
+	// A transient source that is no longer active means the value outlived the loop analysis or resolution that
+	// produced it (Go reuses such values): everything active consumed a stale value.
+	static inline function flowMemoConsume(c:Checker, transient:Int, reference:Int):Void {
+		if (transient != FlowMemo.UNTAINTED) {
+			c.flowMemoConsumeTransient(transient);
+		}
+		c.flowMemo.taintReference(reference);
+	}
+
+	static function flowMemoConsumeTransient(c:Checker, source:Int):Void {
+		var live = false;
+		if (source != 0) {
+			if (c.flowLoopStack != null) {
+				for (info in c.flowLoopStack) {
+					if (info.serial == source) {
+						live = true;
+						break;
+					}
+				}
+			}
+			if (!live) {
+				for (i in 0...c.typeResolutionCount) {
+					if (c.typeResolutions[i].serial == source) {
+						live = true;
+						break;
+					}
+				}
+			}
+		}
+		c.flowMemo.taint(live ? source : 0);
+	}
+
+	// PORT: perf — (from tsrs) flow memo: whether a fresh walk of this frame now could read a value that the memo's
+	// walk did not (this walk's transient sharedFlows values, the loop analysis in progress, another flowTypeCache
+	// when the memo's walk read it, an active instantiation's cache), or leave the instantiation count elsewhere.
+	static inline function flowMemoConsultOk(c:Checker, f:FlowState, slot:FlowMemoSlot):Bool {
+		return !f.memoFaithful && f.impureShared == 0 && (c.flowLoopStack == null || c.flowLoopStack.length == 0)
+			&& (slot.epoch == 0 || slot.epoch == c.flowMemo.typeCacheEpoch) && (c.activeMappers == null || c.activeMappers.length == 0)
+			&& (!slot.countReset || c.instantiationCount == 0);
+	}
+
+	// PORT: perf — (from tsrs) flow memo: stores the frame's answer under its first node, the node that ended its
+	// iteration and the checkpoints it iterated past (the type is the same at all of them; so is the height,
+	// iteration adds no depth).
+	static function flowMemoFill(c:Checker, f:FlowState, checkpointStart:Int, shadowStart:Int, entryFlow:FlowNode, finalFlow:FlowNode, entryDepth:Int,
+			t:FlowType, height:Int, steps:Int, hit:FlowMemoSlot):Void {
+		final m = c.flowMemo;
+		if (m.shadowHits.length > shadowStart) {
+			c.flowMemoShadowSettle(f, shadowStart, entryDepth, t);
+		}
+		if (m.lastTransient != FlowMemo.UNTAINTED || m.lastReference != FlowMemo.UNTAINTED || (m.lastFlags & FlowMemo.FLAG_EFFECTS) != 0) {
+			return;
+		}
+		if (t.incomplete || c.flowAnalysisDisabled) {
+			return;
+		}
+		if (height == 0 && steps < 4 && hit == null) {
+			// A short iteration ending without recursion costs less to walk again than to keep.
+			return;
+		}
+		final epoch = (m.lastFlags & FlowMemo.FLAG_TYPE_CACHE) != 0 ? m.typeCacheEpoch : 0;
+		final countReset = (m.lastFlags & FlowMemo.FLAG_COUNT_RESET) != 0;
+		final tt = t.t;
+		if (entryFlow != finalFlow || hit == null) {
+			m.store(entryFlow, f, tt, height, epoch, countReset, entryDepth);
+		}
+		if (finalFlow != entryFlow && hit == null) {
+			m.store(finalFlow, f, tt, height, epoch, countReset, entryDepth);
+		}
+		for (i in checkpointStart...m.checkpointsLen) {
+			final checkpoint = m.checkpoints[i];
+			if (checkpoint != finalFlow) {
+				m.store(checkpoint, f, tt, height, epoch, countReset, entryDepth);
+			}
+		}
+	}
+
+	// PORT: perf — (from tsrs) flow memo, shadow mode: the frame was walked although the memo had answers for its
+	// nodes; they must agree with what it computed.
+	static function flowMemoShadowSettle(c:Checker, f:FlowState, shadowStart:Int, entryDepth:Int, t:FlowType):Void {
+		final m = c.flowMemo;
+		for (i in shadowStart...m.shadowHits.length) {
+			final sh = m.shadowHits[i];
+			if (t.t == sh.t && !t.incomplete) {
+				continue;
+			}
+			final reference = f.reference;
+			final file = Ast.GetSourceFileOfNode(reference);
+			final originFile = sh.originRef != null ? Ast.GetSourceFileOfNode(sh.originRef) : null;
+			final msg = "TSHX_FLOW_MEMO=shadow: memo and walk disagree for reference at " + (file != null ? file.FileName() : "?") + ":" + reference.Pos()
+				+ " (flow node flags " + Std.string(sh.flow.Flags) + " of node at " + (sh.flow.Node != null ? Std.string(sh.flow.Node.Pos()) : "-")
+				+ " in a frame at depth " + entryDepth + "; memo from reference at " + (originFile != null ? originFile.FileName() : "?") + ":"
+				+ (sh.originRef != null ? Std.string(sh.originRef.Pos()) : "-") + " depth " + sh.originDepth + "): walked "
+				+ (t.t != null ? c.TypeToString(t.t) : "nil") + " (id " + (t.t != null ? t.t.id : 0) + ", incomplete " + t.incomplete + ", taint "
+				+ m.lastTransient + "/" + m.lastReference + "), memo " + c.TypeToString(sh.t) + " (id " + sh.t.id + ", height " + sh.height + ")";
+			Sys.stderr().writeString(msg + "\n");
+			Sys.stderr().flush();
+			Sys.exit(99);
+		}
+		m.shadowHits.resize(shadowStart);
+	}
+
+	// PORT: perf — (from tsrs) flow memo: the walk's memo key, computed once per walk: the root symbol (or `this`),
+	// the property names of a property access chain (compared through the reference node), the declared and initial
+	// types and the flow container, with a hash of them. Only identifiers, `this` and chains of plain property
+	// accesses on them get one; everything the walk reads from such a reference (matching, the Start node's
+	// continuation rules, the accessed names) is a function of that structure. Computing it has no side effects: it
+	// reads a resolved symbol only if one is cached.
+	static function computeFlowMemoKey(c:Checker, f:FlowState):Void {
+		var node = f.reference;
+		var h = 0x2545F491;
+		while (node.Kind == KindPropertyAccessExpression) {
+			if ((node.Flags & NodeFlagsOptionalChain) != 0) {
+				f.memoKeyState = 1;
+				return;
+			}
+			h = flowMemoHashString((h * 0x01000193) & 0x3FFFFFFF, node.Name().Text());
+			node = node.Expression();
+		}
+		var root:ts.ast.Symbol = null;
+		if (node.Kind == KindIdentifier) {
+			final links = c.symbolNodeLinks.TryGet(node);
+			root = links != null ? links.resolvedSymbol : null;
+			if (root == null || root == c.unknownSymbol || node.Text() == "this" && Ast.IsThisInTypeQuery(node)) {
+				f.memoKeyState = 1;
+				return;
+			}
+			h = flowMemoHashString(h, node.Text());
+		} else if (node.Kind != KindThisKeyword) {
+			f.memoKeyState = 1;
+			return;
+		}
+		h = (h ^ f.declaredType.id) * 0x9E3779B1;
+		h = (h ^ f.initialType.id) * 0x85EBCA6B;
+		if (f.flowContainer != null) {
+			h = (h ^ f.flowContainer.Pos()) * 0xC2B2AE35;
+		}
+		f.memoRoot = root;
+		f.memoHash = h ^ (h >>> 15);
+		f.memoKeyState = 2;
+	}
+
+	static function flowMemoHashString(h:Int, s:std.String):Int {
+		for (i in 0...s.length) {
+			h = ((h ^ StringTools.fastCodeAt(s, i)) * 0x01000193) & 0x3FFFFFFF; // (bounded on Python's integers)
+		}
+		return h;
 	}
 
 	static function getTypeAtFlowAssignment(c:Checker, f:FlowState, flow:FlowNode):FlowType {
@@ -296,6 +664,7 @@ class Flow {
 			}
 			if (Checker.getAssignmentTargetKind(node) == AssignmentKindCompound) {
 				final flowType = c.getTypeAtFlowNode(f, flow.Antecedent);
+				if (f.memoAborted) return flowType; // PORT: perf — (from tsrs) flow memo: the walk is redone
 				return c.newFlowType(c.getBaseTypeOfLiteralType(flowType.t), flowType.incomplete);
 			}
 			if (f.declaredType == c.autoType || f.declaredType == c.autoArrayType) {
@@ -339,17 +708,27 @@ class Flow {
 		if (Ast.IsVariableDeclaration(node) && Ast.IsForInStatement(node.Parent.Parent)
 			&& (c.isMatchingReference(f.reference, node.Parent.Parent.Expression())
 				|| c.optionalChainContainsReference(node.Parent.Parent.Expression(), f.reference))) {
-			return FlowType.of(c.getNonNullableTypeIfNeeded(c.finalizeEvolvingArrayType(c.getTypeAtFlowNode(f, flow.Antecedent).t)), false);
+			final flowType = c.getTypeAtFlowNode(f, flow.Antecedent);
+			if (f.memoAborted) return flowType; // PORT: perf — (from tsrs) flow memo: the walk is redone
+			return FlowType.of(c.getNonNullableTypeIfNeeded(c.finalizeEvolvingArrayType(flowType.t)), false);
 		}
 		// Assignment doesn't affect reference
 		return FlowType.nil;
 	}
 
 	static function getInitialOrAssignedType(c:Checker, f:FlowState, flow:FlowNode):Type {
-		if (Ast.IsVariableDeclaration(flow.Node) || Ast.IsBindingElement(flow.Node)) {
-			return c.getNarrowableTypeForReference(c.getInitialType(flow.Node), f.reference, CheckModeNormal);
+		final t = Ast.IsVariableDeclaration(flow.Node) || Ast.IsBindingElement(flow.Node) ? c.getInitialType(flow.Node) : c.getAssignedType(flow.Node);
+		final result = c.getNarrowableTypeForReference(t, f.reference, CheckModeNormal);
+		if (f.memoKeyState == 2) {
+			// PORT: perf — (from tsrs) flow memo: getNarrowableTypeForReference reads the reference's position when the
+			// type has a type variable with a union constraint; then the answer depends on where the reference is,
+			// not only on its key. (A walk without a key has no frame younger than its walkFloor.)
+			final base = c.isNoInferType(t) ? t.AsSubstitutionType().baseType : t;
+			if (Checker.someType(base, t -> c.isGenericTypeWithUnionConstraint(t))) {
+				c.flowMemo.taintReference(f.walkFloor);
+			}
 		}
-		return c.getNarrowableTypeForReference(c.getAssignedType(flow.Node), f.reference, CheckModeNormal);
+		return result;
 	}
 
 	static function isEmptyArrayAssignment(c:Checker, node:Node):Bool {
@@ -364,6 +743,7 @@ class Flow {
 			final predicate = c.getTypePredicateOfSignature(signature);
 			if (predicate != null && (predicate.kind == TypePredicateKindAssertsThis || predicate.kind == TypePredicateKindAssertsIdentifier)) {
 				final flowType = c.getTypeAtFlowNode(f, flow.Antecedent);
+				if (f.memoAborted) return flowType; // PORT: perf — (from tsrs) flow memo: the walk is redone
 				final t = c.finalizeEvolvingArrayType(flowType.t);
 				var narrowedType:Type;
 				if (predicate.t != null) {
@@ -431,7 +811,7 @@ class Flow {
 
 	static function getTypeAtFlowCondition(c:Checker, f:FlowState, flow:FlowNode):FlowType {
 		final flowType = c.getTypeAtFlowNode(f, flow.Antecedent);
-		if ((flowType.t.flags & TypeFlagsNever) != 0) {
+		if (f.memoAborted || (flowType.t.flags & TypeFlagsNever) != 0) { // PORT: perf — (from tsrs) memoAborted: flow memo
 			return flowType;
 		}
 		// If we have an antecedent type (meaning we're reachable in some way), we first
@@ -465,17 +845,23 @@ class Flow {
 			case KindIdentifier:
 				// When narrowing a reference to a const variable, non-assigned parameter, or readonly property, we inline
 				// up to five levels of aliased conditional expressions that are themselves declared as const variables.
-				if (!c.isMatchingReference(f.reference, expr) && c.inlineLevel < 5) {
-					final symbol = c.getResolvedSymbol(expr);
-					if (c.isConstantVariable(symbol)) {
-						final declaration = symbol.ValueDeclaration;
-						if (declaration != null && Ast.IsVariableDeclaration(declaration) && declaration.Type() == null
-							&& declaration.Initializer() != null && c.isConstantReference(f.reference)) {
-							c.inlineLevel++;
-							final result = c.narrowType(f, t, declaration.Initializer(), assumeTrue);
-							c.inlineLevel--;
-							return result;
+				if (!c.isMatchingReference(f.reference, expr)) {
+					if (c.inlineLevel < 5) {
+						final symbol = c.getResolvedSymbol(expr);
+						if (c.isConstantVariable(symbol)) {
+							final declaration = symbol.ValueDeclaration;
+							if (declaration != null && Ast.IsVariableDeclaration(declaration) && declaration.Type() == null
+								&& declaration.Initializer() != null && c.isConstantReferenceOfWalk(f)) {
+								c.inlineLevel++;
+								final result = c.narrowType(f, t, declaration.Initializer(), assumeTrue);
+								c.inlineLevel--;
+								return result;
+							}
 						}
+					} else {
+						// PORT: perf — (from tsrs) flow memo: whether this inlines depends on how deep the inlining
+						// already is, which no key has.
+						c.flowMemo.taint(0);
 					}
 				}
 				// PORT: fallthrough
@@ -495,6 +881,15 @@ class Flow {
 			default:
 		}
 		return t;
+	}
+
+	// PORT: perf — (from tsrs) isConstantReference(f.reference). For an access expression it reads the property symbol
+	// that the reference node resolved to, which another reference with the same flow memo key may not share.
+	static function isConstantReferenceOfWalk(c:Checker, f:FlowState):Bool {
+		if (f.memoKeyState == 2 && Ast.IsAccessExpression(f.reference)) {
+			c.flowMemo.taintReference(f.walkFloor);
+		}
+		return c.isConstantReference(f.reference);
 	}
 
 	static function narrowTypeByOptionality(c:Checker, f:FlowState, t:Type, expr:Node, assumePresent:Bool):Type {
@@ -1159,6 +1554,7 @@ class Flow {
 		final data = flow.Node.AsFlowSwitchClauseData();
 		final expr = Ast.SkipParentheses(data.SwitchStatement.Expression());
 		final flowType = c.getTypeAtFlowNode(f, flow.Antecedent);
+		if (f.memoAborted) return flowType; // PORT: perf — (from tsrs) flow memo: the walk is redone
 		var t = flowType.t;
 		if (c.isMatchingReference(f.reference, expr)) {
 			t = c.narrowTypeBySwitchOnDiscriminant(t, data);
@@ -1371,6 +1767,10 @@ class Flow {
 				continue;
 			}
 			final flowType = c.getTypeAtFlowNode(f, antecedent);
+			if (f.memoAborted) { // PORT: perf — (from tsrs) flow memo: the walk is redone
+				c.antecedentTypes.resize(antecedentStart);
+				return flowType;
+			}
 			// If the type at a particular antecedent path is the declared type and the
 			// reference is known to always be assigned (i.e. when declared and initial types
 			// are the same), there is no reason to process more antecedents since the only
@@ -1395,6 +1795,10 @@ class Flow {
 		}
 		if (bypassFlow != null) {
 			final flowType = c.getTypeAtFlowNode(f, bypassFlow);
+			if (f.memoAborted) { // PORT: perf — (from tsrs) flow memo: the walk is redone
+				c.antecedentTypes.resize(antecedentStart);
+				return flowType;
+			}
 			// If the bypass flow contributes a type we haven't seen yet and the switch statement
 			// isn't exhaustive, process the bypass flow type. Since exhaustiveness checks increase
 			// the risk of circularities, we only want to perform them when they make a difference.
@@ -1463,6 +1867,9 @@ class Flow {
 		if (c.flowLoopStack != null) {
 			for (loopInfo in c.flowLoopStack) {
 				if (loopInfo.key.flowNode == key.flowNode && sameCacheHashKey(loopInfo.key.refKey, key.refKey) && Core.len(loopInfo.types) != 0) {
+					// PORT: perf — (from tsrs) flow memo: everything computed from these types (every frame younger
+					// than the loop's stack entry) is transient.
+					c.flowMemo.taint(loopInfo.serial);
 					return c.newFlowType(c.getUnionOrEvolvingArrayType(f, loopInfo.types, UnionReductionLiteral), true /*incomplete*/);
 				}
 			}
@@ -1481,6 +1888,9 @@ class Flow {
 				// The first antecedent of a loop junction is always the non-looping control
 				// flow path that leads to the top.
 				firstAntecedentType = c.getTypeAtFlowNode(f, list.Flow);
+				if (f.memoAborted) { // PORT: perf — (from tsrs) flow memo: the walk is redone
+					return firstAntecedentType;
+				}
 				flowType = firstAntecedentType;
 			} else {
 				// All but the first antecedent are the looping control flow paths that lead
@@ -1488,15 +1898,22 @@ class Flow {
 				final loopInfo = new FlowLoopInfo();
 				loopInfo.key = key;
 				loopInfo.types = antecedentTypes;
+				loopInfo.serial = c.flowMemo.nextSerial(); // PORT: perf — (from tsrs) flow memo
 				if (c.flowLoopStack == null) {
 					c.flowLoopStack = [];
 				}
 				c.flowLoopStack.push(loopInfo);
 				final saveFlowTypeCache = c.flowTypeCache;
+				final saveFlowTypeCacheEpoch = c.flowMemo.typeCacheEpoch; // PORT: perf — (from tsrs) flow memo
 				c.flowTypeCache = null;
+				c.flowMemo.typeCacheEpoch = c.flowMemo.nextSerial();
 				flowType = c.getTypeAtFlowNode(f, list.Flow);
 				c.flowTypeCache = saveFlowTypeCache;
+				c.flowMemo.typeCacheEpoch = saveFlowTypeCacheEpoch;
 				c.flowLoopStack.resize(c.flowLoopStack.length - 1);
+				if (f.memoAborted) { // PORT: perf — (from tsrs) flow memo: the walk is redone
+					return flowType;
+				}
 				// If we see a value appear in the cache it is a sign that control flow analysis
 				// was restarted and completed by checkExpressionCached. We can simply pick up
 				// the resulting type and bail out.
@@ -1541,6 +1958,7 @@ class Flow {
 			}
 			if (c.isMatchingReference(f.reference, c.getReferenceCandidate(expr))) {
 				final flowType = c.getTypeAtFlowNode(f, flow.Antecedent);
+				if (f.memoAborted) return flowType; // PORT: perf — (from tsrs) flow memo: the walk is redone
 				if ((flowType.t.objectFlags & ObjectFlagsEvolvingArray) != 0) {
 					var evolvedType = flowType.t;
 					if (Ast.IsCallExpression(node)) {

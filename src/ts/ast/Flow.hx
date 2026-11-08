@@ -32,6 +32,8 @@ class FlowNode {
 	public var Node:Node = null; // Associated AST node
 	public var Antecedent:FlowNode = null; // Antecedent for all but FlowLabel
 	public var Antecedents:FlowList = null; // Linked list of antecedents for FlowLabel
+	// PORT: perf — (from tsrs) the flow memo's hash of this node (ts.checker.FlowMemo), assigned on first use (0: none yet).
+	public var memoId:Int = 0;
 
 	public function new() {}
 }

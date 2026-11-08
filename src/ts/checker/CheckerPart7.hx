@@ -2940,9 +2940,19 @@ class CheckerPart7 {
 	}
 
 	public static function IsEmptyAnonymousObjectType(c:Checker, t:Type):Bool {
-		return (t.objectFlags & ObjectFlagsAnonymous) != 0
-			&& ((t.objectFlags & ObjectFlagsMembersResolved) != 0 && c.isEmptyResolvedType(t.AsStructuredType())
-				|| t.symbol != null && (t.symbol.Flags & SymbolFlagsTypeLiteral) != 0 && symbolTableLen(c.getMembersOfSymbol(t.symbol)) == 0);
+		if ((t.objectFlags & ObjectFlagsAnonymous) == 0) {
+			return false;
+		}
+		if ((t.objectFlags & ObjectFlagsMembersResolved) != 0) {
+			if (c.isEmptyResolvedType(t.AsStructuredType())) {
+				return true;
+			}
+		} else {
+			// PORT: perf — (from tsrs) resolving members can change this answer on a later flow walk: do not memoize
+			// narrowing that depends on the unresolved member state (flow memo).
+			c.flowMemo.taint(0);
+		}
+		return t.symbol != null && (t.symbol.Flags & SymbolFlagsTypeLiteral) != 0 && symbolTableLen(c.getMembersOfSymbol(t.symbol)) == 0;
 	}
 
 	static function isEmptyResolvedType(c:Checker, t:StructuredType):Bool {

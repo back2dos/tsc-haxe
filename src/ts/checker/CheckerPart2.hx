@@ -3648,6 +3648,8 @@ class CheckerPart2 {
 		// If a type has been cached for the node, return it.
 		final cachedType = c.flowTypeCache != null ? c.flowTypeCache.get(node) : null;
 		if (cachedType != null) {
+			// PORT: perf — (from tsrs) a later flow walk reads this answer only while the same cache is current (flow memo).
+			c.flowMemo.rFlags |= FlowMemo.FLAG_TYPE_CACHE;
 			return cachedType;
 		}
 		final startInvocationCount = c.flowInvocationCount;
@@ -3657,7 +3659,13 @@ class CheckerPart2 {
 			if (c.flowTypeCache == null) {
 				c.flowTypeCache = new IdentityMap<Node, Type>();
 			}
+			final sizeBefore = c.flowTypeCache.size();
 			c.flowTypeCache.set(node, t);
+			if (c.flowTypeCache.size() == sizeBefore) {
+				// PORT: perf — (from tsrs) a nested evaluation of this node cached it first, so a cached type changed:
+				// flow memo answers that read this cache no longer describe it.
+				c.flowMemo.typeCacheEpoch = c.flowMemo.nextSerial();
+			}
 		}
 		return t;
 	}
@@ -3834,10 +3842,13 @@ class CheckerPart2 {
 			// to the top of the stack ensures all transient types are computed from a known point.
 			final saveFlowLoopStack = c.flowLoopStack;
 			final saveFlowTypeCache = c.flowTypeCache;
+			final saveFlowTypeCacheEpoch = c.flowMemo.typeCacheEpoch; // PORT: perf — (from tsrs) flow memo
 			c.flowLoopStack = null;
 			c.flowTypeCache = null;
+			c.flowMemo.typeCacheEpoch = c.flowMemo.nextSerial();
 			links.resolvedType = c.checkExpressionEx(node, checkMode);
 			c.flowTypeCache = saveFlowTypeCache;
+			c.flowMemo.typeCacheEpoch = saveFlowTypeCacheEpoch;
 			c.flowLoopStack = saveFlowLoopStack;
 		}
 		return links.resolvedType;

@@ -52,6 +52,7 @@ class TypeResolution {
 	var target:TypeSystemEntity = null;
 	var propertyName:TypeSystemPropertyName = 0;
 	var result:Bool = false;
+	var serial:Int = 0; // PORT: perf — (from tsrs) flow memo taint source of what is computed while this resolution is in progress
 
 	public function new() {}
 }
@@ -393,6 +394,7 @@ class FlowLoopKey {
 class FlowLoopInfo {
 	var key:FlowLoopKey = new FlowLoopKey();
 	var types:Array<Type> = null;
+	var serial:Int = 0; // PORT: perf — (from tsrs) flow memo taint source of the in-process types
 
 	public function new() {}
 }
@@ -1631,6 +1633,7 @@ class Checker {
 	var flowAnalysisDisabled:Bool = false;
 	var flowInvocationCount:Int = 0;
 	var flowTypeCache:IdentityMap<Node, Type> = null;
+	var flowMemo:FlowMemo = new FlowMemo(); // PORT: perf — (from tsrs) FlowMemo.hx
 	var lastFlowNode:FlowNode = null;
 	var lastFlowNodeReachable:Bool = false;
 	var flowNodeReachable:IdentityMap<FlowNode, Bool> = null;

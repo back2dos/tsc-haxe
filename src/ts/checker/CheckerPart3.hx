@@ -442,6 +442,11 @@ class CheckerPart3 {
 		if (cached != null && cached != c.resolvingSignature && candidatesOutArray == null) {
 			return cached;
 		}
+		if (cached == c.resolvingSignature) {
+			// PORT: perf — (from tsrs) re-entered while this call is resolved: the inner answer may not be the final one
+			// (flow memo).
+			c.flowMemo.taint(0);
+		}
 		final saveResolutionStart = c.resolutionStart;
 		if (cached == null) {
 			// If we haven't already done so, temporarily reset the resolution stack. This allows us to
