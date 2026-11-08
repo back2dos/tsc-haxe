@@ -180,6 +180,27 @@ class Scanner {
 		ok ? t : null;
 	}
 
+	// The index in kwTable of the keyword equal to text[start:end] (ASCII), or -1.
+	inline function keywordAt(start:Int, end:Int):Int {
+		final n = end - start;
+		final t = kwTable;
+		final c0 = StringTools.fastCodeAt(text, start);
+		var result = -1;
+		if (n >= 2 && n <= 12 && c0 >= 'a'.code && c0 <= 'z'.code && t != null) {
+			final key = c0 | (StringTools.fastCodeAt(text, start + 1) << 8) | ((StringTools.fastCodeAt(text, end - 1) & 0xFF) << 16) | (n << 24);
+			final h = (key * 0xae8526c7) >>> 24;
+			final k = t[h];
+			if (k != null && k.length == n) {
+				var i = 0;
+				while (i < n && StringTools.fastCodeAt(k, i) == StringTools.fastCodeAt(text, start + i))
+					i++;
+				if (i == n)
+					result = h;
+			}
+		}
+		return result;
+	}
+
 	static inline function kwHash(str:String):Int {
 		final key = StringTools.fastCodeAt(str, 0) | (StringTools.fastCodeAt(str, 1) << 8) | ((StringTools.fastCodeAt(str, str.length - 1) & 0xFF) << 16)
 			| (str.length << 24);
@@ -264,6 +285,8 @@ class Scanner {
 	// from the prefix once, when one asks for it).
 	var text:String = "";
 	var textLen:Int = 0;
+	// PORT: perf — GetIdentifierToken(tokenValue) as scanIdentifier's ASCII fast path found it (KindUnknown: not known)
+	var identifierToken:Kind = KindUnknown;
 	var textPrefix:String = null; // Text() when textLen < text.length (made on demand)
 	var end:Int = 0;
 	var languageVariant:LanguageVariant = LanguageVariantStandard;
@@ -1089,8 +1112,9 @@ class Scanner {
 						token = KindEndOfFile;
 						return token;
 					}
+					identifierToken = KindUnknown;
 					if (scanIdentifier(0, identifierVariantStandard)) {
-						token = GetIdentifierToken(tokenValue);
+						token = identifierToken != KindUnknown ? identifierToken : GetIdentifierToken(tokenValue);
 						return token;
 					}
 					var ch = charAndSize();
@@ -1688,7 +1712,16 @@ class Scanner {
 			scanASCIIWhile(b -> asciiIdentifierPart[b]); // PORT: perf — (from tsrs) a table of Go's predicate
 			ch = char();
 			if (ch < Utf16.RuneSelf && ch != '\\'.code) {
-				tokenValue = text.substring(start, pos);
+				// PORT: perf — a keyword's value is the keyword table's string (no substring: Go's slice of the
+				// text is free, a Haxe substring an allocation and a copy)
+				final kw = keywordAt(start, pos);
+				if (kw >= 0) {
+					tokenValue = kwTable[kw];
+					identifierToken = kwKinds[kw] != KindUnknown ? kwKinds[kw] : KindIdentifier;
+				} else {
+					tokenValue = text.substring(start, pos);
+					identifierToken = KindIdentifier;
+				}
 				return true;
 			}
 			pos = identifierStart;
