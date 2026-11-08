@@ -193,8 +193,8 @@ class Tracing {
 	static inline final flushThreshold = 256 * 1024;
 
 	var fs:FS = null;
-	var traceDir:String = "";
-	var tracePath:String = "";
+	var traceDir:RootedDirectoryPath = cast "";
+	var tracePath:RootedFilePath = cast "";
 	var configFilePath:String = "";
 	var legend:Array<TraceRecord> = null;
 	var tracers:Array<TypeTracer> = null;
@@ -218,11 +218,11 @@ class Tracing {
 	// When deterministic is true, timestamps use a monotonic counter instead of
 	// real wall-clock time, producing stable output for test baselines.
 	// PORT: (*Tracing, error) → ValueError.
-	public static function StartTracing(fs:FS, traceDir:String, configFilePath:String, deterministic:Bool):ValueError<Tracing> {
+	public static function StartTracing(fs:FS, traceDir:RootedDirectoryPath, configFilePath:String, deterministic:Bool):ValueError<Tracing> {
 		final tr = new Tracing();
 		tr.fs = fs;
 		tr.traceDir = traceDir;
-		tr.tracePath = Tspath.CombinePaths(traceDir, traceFileName);
+		tr.tracePath = traceDir.ResolveFile(traceFileName);
 		tr.configFilePath = configFilePath;
 		tr.legend = [];
 		tr.tracers = [];
@@ -489,7 +489,7 @@ class Tracing {
 	// NewTypeTracer creates a new tracer for a specific checker.
 	// The checkerIndex is used to create unique filenames for each checker's output.
 	public function NewTypeTracer(checkerIndex:Int):Tracer {
-		final typesPath = Tspath.CombinePaths(traceDir, 'types_${checkerIndex}.json');
+		final typesPath = traceDir.ResolveFile('types_${checkerIndex}.json');
 		final tracer = new TypeTracer();
 		tracer.fs = fs;
 		tracer.checkerIndex = checkerIndex;
@@ -498,8 +498,8 @@ class Tracing {
 		tracers.push(tracer);
 		final record = new TraceRecord();
 		record.ConfigFilePath = configFilePath;
-		record.TracePath = tracePath;
-		record.TypesPath = typesPath;
+		record.TracePath = tracePath.AsString();
+		record.TypesPath = typesPath.AsString();
 		record.CheckerID = checkerIndex;
 		legend.push(record);
 		return tracer;
@@ -540,7 +540,7 @@ class Tracing {
 		});
 
 		// Write the legend file
-		final legendPath = Tspath.CombinePaths(traceDir, "legend.json");
+		final legendPath = traceDir.ResolveFile("legend.json");
 		final legendData = marshalIndentTraceRecords(legend, "  ");
 		final err = fs.WriteFile(legendPath, legendData);
 		if (err != null) {
@@ -578,7 +578,7 @@ class Tracing {
 		final end = Scanner.GetECMALineAndUTF16CharacterOfPosition(file, node.End());
 
 		final loc = new Location();
-		loc.Path = Tspath.ToPath(file.FileName(), "", false);
+		loc.Path = CaseInsensitive.PathKey(file.FileName().AsPath()).AsString();
 		loc.Start = new LineAndChar(start.a + 1, (start.b : Int) + 1);
 		loc.End = new LineAndChar(end.a + 1, (end.b : Int) + 1);
 		return loc;
@@ -890,7 +890,7 @@ class Tracing {
 class TypeTracer implements Tracer {
 	var fs:FS = null;
 	var checkerIndex:Int = 0;
-	var typesPath:String = "";
+	var typesPath:RootedFilePath = cast "";
 	var types:Array<TracedType> = null;
 
 	public function new() {}

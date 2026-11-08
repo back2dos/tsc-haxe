@@ -87,14 +87,15 @@ class PackageId {
 
 class ResolvedModule {
 	public var ResolutionDiagnostics:Null<Array<Diagnostic>> = null;
-	public var ResolvedFileName:String = "";
-	public var OriginalPath:String = "";
+	public var ResolvedFileName:RootedFilePath = cast "";
+	public var ResolvedPath:PathKey = cast "";
+	public var OriginalPath:RootedFilePath = cast "";
 	public var Extension:String = "";
 	public var ResolvedUsingTsExtension:Bool = false;
 	public var ResolvedUsingExtraExtensions:Bool = false;
 	public var PackageId:PackageId = new PackageId();
 	public var IsExternalLibraryImport:Bool = false;
-	public var AlternateResult:String = "";
+	public var AlternateResult:RootedFilePath = cast "";
 
 	public function new() {}
 
@@ -107,8 +108,9 @@ class ResolvedModule {
 class ResolvedTypeReferenceDirective {
 	public var ResolutionDiagnostics:Null<Array<Diagnostic>> = null;
 	public var Primary:Bool = false;
-	public var ResolvedFileName:String = "";
-	public var OriginalPath:String = "";
+	public var ResolvedFileName:RootedFilePath = cast "";
+	public var ResolvedPath:PathKey = cast "";
+	public var OriginalPath:RootedFilePath = cast "";
 	public var PackageId:PackageId = new PackageId();
 	public var IsExternalLibraryImport:Bool = false;
 

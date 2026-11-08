@@ -1,5 +1,6 @@
 package ts.execute.tsctests;
 
+import ts.tspath.RootedPath;
 import go.Errors.Error;
 import go.Time;
 import ts.collections.Syncset;
@@ -27,7 +28,7 @@ class TestFs implements FS {
 
 	// ReadFile reads the file specified by path and returns the content.
 	// If the file fails to be read, ok will be false.
-	public function ReadFile(path:String):ValueOk<String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
 		this.removeIgnoreLibPath(path);
 		return this.readFileHandlingBuildInfo(path);
 	}
@@ -48,7 +49,7 @@ class TestFs implements FS {
 		return new ValueOk(contents, ok);
 	}
 
-	public function WriteFile(path:String, data:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {
 		this.removeIgnoreLibPath(path);
 		this.writtenFiles.Add(path);
 		return this.writeFileHandlingBuildInfo(path, data);
@@ -77,7 +78,7 @@ class TestFs implements FS {
 	}
 
 	// Removes `path` and all its contents. Will return the first error it encounters.
-	public function Remove(path:String):Null<Error> {
+	public function Remove(path:RootedPath):Null<Error> {
 		this.removeIgnoreLibPath(path);
 		return this.FS.Remove(path);
 	}
@@ -88,27 +89,27 @@ class TestFs implements FS {
 		return this.FS.UseCaseSensitiveFileNames();
 	}
 
-	public function FileExists(path:String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		return this.FS.FileExists(path);
 	}
 
-	public function AppendFile(path:String, data:String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, data:String):Null<Error> {
 		return this.FS.AppendFile(path, data);
 	}
 
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error> {
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
 		return this.FS.Chtimes(path, aTime, mTime);
 	}
 
-	public function DirectoryExists(path:String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		return this.FS.DirectoryExists(path);
 	}
 
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		return this.FS.GetAccessibleEntries(path);
 	}
 
-	public function Stat(path:String):Null<FileInfo> {
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		return this.FS.Stat(path);
 	}
 
@@ -116,7 +117,7 @@ class TestFs implements FS {
 		return this.FS.WalkDir(root, walkFn);
 	}
 
-	public function Realpath(path:String):String {
+	public function Realpath(path:RootedPath):RootedPath {
 		return this.FS.Realpath(path);
 	}
 }

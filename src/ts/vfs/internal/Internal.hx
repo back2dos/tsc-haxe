@@ -6,6 +6,7 @@ import go.Tuple;
 import haxe.ds.StringMap;
 import haxe.io.Bytes;
 import ts.tspath.Tspath;
+import ts.tspath.RootedPath;
 import ts.vfs.Vfs;
 
 // Port of internal.go (package-level funcs). Common is below.
@@ -85,18 +86,19 @@ class Common {
 		this.IsReparsePoint = isReparsePoint;
 	}
 
-	// (fsys, rootName, rest)
-	public function RootAndPath(path:String):Triple<Null<go.Fs.FS>, String, String> {
-		final split = Internal.SplitPath(path);
-		final rootName = split.a;
+	// (fsys, root, rest)
+	public function RootAndPath(path:RootedPath):Triple<Null<go.Fs.FS>, RootedDirectoryPath, String> {
+		Internal.RootLength(path.AsString());
+		final split = path.RootAndRelativePath();
+		final root = split.a;
 		var rest = split.b;
 		if (rest == "") {
 			rest = ".";
 		}
-		return new Triple(this.RootFor(rootName), rootName, rest);
+		return new Triple(this.RootFor(root.AsString()), root, rest);
 	}
 
-	public function Stat(path:String):Null<FileInfo> {
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		final r = this.RootAndPath(path);
 		final fsys = r.a;
 		if (fsys == null) {
@@ -109,17 +111,17 @@ class Common {
 		return stat.value;
 	}
 
-	public function FileExists(path:String):Bool {
-		final stat = this.Stat(path);
+	public function FileExists(path:RootedFilePath):Bool {
+		final stat = this.Stat(path.AsPath());
 		return stat != null && !stat.IsDir();
 	}
 
-	public function DirectoryExists(path:String):Bool {
-		final stat = this.Stat(path);
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
+		final stat = this.Stat(path.AsPath());
 		return stat != null && stat.IsDir();
 	}
 
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		final result = new Entries();
 		result.Symlinks = new StringMap<Bool>();
 
@@ -153,7 +155,7 @@ class Common {
 
 				if (entryType & ModeSymlink != 0) {
 					// Easy case; UNIX-like system will clearly mark symlinks.
-					final stat = this.Stat(path + "/" + entry.Name());
+					final stat = this.Stat(path.ResolveFile(entry.Name()).AsPath());
 					if (stat != null) {
 						addToResult(entry.Name(), stat.Mode(), true);
 					}
@@ -163,9 +165,9 @@ class Common {
 				if (entryType & ModeIrregular != 0 && this.IsReparsePoint != null) {
 					// Could be a Windows junction or other reparse point.
 					// Check using the OS-specific helper.
-					final fullPath = path + "/" + entry.Name();
-					if (this.IsReparsePoint(fullPath)) {
-						final stat = this.Stat(fullPath);
+					final fullPath = path.ResolveFile(entry.Name());
+					if (this.IsReparsePoint(fullPath.AsString())) {
+						final stat = this.Stat(fullPath.AsPath());
 						if (stat != null) {
 							addToResult(entry.Name(), stat.Mode(), true);
 						}
@@ -178,8 +180,8 @@ class Common {
 		return result;
 	}
 
-	function getEntries(path:String):Null<Array<DirEntry>> {
-		final r = this.RootAndPath(path);
+	function getEntries(path:RootedDirectoryPath):Null<Array<DirEntry>> {
+		final r = this.RootAndPath(path.AsPath());
 		final fsys = r.a;
 		if (fsys == null) {
 			return null;
@@ -193,8 +195,10 @@ class Common {
 		return entries.value;
 	}
 
+	// PORT: 7.0.2's FS.WalkDir (main walks with vfs.WalkDir over GetAccessibleEntries); the root string is
+	// normalized here as 7.0.2's SplitPath did.
 	public function WalkDir(root:String, walkFn:WalkDirFunc):Null<Error> {
-		final r = this.RootAndPath(root);
+		final r = this.RootAndPath(Tspath.RootedPathFromAbsolute(root));
 		final fsys = r.a;
 		final rootName = r.b;
 		if (fsys == null) {
@@ -208,8 +212,8 @@ class Common {
 		});
 	}
 
-	public function ReadFile(path:String):ValueOk<String> {
-		final r = this.RootAndPath(path);
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
+		final r = this.RootAndPath(path.AsPath());
 		final fsys = r.a;
 		if (fsys == null) {
 			return new ValueOk("", false);

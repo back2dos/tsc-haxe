@@ -223,7 +223,7 @@ class EmitFilesHandler {
 			if (options.WriteFile != null) {
 				err = options.WriteFile(fileName, text, data);
 			} else {
-				err = this.program.program.Host().FS().WriteFile(fileName, text);
+				err = this.program.program.Host().FS().WriteFile(/* PORT: transitional (main: typed output file names) */ Tspath.RootedFilePathFromAbsolute(fileName), text);
 			}
 			if (err == null && differsOnlyInMap.value) {
 				// Revert the time to original one

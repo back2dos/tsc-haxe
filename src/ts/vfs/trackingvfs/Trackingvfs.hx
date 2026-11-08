@@ -1,5 +1,6 @@
 package ts.vfs.trackingvfs;
 
+import ts.tspath.RootedPath;
 import go.Errors.Error;
 import go.Time;
 import go.Tuple.ValueOk;
@@ -23,12 +24,12 @@ class FS implements ts.vfs.Vfs.FS {
 		this.Inner = inner;
 	}
 
-	public function ReadFile(path:String):ValueOk<String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
 		this.SeenFiles.Add(path);
 		return this.Inner.ReadFile(path);
 	}
 
-	public function FileExists(path:String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		this.SeenFiles.Add(path);
 		return this.Inner.FileExists(path);
 	}
@@ -37,33 +38,33 @@ class FS implements ts.vfs.Vfs.FS {
 		return this.Inner.UseCaseSensitiveFileNames();
 	}
 
-	public function WriteFile(path:String, data:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {
 		return this.Inner.WriteFile(path, data);
 	}
 
-	public function AppendFile(path:String, data:String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, data:String):Null<Error> {
 		return this.Inner.AppendFile(path, data);
 	}
 
-	public function Remove(path:String):Null<Error> {
+	public function Remove(path:RootedPath):Null<Error> {
 		return this.Inner.Remove(path);
 	}
 
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error> {
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
 		return this.Inner.Chtimes(path, aTime, mTime);
 	}
 
-	public function DirectoryExists(path:String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		this.SeenFiles.Add(path);
 		return this.Inner.DirectoryExists(path);
 	}
 
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		this.SeenFiles.Add(path);
 		return this.Inner.GetAccessibleEntries(path);
 	}
 
-	public function Stat(path:String):Null<FileInfo> {
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		this.SeenFiles.Add(path);
 		return this.Inner.Stat(path);
 	}
@@ -76,7 +77,7 @@ class FS implements ts.vfs.Vfs.FS {
 		});
 	}
 
-	public function Realpath(path:String):String {
+	public function Realpath(path:RootedPath):RootedPath {
 		this.SeenFiles.Add(path);
 		return this.Inner.Realpath(path);
 	}

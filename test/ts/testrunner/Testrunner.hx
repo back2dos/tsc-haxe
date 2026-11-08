@@ -504,7 +504,7 @@ class Testrunner {
 	}
 
 	public static function getCompilerFileBasedTest(t:T, filename:String):CompilerFileBasedTest {
-		final r = ts.vfs.osvfs.Osvfs.FS().ReadFile(filename);
+		final r = ts.vfs.osvfs.Osvfs.FS().ReadFile(Tspath.RootedFilePathFromAbsolute(filename));
 		if (!r.ok) {
 			throw "Could not read test file: " + filename;
 		}

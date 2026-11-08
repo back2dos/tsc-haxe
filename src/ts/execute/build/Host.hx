@@ -94,7 +94,7 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 	}
 
 	public function SetMTime(file:std.String, mTime:Time):Null<Error> {
-		return this.FS().Chtimes(file, Time.Zero(), mTime);
+		return this.FS().Chtimes(/* PORT: transitional (main: typed file) */ Tspath.RootedPathFromAbsolute(file), Time.Zero(), mTime);
 	}
 
 	function loadOrStoreMTime(file:std.String, oldCache:Null<SyncMap<Path, Time>>, store:Bool):Time {

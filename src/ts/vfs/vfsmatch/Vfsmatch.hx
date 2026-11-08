@@ -7,6 +7,9 @@ import ts.collections.Set;
 import ts.core.Core;
 import ts.tspath.Path;
 import ts.tspath.Tspath;
+import ts.tspath.CaseSensitivity;
+import ts.tspath.PathKey;
+import ts.tspath.RootedPath;
 import ts.vfs.Vfs;
 
 // Port of vfsmatch.go (and stringer_generated.go: Usage.toString).
@@ -32,9 +35,10 @@ class Vfsmatch {
 	// PORT: math.MaxInt → 2^31-1 (Int).
 	public static inline final UnlimitedDepth = 2147483647;
 
-	public static function ReadDirectory(host:FS, currentDir:String, path:String, extensions:Null<Array<String>>, excludes:Null<Array<String>>,
-			includes:Null<Array<String>>, depth:Int):Null<Array<String>> {
-		return matchFiles(path, extensions, excludes, includes, host.UseCaseSensitiveFileNames(), currentDir, depth, host);
+	// PORT: main's PathPatternInput generic (string | tspath.PathPattern) → the specs as strings.
+	public static function ReadDirectory(host:FS, path:RootedDirectoryPath, extensions:Null<Array<String>>, excludes:Null<Array<String>>,
+			includes:Null<Array<String>>, depth:Int):Null<Array<RootedFilePath>> {
+		return matchFileNames(path, extensions, excludes, includes, depth, host);
 	}
 
 	// IsImplicitGlob checks if a path component is implicitly a glob.
@@ -57,42 +61,42 @@ class Vfsmatch {
 			}
 		}
 		final i = absolute.substring(0, wildcardOffset).lastIndexOf(String.fromCharCode(Tspath.DirectorySeparator));
-		return absolute.substring(0, i > 0 ? i : 0);
+		final rootLength = Tspath.GetRootLength(absolute);
+		return absolute.substring(0, i > rootLength ? i : rootLength);
 	}
 
 	// getBasePaths computes the unique non-wildcard base paths amongst the provided include patterns.
 	@:allow(ts.vfs.vfsmatch)
-	static function getBasePaths(path:String, includes:Null<Array<String>>, useCaseSensitiveFileNames:Bool):Array<String> {
+	static function getBasePaths(path:RootedDirectoryPath, includes:Null<Array<String>>, caseSensitivity:CaseSensitivity):Array<RootedDirectoryPath> {
 		// Storage for our results in the form of literal paths (e.g. the paths as written by the user).
 		final basePaths = [path];
 
 		if (Core.len(includes) > 0) {
-			final comparePathsOptions = new ComparePathsOptions(useCaseSensitiveFileNames, path);
-			final stringComparer = comparePathsOptions.GetComparer();
-
 			// Storage for literal base paths amongst the include patterns.
-			final includeBasePaths:Array<String> = [];
+			final includeBasePaths:Array<RootedDirectoryPath> = [];
 			for (include in includes) {
 				// We also need to check the relative paths by converting them to absolute and normalizing
 				// in case they escape the base path (e.g "..\somedirectory")
 				var absolute:String;
 				if (Tspath.IsRootedDiskPath(include)) {
-					absolute = include;
+					absolute = Tspath.NormalizePath(include);
 				} else {
-					absolute = Tspath.NormalizePath(Tspath.CombinePaths(path, include));
+					absolute = Tspath.NormalizePath(Tspath.CombinePaths(path.AsString(), include));
 				}
 				// Append the literal and canonical candidate base paths.
-				includeBasePaths.push(getIncludeBasePath(absolute));
+				includeBasePaths.push(Tspath.ToRootedDirectoryPath(getIncludeBasePath(absolute), path));
 			}
 
 			// Sort the offsets array using either the literal or canonical path representations.
-			haxe.ds.ArraySort.sort(includeBasePaths, stringComparer);
+			haxe.ds.ArraySort.sort(includeBasePaths, function(a:RootedDirectoryPath, b:RootedDirectoryPath):Int {
+				return caseSensitivity.ComparePaths(a.AsPath(), b.AsPath());
+			});
 
 			// Iterate over each include base path and include unique base paths that are not a
 			// subpath of an existing base path
 			for (includeBasePath in includeBasePaths) {
-				if (Core.Every(basePaths, (basepath:String) -> {
-					return !Tspath.ContainsPath_legacy(basepath, includeBasePath, comparePathsOptions);
+				if (Core.Every(basePaths, (basepath:RootedDirectoryPath) -> {
+					return !caseSensitivity.ContainsPath(basepath, includeBasePath.AsPath());
 				})) {
 					basePaths.push(includeBasePath);
 				}
@@ -106,8 +110,9 @@ class Vfsmatch {
 	// Returns (pattern, false) if the pattern would match nothing.
 	// PORT: (globPattern, bool) → GlobPattern or null.
 	@:allow(ts.vfs.vfsmatch)
-	static function compileGlobPattern(spec:String, basePath:String, usage:Usage, caseSensitive:Bool):Null<GlobPattern> {
-		var parts = Tspath.GetNormalizedPathComponents(spec, basePath);
+	static function compileGlobPattern(spec:String, basePath:RootedDirectoryPath, usage:Usage, caseSensitivity:CaseSensitivity):Null<GlobPattern> {
+		var parts = Tspath.GetNormalizedPathComponents(spec, basePath.AsString());
+		var caseSensitive = caseSensitivity.IsCaseSensitive();
 
 		// "src/**" without a filename matches nothing (for include patterns)
 		if (usage != UsageExclude && Core.LastOrNil(parts, "") == "**") {
@@ -268,16 +273,8 @@ class Vfsmatch {
 	}
 
 	@:allow(ts.vfs.vfsmatch)
-	static function ensureTrailingSlash(s:String):String {
-		if (s.length > 0 && StringTools.fastCodeAt(s, s.length - 1) != '/'.code) {
-			return s + "/";
-		}
-		return s;
-	}
-
-	@:allow(ts.vfs.vfsmatch)
-	static function newGlobMatcher(includeSpecs:Null<Array<String>>, excludeSpecs:Null<Array<String>>, basePath:String, caseSensitive:Bool,
-			usage:Usage):GlobMatcher {
+	static function newGlobMatcher(includeSpecs:Null<Array<String>>, excludeSpecs:Null<Array<String>>, basePath:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity, usage:Usage):GlobMatcher {
 		final m = new GlobMatcher();
 		m.hadIncludes = Core.len(includeSpecs) > 0;
 		m.includes = [];
@@ -285,7 +282,7 @@ class Vfsmatch {
 
 		if (includeSpecs != null) {
 			for (spec in includeSpecs) {
-				final p = compileGlobPattern(spec, basePath, usage, caseSensitive);
+				final p = compileGlobPattern(spec, basePath, usage, caseSensitivity);
 				if (p != null) {
 					m.includes.push(p);
 				}
@@ -293,7 +290,7 @@ class Vfsmatch {
 		}
 		if (excludeSpecs != null) {
 			for (spec in excludeSpecs) {
-				final p = compileGlobPattern(spec, basePath, UsageExclude, caseSensitive);
+				final p = compileGlobPattern(spec, basePath, UsageExclude, caseSensitivity);
 				if (p != null) {
 					m.excludes.push(p);
 				}
@@ -303,27 +300,24 @@ class Vfsmatch {
 	}
 
 	@:allow(ts.vfs.vfsmatch)
-	static function matchFiles(path:String, extensions:Null<Array<String>>, excludes:Null<Array<String>>, includes:Null<Array<String>>,
-			useCaseSensitiveFileNames:Bool, currentDirectory:String, depth:Int, host:FS):Null<Array<String>> {
-		path = Tspath.NormalizePath(path);
-		currentDirectory = Tspath.NormalizePath(currentDirectory);
-		final absolutePath = Tspath.CombinePaths(currentDirectory, path);
+	static function matchFileNames(path:RootedDirectoryPath, extensions:Null<Array<String>>, excludes:Null<Array<String>>,
+			includes:Null<Array<String>>, depth:Int, host:FS):Null<Array<RootedFilePath>> {
+		final caseSensitivity = Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames());
 
-		final fileMatcher = newGlobMatcher(includes, excludes, absolutePath, useCaseSensitiveFileNames, UsageFiles);
-		final directoryMatcher = newGlobMatcher(includes, excludes, absolutePath, useCaseSensitiveFileNames, UsageDirectories);
+		final fileMatcher = newGlobMatcher(includes, excludes, path, caseSensitivity, UsageFiles);
+		final directoryMatcher = newGlobMatcher(includes, excludes, path, caseSensitivity, UsageDirectories);
 
 		final n = fileMatcher.includes.length > 1 ? fileMatcher.includes.length : 1;
-		final v = new GlobVisitor(host, fileMatcher, directoryMatcher, extensions, useCaseSensitiveFileNames, [for (_ in 0...n) null]);
+		final v = new GlobVisitor(host, fileMatcher, directoryMatcher, extensions, caseSensitivity, [for (_ in 0...n) null]);
 
-		final basePaths = getBasePaths(path, includes, useCaseSensitiveFileNames);
+		final basePaths = getBasePaths(path, includes, caseSensitivity);
 		#if tshx_parallel
 		// PORT: hxmc (-D tshx-parallel) — TypeScript main's prefetchDirectories (#64877, prefetch.go): the
 		// directories the walk is expected to visit are read on the pool's threads first (Go: GOMAXPROCS readers)
-		v.prefetched = DirectoryPrefetcher.prefetchDirectories(host, directoryMatcher, useCaseSensitiveFileNames,
-			[for (basePath in basePaths) Tspath.CombinePaths(currentDirectory, basePath)], depth);
+		v.prefetched = DirectoryPrefetcher.prefetchDirectories(host, directoryMatcher, caseSensitivity, basePaths, depth);
 		#end
 		for (basePath in basePaths) {
-			v.visit(basePath, Tspath.CombinePaths(currentDirectory, basePath), depth, "");
+			v.visit(basePath, depth, cast "");
 		}
 
 		// Fast path: a single include bucket (or no includes) doesn't need flattening.
@@ -335,13 +329,14 @@ class Vfsmatch {
 
 	// NewSpecMatcher creates a matcher for one or more glob specs.
 	// It returns a matcher that can test if paths match any of the patterns.
-	public static function NewSpecMatcher(specs:Null<Array<String>>, basePath:String, usage:Usage, useCaseSensitiveFileNames:Bool):Null<SpecMatcher> {
+	public static function NewSpecMatcher(specs:Null<Array<String>>, basePath:RootedDirectoryPath, usage:Usage,
+			caseSensitivity:CaseSensitivity):Null<SpecMatcher> {
 		if (Core.len(specs) == 0) {
 			return null;
 		}
 		final patterns:Array<GlobPattern> = [];
 		for (spec in specs) {
-			final p = compileGlobPattern(spec, basePath, usage, useCaseSensitiveFileNames);
+			final p = compileGlobPattern(spec, basePath, usage, caseSensitivity);
 			if (p != null) {
 				patterns.push(p);
 			}
@@ -672,21 +667,21 @@ class GlobVisitor {
 	final fileMatcher:GlobMatcher;
 	final directoryMatcher:GlobMatcher;
 	final extensions:Null<Array<String>>;
-	final useCaseSensitiveFileNames:Bool;
-	final visited = new Set<String>();
+	final caseSensitivity:CaseSensitivity;
+	final visited = new Set<PathKey>();
 
-	public final results:Array<Null<Array<String>>>;
+	public final results:Array<Null<Array<RootedFilePath>>>;
 	#if tshx_parallel
 	public var prefetched:Null<StringMap<PrefetchedDirectory>> = null;
 	#end
 
-	public function new(host:FS, fileMatcher:GlobMatcher, directoryMatcher:GlobMatcher, extensions:Null<Array<String>>, useCaseSensitiveFileNames:Bool,
-			results:Array<Null<Array<String>>>) {
+	public function new(host:FS, fileMatcher:GlobMatcher, directoryMatcher:GlobMatcher, extensions:Null<Array<String>>, caseSensitivity:CaseSensitivity,
+			results:Array<Null<Array<RootedFilePath>>>) {
 		this.host = host;
 		this.fileMatcher = fileMatcher;
 		this.directoryMatcher = directoryMatcher;
 		this.extensions = extensions;
-		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+		this.caseSensitivity = caseSensitivity;
 		this.results = results;
 	}
 
@@ -694,12 +689,12 @@ class GlobVisitor {
 	// resolvedRealPath, when non-empty, is the already-resolved real path for this
 	// directory (computed incrementally from the parent). When empty, Realpath is
 	// called to resolve symlinks.
-	public function visit(path:String, absolutePath:String, depth:Int, resolvedRealPath:String):Void {
+	public function visit(absolutePath:RootedDirectoryPath, depth:Int, resolvedRealPath:RootedDirectoryPath):Void {
 		// Detect symlink cycles
 		#if tshx_parallel
 		final prefetched = this.prefetched != null ? this.prefetched.get(absolutePath) : null;
 		#end
-		var realPath:String;
+		var realPath:RootedDirectoryPath;
 		if (resolvedRealPath != "") {
 			realPath = resolvedRealPath;
 		#if tshx_parallel
@@ -707,9 +702,9 @@ class GlobVisitor {
 			realPath = prefetched.realPath;
 		#end
 		} else {
-			realPath = this.host.Realpath(absolutePath);
+			realPath = Tspath.RootedDirectoryPathFromPath(this.host.Realpath(absolutePath.AsPath()));
 		}
-		final canonicalPath = Tspath.GetCanonicalFileName(realPath, this.useCaseSensitiveFileNames);
+		final canonicalPath = this.caseSensitivity.PathKey(realPath.AsPath());
 		if (this.visited.Has(canonicalPath)) {
 			return;
 		}
@@ -721,8 +716,7 @@ class GlobVisitor {
 		final entries = this.host.GetAccessibleEntries(absolutePath);
 		#end
 
-		final pathPrefix = Vfsmatch.ensureTrailingSlash(path);
-		final absPrefix = Vfsmatch.ensureTrailingSlash(absolutePath);
+		final absPrefix = Tspath.EnsureTrailingDirectorySeparator(absolutePath.AsString());
 
 		if (entries.Files != null) {
 			for (file in entries.Files) {
@@ -733,7 +727,7 @@ class GlobVisitor {
 				if (idx >= 0) {
 					if (this.results[idx] == null)
 						this.results[idx] = [];
-					this.results[idx].push(pathPrefix + file);
+					this.results[idx].push(absolutePath.ResolveFile(file));
 				}
 			}
 		}
@@ -750,18 +744,18 @@ class GlobVisitor {
 				if (!this.directoryMatcher.matchesDirectoryParts(absPrefix, dir)) {
 					continue;
 				}
-				final absDir = absPrefix + dir;
-				var childRealPath = "";
+				final absDir = absolutePath.ResolveDirectory(dir);
+				var childRealPath:RootedDirectoryPath = cast "";
 				if (entries.Symlinks != null) {
 					if (!entries.Symlinks.exists(dir)) {
 						// Non-symlink directory: compute realpath incrementally.
-						childRealPath = Tspath.CombinePaths(realPath, dir);
+						childRealPath = realPath.ResolveDirectory(dir);
 					}
 					// else: symlink directory; leave childRealPath empty to force Realpath call.
 				}
 				// If Symlinks is nil, the FS doesn't track symlinks;
 				// leave childRealPath empty to call Realpath (preserving old behavior).
-				this.visit(pathPrefix + dir, absDir, depth, childRealPath);
+				this.visit(absDir, depth, childRealPath);
 			}
 		}
 	}
@@ -800,22 +794,22 @@ class SpecMatcher {
 // --- prefetch.go (TypeScript main #64877) ---
 @:allow(ts.vfs.vfsmatch)
 class PrefetchedDirectory {
-	final realPath:String;
+	final realPath:RootedDirectoryPath;
 	final entries:Entries;
 
-	function new(realPath:String, entries:Entries) {
+	function new(realPath:RootedDirectoryPath, entries:Entries) {
 		this.realPath = realPath;
 		this.entries = entries;
 	}
 }
 
 private class PrefetchItem {
-	public final path:String;
+	public final path:RootedDirectoryPath;
 	// realPath is empty when it must be resolved with the host.
-	public final realPath:String;
+	public final realPath:RootedDirectoryPath;
 	public final depth:Int;
 
-	public function new(path:String, realPath:String, depth:Int) {
+	public function new(path:RootedDirectoryPath, realPath:RootedDirectoryPath, depth:Int) {
 		this.path = path;
 		this.realPath = realPath;
 		this.depth = depth;
@@ -832,32 +826,32 @@ private class PrefetchItem {
 // Symlinked directories are not followed. Every prefetched directory is then reached through its only non-aliased
 // spelling below a base path, so the prefetch cannot cycle and its result does not depend on scheduling. The walk
 // reads symlinked subtrees itself, exactly as it would without a prefetch.
-// PORT: keys are the walk's absolute path strings (Go: RootedDirectoryPath); a host exception is rethrown by
+// PORT: maps keyed by the RootedDirectoryPath string; a host exception is rethrown by
 // the work group (Go: recovered, then re-raised on the calling goroutine).
 @:allow(ts.vfs.vfsmatch)
 class DirectoryPrefetcher {
 	final host:FS;
 	final directoryMatcher:GlobMatcher;
-	final useCaseSensitiveFileNames:Bool;
+	final caseSensitivity:CaseSensitivity;
 	final wg = new ts.core.Workgroup.ParallelWorkGroup();
 	final mutex = new sys.thread.Mutex();
 	final scheduled = new StringMap<Bool>();
 	final results = new StringMap<PrefetchedDirectory>();
 
-	function new(host:FS, directoryMatcher:GlobMatcher, useCaseSensitiveFileNames:Bool) {
+	function new(host:FS, directoryMatcher:GlobMatcher, caseSensitivity:CaseSensitivity) {
 		this.host = host;
 		this.directoryMatcher = directoryMatcher;
-		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+		this.caseSensitivity = caseSensitivity;
 	}
 
-	static function prefetchDirectories(host:FS, directoryMatcher:GlobMatcher, useCaseSensitiveFileNames:Bool, basePaths:Array<String>,
+	static function prefetchDirectories(host:FS, directoryMatcher:GlobMatcher, caseSensitivity:CaseSensitivity, basePaths:Array<RootedDirectoryPath>,
 			depth:Int):StringMap<PrefetchedDirectory> {
-		final p = new DirectoryPrefetcher(host, directoryMatcher, useCaseSensitiveFileNames);
+		final p = new DirectoryPrefetcher(host, directoryMatcher, caseSensitivity);
 		final items:Array<PrefetchItem> = [];
 		for (basePath in basePaths) {
 			if (!p.scheduled.exists(basePath)) {
 				p.scheduled.set(basePath, true);
-				items.push(new PrefetchItem(basePath, "", depth));
+				items.push(new PrefetchItem(basePath, cast "", depth));
 			}
 		}
 		for (item in items)
@@ -890,7 +884,7 @@ class DirectoryPrefetcher {
 	function fetch(item:PrefetchItem, children:Array<PrefetchItem>):PrefetchedDirectory {
 		var realPath = item.realPath;
 		if (realPath == "") {
-			realPath = this.host.Realpath(item.path);
+			realPath = Tspath.RootedDirectoryPathFromPath(this.host.Realpath(item.path.AsPath()));
 		}
 		final entries = this.host.GetAccessibleEntries(item.path);
 		final dir = new PrefetchedDirectory(realPath, entries);
@@ -903,24 +897,22 @@ class DirectoryPrefetcher {
 			}
 		}
 
-		// the same spellings as GlobVisitor.visit: its absPrefix + dir and Tspath.CombinePaths(realPath, dir)
-		final absPrefix = Vfsmatch.ensureTrailingSlash(item.path);
+		final absPrefix = Tspath.EnsureTrailingDirectorySeparator(item.path.AsString());
 		if (entries.Directories != null) {
 			for (name in entries.Directories) {
 				if (!this.directoryMatcher.matchesDirectoryParts(absPrefix, name)) {
 					continue;
 				}
-				final childPath = absPrefix + name;
-				var childRealPath = Tspath.CombinePaths(realPath, name);
+				final childPath = item.path.ResolveDirectory(name);
+				var childRealPath = realPath.ResolveDirectory(name);
 				if (entries.Symlinks != null) {
 					if (entries.Symlinks.exists(name)) {
 						continue;
 					}
 				} else {
 					// The host does not report symlinks; resolve the child to find out.
-					final resolved = this.host.Realpath(childPath);
-					if (Tspath.GetCanonicalFileName(resolved, this.useCaseSensitiveFileNames)
-						!= Tspath.GetCanonicalFileName(childRealPath, this.useCaseSensitiveFileNames)) {
+					final resolved = Tspath.RootedDirectoryPathFromPath(this.host.Realpath(childPath.AsPath()));
+					if (this.caseSensitivity.PathKey(resolved.AsPath()) != this.caseSensitivity.PathKey(childRealPath.AsPath())) {
 						continue;
 					}
 					childRealPath = resolved;

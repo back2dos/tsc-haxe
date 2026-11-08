@@ -402,7 +402,7 @@ class BuildTask {
 					final fileInfo = buildInfoFileInfo == null ? null : buildInfoFileInfo.GetFileInfo();
 					if (fileInfo != null && fileInfo.Version() != "") {
 						version = fileInfo.Version();
-						final text = orchestrator.host.FS().ReadFile(resolvedInputPath);
+						final text = orchestrator.host.FS().ReadFile(/* PORT: transitional (main: typed path) */ Tspath.RootedFilePathFromAbsolute(resolvedInputPath));
 						if (text.ok) {
 							currentVersion = Incremental.ComputeHash(text.value, orchestrator.opts.Testing != null);
 							if (version == currentVersion) {
@@ -460,7 +460,7 @@ class BuildTask {
 					var currentVersion = "";
 					final version = buildInfoFileInfo.GetFileInfo().Version();
 					if (version != "") {
-						final text = orchestrator.host.FS().ReadFile(inputFile);
+						final text = orchestrator.host.FS().ReadFile(/* PORT: transitional (main: typed inputFile) */ Tspath.RootedFilePathFromAbsolute(inputFile));
 						if (text.ok) {
 							currentVersion = Incremental.ComputeHash(text.value, orchestrator.opts.Testing != null);
 						}
@@ -702,9 +702,10 @@ class BuildTask {
 		if (inputs.Has(outputPath)) {
 			return;
 		}
-		if (orchestrator.host.FS().FileExists(outputFile)) {
+		// PORT: transitional (main: typed outputFile)
+		if (orchestrator.host.FS().FileExists(Tspath.RootedFilePathFromAbsolute(outputFile))) {
 			if (!orchestrator.opts.Command.BuildOptions.Dry.IsTrue()) {
-				final err = orchestrator.host.FS().Remove(outputFile);
+				final err = orchestrator.host.FS().Remove(Tspath.RootedPathFromAbsolute(outputFile));
 				if (err != null) {
 					this.reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.Failed_to_delete_file_0, outputFile));
 				}
@@ -781,7 +782,7 @@ class BuildTask {
 	}
 
 	function writeFile(orchestrator:Orchestrator, fileName:std.String, text:std.String, data:Null<WriteFileData>):Null<Error> {
-		final err = orchestrator.host.FS().WriteFile(fileName, text);
+		final err = orchestrator.host.FS().WriteFile(/* PORT: transitional (main: typed fileName) */ Tspath.RootedFilePathFromAbsolute(fileName), text);
 		if (err == null) {
 			if (data != null && data.BuildInfo != null) {
 				this.onBuildInfoEmit(orchestrator, fileName, (cast data.BuildInfo : BuildInfo), this.result.program.HasChangedDtsFile());

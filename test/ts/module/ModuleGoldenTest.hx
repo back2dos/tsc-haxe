@@ -150,7 +150,9 @@ class ModuleGoldenTest {
 			o.RootDir = cast str(get(ov, "rootDir"));
 			o.ConfigFilePath = cast str(get(ov, "configFilePath"));
 
-			final resolver = Module.NewResolver(host, o, str(get(s, "typingsLocation")), str(get(s, "projectName")));
+			final typingsLocation = str(get(s, "typingsLocation"));
+			final resolver = Module.NewResolver(host, o, typingsLocation == "" ? cast "" : Tspath.RootedDirectoryPathFromAbsolute(typingsLocation),
+				str(get(s, "projectName")));
 			for (op in get(s, "ops").Items) {
 				final kind = str(get(op, "op"));
 				final opName = str(get(op, "name"));
@@ -191,15 +193,15 @@ class ModuleGoldenTest {
 					case "packageDir":
 						writeModule(resolver.ResolvePackageDirectory(opName, Tspath.RootedFilePathFromAbsolute(from), mode, null));
 					case "config":
-						writeModule(Module.ResolveConfig(opName, from, host));
+						writeModule(Module.ResolveConfig(opName, Tspath.RootedFilePathFromAbsolute(from), host.FS()));
 					case "packageScope":
-						final scope = resolver.GetPackageScopeForPath(dir);
-						out.add('scope: ${q(scope.GetDirectory())} exists: ${b(scope.Exists())}\n');
+						final scope = resolver.GetPackageScopeForPath(Tspath.RootedDirectoryPathFromAbsolute(dir));
+						out.add('scope: ${q(scope == null ? "" : scope.PackageDirectory.String())} exists: ${b(scope.Exists())}\n');
 					case "automaticTypes":
-						final types = Module.GetAutomaticTypeDirectiveNames(o, host);
+						final types = Module.GetAutomaticTypeDirectiveNames(o, host.GetCurrentDirectory(), host.FS());
 						out.add("types: " + (types == null ? "" : types.join(",")) + "\n");
 					case "entrypoints":
-						final scope = resolver.GetPackageScopeForPath(dir);
+						final scope = resolver.GetPackageScopeForPath(Tspath.RootedDirectoryPathFromAbsolute(dir));
 						final ds = get(op, "dirSearch");
 						final eps = resolver.GetEntrypointsFromPackageJsonInfo(scope, str(get(op, "packageName")), ds != null && ds.Kind == "t".code);
 						if (eps != null)

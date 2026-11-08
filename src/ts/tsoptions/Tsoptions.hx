@@ -284,7 +284,7 @@ class Tsoptions {
 	}
 
 	// PORT: readFile returns (string, bool) as ValueOk; the result (string, []*ast.Diagnostic) is a Pair.
-	static function tryReadFile(fileName:std.String, readFile:(std.String) -> ValueOk<std.String>,
+	static function tryReadFile(fileName:RootedFilePath, readFile:(RootedFilePath) -> ValueOk<std.String>,
 			errors:Null<Array<Diagnostic>>):Pair<std.String, Null<Array<Diagnostic>>> {
 		// this function adds a compiler diagnostic if the file cannot be read
 		final r = readFile(fileName);
@@ -295,7 +295,7 @@ class Tsoptions {
 			// !!! Divergence: the returned error will not give a useful message
 			// errors = append(errors, ast.NewCompilerDiagnostic(diagnostics.Cannot_read_file_0_Colon_1, *e));
 			text = "";
-			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Cannot_read_file_0, fileName));
+			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Cannot_read_file_0, fileName.AsString()));
 		}
 		return new Pair<std.String, Null<Array<Diagnostic>>>(text, errors);
 	}
@@ -3032,14 +3032,14 @@ class Tsoptions {
 		final resolverOptions = new CompilerOptions();
 		resolverOptions.ModuleResolution = ModuleResolutionKindBundler;
 		final resolver = ts.module.Module.NewResolver(new ResolverHost(new ContentMapperResolutionHost(fs, /* PORT: transitional, unchecked */ cast Tspath.GetDirectoryPath(containingFile))),
-			resolverOptions, "", "");
+			resolverOptions, cast "", "");
 		final resolved = resolver.ResolvePackageDirectory(packageName, /* PORT: transitional, unchecked */ cast containingFile, ts.core.Core.ResolutionModeNone, null);
 		if (resolved == null || resolved.ResolvedFileName == "") {
 			return new Triple(new Manifest(), "", Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_package_0_could_not_be_resolved, packageName));
 		}
 		final packageDirectory = resolved.ResolvedFileName;
 
-		final packageJsonPath = Tspath.CombinePaths(packageDirectory, "package.json");
+		final packageJsonPath = /* PORT: transitional (main: typed package directory) */ Tspath.RootedDirectoryPathFromAbsolute(packageDirectory).ResolveFile("package.json");
 		final contents = fs.ReadFile(packageJsonPath);
 		if (!contents.ok) {
 			return new Triple(new Manifest(), packageDirectory,
@@ -4569,9 +4569,10 @@ class Tsoptions {
 		}
 		if (Tspath.IsRootedDiskPath(extendedConfig) || StringTools.startsWith(extendedConfig, "./") || StringTools.startsWith(extendedConfig, "../")) {
 			var extendedConfigPath = Tspath.GetNormalizedAbsolutePath(extendedConfig, basePath);
-			if (!host.FS().FileExists(extendedConfigPath) && !StringTools.endsWith(extendedConfigPath, Tspath.ExtensionJson)) {
+			// PORT: transitional (main: typed extendedConfigPath)
+			if (!host.FS().FileExists(Tspath.RootedFilePathFromAbsolute(extendedConfigPath)) && !StringTools.endsWith(extendedConfigPath, Tspath.ExtensionJson)) {
 				extendedConfigPath = extendedConfigPath + Tspath.ExtensionJson;
-				if (!host.FS().FileExists(extendedConfigPath)) {
+				if (!host.FS().FileExists(Tspath.RootedFilePathFromAbsolute(extendedConfigPath))) {
 					errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.File_0_not_found,
 						extendedConfig));
 					return new Pair<std.String, Null<Array<Diagnostic>>>("", errors);
@@ -4580,8 +4581,8 @@ class Tsoptions {
 			return new Pair<std.String, Null<Array<Diagnostic>>>(extendedConfigPath, errors);
 		}
 		// If the path isn't a rooted or relative path, resolve like a module
-		final resolverHost = new ResolverHost(host);
-		final resolved = ts.module.Module.ResolveConfig(extendedConfig, Tspath.CombinePaths(basePath, "tsconfig.json"), resolverHost);
+		final resolved = ts.module.Module.ResolveConfig(extendedConfig,
+			/* PORT: transitional (main: typed basePath) */ Tspath.RootedDirectoryPathFromAbsolute(basePath).ResolveFile("tsconfig.json"), host.FS());
 		if (resolved.IsResolved()) {
 			return new Pair<std.String, Null<Array<Diagnostic>>>(resolved.ResolvedFileName, errors);
 		}
@@ -4952,21 +4953,21 @@ class Tsoptions {
 		return Tspath.GetNormalizedAbsolutePath(configFileName, basePath);
 	}
 
-	static function readJsonConfigFile(fileName:std.String, path:Path,
-			readFile:(fileName:std.String) -> ValueOk<std.String>):Pair<TsConfigSourceFile, Null<Array<Diagnostic>>> {
+	static function readJsonConfigFile(fileName:RootedFilePath, path:Path,
+			readFile:(fileName:RootedFilePath) -> ValueOk<std.String>):Pair<TsConfigSourceFile, Null<Array<Diagnostic>>> {
 		final r = tryReadFile(fileName, readFile, []);
 		final text = r.a;
 		final diagnostic = r.b;
 		if (text != "") {
 			final opts = new SourceFileParseOptions();
-			opts.FileName = /* PORT: transitional, unchecked */ cast fileName;
+			opts.FileName = fileName;
 			opts.Path = path;
 			return new Pair<TsConfigSourceFile, Null<Array<Diagnostic>>>(new TsConfigSourceFile(Parser.ParseSourceFile(opts, text, ScriptKindJSON)),
 				diagnostic);
 		} else {
 			final factory = new NodeFactory();
 			final opts = new SourceFileParseOptions();
-			opts.FileName = /* PORT: transitional, unchecked */ cast fileName;
+			opts.FileName = fileName;
 			opts.Path = path;
 			final file = new TsConfigSourceFile(factory.NewSourceFile(opts, "", factory.NewNodeList([]), factory.NewToken(KindEndOfFile)).AsSourceFile());
 			file.SourceFile.SetDiagnostics(diagnostic);
@@ -5011,7 +5012,7 @@ class Tsoptions {
 	public static function ParseExtendedConfig(fileName:std.String, path:Path, resolutionStack:Null<Array<Path>>, host:ParseConfigHost,
 			extendedConfigCache:Null<ExtendedConfigCache>):ExtendedConfigCacheEntry {
 		final fs = host.FS();
-		final r = readJsonConfigFile(fileName, path, fs.ReadFile);
+		final r = readJsonConfigFile(/* PORT: transitional (main: typed fileName) */ Tspath.RootedFilePathFromAbsolute(fileName), path, fs.ReadFile);
 		final extendedResult = r.a;
 		final readErrors = r.b;
 		final entry = new ExtendedConfigCacheEntry();
@@ -5955,7 +5956,8 @@ class Tsoptions {
 
 		var jsonOnlyIncludeMatchers:Null<SpecMatcher> = null;
 		if (Core.len(validatedIncludeSpecs) > 0) {
-			final files = Vfsmatch.ReadDirectory(host, basePath, basePath, Core.Flatten(supportedExtensionsWithJsonIfResolveJsonModule), validatedExcludeSpecs,
+			final files = Vfsmatch.ReadDirectory(host, /* PORT: transitional (main: typed basePath) */ Tspath.RootedDirectoryPathFromAbsolute(basePath),
+				Core.Flatten(supportedExtensionsWithJsonIfResolveJsonModule), validatedExcludeSpecs,
 				validatedIncludeSpecs, Vfsmatch.UnlimitedDepth);
 			if (files != null) {
 				for (file in files) {
@@ -5964,7 +5966,8 @@ class Tsoptions {
 							final includes = Core.Filter(validatedIncludeSpecs, function(include:std.String):Bool {
 								return StringTools.endsWith(include, Tspath.ExtensionJson);
 							});
-							jsonOnlyIncludeMatchers = Vfsmatch.NewSpecMatcher(includes, basePath, UsageFiles, host.UseCaseSensitiveFileNames());
+							jsonOnlyIncludeMatchers = Vfsmatch.NewSpecMatcher(includes, /* PORT: transitional, unchecked */ cast basePath, UsageFiles,
+								Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames()));
 						}
 						var includeIndex:Int = -1;
 						if (jsonOnlyIncludeMatchers != null) {
@@ -6070,7 +6073,7 @@ class Tsoptions {
 			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>> {
 		var errors:Null<Array<Diagnostic>> = [];
 		final fs = sys.FS();
-		final r = tryReadFile(configFileName, fs.ReadFile, errors);
+		final r = tryReadFile(/* PORT: transitional (main: typed configFileName) */ Tspath.RootedFilePathFromAbsolute(configFileName), fs.ReadFile, errors);
 		final configFileText = r.a;
 		errors = r.b;
 		if (Core.len(errors) > 0) {
@@ -6108,8 +6111,8 @@ class Tsoptions {
 			return null;
 		}
 
-		final excludeMatcher = Vfsmatch.NewSpecMatcher(exclude, comparePathsOptions.CurrentDirectory, UsageExclude,
-			comparePathsOptions.UseCaseSensitiveFileNames);
+		final excludeMatcher = Vfsmatch.NewSpecMatcher(exclude, /* PORT: transitional, unchecked */ cast comparePathsOptions.CurrentDirectory, UsageExclude,
+			comparePathsOptions.caseSensitivity());
 
 		final wildcardDirectories = new StringMap<Bool>();
 		final wildCardKeyToPath = new StringMap<std.String>();

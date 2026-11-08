@@ -1,5 +1,6 @@
 package ts.testutil.harnessutil;
 
+import ts.tspath.RootedPath;
 import go.Time;
 
 // Port of recorderfs.go (type OutputRecorderFS; NewOutputRecorderFS is in Harnessutil.hx).
@@ -13,12 +14,12 @@ class OutputRecorderFS implements FS {
 		this.FS_ = fs;
 	}
 
-	public function WriteFile(path:String, data:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {
 		final err = this.FS_.WriteFile(path, data);
 		if (err != null) {
 			return err;
 		}
-		path = this.Realpath(path);
+		path = Tspath.RootedFilePathFromPath(this.Realpath(path.AsPath()));
 		if (this.outputsMap != null && this.outputsMap.exists(path)) {
 			this.outputs[this.outputsMap.get(path)] = new TestFile(path, data);
 		} else {
@@ -43,33 +44,33 @@ class OutputRecorderFS implements FS {
 	public function UseCaseSensitiveFileNames():Bool
 		return FS_.UseCaseSensitiveFileNames();
 
-	public function FileExists(path:String):Bool
+	public function FileExists(path:RootedFilePath):Bool
 		return FS_.FileExists(path);
 
-	public function ReadFile(path:String):ValueOk<String>
+	public function ReadFile(path:RootedFilePath):ValueOk<String>
 		return FS_.ReadFile(path);
 
-	public function AppendFile(path:String, data:String):Null<Error>
+	public function AppendFile(path:RootedFilePath, data:String):Null<Error>
 		return FS_.AppendFile(path, data);
 
-	public function Remove(path:String):Null<Error>
+	public function Remove(path:RootedPath):Null<Error>
 		return FS_.Remove(path);
 
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error>
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error>
 		return FS_.Chtimes(path, aTime, mTime);
 
-	public function DirectoryExists(path:String):Bool
+	public function DirectoryExists(path:RootedDirectoryPath):Bool
 		return FS_.DirectoryExists(path);
 
-	public function GetAccessibleEntries(path:String):Entries
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries
 		return FS_.GetAccessibleEntries(path);
 
-	public function Stat(path:String):Null<FileInfo>
+	public function Stat(path:RootedPath):Null<FileInfo>
 		return FS_.Stat(path);
 
 	public function WalkDir(root:String, walkFn:WalkDirFunc):Null<Error>
 		return FS_.WalkDir(root, walkFn);
 
-	public function Realpath(path:String):String
+	public function Realpath(path:RootedPath):RootedPath
 		return FS_.Realpath(path);
 }

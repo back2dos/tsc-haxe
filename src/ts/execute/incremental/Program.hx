@@ -293,7 +293,7 @@ class Program implements ProgramLike {
 			data.BuildInfo = buildInfo;
 			err = options.WriteFile(buildInfoFileName, text, data);
 		} else {
-			err = this.program.Host().FS().WriteFile(buildInfoFileName, text);
+			err = this.program.Host().FS().WriteFile(/* PORT: transitional (main: typed buildInfoFileName) */ Tspath.RootedFilePathFromAbsolute(buildInfoFileName), text);
 		}
 		if (err != null) {
 			final r = new EmitResult();
@@ -381,13 +381,13 @@ class Program implements ProgramLike {
 	function ensurePackageJsonsForState():Void {
 		final config = Tspath.GetDirectoryPath(this.program.CommandLine().ConfigName());
 		if (config != "") {
-			this.program.PackageJsonCacheEntries(function(key:Path, value:InfoCacheEntry):Bool {
+			this.program.PackageJsonCacheEntries(function(key:PathKey, value:InfoCacheEntry):Bool {
 				if (value == null) {
 					return true;
 				}
-				var packageJson = Tspath.CombinePaths(value.PackageDirectory, "package.json");
+				var packageJson:std.String = value.PackageDirectory.ResolveFile("package.json");
 				if (value.Exists() || value.DirectoryExists) {
-					packageJson = this.program.Host().FS().Realpath(packageJson);
+					packageJson = this.program.Host().FS().Realpath(value.PackageDirectory.ResolveFile("package.json").AsPath());
 				}
 				if (value.Exists()) {
 					if (this.snapshot.packageJsons == null)
@@ -412,13 +412,13 @@ class Program implements ProgramLike {
 		}
 
 		var packageJsons:Array<std.String> = null;
-		this.program.PackageJsonCacheEntries(function(key:Path, value:InfoCacheEntry):Bool {
+		this.program.PackageJsonCacheEntries(function(key:PathKey, value:InfoCacheEntry):Bool {
 			if (value == null) {
 				return true;
 			}
-			var packageJson = Tspath.CombinePaths(value.PackageDirectory, "package.json");
+			var packageJson:std.String = value.PackageDirectory.ResolveFile("package.json");
 			if (value.Exists() || value.DirectoryExists) {
-				packageJson = this.program.Host().FS().Realpath(packageJson);
+				packageJson = this.program.Host().FS().Realpath(value.PackageDirectory.ResolveFile("package.json").AsPath());
 			}
 			if (packageJsons == null)
 				packageJsons = [];

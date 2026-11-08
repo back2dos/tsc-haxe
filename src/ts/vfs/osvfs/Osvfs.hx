@@ -96,12 +96,10 @@ class Osvfs {
 	}
 
 	@:allow(ts.vfs.osvfs)
-	static function osFSRealpath(path:String):String {
-		Internal.RootLength(path); // Assert path is rooted
-
+	static function osFSRealpath(path:ts.tspath.RootedPath):ts.tspath.RootedPath {
 		final orig = path;
-		path = go.Filepath.FromSlash(path);
-		final rp = ts.nativepath.Nativepath.Realpath(path);
+		var nativePath = go.Filepath.FromSlash(path.AsString());
+		final rp = ts.nativepath.Nativepath.Realpath(nativePath);
 		if (rp.err != null) {
 			return orig;
 		}
@@ -109,7 +107,7 @@ class Osvfs {
 		if (abs.err != null) {
 			return orig;
 		}
-		return Tspath.NormalizeSlashes(abs.value);
+		return Tspath.RootedPathFromAbsolute(abs.value);
 	}
 
 	static function isReparsePoint(path:String):Bool {

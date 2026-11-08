@@ -10,6 +10,7 @@ import ts.core.Core;
 import ts.parser.Parser;
 import ts.spanmap.Spanmap;
 import ts.tspath.Tspath;
+import ts.tspath.RootedPath;
 
 // --- transform.go ---
 
@@ -140,7 +141,7 @@ class Transform {
 	}
 
 	// CheckSupplementalFileNameCollisions rejects compiler-assigned virtual filenames that name physical files.
-	public static function CheckSupplementalFileNameCollisions(files:SourceFiles, fileExists:(String) -> Bool):Null<Error> {
+	public static function CheckSupplementalFileNameCollisions(files:SourceFiles, fileExists:(RootedFilePath) -> Bool):Null<Error> {
 		if (files.Supplemental != null) {
 			for (file in files.Supplemental) {
 				if (fileExists(file.FileName())) {

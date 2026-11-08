@@ -153,8 +153,8 @@ class SymlinksTest {
 					file:Null<SourceFile>) {
 				for (res in resolvedModules) {
 					final resolution = new ResolvedModule();
-					resolution.OriginalPath = res.originalPath;
-					resolution.ResolvedFileName = res.resolvedPath;
+					resolution.OriginalPath = cast res.originalPath;
+					resolution.ResolvedFileName = cast res.resolvedPath;
 					callback(resolution, res.moduleName, res.mode, res.filePath);
 				}
 			};

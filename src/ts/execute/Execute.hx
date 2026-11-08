@@ -113,23 +113,25 @@ class Execute {
 				return new CommandLineResult(ExitStatusDiagnosticsPresent_OutputsSkipped);
 			}
 
-			final fileOrDirectory = Tspath.NormalizePath(commandLine.CompilerOptions().Project);
-			if (sys.FS().DirectoryExists(fileOrDirectory)) {
-				configFileName = Tspath.CombinePaths(fileOrDirectory, "tsconfig.json");
-				if (!sys.FS().FileExists(configFileName)) {
+			final fileOrDirectory = commandLine.CompilerOptions().Project;
+			final directory = Tspath.RootedDirectoryPathFromPath(fileOrDirectory);
+			if (sys.FS().DirectoryExists(directory)) {
+				final typedConfigFileName = directory.ResolveFile("tsconfig.json");
+				configFileName = typedConfigFileName;
+				if (!sys.FS().FileExists(typedConfigFileName)) {
 					reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0, configFileName));
 					return new CommandLineResult(ExitStatusDiagnosticsPresent_OutputsSkipped);
 				}
 			} else {
-				configFileName = fileOrDirectory;
-				if (!sys.FS().FileExists(configFileName)) {
+				final typedConfigFileName = Tspath.RootedFilePathFromPath(fileOrDirectory);
+				configFileName = typedConfigFileName;
+				if (!sys.FS().FileExists(typedConfigFileName)) {
 					reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.The_specified_path_does_not_exist_Colon_0, fileOrDirectory));
 					return new CommandLineResult(ExitStatusDiagnosticsPresent_OutputsSkipped);
 				}
 			}
 		} else if (!commandLine.CompilerOptions().IgnoreConfig.IsTrue() || Core.len(commandLine.FileNames()) == 0) {
-			final searchPath = Tspath.NormalizePath(sys.GetCurrentDirectory());
-			configFileName = findConfigFile(searchPath, sys.FS().FileExists, "tsconfig.json");
+			configFileName = findConfigFile(sys.GetCurrentDirectory(), sys.FS().FileExists, "tsconfig.json");
 			if (Core.len(commandLine.FileNames()) != 0) {
 				if (configFileName != "") {
 					// Error to not specify config file
@@ -193,9 +195,9 @@ class Execute {
 		return performCompilation(sys, configForCompilation, reportDiagnostic, reportErrorSummary, extendedConfigCache, compileTimes, testing);
 	}
 
-	static function findConfigFile(searchPath:std.String, fileExists:(std.String) -> Bool, configName:std.String):std.String {
-		final r = Tspath.ForEachAncestorDirectory(searchPath, function(ancestor:std.String):ValueOk<std.String> {
-			final fullConfigName = Tspath.CombinePaths(ancestor, configName);
+	static function findConfigFile(searchPath:RootedDirectoryPath, fileExists:(RootedFilePath) -> Bool, configName:std.String):std.String {
+		final r = searchPath.ForEachAncestorDirectory(function(ancestor:RootedDirectoryPath):ValueOk<RootedFilePath> {
+			final fullConfigName = ancestor.ResolveFile(configName);
 			if (fileExists(fullConfigName)) {
 				return new ValueOk(fullConfigName, true);
 			}

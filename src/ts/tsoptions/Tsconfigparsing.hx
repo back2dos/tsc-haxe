@@ -53,8 +53,8 @@ class ConfigFileSpecs {
 		if (Core.len(this.validatedExcludeSpecs) == 0) {
 			return false;
 		}
-		final excludeMatcher = Vfsmatch.NewSpecMatcher(this.validatedExcludeSpecs, comparePathsOptions.CurrentDirectory, UsageExclude,
-			comparePathsOptions.UseCaseSensitiveFileNames);
+		final excludeMatcher = Vfsmatch.NewSpecMatcher(this.validatedExcludeSpecs, /* PORT: transitional, unchecked */ cast comparePathsOptions.CurrentDirectory,
+			UsageExclude, comparePathsOptions.caseSensitivity());
 		if (excludeMatcher == null) {
 			return false;
 		}
@@ -75,8 +75,8 @@ class ConfigFileSpecs {
 		}
 		for (index in 0...this.validatedIncludeSpecs.length) {
 			final spec = this.validatedIncludeSpecs[index];
-			final includeMatcher = Vfsmatch.NewSpecMatcher([spec], comparePathsOptions.CurrentDirectory, UsageFiles,
-				comparePathsOptions.UseCaseSensitiveFileNames);
+			final includeMatcher = Vfsmatch.NewSpecMatcher([spec], /* PORT: transitional, unchecked */ cast comparePathsOptions.CurrentDirectory, UsageFiles,
+				comparePathsOptions.caseSensitivity());
 			if (includeMatcher != null && includeMatcher.MatchString(fileName)) {
 				return this.validatedIncludeSpecsBeforeSubstitution[index];
 			}

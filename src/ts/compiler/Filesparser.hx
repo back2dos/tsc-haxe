@@ -84,7 +84,7 @@ class ParseTask implements HasFileName {
 			final compilerOptions = loader.opts.Config.CompilerOptions();
 			final allowNonTsExtensions = compilerOptions.AllowNonTsExtensions.IsTrue();
 			if (!allowNonTsExtensions) {
-				final canonicalFileName = Tspath.GetCanonicalFileName(this.normalizedFilePath, loader.opts.Host.FS().UseCaseSensitiveFileNames());
+				final canonicalFileName:std.String = this.path;
 				if (!loader.isSupportedExtension(canonicalFileName)) {
 					if (this.processingDiagnostics == null)
 						this.processingDiagnostics = [];
@@ -320,7 +320,7 @@ class FilesParser {
 			#if tshx_parallel
 			// PORT: perf — a loaded path's file is parsed or queued already (this task only records its casing
 			// and depth): no size needed
-			final info = tasks.length > 1 && !loaded ? loader.opts.Host.FS().Stat(task.normalizedFilePath) : null;
+			final info = tasks.length > 1 && !loaded ? loader.opts.Host.FS().Stat(task.normalizedFilePath.AsPath()) : null;
 			sizes.push(info != null ? info.Size() : 0);
 			queued.push(() -> this.runTaskLocked(loader, task, data, loaded, depth));
 			#else

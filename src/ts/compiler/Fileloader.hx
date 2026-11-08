@@ -163,7 +163,7 @@ class FileLoader {
 		var typeResolutionsInFile:ModeAwareCache<ResolvedTypeReferenceDirective> = null;
 		var typeResolutionsTrace:Array<DiagAndArgs> = null;
 		var pDiagnostics:Array<ProcessingDiagnostic> = null;
-		final automaticTypeDirectiveNames = Module.GetAutomaticTypeDirectiveNames(this.opts.Config.CompilerOptions(), this.opts.Host);
+		final automaticTypeDirectiveNames = Module.GetAutomaticTypeDirectiveNames(this.opts.Config.CompilerOptions(), this.opts.Host.GetCurrentDirectory(), this.opts.Host.FS());
 		if (Core.len(automaticTypeDirectiveNames) != 0) {
 			toParse = [];
 			typeResolutionsInFile = new ModeAwareCache<ResolvedTypeReferenceDirective>();
@@ -190,8 +190,8 @@ class FileLoader {
 				}
 				if (resolved.IsResolved()) {
 					final ref = new ResolvedRef();
-					ref.fileName = /* PORT: transitional, unchecked */ cast resolved.ResolvedFileName;
-					ref.path = this.caseSensitivity.PathKey(ref.fileName.AsPath());
+					ref.fileName = resolved.ResolvedFileName;
+					ref.path = resolved.ResolvedPath;
 					ref.increaseDepth = resolved.IsExternalLibraryImport;
 					ref.elideOnDepth = false;
 					ref.includeReason = new FileIncludeReason(fileIncludeKindAutomaticTypeDirectiveFile, new AutomaticTypeDirectiveFileData(name, resolved.PackageId));
@@ -257,13 +257,13 @@ class FileLoader {
 		return Tsoptions.Libs.length + 2;
 	}
 
-	function loadSourceFileMetaData(fileName:std.String):SourceFileMetaData {
-		final packageJsonScope = this.resolver.GetPackageScopeForPath(Tspath.GetDirectoryPath(fileName));
+	function loadSourceFileMetaData(fileName:RootedFilePath):SourceFileMetaData {
+		final packageJsonScope = this.resolver.GetPackageScopeForPath(fileName.Directory());
 		final moduleResolutionKind = this.opts.Config.CompilerOptions().GetModuleResolutionKind();
 
 		var packageJsonType = "", packageJsonDirectory = "";
 		if (packageJsonScope.Exists()) {
-			packageJsonDirectory = packageJsonScope.PackageDirectory;
+			packageJsonDirectory = packageJsonScope.PackageDirectory.AsDirectoryPath();
 			final v = packageJsonScope.Contents.Type.GetValue();
 			final value = v.value, ok = v.ok;
 			if (ok) {
@@ -560,8 +560,8 @@ class FileLoader {
 
 				if (resolved.IsResolved()) {
 					final r = new ResolvedRef();
-					r.fileName = /* PORT: transitional, unchecked */ cast resolved.ResolvedFileName;
-					r.path = this.caseSensitivity.PathKey(r.fileName.AsPath());
+					r.fileName = resolved.ResolvedFileName;
+					r.path = resolved.ResolvedPath;
 					r.increaseDepth = resolved.IsExternalLibraryImport;
 					r.elideOnDepth = false;
 					r.includeReason = includeReason;
@@ -692,9 +692,8 @@ class FileLoader {
 					continue;
 				}
 
-				final resolvedFileName:RootedFilePath = /* PORT: transitional, unchecked */ cast resolvedModule.ResolvedFileName;
-				// PORT: main takes resolvedModule.ResolvedPath from the resolver
-				final resolvedPath = resolvedFileName == "" ? (cast "" : PathKey) : this.caseSensitivity.PathKey(resolvedFileName.AsPath());
+				final resolvedFileName = resolvedModule.ResolvedFileName;
+				final resolvedPath = resolvedModule.ResolvedPath;
 				final isFromNodeModulesSearch = resolvedModule.IsExternalLibraryImport;
 				// Don't treat redirected files as JS files.
 				final isJsFile = !resolvedFileName.ExtensionIsOneOf(Tspath.SupportedTSExtensionsWithJsonFlat)
@@ -776,8 +775,8 @@ class FileLoader {
 			final rr = this.resolveLibrary(libraryName, resolveFrom);
 			final resolution = rr.a, trace = rr.b;
 			if (resolution.IsResolved()) {
-				path = /* PORT: transitional, unchecked */ cast resolution.ResolvedFileName;
-				pathKey = this.caseSensitivity.PathKey(path.AsPath());
+				path = resolution.ResolvedFileName;
+				pathKey = resolution.ResolvedPath;
 				replaced = true;
 			}
 			final key:std.String = this.toPath(resolveFrom.AsPath());

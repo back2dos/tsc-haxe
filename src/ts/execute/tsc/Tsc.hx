@@ -728,7 +728,7 @@ class Tsc {
 
 	public static function WriteConfigFile(sys:System, locale:Locale, reportDiagnostic:DiagnosticReporter, options:OrderedMap<std.String, Dynamic>):Void {
 		final getCurrentDirectory = sys.GetCurrentDirectory();
-		final file = Tspath.NormalizePath(Tspath.CombinePaths(getCurrentDirectory, "tsconfig.json"));
+		final file = getCurrentDirectory.ResolveFile("tsconfig.json");
 		if (sys.FS().FileExists(file)) {
 			reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.A_tsconfig_json_file_is_already_defined_at_Colon_0, file));
 		} else {

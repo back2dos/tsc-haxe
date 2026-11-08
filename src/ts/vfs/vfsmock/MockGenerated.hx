@@ -1,5 +1,6 @@
 package ts.vfs.vfsmock;
 
+import ts.tspath.RootedPath;
 import go.Errors.Error;
 import go.Time;
 import go.Tuple.ValueOk;
@@ -168,7 +169,7 @@ class FSMock implements FS {
 	public function new() {}
 
 	// AppendFile calls AppendFileFunc.
-	public function AppendFile(path:String, data:String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, data:String):Null<Error> {
 		if (this.AppendFileFunc == null) {
 			throw "FSMock.AppendFileFunc: method is nil but FS.AppendFile was just called";
 		}
@@ -183,7 +184,7 @@ class FSMock implements FS {
 	}
 
 	// Chtimes calls ChtimesFunc.
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error> {
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
 		if (this.ChtimesFunc == null) {
 			throw "FSMock.ChtimesFunc: method is nil but FS.Chtimes was just called";
 		}
@@ -198,7 +199,7 @@ class FSMock implements FS {
 	}
 
 	// DirectoryExists calls DirectoryExistsFunc.
-	public function DirectoryExists(path:String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		if (this.DirectoryExistsFunc == null) {
 			throw "FSMock.DirectoryExistsFunc: method is nil but FS.DirectoryExists was just called";
 		}
@@ -213,7 +214,7 @@ class FSMock implements FS {
 	}
 
 	// FileExists calls FileExistsFunc.
-	public function FileExists(path:String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		if (this.FileExistsFunc == null) {
 			throw "FSMock.FileExistsFunc: method is nil but FS.FileExists was just called";
 		}
@@ -228,7 +229,7 @@ class FSMock implements FS {
 	}
 
 	// GetAccessibleEntries calls GetAccessibleEntriesFunc.
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		if (this.GetAccessibleEntriesFunc == null) {
 			throw "FSMock.GetAccessibleEntriesFunc: method is nil but FS.GetAccessibleEntries was just called";
 		}
@@ -243,7 +244,7 @@ class FSMock implements FS {
 	}
 
 	// ReadFile calls ReadFileFunc.
-	public function ReadFile(path:String):ValueOk<String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
 		if (this.ReadFileFunc == null) {
 			throw "FSMock.ReadFileFunc: method is nil but FS.ReadFile was just called";
 		}
@@ -258,7 +259,7 @@ class FSMock implements FS {
 	}
 
 	// Realpath calls RealpathFunc.
-	public function Realpath(path:String):String {
+	public function Realpath(path:RootedPath):RootedPath {
 		if (this.RealpathFunc == null) {
 			throw "FSMock.RealpathFunc: method is nil but FS.Realpath was just called";
 		}
@@ -273,7 +274,7 @@ class FSMock implements FS {
 	}
 
 	// Remove calls RemoveFunc.
-	public function Remove(path:String):Null<Error> {
+	public function Remove(path:RootedPath):Null<Error> {
 		if (this.RemoveFunc == null) {
 			throw "FSMock.RemoveFunc: method is nil but FS.Remove was just called";
 		}
@@ -288,7 +289,7 @@ class FSMock implements FS {
 	}
 
 	// Stat calls StatFunc.
-	public function Stat(path:String):Null<FileInfo> {
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		if (this.StatFunc == null) {
 			throw "FSMock.StatFunc: method is nil but FS.Stat was just called";
 		}
@@ -333,7 +334,7 @@ class FSMock implements FS {
 	}
 
 	// WriteFile calls WriteFileFunc.
-	public function WriteFile(path:String, data:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {
 		if (this.WriteFileFunc == null) {
 			throw "FSMock.WriteFileFunc: method is nil but FS.WriteFile was just called";
 		}

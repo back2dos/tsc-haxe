@@ -175,7 +175,7 @@ class ProjectReferenceFileMapper {
 			if (fileName.indexOf("/node_modules/") < 0) {
 				this.realpathDtsToSource.set(path, null);
 			} else {
-				final realDeclarationPath = this.loader.toPath(/* PORT: transitional, unchecked */ cast this.host.FS().Realpath(fileName));
+				final realDeclarationPath = this.loader.toPath(this.host.FS().Realpath(fileName.AsPath()));
 				if (realDeclarationPath == path) {
 					this.realpathDtsToSource.set(path, null);
 				} else {

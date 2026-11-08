@@ -1,5 +1,6 @@
 package ts.bundled;
 
+import ts.tspath.RootedPath;
 import go.Errors.Error;
 import go.Fs.FileMode;
 import go.Time;
@@ -23,7 +24,7 @@ class WrappedFS implements FS {
 		return this.fs.UseCaseSensitiveFileNames();
 	}
 
-	public function FileExists(path:String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		final r = Bundled.splitPath(path);
 		if (r.ok) {
 			return Bundled.embeddedContentsExists(r.value);
@@ -31,7 +32,7 @@ class WrappedFS implements FS {
 		return this.fs.FileExists(path);
 	}
 
-	public function ReadFile(path:String):ValueOk<String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
 		final r = Bundled.splitPath(path);
 		if (r.ok) {
 			final contents = Bundled.embeddedContentsGet(r.value);
@@ -40,7 +41,7 @@ class WrappedFS implements FS {
 		return this.fs.ReadFile(path);
 	}
 
-	public function DirectoryExists(path:String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		final r = Bundled.splitPath(path);
 		if (r.ok) {
 			return r.value == "libs";
@@ -48,7 +49,7 @@ class WrappedFS implements FS {
 		return this.fs.DirectoryExists(path);
 	}
 
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		final r = Bundled.splitPath(path);
 		if (r.ok) {
 			final result = new Entries();
@@ -63,7 +64,7 @@ class WrappedFS implements FS {
 		return this.fs.GetAccessibleEntries(path);
 	}
 
-	public function Stat(path:String):Null<go.Fs.FileInfo> {
+	public function Stat(path:RootedPath):Null<go.Fs.FileInfo> {
 		final r = Bundled.splitPath(path);
 		if (r.ok) {
 			final rest = r.value;
@@ -130,35 +131,35 @@ class WrappedFS implements FS {
 		return null;
 	}
 
-	public function Realpath(path:String):String {
+	public function Realpath(path:RootedPath):RootedPath {
 		if (Bundled.splitPath(path).ok) {
 			return path;
 		}
 		return this.fs.Realpath(path);
 	}
 
-	public function WriteFile(path:String, data:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {
 		if (Bundled.splitPath(path).ok) {
 			throw "cannot write to embedded file system";
 		}
 		return this.fs.WriteFile(path, data);
 	}
 
-	public function AppendFile(path:String, data:String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, data:String):Null<Error> {
 		if (Bundled.splitPath(path).ok) {
 			throw "cannot write to embedded file system";
 		}
 		return this.fs.AppendFile(path, data);
 	}
 
-	public function Remove(path:String):Null<Error> {
+	public function Remove(path:RootedPath):Null<Error> {
 		if (Bundled.splitPath(path).ok) {
 			throw "cannot remove from embedded file system";
 		}
 		return this.fs.Remove(path);
 	}
 
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error> {
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
 		if (Bundled.splitPath(path).ok) {
 			throw "cannot change times on embedded file system";
 		}

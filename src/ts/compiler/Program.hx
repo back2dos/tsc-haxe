@@ -10,7 +10,7 @@ class ProgramOptions {
 	public var UseSourceOfProjectReference:Bool = false;
 	public var SingleThreaded:Tristate = TSUnknown;
 	public var CreateCheckerPool:(Program) -> CheckerPool = null;
-	public var TypingsLocation:std.String = "";
+	public var TypingsLocation:RootedDirectoryPath = cast "";
 	public var ProjectName:std.String = "";
 	public var Tracing:Tracing = null;
 
@@ -234,7 +234,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	// FileExists implements checker.Program.
 	public function FileExists(path:std.String):Bool {
-		return this.Host().FS().FileExists(path);
+		return this.Host().FS().FileExists(/* PORT: transitional (main: typed path) */ Tspath.RootedFilePathFromAbsolute(path));
 	}
 
 	// GetCurrentDirectory implements checker.Program.
@@ -249,25 +249,31 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	// GetNearestAncestorDirectoryWithPackageJson implements checker.Program.
 	public function GetNearestAncestorDirectoryWithPackageJson(dirname:std.String):std.String {
-		final scoped = this.resolver.GetPackageScopeForPath(dirname);
+		final scoped = this.resolver.GetPackageScopeForPath(/* PORT: transitional (main: typed dirname) */ this.toRootedDirectoryPath(dirname));
 		if (scoped != null && scoped.Exists()) {
-			return scoped.PackageDirectory;
+			return scoped.PackageDirectory.AsDirectoryPath();
 		}
 		return "";
 	}
 
 	// GetPackageJsonInfo implements checker.Program.
 	public function GetPackageJsonInfo(pkgJsonPath:std.String):InfoCacheEntry {
-		final directory = Tspath.GetDirectoryPath(pkgJsonPath);
+		final directory = /* PORT: transitional (main: typed pkgJsonPath) */ this.toRootedDirectoryPath(Tspath.GetDirectoryPath(pkgJsonPath));
 		final scoped = this.resolver.GetPackageScopeForPath(directory);
-		if (scoped != null && scoped.Exists() && scoped.PackageDirectory == directory) {
+		if (scoped != null && scoped.Exists() && scoped.PackageDirectory.AsDirectoryPath() == directory) {
 			return scoped;
 		}
 		return null;
 	}
 
+	// PORT: transitional — the module specifier host's paths are strings, possibly relative to the current
+	// directory (the 7.0.2 resolver keyed its package.json cache with ToPath against the current directory).
+	function toRootedDirectoryPath(directory:std.String):RootedDirectoryPath {
+		return Tspath.ToRootedDirectoryPath(directory == "" ? "." : directory, this.GetCurrentDirectory());
+	}
+
 	// PackageJsonCacheEntries iterates on all package json cache entries.
-	public function PackageJsonCacheEntries(f:(key:Path, value:InfoCacheEntry) -> Bool):Void {
+	public function PackageJsonCacheEntries(f:(key:PathKey, value:InfoCacheEntry) -> Bool):Void {
 		this.resolver.PackageJsonCacheEntries(f);
 	}
 
@@ -2230,7 +2236,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 							var name = resolvedModule.PackageId.Name;
 							if (name == "") {
 								// 2. GetPackageScopeForPath - get name from package.json in the package directory
-								final packageScope = this.resolver.GetPackageScopeForPath(resolvedModule.ResolvedFileName);
+								final packageScope = this.resolver.GetPackageScopeForPath(resolvedModule.ResolvedFileName.Directory());
 								if (packageScope != null && packageScope.Exists()) {
 									final v = packageScope.Contents.Name.GetValue();
 									if (v.ok) {
@@ -2250,7 +2256,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 								// map, so auto-import can only find them via recursive directory search.
 								final rest = Module.ParsePackageName(imp.Text()).b;
 								if (rest != "") {
-									final scope = this.resolver.GetPackageScopeForPath(resolvedModule.ResolvedFileName);
+									final scope = this.resolver.GetPackageScopeForPath(resolvedModule.ResolvedFileName.Directory());
 									if (scope != null && scope.Exists() && !scope.Contents.Exports.IsPresent()) {
 										packageNames.deepImportPackages.Add(Module.GetPackageNameFromTypesPackageName(name));
 									}

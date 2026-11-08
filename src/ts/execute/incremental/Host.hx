@@ -26,6 +26,6 @@ class Host_ implements Host {
 	}
 
 	public function SetMTime(fileName:std.String, mTime:Time):Null<Error> {
-		return this.host.FS().Chtimes(fileName, Time.Zero(), mTime);
+		return this.host.FS().Chtimes(/* PORT: transitional (main: typed fileName) */ Tspath.RootedPathFromAbsolute(fileName), Time.Zero(), mTime);
 	}
 }

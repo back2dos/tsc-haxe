@@ -32,7 +32,7 @@ class TracingTest {
 	static function TestConcurrentDurationEventsUseSeparateThreadIDs() {
 		final fsys = newFS();
 
-		final r = Tracing.StartTracing(fsys, "/trace", "", true /*deterministic*/);
+		final r = Tracing.StartTracing(fsys, Tspath.RootedDirectoryPathFromNormalized("/trace"), "", true /*deterministic*/);
 		T.isTrue(r.err == null);
 		final tr = r.value;
 
@@ -89,7 +89,7 @@ class TracingTest {
 	static function traceThreadIDsForPaths(paths:Array<String>):StringMap<Int> {
 		final fsys = newFS();
 
-		final r = Tracing.StartTracing(fsys, "/trace", "", true /*deterministic*/);
+		final r = Tracing.StartTracing(fsys, Tspath.RootedDirectoryPathFromNormalized("/trace"), "", true /*deterministic*/);
 		T.isTrue(r.err == null);
 		final tr = r.value;
 
@@ -185,7 +185,7 @@ class TracingTest {
 	// Mirror of tracing_golden.go.txt.
 	static function TestGoldenOutput() {
 		final fsys = newFS();
-		final r = Tracing.StartTracing(fsys, "/trace", "/p/tsconfig.json", true);
+		final r = Tracing.StartTracing(fsys, Tspath.RootedDirectoryPathFromNormalized("/trace"), "/p/tsconfig.json", true);
 		T.isTrue(r.err == null);
 		final tr = r.value;
 		final endA = tr.Push(PhaseParse, "createSourceFile", args(["path", "/a.ts"]), true);

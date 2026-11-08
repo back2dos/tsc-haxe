@@ -4,40 +4,42 @@ import go.Errors.Error;
 import go.Time;
 import go.Tuple.ValueOk;
 import haxe.ds.StringMap;
+import ts.tspath.RootedPath;
 
 // Port of vfs.go.
 
-// FS is a file system abstraction.
+// FS is a file system abstraction over rooted, normalized paths. Operations
+// declare whether they require a file, directory, or either kind of path.
 interface FS {
 	// UseCaseSensitiveFileNames returns true if the file system is case-sensitive.
 	function UseCaseSensitiveFileNames():Bool;
 
 	// FileExists returns true if the file exists.
-	function FileExists(path:String):Bool;
+	function FileExists(path:RootedFilePath):Bool;
 
 	// ReadFile reads the file specified by path and returns the content.
 	// If the file fails to be read, ok will be false.
-	function ReadFile(path:String):ValueOk<String>;
+	function ReadFile(path:RootedFilePath):ValueOk<String>;
 
-	function WriteFile(path:String, data:String):Null<Error>;
+	function WriteFile(path:RootedFilePath, data:String):Null<Error>;
 
 	// AppendFile appends data to the file at path, creating it if it does not exist.
-	function AppendFile(path:String, data:String):Null<Error>;
+	function AppendFile(path:RootedFilePath, data:String):Null<Error>;
 
 	// Removes `path` and all its contents. Will return the first error it encounters.
-	function Remove(path:String):Null<Error>;
+	function Remove(path:RootedPath):Null<Error>;
 
 	// Chtimes changes the access and modification times of the named
-	function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error>;
+	function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error>;
 
 	// DirectoryExists returns true if the path is a directory.
-	function DirectoryExists(path:String):Bool;
+	function DirectoryExists(path:RootedDirectoryPath):Bool;
 
 	// GetAccessibleEntries returns the files/directories in the specified directory.
 	// If any entry is a symlink, it will be followed.
-	function GetAccessibleEntries(path:String):Entries;
+	function GetAccessibleEntries(path:RootedDirectoryPath):Entries;
 
-	function Stat(path:String):Null<FileInfo>;
+	function Stat(path:RootedPath):Null<FileInfo>;
 
 	// WalkDir walks the file tree rooted at root, calling walkFn for each file or directory in the tree.
 	// It is has the same behavior as [fs.WalkDir], but with paths as [string].
@@ -45,7 +47,7 @@ interface FS {
 
 	// Realpath returns the "real path" of the specified path,
 	// following symlinks and correcting filename casing.
-	function Realpath(path:String):String;
+	function Realpath(path:RootedPath):RootedPath;
 }
 
 // PORT: Go `Entries` is a struct returned by value; it is never mutated after it is built,

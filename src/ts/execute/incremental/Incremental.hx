@@ -39,7 +39,7 @@ class Incremental {
 	}
 
 	public static function GetMTime(host:CompilerHost, fileName:std.String):Time {
-		final stat = host.FS().Stat(fileName);
+		final stat = host.FS().Stat(/* PORT: transitional (main: typed fileName) */ Tspath.RootedPathFromAbsolute(fileName));
 		var mTime = Time.Zero();
 		if (stat != null) {
 			mTime = stat.ModTime();
@@ -715,7 +715,7 @@ class BuildInfoReader_ implements BuildInfoReader {
 		}
 
 		// Read build info file
-		final r = this.host.FS().ReadFile(buildInfoFileName);
+		final r = this.host.FS().ReadFile(/* PORT: transitional (main: typed buildInfoFileName) */ Tspath.RootedFilePathFromAbsolute(buildInfoFileName));
 		if (!r.ok) {
 			return null;
 		}

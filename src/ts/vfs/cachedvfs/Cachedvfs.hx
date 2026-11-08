@@ -1,5 +1,6 @@
 package ts.vfs.cachedvfs;
 
+import ts.tspath.RootedPath;
 import go.Errors.Error;
 import go.Time;
 import go.Tuple.ValueOk;
@@ -25,7 +26,7 @@ class FS implements ts.vfs.Vfs.FS {
 	final directoryExistsCache = new SyncMap<String, Bool>(false);
 	final fileExistsCache = new SyncMap<String, Bool>(false);
 	final getAccessibleEntriesCache = new SyncMap<String, Entries>();
-	final realpathCache = new SyncMap<String, String>("");
+	final realpathCache = new SyncMap<String, RootedPath>(cast "");
 	final statCache = new SyncMap<String, FileInfo>();
 
 	@:allow(ts.vfs.cachedvfs)
@@ -53,7 +54,7 @@ class FS implements ts.vfs.Vfs.FS {
 		this.statCache.Clear();
 	}
 
-	public function DirectoryExists(path:String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		if (this.enabled) {
 			final r = this.directoryExistsCache.Load(path);
 			if (r.ok) {
@@ -70,7 +71,7 @@ class FS implements ts.vfs.Vfs.FS {
 		return ret;
 	}
 
-	public function FileExists(path:String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		if (this.enabled) {
 			final r = this.fileExistsCache.Load(path);
 			if (r.ok) {
@@ -87,7 +88,7 @@ class FS implements ts.vfs.Vfs.FS {
 		return ret;
 	}
 
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		if (this.enabled) {
 			final r = this.getAccessibleEntriesCache.Load(path);
 			if (r.ok) {
@@ -104,11 +105,11 @@ class FS implements ts.vfs.Vfs.FS {
 		return ret;
 	}
 
-	public function ReadFile(path:String):ValueOk<String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
 		return this.fs.ReadFile(path);
 	}
 
-	public function Realpath(path:String):String {
+	public function Realpath(path:RootedPath):RootedPath {
 		if (this.enabled) {
 			final r = this.realpathCache.Load(path);
 			if (r.ok) {
@@ -125,15 +126,15 @@ class FS implements ts.vfs.Vfs.FS {
 		return ret;
 	}
 
-	public function Remove(path:String):Null<Error> {
+	public function Remove(path:RootedPath):Null<Error> {
 		return this.fs.Remove(path);
 	}
 
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error> {
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
 		return this.fs.Chtimes(path, aTime, mTime);
 	}
 
-	public function Stat(path:String):Null<FileInfo> {
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		if (this.enabled) {
 			final r = this.statCache.Load(path);
 			if (r.ok) {
@@ -158,11 +159,11 @@ class FS implements ts.vfs.Vfs.FS {
 		return this.fs.WalkDir(root, walkFn);
 	}
 
-	public function WriteFile(path:String, data:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {
 		return this.fs.WriteFile(path, data);
 	}
 
-	public function AppendFile(path:String, data:String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, data:String):Null<Error> {
 		return this.fs.AppendFile(path, data);
 	}
 }

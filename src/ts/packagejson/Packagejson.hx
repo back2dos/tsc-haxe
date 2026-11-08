@@ -18,8 +18,27 @@ class Packagejson {
 		return typeScriptVersion_;
 	}
 
-	public static function NewInfoCache(currentDirectory:String, useCaseSensitiveFileNames:Bool):InfoCache {
-		return new InfoCache(currentDirectory, useCaseSensitiveFileNames);
+	public static function NewInfoCache(caseSensitivity:CaseSensitivity):InfoCache {
+		return new InfoCache(caseSensitivity);
+	}
+
+	// ForEachAncestorDirectoryStoppingAtGlobalCache calls callback for directory
+	// and its ancestors while advancing presentation and canonical identity
+	// together.
+	// PORT: callback returns Go (result T, stop bool) as go.ValueOk<T> (ok = stop); zero T is null.
+	public static function ForEachAncestorDirectoryStoppingAtGlobalCache<T>(globalCache:RootedDirectoryPath, directory:PackageDirectory,
+			callback:(directory:PackageDirectory) -> ValueOk<T>):T {
+		while (true) {
+			final r = callback(directory);
+			if (r.ok || directory.AsDirectoryPath() == globalCache) {
+				return r.value;
+			}
+			final parent = directory.Parent();
+			if (parent == directory) {
+				return null;
+			}
+			directory = parent;
+		}
 	}
 
 	// --- expected.go ---

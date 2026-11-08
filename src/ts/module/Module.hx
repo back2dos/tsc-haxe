@@ -5,8 +5,8 @@ package ts.module;
 class Module {
 	// --- cache.go ---
 
-	static function newCaches(currentDirectory:String, useCaseSensitiveFileNames:Bool, options:CompilerOptions):Caches {
-		return new Caches(Packagejson.NewInfoCache(currentDirectory, useCaseSensitiveFileNames));
+	static function newCaches(caseSensitivity:CaseSensitivity, options:CompilerOptions):Caches {
+		return new Caches(Packagejson.NewInfoCache(caseSensitivity));
 	}
 
 	static function getRedirectConfigName(redirect:Null<ResolvedProjectReference>):String {
@@ -77,28 +77,43 @@ class Module {
 		return compilerOptions;
 	}
 
-	public static function NewResolver(host:ResolutionHost, options:CompilerOptions, typingsLocation:String, projectName:String):Resolver {
+	// PORT: main's ResolutionData.NewResolver: the resolver keeps the host's FS and base directory.
+	static function initResolver(r:Resolver, host:ResolutionHost):Void {
+		final fs = host.FS();
+		final baseDirectory = host.GetCurrentDirectory();
+		if (baseDirectory == "") {
+			throw "resolver must have a rooted base directory";
+		}
+		r.fs = fs;
+		r.baseDirectory = baseDirectory;
+		r.caseSensitivity = Tspath.caseSensitivityOf(fs.UseCaseSensitiveFileNames());
+		if (r.caches.packageJsonInfoCache.CaseSensitivity() != r.caseSensitivity) {
+			throw "package JSON cache and resolver must use the same case sensitivity";
+		}
+	}
+
+	public static function NewResolver(host:ResolutionHost, options:CompilerOptions, typingsLocation:RootedDirectoryPath, projectName:String):Resolver {
 		final r = new Resolver();
-		r.host = host;
-		r.caches = newCaches(host.GetCurrentDirectory(), host.FS().UseCaseSensitiveFileNames(), options);
+		r.caches = newCaches(Tspath.caseSensitivityOf(host.FS().UseCaseSensitiveFileNames()), options);
 		r.compilerOptions = options;
 		r.typingsLocation = typingsLocation;
 		r.projectName = projectName;
+		initResolver(r, host);
 		return r;
 	}
 
-	public static function NewResolverWithOptions(host:ResolutionHost, compilerOptions:CompilerOptions, typingsLocation:String, projectName:String,
-			opts:ResolverOptions):Resolver {
+	public static function NewResolverWithOptions(host:ResolutionHost, compilerOptions:CompilerOptions, typingsLocation:RootedDirectoryPath,
+			projectName:String, opts:ResolverOptions):Resolver {
 		final r = new Resolver();
-		r.host = host;
 		r.compilerOptions = compilerOptions;
 		r.typingsLocation = typingsLocation;
 		r.projectName = projectName;
 		if (opts.PackageJsonCache != null) {
 			r.caches.packageJsonInfoCache = opts.PackageJsonCache;
 		} else {
-			r.caches = newCaches(host.GetCurrentDirectory(), host.FS().UseCaseSensitiveFileNames(), compilerOptions);
+			r.caches = newCaches(Tspath.caseSensitivityOf(host.FS().UseCaseSensitiveFileNames()), compilerOptions);
 		}
+		initResolver(r, host);
 		return r;
 	}
 
@@ -214,9 +229,7 @@ class Module {
 	// to look inside of it. The Node CommonJS resolution algorithm doesn't call this out
 	// (https://nodejs.org/api/modules.html#all-together), but it seems that module paths ending
 	// in `.` are actually normalized to `./` before proceeding with the resolution algorithm.
-	// PORT: main returns a resolutionCandidate; this port's candidates are still strings: the candidate's
-	// AsString() (its path, with a trailing separator when it is directory-only).
-	static function normalizePathForCJSResolution(containingDirectory:RootedDirectoryPath, moduleName:String):String {
+	static function normalizePathForCJSResolution(containingDirectory:RootedDirectoryPath, moduleName:String):ResolutionCandidate {
 		// trimmedModuleName := strings.TrimRight(moduleName, `/\`); lastPart after its last separator
 		var end = moduleName.length;
 		while (end > 0 && (StringTools.fastCodeAt(moduleName, end - 1) == '/'.code || StringTools.fastCodeAt(moduleName, end - 1) == '\\'.code)) {
@@ -229,10 +242,10 @@ class Module {
 		final n = end - start;
 		final lastPartIsDots = (n == 1 || n == 2) && StringTools.fastCodeAt(moduleName, start) == '.'.code
 			&& (n == 1 || StringTools.fastCodeAt(moduleName, start + 1) == '.'.code);
-		// resolutionCandidateFromDirectoryPath (disk paths: no dynamic URI encoding)
-		final path:String = Tspath.HasTrailingDirectorySeparator(moduleName) ? containingDirectory.ResolveDirectory(moduleName) : containingDirectory.ResolveFile(moduleName);
-		final directoryOnly = end != moduleName.length || lastPartIsDots || Tspath.HasTrailingDirectorySeparator(path);
-		return directoryOnly ? Tspath.EnsureTrailingDirectorySeparator(path) : path;
+		final candidate = ResolutionCandidate.FromDirectoryPath(containingDirectory, moduleName);
+		final directoryOnly = end != moduleName.length || lastPartIsDots || Tspath.HasTrailingDirectorySeparator(candidate.path.AsString());
+		candidate.directoryOnly = directoryOnly;
+		return candidate;
 	}
 
 	static function matchesPatternWithTrailer(target:String, name:String):Bool {
@@ -261,14 +274,14 @@ class Module {
 			|| ((extensions & extensionsJson) != 0 && extension == Tspath.ExtensionJson);
 	}
 
-	public static function ResolveConfig(moduleName:String, containingFile:String, host:ResolutionHost):ResolvedModule {
+	public static function ResolveConfig(moduleName:String, containingFile:RootedFilePath, fs:FS):ResolvedModule {
 		final options = new CompilerOptions();
 		options.ModuleResolution = ModuleResolutionKindNodeNext;
-		final resolver = NewResolver(host, options, "", "");
+		final resolver = NewResolver(new FileSystemResolutionHost(fs, containingFile.Directory()), options, cast "", "");
 		return resolver.resolveConfig(moduleName, containingFile);
 	}
 
-	public static function GetAutomaticTypeDirectiveNames(options:CompilerOptions, host:ResolutionHost):Array<String> {
+	public static function GetAutomaticTypeDirectiveNames(options:CompilerOptions, baseDirectory:RootedDirectoryPath, fs:FS):Array<String> {
 		if (!options.UsesWildcardTypes()) {
 			if (options.Types != null) {
 				return options.Types;
@@ -278,25 +291,25 @@ class Module {
 
 		// Walk the primary type lookup locations
 		var wildcardMatches:Null<Array<String>> = null;
-		final typeRoots = options.GetEffectiveTypeRoots(host.GetCurrentDirectory()).value;
+		final typeRoots = options.GetEffectiveTypeRoots(baseDirectory).value;
 		if (typeRoots != null) {
 			for (root in typeRoots) {
-				if (host.FS().DirectoryExists(root)) {
-					final directories = host.FS().GetAccessibleEntries(root).Directories;
+				if (fs.DirectoryExists(root)) {
+					final directories = fs.GetAccessibleEntries(root).Directories;
 					if (directories != null) {
 						for (typeDirectivePath in directories) {
-							final normalized = Tspath.NormalizePath(typeDirectivePath);
-							final packageJsonPath = Tspath.CombinePaths(root, normalized, "package.json");
+							final typeDirectiveDirectory = root.ResolveDirectory(typeDirectivePath);
+							final packageJsonPath = typeDirectiveDirectory.ResolveFile("package.json");
 							var isNotNeededPackage = false;
-							if (host.FS().FileExists(packageJsonPath)) {
-								final contents = host.FS().ReadFile(packageJsonPath).value;
+							if (fs.FileExists(packageJsonPath)) {
+								final contents = fs.ReadFile(packageJsonPath).value;
 								final packageJsonContent = Packagejson.Parse(contents).value;
 								// `types-publisher` sometimes creates packages with `"typings": null` for packages that don't provide their own types.
 								// See `createNotNeededPackageJSON` in the types-publisher` repo.
 								isNotNeededPackage = packageJsonContent.Typings.Null;
 							}
 							if (!isNotNeededPackage) {
-								final baseFileName = Tspath.GetBaseFileName(normalized);
+								final baseFileName = typeDirectiveDirectory.AsPath().BaseName();
 								if (!StringTools.startsWith(baseFileName, ".")) {
 									if (wildcardMatches == null)
 										wildcardMatches = [];
@@ -355,6 +368,31 @@ class Module {
 		return range_.Test(typeScriptVersion);
 	}
 
+	public static inline function NodeModulePackageRootForFile(resolved:RootedFilePath):RootedDirectoryPath {
+		return parseNodeModulePackageRoot(resolved.AsPath(), false /*isDirectory*/);
+	}
+
+	public static inline function NodeModulePackageRootForDirectory(resolved:RootedDirectoryPath):RootedDirectoryPath {
+		return parseNodeModulePackageRoot(resolved.AsPath(), true /*isDirectory*/);
+	}
+
+	// PORT: main converts the prefix with RootedDirectoryPathFromAbsolute; a prefix of a rooted, normalized path
+	// that ends at a separator is rooted and normalized, so RootedFilePath.DirectoryBefore cuts it unchecked.
+	static function parseNodeModulePackageRoot(path:RootedPath, isDirectory:Bool):RootedDirectoryPath {
+		final idx = path.lastIndexOf("/node_modules/");
+		if (idx == -1) {
+			return cast "";
+		}
+
+		final indexAfterNodeModules = idx + "/node_modules/".length;
+		var indexAfterPackageName = moveToNextDirectorySeparatorIfAvailable(path, indexAfterNodeModules, isDirectory);
+		if (StringTools.fastCodeAt(path, indexAfterNodeModules) == "@".code) {
+			indexAfterPackageName = moveToNextDirectorySeparatorIfAvailable(path, indexAfterPackageName, isDirectory);
+		}
+		return Tspath.RootedFilePathFromPath(path).DirectoryBefore(indexAfterPackageName);
+	}
+
+	// PORT: 7.0.2's ParseNodeModuleFromPath over a string (tests, the dts-faking host).
 	public static function ParseNodeModuleFromPath(resolved:String, isFolder:Bool):String {
 		final path = Tspath.NormalizePath(resolved);
 		final idx = path.lastIndexOf("/node_modules/");

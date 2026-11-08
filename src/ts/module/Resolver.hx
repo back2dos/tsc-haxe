@@ -4,20 +4,22 @@ package ts.module;
 
 // Go unexported type `resolved`.
 class Resolved {
-	public var path:String = "";
+	public var path:RootedFilePath = cast "";
 	public var extension:String = "";
 	public var packageId:PackageId = new PackageId();
-	public var originalPath:String = "";
+	public var originalPath:RootedFilePath = cast "";
 	public var resolvedUsingTsExtension:Bool = false;
 	public var resolvedUsingExtraExtensions:Bool = false;
 
-	public function new(path:String = "", extension:String = "", ?packageId:PackageId, originalPath:String = "",
+	public function new(?path:RootedFilePath, extension:String = "", ?packageId:PackageId, ?originalPath:RootedFilePath,
 			resolvedUsingTsExtension:Bool = false) {
-		this.path = path;
+		if (path != null)
+			this.path = path;
 		this.extension = extension;
 		if (packageId != null)
 			this.packageId = packageId;
-		this.originalPath = originalPath;
+		if (originalPath != null)
+			this.originalPath = originalPath;
 		this.resolvedUsingTsExtension = resolvedUsingTsExtension;
 	}
 
@@ -31,7 +33,125 @@ class Resolved {
 	}
 }
 
-typedef ResolutionKindSpecificLoader = (extensions:Extensions, candidate:String) -> Null<Resolved>;
+// resolutionCandidate is a rooted, normalized lookup location. Its FileName
+// omits any trailing separator; directoryOnly preserves the resolver behavior
+// that skips file lookup for candidates written with directory intent.
+// PORT: Go struct value → final class (candidates are not mutated after construction, except
+// normalizePathForCJSResolution's directoryOnly on its fresh candidate). Main's directoryPath (the
+// dynamic URI directory spelling, LSP only) is not ported: it is always empty for disk paths.
+final class ResolutionCandidate {
+	public final path:RootedPath;
+	public var directoryOnly:Bool;
+
+	public inline function new(path:RootedPath, directoryOnly:Bool = false) {
+		this.path = path;
+		this.directoryOnly = directoryOnly;
+	}
+
+	public static inline function FromDirectory(directory:RootedDirectoryPath):ResolutionCandidate {
+		return new ResolutionCandidate(directory.AsPath());
+	}
+
+	public static inline function FromFileName(fileName:RootedFilePath):ResolutionCandidate {
+		return new ResolutionCandidate(fileName.AsPath());
+	}
+
+	// PORT: resolutionCandidateFromDirectoryPath; pathForDynamicResolution is the identity for disk
+	// directories (dynamic URI files are LSP only), so the file and directory spellings coincide.
+	public static inline function FromDirectoryPath(directory:RootedDirectoryPath, path:String):ResolutionCandidate {
+		return new ResolutionCandidate(directory.ResolveFile(path).AsPath(), Tspath.HasTrailingDirectorySeparator(path));
+	}
+
+	public static function FromDiskLogicalPath(directory:RootedDirectoryPath, path:String, directoryOnly:Bool):ResolutionCandidate {
+		if (path != "" && directoryOnly) {
+			path = Tspath.RemoveTrailingDirectorySeparator(path);
+		}
+		if (path == "") {
+			return new ResolutionCandidate(directory.AsPath(), directoryOnly);
+		}
+		return new ResolutionCandidate(directory.ResolveFileFromNormalizedRelative(path).AsPath(), directoryOnly);
+	}
+
+	public static function FromRelativePath(directory:RootedDirectoryPath, path:RelativePath):ResolutionCandidate {
+		final directoryOnly = path.AsString() == "" || path.HasTrailingDirectorySeparator();
+		if (path.AsString() != "" && directoryOnly) {
+			path = path.WithoutTrailingDirectorySeparator();
+		}
+		if (path.AsString() == "") {
+			return new ResolutionCandidate(directory.AsPath(), true);
+		}
+		return new ResolutionCandidate(directory.ResolveRelativeFile(path).AsPath(), directoryOnly);
+	}
+
+	public function AsString():String {
+		if (this.directoryOnly) {
+			return Tspath.EnsureTrailingDirectorySeparator(this.path.AsString());
+		}
+		return this.path.AsString();
+	}
+
+	public function toString():String {
+		return AsString();
+	}
+
+	public inline function AsDirectoryPath():RootedDirectoryPath {
+		return Tspath.RootedDirectoryPathFromPath(this.path);
+	}
+
+	public inline function Directory():RootedDirectoryPath {
+		return this.path.Directory();
+	}
+
+	public inline function HasTrailingDirectorySeparator():Bool {
+		return this.directoryOnly;
+	}
+
+	public inline function RemoveFileExtension():FileNameStem {
+		return Tspath.RootedFilePathFromPath(this.path).RemoveFileExtension();
+	}
+
+	public inline function RemoveExtension(extension:String):FileNameStem {
+		return Tspath.RootedFilePathFromPath(this.path).RemoveExtension(extension);
+	}
+
+	public inline function Resolve(path:String):ResolutionCandidate {
+		return FromDirectoryPath(Tspath.RootedDirectoryPathFromPath(this.path), path);
+	}
+
+	public function HasDirectoryPrefix(directory:RootedDirectoryPath):Bool {
+		final relative = this.path.RelativeTo(directory);
+		return relative != null && (relative.AsString() != "" || this.directoryOnly);
+	}
+
+	public function RelativeToDirectory(directory:RootedDirectoryPath):RelativePath {
+		final relative = this.path.RelativeTo(directory);
+		if (relative == null) {
+			throw "resolution candidate must be within prefix";
+		}
+		if (this.directoryOnly) {
+			return relative.WithTrailingDirectorySeparator();
+		}
+		return relative;
+	}
+
+	// PORT: (FileNameStem, string) → Pair.
+	public function SplitExtension(extraExtensions:Null<Array<String>>):Pair<FileNameStem, String> {
+		final fileName = Tspath.RootedFilePathFromPath(this.path);
+		var extension = fileName.Extension();
+		var extensionless = this.RemoveFileExtension();
+		if (extensionless.AsString() == this.path.AsString()) {
+			extension = fileName.LongestExtension(extraExtensions, CaseSensitive);
+			if (extension == "") {
+				final path = this.path.AsString();
+				extension = path.substring(path.lastIndexOf("."));
+			}
+			extensionless = this.RemoveExtension(extension);
+		}
+		return new Pair(extensionless, extension);
+	}
+}
+
+typedef ResolutionKindSpecificLoader = (extensions:Extensions, candidate:ResolutionCandidate) -> Null<Resolved>;
 
 // Go unexported type `tracer`.
 class Tracer {
@@ -129,17 +249,17 @@ class ResolutionState {
 
 	public function new() {}
 
-	function resolveTypeReferenceDirective(typeRoots:Null<Array<String>>, fromConfig:Bool,
+	function resolveTypeReferenceDirective(typeRoots:Null<Array<RootedDirectoryPath>>, fromConfig:Bool,
 			fromInferredTypesContainingFile:Bool):ResolvedTypeReferenceDirective {
 		final r = this;
 		// Primary lookup
 		if (typeRoots != null && typeRoots.length > 0) {
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Resolving_with_primary_search_path_0, typeRoots.join(", "));
+				r.tracer.write(Diagnostics.Resolving_with_primary_search_path_0, (cast typeRoots : Array<String>).join(", "));
 			}
 			for (typeRoot in typeRoots) {
 				final candidate = r.getCandidateFromTypeRoot(typeRoot);
-				final directoryExists = r.resolver.host.FS().DirectoryExists(typeRoot);
+				final directoryExists = r.resolver.fs.DirectoryExists(typeRoot);
 				if (!directoryExists) {
 					if (r.tracer != null) {
 						r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, typeRoot);
@@ -148,12 +268,12 @@ class ResolutionState {
 				}
 				if (fromConfig) {
 					// Custom typeRoots resolve as file or directory just like we do modules
-					if (!Tspath.HasTrailingDirectorySeparator(candidate)) {
+					if (!candidate.HasTrailingDirectorySeparator()) {
 						final resolvedFromFile = r.loadModuleFromFile(extensionsDeclaration, candidate);
 						if (!resolvedFromFile.shouldContinueSearching()) {
-							final packageDirectory = Module.ParseNodeModuleFromPath(resolvedFromFile.path, false);
+							final packageDirectory = Module.NodeModulePackageRootForFile(resolvedFromFile.path);
 							if (packageDirectory != "") {
-								resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(packageDirectory));
+								resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(r.packageDirectory(packageDirectory)));
 							}
 							return r.createResolvedTypeReferenceDirective(resolvedFromFile, true /*primary*/);
 						}
@@ -186,13 +306,13 @@ class ResolutionState {
 		return r.createResolvedTypeReferenceDirective(resolved, false /*primary*/);
 	}
 
-	function getCandidateFromTypeRoot(typeRoot:String):String {
+	function getCandidateFromTypeRoot(typeRoot:RootedDirectoryPath):ResolutionCandidate {
 		final r = this;
 		var nameForLookup = r.name;
-		if (StringTools.endsWith(typeRoot, "/node_modules/@types") || StringTools.endsWith(typeRoot, "/node_modules/@types/")) {
+		if (typeRoot.BaseName() == "@types" && typeRoot.AsPath().Directory().BaseName() == "node_modules") {
 			nameForLookup = r.mangleScopedPackageName(r.name);
 		}
-		return Tspath.CombinePaths(typeRoot, nameForLookup);
+		return ResolutionCandidate.FromDirectoryPath(typeRoot, nameForLookup);
 	}
 
 	function mangleScopedPackageName(name:String):String {
@@ -214,19 +334,19 @@ class ResolutionState {
 		}
 		for (typeRoot in r.compilerOptions.TypeRoots) {
 			final candidate = r.getCandidateFromTypeRoot(typeRoot);
-			final directoryExists = r.resolver.host.FS().DirectoryExists(typeRoot);
+			final directoryExists = r.resolver.fs.DirectoryExists(typeRoot);
 			if (!directoryExists) {
 				if (r.tracer != null) {
 					r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, typeRoot);
 				}
 				continue;
 			}
-			if (!Tspath.HasTrailingDirectorySeparator(candidate)) {
+			if (!candidate.HasTrailingDirectorySeparator()) {
 				final resolvedFromFile = r.loadModuleFromFile(extensionsDeclaration, candidate);
 				if (!resolvedFromFile.shouldContinueSearching()) {
-					final packageDirectory = Module.ParseNodeModuleFromPath(resolvedFromFile.path, false);
+					final packageDirectory = Module.NodeModulePackageRootForFile(resolvedFromFile.path);
 					if (packageDirectory != "") {
-						resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(packageDirectory));
+						resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(r.packageDirectory(packageDirectory)));
 					}
 					return resolvedFromFile;
 				}
@@ -239,9 +359,9 @@ class ResolutionState {
 		return null;
 	}
 
-	function getPackageScopeForPath(directory:String):Null<InfoCacheEntry> {
+	function getPackageScopeForPath(directory:RootedDirectoryPath):Null<InfoCacheEntry> {
 		final r = this;
-		// PORT: perf — memo per directory string (untraced only: the walk traces each lookup). The walk's
+		// PORT: perf — memo per directory (untraced only: the walk traces each lookup). The walk's
 		// result only depends on the package.json info cache (first-writer-wins) and the typings location.
 		if (r.tracer == null) {
 			final memo = r.resolver.packageScopeCache.Load(directory);
@@ -249,13 +369,11 @@ class ResolutionState {
 				return memo.value;
 			}
 		}
-		final result = Tspath.ForEachAncestorDirectoryStoppingAtGlobalCache(r.resolver.typingsLocation, directory,
-			function(directory:String):ValueOk<InfoCacheEntry> {
+		final packageDirectory = r.resolver.caches.packageJsonInfoCache.PackageDirectory(directory);
+		final result = Packagejson.ForEachAncestorDirectoryStoppingAtGlobalCache(r.resolver.typingsLocation, packageDirectory,
+			function(directory:PackageDirectory):ValueOk<InfoCacheEntry> {
 				final result = r.getPackageJsonInfo(directory);
-				if (result != null) {
-					return new ValueOk<InfoCacheEntry>(result, true);
-				}
-				return new ValueOk<InfoCacheEntry>(null, false);
+				return new ValueOk<InfoCacheEntry>(result, result != null);
 			});
 		if (r.tracer == null) {
 			r.resolver.packageScopeCache.Store(directory, result);
@@ -348,7 +466,7 @@ class ResolutionState {
 		} else {
 			final candidate = Module.normalizePathForCJSResolution(r.containingDirectory, r.name);
 			final resolved = r.nodeLoadModuleByRelativeName(r.extensions, candidate, true);
-			return r.createResolvedModule(resolved, resolved != null && resolved.path.indexOf("/node_modules/") >= 0);
+			return r.createResolvedModule(resolved, resolved != null && resolved.path.ContainsLowercaseDirectorySequence("/node_modules/"));
 		}
 		return r.createResolvedModule(null, false);
 	}
@@ -414,7 +532,7 @@ class ResolutionState {
 		final scope = r.getPackageScopeForPath(directoryPath);
 		if (!scope.Exists()) {
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Directory_0_has_no_containing_package_json_scope_Imports_will_not_resolve, directoryPath);
+				r.tracer.write(Diagnostics.Directory_0_has_no_containing_package_json_scope_Imports_will_not_resolve, directoryPath.AsString());
 			}
 			return Module.continueSearching();
 		}
@@ -538,7 +656,7 @@ class ResolutionState {
 						if (isPattern) {
 							combinedLookup = Strings.ReplaceAll(targetString, "*", subpath);
 						}
-						final scopeContainingDirectory = Tspath.EnsureTrailingDirectorySeparator(scope.PackageDirectory);
+						final scopeContainingDirectory = Tspath.EnsureTrailingDirectorySeparator(scope.PackageDirectory.AsDirectoryPath().AsString());
 						if (r.tracer != null) {
 							r.tracer.write(Diagnostics.Using_0_subpath_1_with_target_2, "imports", key, combinedLookup);
 							r.tracer.write(Diagnostics.Resolving_module_0_from_1, combinedLookup, scopeContainingDirectory);
@@ -546,7 +664,7 @@ class ResolutionState {
 						final name = r.name, containingDirectory = r.containingDirectory,
 							containingDirectoryHasTrailingSeparator = r.containingDirectoryHasTrailingSeparator;
 						r.name = combinedLookup;
-						r.containingDirectory = /* PORT: transitional, unchecked */ cast Tspath.RemoveTrailingDirectorySeparator(scope.PackageDirectory);
+						r.containingDirectory = scope.PackageDirectory.AsDirectoryPath();
 						r.containingDirectoryHasTrailingSeparator = true;
 						// PORT: defer restores name/containingDirectory; done at each return.
 						final result = r.resolveNodeLike();
@@ -580,7 +698,6 @@ class ResolutionState {
 					}
 					return Module.continueSearching();
 				}
-				final resolvedTarget = Tspath.CombinePaths(scope.PackageDirectory, targetString);
 				// TODO: Assert that `resolvedTarget` is actually within the package directory? That's what the spec says.... but I'm not sure we need
 				// to be in the business of validating everyone's import and export map correctness.
 				final subpathParts = Tspath.GetPathComponents(subpath);
@@ -591,22 +708,17 @@ class ResolutionState {
 					return Module.continueSearching();
 				}
 
-				if (r.tracer != null) {
-					var messageTarget:String;
-					if (isPattern) {
-						messageTarget = Strings.ReplaceAll(targetString, "*", subpath);
-					} else {
-						messageTarget = targetString + subpath;
-					}
-					r.tracer.write(Diagnostics.Using_0_subpath_1_with_target_2, Core.IfElse(isImports, "imports", "exports"), key, messageTarget);
-				}
-				var finalPath:String;
+				var targetPath:String;
 				if (isPattern) {
-					finalPath = Tspath.GetNormalizedAbsolutePath(Strings.ReplaceAll(resolvedTarget, "*", subpath), r.resolver.host.GetCurrentDirectory());
+					targetPath = Strings.ReplaceAll(targetString, "*", subpath);
 				} else {
-					finalPath = Tspath.GetNormalizedAbsolutePath(resolvedTarget + subpath, r.resolver.host.GetCurrentDirectory());
+					targetPath = targetString + subpath;
 				}
-				final inputLink = r.tryLoadInputFileForPath(finalPath, subpath, Tspath.CombinePaths(scope.PackageDirectory, "package.json"), isImports);
+				if (r.tracer != null) {
+					r.tracer.write(Diagnostics.Using_0_subpath_1_with_target_2, Core.IfElse(isImports, "imports", "exports"), key, targetPath);
+				}
+				final finalPath = ResolutionCandidate.FromDirectoryPath(scope.PackageDirectory.AsDirectoryPath(), targetPath);
+				final inputLink = r.tryLoadInputFileForPath(finalPath, subpath, scope.PackageDirectory.ResolveFile("package.json"), isImports);
 				if (!inputLink.shouldContinueSearching()) {
 					inputLink.packageId = r.getPackageId(inputLink.path, scope);
 					return inputLink;
@@ -678,49 +790,49 @@ class ResolutionState {
 		return Module.continueSearching();
 	}
 
-	function tryLoadInputFileForPath(finalPath:String, entry:String, packagePath:String, isImports:Bool):Null<Resolved> {
+	function tryLoadInputFileForPath(finalCandidate:ResolutionCandidate, entry:String, packagePath:RootedFilePath, isImports:Bool):Null<Resolved> {
 		final r = this;
+		if (finalCandidate.directoryOnly) {
+			return Module.continueSearching();
+		}
+		final finalPath = finalCandidate.path;
+		final finalFileName = Tspath.RootedFilePathFromPath(finalPath);
+		final caseSensitivity = r.resolver.caseSensitivity;
 		// Replace any references to outputs for files in the program with the input files to support package self-names used with outDir
 		if (!r.isConfigLookup
 			&& (r.compilerOptions.DeclarationDir != "" || r.compilerOptions.OutDir != "")
-			&& finalPath.indexOf("/node_modules/") < 0
-			&& (r.compilerOptions.ConfigFilePath == ""
-				|| Tspath.ContainsPath_legacy(Tspath.GetDirectoryPath(packagePath), r.compilerOptions.ConfigFilePath,
-					new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames(), r.resolver.host.GetCurrentDirectory())))) {
+			&& !finalFileName.ContainsLowercaseDirectorySequence("/node_modules/")
+			&& (r.compilerOptions.ConfigFilePath == "" || caseSensitivity.ContainsFilePath(packagePath.Directory(), r.compilerOptions.ConfigFilePath))) {
 			// Note: this differs from Strada's tryLoadInputFileForPath in that it
 			// does not attempt to perform "guesses", instead requring a clear root indicator.
 
-			var rootDir:String;
+			var rootDir:RootedDirectoryPath;
 			if (r.compilerOptions.RootDir != "") {
 				// A `rootDir` compiler option strongly indicates the root location
 				rootDir = r.compilerOptions.RootDir;
 			} else if (r.compilerOptions.ConfigFilePath != "") {
 				// When no explicit rootDir is set, treat the config file's directory as the project root, which establishes the common source directory, so no other locations need to be checked.
-				rootDir = Tspath.GetDirectoryPath(r.compilerOptions.ConfigFilePath);
+				rootDir = r.compilerOptions.ConfigFilePath.Directory();
 			} else {
 				final diagnostic = Ast.NewDiagnostic(null, new TextRange(0, 0),
 					Core.IfElse(isImports,
 						Diagnostics.The_project_root_is_ambiguous_but_is_required_to_resolve_import_map_entry_0_in_file_1_Supply_the_rootDir_compiler_option_to_disambiguate,
 						Diagnostics.The_project_root_is_ambiguous_but_is_required_to_resolve_export_map_entry_0_in_file_1_Supply_the_rootDir_compiler_option_to_disambiguate),
 					Core.IfElse(entry == "", ".", entry), // replace empty string with `.` - the reverse of the operation done when entries are built - so main entrypoint errors don't look weird
-					packagePath);
+					packagePath.AsString());
 				// PORT: Go append may not be visible through earlier results' slices; copy first.
 				r.diagnostics = r.diagnostics == null ? [] : r.diagnostics.copy();
 				r.diagnostics.push(diagnostic);
 				return Module.unresolved();
 			}
 
-			final candidateDirectories = r.getOutputDirectoriesForBaseDirectory(rootDir);
+			final candidateDirectories = r.getOutputDirectories();
 			if (candidateDirectories != null) {
 				for (candidateDir in candidateDirectories) {
-					if (Tspath.ContainsPath_legacy(candidateDir, finalPath,
-						new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames(), r.resolver.host.GetCurrentDirectory()))) {
+					final pathFragment = caseSensitivity.RelativeFilePathFromDirectory(candidateDir, finalFileName);
+					if (pathFragment != null) {
 						// The matched export is looking up something in either the out declaration or js dir, now map the written path back into the source dir and source extension
-						var pathFragment = "";
-						if (finalPath.length > candidateDir.length) {
-							pathFragment = finalPath.substring(candidateDir.length + 1); // +1 to also remove directory separator
-						}
-						final possibleInputBase = Tspath.CombinePaths(rootDir, pathFragment);
+						final possibleInputBase = rootDir.ResolveRelativeFile(pathFragment);
 						final jsAndDtsExtensions = [
 							Tspath.ExtensionMjs,
 							Tspath.ExtensionCjs,
@@ -731,15 +843,15 @@ class ResolutionState {
 							Tspath.ExtensionDts
 						];
 						for (ext in jsAndDtsExtensions) {
-							if (Tspath.FileExtensionIs(possibleInputBase, ext)) {
-								final inputExts = Tspath.GetPossibleOriginalInputExtensionForExtension(possibleInputBase);
+							if (possibleInputBase.ExtensionIs(ext)) {
+								final inputExts = possibleInputBase.PossibleOriginalInputExtensions();
 								for (possibleExt in inputExts) {
 									if (!Module.extensionIsOk(r.extensions, possibleExt)) {
 										continue;
 									}
-									final possibleInputWithInputExtension = Tspath.ChangeExtension(possibleInputBase, possibleExt);
-									if (r.resolver.host.FS().FileExists(possibleInputWithInputExtension)) {
-										final resolved = r.loadFileNameFromPackageJSONField(r.extensions, possibleInputWithInputExtension, "");
+									final possibleInputWithInputExtension = possibleInputBase.ChangeExtension(possibleExt);
+									if (r.resolver.fs.FileExists(possibleInputWithInputExtension)) {
+										final resolved = r.loadFileNameFromPackageJSONField(r.extensions, ResolutionCandidate.FromFileName(possibleInputWithInputExtension), "");
 										if (!resolved.shouldContinueSearching()) {
 											return resolved;
 										}
@@ -754,23 +866,18 @@ class ResolutionState {
 		return Module.continueSearching();
 	}
 
-	function getOutputDirectoriesForBaseDirectory(commonSourceDirGuess:String):Null<Array<String>> {
+	function getOutputDirectories():Null<Array<RootedDirectoryPath>> {
 		final r = this;
-		// Config file output paths are processed to be relative to the host's current directory, while
-		// otherwise the paths are resolved relative to the common source dir the compiler puts together
-		final currentDir:String = Core.IfElse(r.compilerOptions.ConfigFilePath != "", (r.resolver.host.GetCurrentDirectory() : String), commonSourceDirGuess);
-		var candidateDirectories:Null<Array<String>> = null;
+		var candidateDirectories:Null<Array<RootedDirectoryPath>> = null;
 		if (r.compilerOptions.DeclarationDir != "") {
 			if (candidateDirectories == null)
 				candidateDirectories = [];
-			candidateDirectories.push(Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(currentDir, r.compilerOptions.DeclarationDir),
-				r.resolver.host.GetCurrentDirectory()));
+			candidateDirectories.push(r.compilerOptions.DeclarationDir);
 		}
 		if (r.compilerOptions.OutDir != "" && r.compilerOptions.OutDir != r.compilerOptions.DeclarationDir) {
 			if (candidateDirectories == null)
 				candidateDirectories = [];
-			candidateDirectories.push(Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(currentDir, r.compilerOptions.OutDir),
-				r.resolver.host.GetCurrentDirectory()));
+			candidateDirectories.push(r.compilerOptions.OutDir);
 		}
 		return candidateDirectories;
 	}
@@ -841,7 +948,7 @@ class ResolutionState {
 	function loadModuleFromImmediateNodeModulesDirectory(extensions:Extensions, directory:RootedDirectoryPath, typesScopeOnly:Bool):Null<Resolved> {
 		final r = this;
 		final nodeModulesFolder = directory.ResolveDirectory("node_modules");
-		if (!r.resolver.host.FS().DirectoryExists(nodeModulesFolder)) {
+		if (!r.resolver.fs.DirectoryExists(nodeModulesFolder)) {
 			if (r.tracer != null) {
 				r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, nodeModulesFolder);
 			}
@@ -857,7 +964,7 @@ class ResolutionState {
 
 		if ((extensions & extensionsDeclaration) != 0) {
 			final nodeModulesAtTypes = nodeModulesFolder.ResolveDirectory("@types");
-			if (!r.resolver.host.FS().DirectoryExists(nodeModulesAtTypes)) {
+			if (!r.resolver.fs.DirectoryExists(nodeModulesAtTypes)) {
 				if (r.tracer != null) {
 					r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, nodeModulesAtTypes);
 				}
@@ -879,31 +986,31 @@ class ResolutionState {
 		// causing `loadNodeModuleFromDirectoryWorker`'s `ComparePaths(candidate, ...)`
 		// check to fail and skip loading the package's `main`/`types` entry.
 		// https://github.com/microsoft/typescript-go/issues/3526
-		// PORT: main's candidate (resolutionCandidateFromDirectoryPath(...).AsDirectoryPath()) as a string
-		final candidate:String = Tspath.HasTrailingDirectorySeparator(moduleName) ? nodeModulesDirectory.ResolveDirectory(moduleName) : nodeModulesDirectory.ResolveFile(moduleName);
+		final candidate = ResolutionCandidate.FromDirectoryPath(nodeModulesDirectory, moduleName);
+		final candidateDirectory = candidate.AsDirectoryPath();
 		final pr = Module.ParsePackageName(moduleName);
 		final packageName = pr.a, rest = pr.b;
-		var packageDirectory:String;
+		var packageDirectory:RootedDirectoryPath;
 		if (packageName == "") {
-			packageDirectory = candidate;
+			packageDirectory = candidateDirectory;
 		} else {
 			packageDirectory = nodeModulesDirectory.ResolveDirectory(packageName);
 		}
 
 		if (r.resolvePackageDirectoryOnly) {
-			if (r.resolver.host.FS().DirectoryExists(packageDirectory)) {
-				return new Resolved(packageDirectory);
+			if (r.resolver.fs.DirectoryExists(packageDirectory)) {
+				return new Resolved(Tspath.RootedFilePathFromPath(packageDirectory.AsPath()));
 			}
 			return Module.continueSearching();
 		}
 
 		var rootPackageInfo:Null<InfoCacheEntry> = null;
 		// First look for a nested package.json, as in `node_modules/foo/bar/package.json`
-		var packageInfo = r.getPackageJsonInfo(candidate);
+		var packageInfo = r.getPackageJsonInfo(r.packageDirectory(candidateDirectory));
 		// But only if we're not respecting export maps (if we are, we might redirect around this location)
 		if (rest != "" && packageInfo.Exists()) {
 			if ((r.features & NodeResolutionFeaturesExports) != 0) {
-				rootPackageInfo = r.getPackageJsonInfo(packageDirectory);
+				rootPackageInfo = r.getPackageJsonInfo(r.packageDirectory(packageDirectory));
 			}
 			if (!rootPackageInfo.Exists() || rootPackageInfo.Contents.Exports.Type == JSONValueTypeNotPresent) {
 				final fromFile = r.loadModuleFromFile(ext, candidate);
@@ -911,7 +1018,7 @@ class ResolutionState {
 					return fromFile;
 				}
 
-				final fromDirectory = r.loadNodeModuleFromDirectoryWorker(ext, candidate, packageInfo);
+				final fromDirectory = r.loadNodeModuleFromDirectoryWorker(ext, candidateDirectory, packageInfo);
 				if (!fromDirectory.shouldContinueSearching()) {
 					fromDirectory.packageId = r.getPackageId(fromDirectory.path, packageInfo);
 					return fromDirectory;
@@ -920,7 +1027,7 @@ class ResolutionState {
 		}
 
 		// PORT: the Go closure captures the variable `packageInfo`, which is reassigned below.
-		final loader = function(extensions:Extensions, candidate:String):Null<Resolved> {
+		final loader = function(extensions:Extensions, candidate:ResolutionCandidate):Null<Resolved> {
 			if (rest != "" || !r.esmMode) {
 				final fromFile = r.loadModuleFromFile(extensions, candidate);
 				if (!fromFile.shouldContinueSearching()) {
@@ -928,7 +1035,7 @@ class ResolutionState {
 					return fromFile;
 				}
 			}
-			final fromDirectory = r.loadNodeModuleFromDirectoryWorker(extensions, candidate, packageInfo);
+			final fromDirectory = r.loadNodeModuleFromDirectoryWorker(extensions, candidate.AsDirectoryPath(), packageInfo);
 			if (!fromDirectory.shouldContinueSearching()) {
 				fromDirectory.packageId = r.getPackageId(fromDirectory.path, packageInfo);
 				return fromDirectory;
@@ -939,7 +1046,8 @@ class ResolutionState {
 				&& r.esmMode) {
 				// EsmMode disables index lookup in `loadNodeModuleFromDirectoryWorker` generally, however non-relative package resolutions still assume
 				// a default `index.js` entrypoint if no `main` or `exports` are present
-				final indexResult = r.loadModuleFromFile(extensions, Tspath.CombinePaths(candidate, "index.js"));
+				final indexCandidate = ResolutionCandidate.FromDirectoryPath(candidate.AsDirectoryPath(), "index.js");
+				final indexResult = r.loadModuleFromFile(extensions, indexCandidate);
 				if (!indexResult.shouldContinueSearching()) {
 					indexResult.packageId = r.getPackageId(indexResult.path, packageInfo);
 					return indexResult;
@@ -952,7 +1060,7 @@ class ResolutionState {
 			packageInfo = rootPackageInfo;
 			if (packageInfo == null) {
 				// Previous `packageInfo` may have been from a nested package.json; ensure we have the one from the package root now.
-				packageInfo = r.getPackageJsonInfo(packageDirectory);
+				packageInfo = r.getPackageJsonInfo(r.packageDirectory(packageDirectory));
 			}
 		}
 		if (packageInfo != null) {
@@ -983,7 +1091,7 @@ class ResolutionState {
 
 	function createResolvedModuleHandlingSymlink(resolved:Null<Resolved>):ResolvedModule {
 		final r = this;
-		final isExternalLibraryImport = resolved != null && resolved.path.indexOf("/node_modules/") >= 0;
+		final isExternalLibraryImport = resolved != null && resolved.path.ContainsLowercaseDirectorySequence("/node_modules/");
 		if (r.compilerOptions.PreserveSymlinks != TSTrue
 			&& isExternalLibraryImport
 			&& resolved.originalPath == ""
@@ -1004,8 +1112,13 @@ class ResolutionState {
 		resolvedModule.ResolutionDiagnostics = r.diagnostics;
 
 		if (resolved != null) {
-			resolvedModule.ResolvedFileName = resolved.path;
-			resolvedModule.OriginalPath = resolved.originalPath;
+			if (resolved.isResolved()) {
+				resolvedModule.ResolvedFileName = resolved.path;
+				resolvedModule.ResolvedPath = r.resolver.caseSensitivity.PathKey(resolved.path.AsPath());
+				if (resolved.originalPath != "") {
+					resolvedModule.OriginalPath = resolved.originalPath;
+				}
+			}
 			resolvedModule.IsExternalLibraryImport = isExternalLibraryImport;
 			resolvedModule.ResolvedUsingTsExtension = resolved.resolvedUsingTsExtension;
 			resolvedModule.ResolvedUsingExtraExtensions = resolved.resolvedUsingExtraExtensions;
@@ -1027,7 +1140,7 @@ class ResolutionState {
 			resolvedTypeReferenceDirective.ResolvedFileName = resolved.path;
 			resolvedTypeReferenceDirective.Primary = primary;
 			resolvedTypeReferenceDirective.PackageId = resolved.packageId;
-			resolvedTypeReferenceDirective.IsExternalLibraryImport = resolved.path.indexOf("/node_modules/") >= 0;
+			resolvedTypeReferenceDirective.IsExternalLibraryImport = resolved.path.ContainsLowercaseDirectorySequence("/node_modules/");
 
 			if (r.compilerOptions.PreserveSymlinks != TSTrue) {
 				final p = r.getOriginalAndResolvedFileName(resolved.path);
@@ -1037,20 +1150,20 @@ class ResolutionState {
 					resolvedTypeReferenceDirective.OriginalPath = originalPath;
 				}
 			}
+			resolvedTypeReferenceDirective.ResolvedPath = r.resolver.caseSensitivity.PathKey(resolvedTypeReferenceDirective.ResolvedFileName.AsPath());
 		}
 		return resolvedTypeReferenceDirective;
 	}
 
 	// PORT: (string, string) → Pair(a = originalPath, b = resolvedFileName).
-	function getOriginalAndResolvedFileName(fileName:String):Pair<String, String> {
+	function getOriginalAndResolvedFileName(fileName:RootedFilePath):Pair<RootedFilePath, RootedFilePath> {
 		final r = this;
 		final resolvedFileName = r.realPath(fileName);
-		final caseSensitivity = Tspath.caseSensitivityOf(r.resolver.host.FS().UseCaseSensitiveFileNames());
-		// PORT: transitional — the resolver's file names are still strings (main: RootedFilePath)
-		if (caseSensitivity.CompareFilePaths(/* PORT: transitional, unchecked */ cast fileName, /* PORT: transitional, unchecked */ cast resolvedFileName) == 0) {
+		final caseSensitivity = r.resolver.caseSensitivity;
+		if (caseSensitivity.CompareFilePaths(fileName, resolvedFileName) == 0) {
 			// If the fileName and realpath are differing only in casing, prefer fileName
 			// so that we can issue correct errors for casing under forceConsistentCasingInFileNames
-			return new Pair("", fileName);
+			return new Pair((cast "" : RootedFilePath), fileName);
 		}
 		return new Pair(fileName, resolvedFileName);
 	}
@@ -1097,15 +1210,15 @@ class ResolutionState {
 		} else {
 			return Module.continueSearching();
 		}
-		final baseDirectory = r.compilerOptions.GetPathsBasePath(r.resolver.host.GetCurrentDirectory());
+		final baseDirectory = r.compilerOptions.GetPathsBasePath(r.resolver.baseDirectory);
 		final pathPatterns = r.getParsedPatternsForPaths();
 		return r.tryLoadModuleUsingPaths(r.extensions, r.name, baseDirectory, r.compilerOptions.Paths, pathPatterns,
-			function(extensions:Extensions, candidate:String):Null<Resolved> {
+			function(extensions:Extensions, candidate:ResolutionCandidate):Null<Resolved> {
 				return r.nodeLoadModuleByRelativeName(extensions, candidate, true /*considerPackageJson*/);
 			});
 	}
 
-	function tryLoadModuleUsingPaths(extensions:Extensions, moduleName:String, containingDirectory:String,
+	function tryLoadModuleUsingPaths(extensions:Extensions, moduleName:String, containingDirectory:RootedDirectoryPath,
 			paths:Null<OrderedMap<String, Array<String>>>, pathPatterns:ParsedPatterns, loader:ResolutionKindSpecificLoader):Null<Resolved> {
 		final r = this;
 		final matchedPattern = Module.MatchPatternOrExact(pathPatterns, moduleName);
@@ -1118,7 +1231,7 @@ class ResolutionState {
 			if (substs != null) {
 				for (subst in substs) {
 					final path = replaceFirst(subst, "*", matchedStar);
-					final candidate = Tspath.NormalizePath(Tspath.CombinePaths(containingDirectory, path));
+					final candidate = ResolutionCandidate.FromDirectoryPath(containingDirectory, path);
 					if (r.tracer != null) {
 						r.tracer.write(Diagnostics.Trying_substitution_0_candidate_module_location_Colon_1, subst, path);
 					}
@@ -1126,8 +1239,8 @@ class ResolutionState {
 					final extensionFromSubst = Tspath.TryGetExtensionFromPath(subst);
 					if (extensionFromSubst != "") {
 						final f = r.tryFile(candidate);
-						if (f.ok) {
-							return new Resolved(f.value, extensionFromSubst);
+						if (f != null) {
+							return new Resolved(f, extensionFromSubst);
 						}
 					}
 					// When the substitution path has an explicit extension, the extension came from the
@@ -1157,7 +1270,8 @@ class ResolutionState {
 
 	function tryLoadModuleUsingRootDirs():Null<Resolved> {
 		final r = this;
-		if (r.compilerOptions.RootDirs == null || r.compilerOptions.RootDirs.length == 0) {
+		final rootDirs = r.compilerOptions.GetEffectiveRootDirs();
+		if (rootDirs == null || rootDirs.length == 0) {
 			return Module.continueSearching();
 		}
 
@@ -1165,42 +1279,36 @@ class ResolutionState {
 			r.tracer.write(Diagnostics.X_rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0, r.name);
 		}
 
-		final candidate = Tspath.NormalizePath(Tspath.CombinePaths(r.containingDirectory, r.name));
+		final candidate = ResolutionCandidate.FromDirectoryPath(r.containingDirectory, r.name);
 
-		var matchedRootDir = "";
-		var matchedNormalizedPrefix = "";
-		for (rootDir in r.compilerOptions.RootDirs) {
-			// rootDirs are expected to be absolute
-			// in case of tsconfig.json this will happen automatically - compiler will expand relative names
-			// using location of tsconfig.json as base location
-			var normalizedRoot = Tspath.NormalizePath(rootDir);
-			if (!StringTools.endsWith(normalizedRoot, "/")) {
-				normalizedRoot += "/";
-			}
-			final isLongestMatchingPrefix = StringTools.startsWith(candidate, normalizedRoot)
-				&& (matchedNormalizedPrefix == "" || matchedNormalizedPrefix.length < normalizedRoot.length);
+		var matchedRootDir:RootedDirectoryPath = cast "";
+		for (rootDir in rootDirs) {
+			final isLongestMatchingPrefix = candidate.HasDirectoryPrefix(rootDir)
+				&& (matchedRootDir == "" || matchedRootDir.length < rootDir.length);
 
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Checking_if_0_is_the_longest_matching_prefix_for_1_2, normalizedRoot, candidate, isLongestMatchingPrefix);
+				r.tracer.write(Diagnostics.Checking_if_0_is_the_longest_matching_prefix_for_1_2, Tspath.EnsureTrailingDirectorySeparator(rootDir.AsString()),
+					candidate.AsString(), isLongestMatchingPrefix);
 			}
 
 			if (isLongestMatchingPrefix) {
-				matchedNormalizedPrefix = normalizedRoot;
 				matchedRootDir = rootDir;
 			}
 		}
 
-		if (matchedNormalizedPrefix != "") {
+		if (matchedRootDir != "") {
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Longest_matching_prefix_for_0_is_1, candidate, matchedNormalizedPrefix);
+				r.tracer.write(Diagnostics.Longest_matching_prefix_for_0_is_1, candidate.AsString(),
+					Tspath.EnsureTrailingDirectorySeparator(matchedRootDir.AsString()));
 			}
-			final suffix = candidate.substring(matchedNormalizedPrefix.length);
+			final suffix = candidate.RelativeToDirectory(matchedRootDir);
 
 			// first - try to load from a initial location
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Loading_0_from_the_root_dir_1_candidate_location_2, suffix, matchedNormalizedPrefix, candidate);
+				r.tracer.write(Diagnostics.Loading_0_from_the_root_dir_1_candidate_location_2, suffix.AsString(),
+					Tspath.EnsureTrailingDirectorySeparator(matchedRootDir.AsString()), candidate.AsString());
 			}
-			final loader = function(extensions:Extensions, candidate:String):Null<Resolved> {
+			final loader = function(extensions:Extensions, candidate:ResolutionCandidate):Null<Resolved> {
 				return r.nodeLoadModuleByRelativeName(extensions, candidate, true /*considerPackageJson*/);
 			};
 			{
@@ -1214,14 +1322,15 @@ class ResolutionState {
 				r.tracer.write(Diagnostics.Trying_other_entries_in_rootDirs);
 			}
 			// then try to resolve using remaining entries in rootDirs
-			for (rootDir in r.compilerOptions.RootDirs) {
+			for (rootDir in rootDirs) {
 				if (rootDir == matchedRootDir) {
 					// skip the initially matched entry
 					continue;
 				}
-				final candidate = Tspath.CombinePaths(Tspath.NormalizePath(rootDir), suffix);
+				// PORT: main's dynamic URI root directories (LSP) are not ported.
+				final candidate = ResolutionCandidate.FromRelativePath(rootDir, suffix);
 				if (r.tracer != null) {
-					r.tracer.write(Diagnostics.Loading_0_from_the_root_dir_1_candidate_location_2, suffix, rootDir, candidate);
+					r.tracer.write(Diagnostics.Loading_0_from_the_root_dir_1_candidate_location_2, suffix.AsString(), rootDir.AsString(), candidate.AsString());
 				}
 				final resolvedFileName = loader(r.extensions, candidate);
 				if (!resolvedFileName.shouldContinueSearching()) {
@@ -1235,15 +1344,15 @@ class ResolutionState {
 		return Module.continueSearching();
 	}
 
-	function nodeLoadModuleByRelativeName(extensions:Extensions, candidate:String, considerPackageJson:Bool):Null<Resolved> {
+	function nodeLoadModuleByRelativeName(extensions:Extensions, candidate:ResolutionCandidate, considerPackageJson:Bool):Null<Resolved> {
 		final r = this;
 		if (r.tracer != null) {
-			r.tracer.write(Diagnostics.Loading_module_as_file_Slash_folder_candidate_module_location_0_target_file_types_Colon_1, candidate,
+			r.tracer.write(Diagnostics.Loading_module_as_file_Slash_folder_candidate_module_location_0_target_file_types_Colon_1, candidate.AsString(),
 				extensions.String());
 		}
-		if (!Tspath.HasTrailingDirectorySeparator(candidate)) {
-			final parentOfCandidate = Tspath.GetDirectoryPath(candidate);
-			if (!r.resolver.host.FS().DirectoryExists(parentOfCandidate)) {
+		if (!candidate.HasTrailingDirectorySeparator()) {
+			final parentOfCandidate = candidate.Directory();
+			if (!r.resolver.fs.DirectoryExists(parentOfCandidate)) {
 				if (r.tracer != null) {
 					r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, parentOfCandidate);
 				}
@@ -1252,17 +1361,17 @@ class ResolutionState {
 			final resolvedFromFile = r.loadModuleFromFile(extensions, candidate);
 			if (resolvedFromFile != null) {
 				if (considerPackageJson) {
-					final packageDirectory = Module.ParseNodeModuleFromPath(resolvedFromFile.path /*isFolder*/, false);
+					final packageDirectory = Module.NodeModulePackageRootForFile(resolvedFromFile.path);
 					if (packageDirectory != "") {
-						resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(packageDirectory));
+						resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(r.packageDirectory(packageDirectory)));
 					}
 				}
 				return resolvedFromFile;
 			}
 		}
-		if (!r.resolver.host.FS().DirectoryExists(candidate)) {
+		if (!r.resolver.fs.DirectoryExists(candidate.AsDirectoryPath())) {
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, candidate);
+				r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, candidate.AsString());
 			}
 			return Module.continueSearching();
 		}
@@ -1275,7 +1384,7 @@ class ResolutionState {
 		return Module.continueSearching();
 	}
 
-	function loadModuleFromFile(extensions:Extensions, candidate:String):Null<Resolved> {
+	function loadModuleFromFile(extensions:Extensions, candidate:ResolutionCandidate):Null<Resolved> {
 		final r = this;
 		// ./foo.js -> ./foo.ts
 		final resolvedByReplacingExtension = r.loadModuleFromFileNoImplicitExtensions(extensions, candidate);
@@ -1285,42 +1394,31 @@ class ResolutionState {
 
 		// ./foo -> ./foo.ts
 		if (!r.esmMode) {
-			return r.tryAddingExtensions(candidate, extensions, "");
+			return r.tryAddingExtensions(Tspath.RootedFilePathFromPath(candidate.path).AsStem(), candidate.Directory(), extensions, "");
 		}
 
 		return Module.continueSearching();
 	}
 
-	function loadModuleFromFileNoImplicitExtensions(extensions:Extensions, candidate:String):Null<Resolved> {
+	function loadModuleFromFileNoImplicitExtensions(extensions:Extensions, candidate:ResolutionCandidate):Null<Resolved> {
 		final r = this;
-		final base = Tspath.GetBaseFileName(candidate);
+		final base = candidate.path.BaseName();
 		if (base.indexOf(".") < 0) {
 			return Module.continueSearching(); // extensionless import, no lookups performed, since we don't support extensionless files
 		}
-		var extensionless = Tspath.RemoveFileExtension(candidate);
-		if (extensionless == candidate) {
-			// Once TS native extensions are handled, handle arbitrary extensions for declaration file mapping
-			var extension = Tspath.GetLongestExtensionFromPath(candidate, r.resolver.extraExtensions, Tspath.CaseSensitive);
-			if (extension == "") {
-				extension = candidate.substring(candidate.lastIndexOf("."));
-			}
-			extensionless = Tspath.RemoveExtension(candidate, extension);
-		}
-
-		final extension = candidate.substring(extensionless.length);
+		final split = candidate.SplitExtension(r.resolver.extraExtensions);
+		final extensionless = split.a, extension = split.b;
 		if (r.tracer != null) {
-			r.tracer.write(Diagnostics.File_name_0_has_a_1_extension_stripping_it, candidate, extension);
+			r.tracer.write(Diagnostics.File_name_0_has_a_1_extension_stripping_it, candidate.AsString(), extension);
 		}
-		return r.tryAddingExtensions(extensionless, extensions, extension);
+		return r.tryAddingExtensions(extensionless, candidate.Directory(), extensions, extension);
 	}
 
-	function tryAddingExtensions(extensionless:String, extensions:Extensions, originalExtension:String):Null<Resolved> {
+	function tryAddingExtensions(extensionless:FileNameStem, directory:RootedDirectoryPath, extensions:Extensions, originalExtension:String):Null<Resolved> {
 		final r = this;
-		final directory = Tspath.GetDirectoryPath(extensionless);
-		if (directory != "" && !r.resolver.host.FS().DirectoryExists(directory)) {
+		if (directory != "" && !r.resolver.fs.DirectoryExists(directory)) {
 			return Module.continueSearching();
 		}
-
 		switch (originalExtension) {
 			case Tspath.ExtensionMjs | Tspath.ExtensionMts | Tspath.ExtensionDmts:
 				if ((extensions & extensionsTypeScript) != 0) {
@@ -1465,7 +1563,7 @@ class ResolutionState {
 						return resolved;
 					}
 				}
-				if ((extensions & extensionsDeclaration) != 0 && !Tspath.IsDeclarationFileName(extensionless + originalExtension)) {
+				if ((extensions & extensionsDeclaration) != 0 && !extensionless.AppendSuffix(originalExtension).IsDeclarationFile()) {
 					final resolved = r.tryExtension(".d" + originalExtension + ".ts", extensionless, false);
 					if (!resolved.shouldContinueSearching()) {
 						return resolved;
@@ -1475,37 +1573,44 @@ class ResolutionState {
 		}
 	}
 
-	function tryExtension(extension:String, extensionless:String, resolvedUsingTsExtension:Bool):Null<Resolved> {
+	function tryExtension(extension:String, extensionless:FileNameStem, resolvedUsingTsExtension:Bool):Null<Resolved> {
 		final r = this;
-		final fileName = extensionless + extension;
-		final f = r.tryFile(fileName);
-		if (f.ok) {
-			return new Resolved(f.value, extension, null, "", !r.candidateEndingIsFromConfig && resolvedUsingTsExtension);
+		final fileName = ResolutionCandidate.FromFileName(extensionless.AppendSuffix(extension));
+		final path = r.tryFile(fileName);
+		if (path != null) {
+			return new Resolved(path, extension, null, null, !r.candidateEndingIsFromConfig && resolvedUsingTsExtension);
 		}
 		return Module.continueSearching();
 	}
 
-	// PORT: (string, bool) → ValueOk.
-	function tryFile(fileName:String):ValueOk<String> {
+	// PORT: (RootedFilePath, bool) → null when !ok.
+	function tryFile(fileName:ResolutionCandidate):Null<RootedFilePath> {
 		final r = this;
+		if (fileName.directoryOnly) {
+			return null;
+		}
 		if (r.compilerOptions.ModuleSuffixes == null || r.compilerOptions.ModuleSuffixes.length == 0) {
-			return new ValueOk(fileName, r.tryFileLookup(fileName));
+			final candidate = Tspath.RootedFilePathFromPath(fileName.path);
+			if (r.tryFileLookup(candidate)) {
+				return candidate;
+			}
+			return null;
 		}
 
-		final ext = Tspath.TryGetExtensionFromPath(fileName);
-		final fileNameNoExtension = Tspath.RemoveExtension(fileName, ext);
+		final ext = Tspath.RootedFilePathFromPath(fileName.path).Extension();
+		final fileNameNoExtension = fileName.RemoveExtension(ext);
 		for (suffix in r.compilerOptions.ModuleSuffixes) {
-			final path = fileNameNoExtension + suffix + ext;
+			final path = fileNameNoExtension.AppendSuffix(suffix + ext);
 			if (r.tryFileLookup(path)) {
-				return new ValueOk(path, true);
+				return path;
 			}
 		}
-		return new ValueOk(fileName, false);
+		return null;
 	}
 
-	function tryFileLookup(fileName:String):Bool {
+	function tryFileLookup(fileName:RootedFilePath):Bool {
 		final r = this;
-		if (r.resolver.host.FS().FileExists(fileName)) {
+		if (r.resolver.fs.FileExists(fileName)) {
 			if (r.tracer != null) {
 				r.tracer.write(Diagnostics.File_0_exists_use_it_as_a_name_resolution_result, fileName);
 			}
@@ -1516,34 +1621,36 @@ class ResolutionState {
 		return false;
 	}
 
-	function loadNodeModuleFromDirectory(extensions:Extensions, candidate:String, considerPackageJson:Bool):Null<Resolved> {
+	function loadNodeModuleFromDirectory(extensions:Extensions, candidate:ResolutionCandidate, considerPackageJson:Bool):Null<Resolved> {
 		final r = this;
+		final candidateDirectory = candidate.AsDirectoryPath();
 		var packageInfo:Null<InfoCacheEntry> = null;
 		if (considerPackageJson) {
-			packageInfo = r.getPackageJsonInfo(candidate);
+			packageInfo = r.getPackageJsonInfo(r.packageDirectory(candidateDirectory));
 		}
 
-		return r.loadNodeModuleFromDirectoryWorker(extensions, candidate, packageInfo);
+		return r.loadNodeModuleFromDirectoryWorker(extensions, candidateDirectory, packageInfo);
 	}
 
-	function loadNodeModuleFromDirectoryWorker(ext:Extensions, candidate:String, packageInfo:Null<InfoCacheEntry>):Null<Resolved> {
+	function loadNodeModuleFromDirectoryWorker(ext:Extensions, candidate:RootedDirectoryPath, packageInfo:Null<InfoCacheEntry>):Null<Resolved> {
 		final r = this;
-		var packageFile = "";
+		var packageFile:Null<ResolutionCandidate> = null;
 		var versionPaths = new VersionPaths();
 		if (packageInfo.Exists()) {
 			versionPaths = packageInfo.Contents.GetVersionPaths(r.getTraceFunc());
-			final caseSensitivity = Tspath.caseSensitivityOf(r.resolver.host.FS().UseCaseSensitiveFileNames());
-			// PORT: transitional — candidate and package directory are still strings (main: typed)
-			if (caseSensitivity.ComparePaths(/* PORT: transitional, unchecked */ cast candidate, /* PORT: transitional, unchecked */ cast packageInfo.PackageDirectory) == 0) {
+			final caseSensitivity = r.resolver.caseSensitivity;
+			if (caseSensitivity.ComparePaths(candidate.AsPath(), packageInfo.PackageDirectory.AsDirectoryPath().AsPath()) == 0) {
 				final file = r.getPackageFile(ext, packageInfo);
-				if (file.ok) {
-					packageFile = file.value;
+				if (file != null) {
+					packageFile = file;
 				}
 			}
 		}
+		// PORT: packageFile.AsString() of Go's zero resolutionCandidate is "".
+		final packageFileString = packageFile == null ? "" : packageFile.AsString();
 
-		final loader = function(extensions:Extensions, candidate:String):Null<Resolved> {
-			final fromFile = r.loadFileNameFromPackageJSONField(extensions, candidate, packageFile);
+		final loader = function(extensions:Extensions, candidate:ResolutionCandidate):Null<Resolved> {
+			final fromFile = r.loadFileNameFromPackageJSONField(extensions, candidate, packageFileString);
 			if (!fromFile.shouldContinueSearching()) {
 				return fromFile;
 			}
@@ -1568,20 +1675,23 @@ class ResolutionState {
 			return result;
 		};
 
-		var indexPath:String;
+		var indexPath:ResolutionCandidate;
 		if (r.isConfigLookup) {
-			indexPath = Tspath.CombinePaths(candidate, "tsconfig");
+			indexPath = ResolutionCandidate.FromFileName(candidate.ResolveFile("tsconfig"));
 		} else {
-			indexPath = Tspath.CombinePaths(candidate, "index");
+			indexPath = ResolutionCandidate.FromFileName(candidate.ResolveFile("index"));
 		}
 
-		if (versionPaths.Exists() && (packageFile == "" || Tspath.ContainsPath_legacy(candidate, packageFile, new ComparePathsOptions()))) {
-			var moduleName:String;
-			if (packageFile != "") {
-				moduleName = Tspath.GetRelativePathFromDirectory_legacy(candidate, packageFile, new ComparePathsOptions());
-			} else {
-				moduleName = Tspath.GetRelativePathFromDirectory_legacy(candidate, indexPath, new ComparePathsOptions());
+		if (versionPaths.Exists() && (packageFile == null || CaseInsensitive.ContainsPath(candidate, packageFile.path))) {
+			var modulePath = indexPath.path;
+			if (packageFile != null) {
+				modulePath = packageFile.path;
 			}
+			final relativeModulePath = CaseInsensitive.RelativePathFromDirectory(candidate, Tspath.RootedFilePathFromPath(modulePath));
+			if (relativeModulePath == null) {
+				throw "package module path must have the same root as its candidate directory";
+			}
+			final moduleName = relativeModulePath.AsString();
 			if (r.tracer != null) {
 				r.tracer.write(Diagnostics.X_package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
 					versionPaths.Version, Core.Version(), moduleName);
@@ -1597,7 +1707,7 @@ class ResolutionState {
 			}
 		}
 
-		if (packageFile != "") {
+		if (packageFile != null) {
 			final packageFileResult = loader(ext, packageFile);
 			if (!packageFileResult.shouldContinueSearching()) {
 				if (packageFileResult.packageId.Name != "") {
@@ -1610,7 +1720,7 @@ class ResolutionState {
 
 		// ESM mode resolutions don't do package 'index' lookups
 		if (!r.esmMode) {
-			if (!r.resolver.host.FS().DirectoryExists(candidate)) {
+			if (!r.resolver.fs.DirectoryExists(candidate)) {
 				return Module.continueSearching();
 			}
 			return r.loadModuleFromFile(ext, indexPath);
@@ -1621,14 +1731,17 @@ class ResolutionState {
 	// This function is only ever called with paths written in package.json files - never
 	// module specifiers written in source files - and so it always allows the
 	// candidate to end with a TS extension (but will also try substituting a JS extension for a TS extension).
-	function loadFileNameFromPackageJSONField(extensions:Extensions, candidate:String, packageJSONValue:String):Null<Resolved> {
+	function loadFileNameFromPackageJSONField(extensions:Extensions, candidate:ResolutionCandidate, packageJSONValue:String):Null<Resolved> {
 		final r = this;
-		if (((extensions & extensionsTypeScript) != 0 && Tspath.HasImplementationTSFileExtension(candidate))
-			|| ((extensions & extensionsDeclaration) != 0 && Tspath.IsDeclarationFileName(candidate))) {
-			final f = r.tryFile(candidate);
-			if (f.ok) {
-				final path = f.value;
-				final extension = Tspath.TryExtractTSExtension(path);
+		if (candidate.directoryOnly) {
+			return Module.continueSearching();
+		}
+		final fileName = Tspath.RootedFilePathFromPath(candidate.path);
+		if (((extensions & extensionsTypeScript) != 0 && fileName.HasImplementationTSFileExtension())
+			|| ((extensions & extensionsDeclaration) != 0 && fileName.IsDeclarationFile())) {
+			final path = r.tryFile(candidate);
+			if (path != null) {
+				final extension = path.TryExtractTSExtension();
 				// resolvedUsingTsExtension should be true when the pattern ends with * and the
 				// candidate file ends in a TS extension. This means the * matched a TS extension
 				// from the module specifier. For example:
@@ -1636,103 +1749,95 @@ class ResolutionState {
 				// - import "pkg/foo.ts.omg" with pattern "./*.omg" -> true (star matched .ts)
 				// - import "pkg/foo" with pattern "./*.ts" -> false (extension in pattern, not specifier)
 				final resolvedUsingTsExtension = StringTools.endsWith(packageJSONValue, "*") && extension != "";
-				return new Resolved(path, extension, null, "", resolvedUsingTsExtension);
+				return new Resolved(path, extension, null, null, resolvedUsingTsExtension);
 			}
 			return Module.continueSearching();
 		}
 
-		if (r.isConfigLookup && (extensions & extensionsJson) != 0 && Tspath.FileExtensionIs(candidate, Tspath.ExtensionJson)) {
-			final f = r.tryFile(candidate);
-			if (f.ok) {
-				return new Resolved(f.value, Tspath.ExtensionJson);
+		if (r.isConfigLookup && (extensions & extensionsJson) != 0 && fileName.ExtensionIs(Tspath.ExtensionJson)) {
+			final path = r.tryFile(candidate);
+			if (path != null) {
+				return new Resolved(path, Tspath.ExtensionJson);
 			}
 		}
 
 		return r.loadModuleFromFileNoImplicitExtensions(extensions, candidate);
 	}
 
-	// PORT: (string, bool) → ValueOk.
-	function getPackageFile(extensions:Extensions, packageInfo:Null<InfoCacheEntry>):ValueOk<String> {
+	// PORT: (resolutionCandidate, bool) → null when !ok.
+	function getPackageFile(extensions:Extensions, packageInfo:Null<InfoCacheEntry>):Null<ResolutionCandidate> {
 		final r = this;
 		if (!packageInfo.Exists()) {
-			return new ValueOk("", false);
+			return null;
 		}
 		if (r.isConfigLookup) {
-			return r.getPackageJSONPathField("tsconfig", packageInfo.Contents.TSConfig, packageInfo.PackageDirectory);
+			return r.getPackageJSONPathField("tsconfig", packageInfo.Contents.TSConfig, packageInfo.PackageDirectory.AsDirectoryPath());
 		}
 		if ((extensions & extensionsDeclaration) != 0) {
 			{
-				final packageFile = r.getPackageJSONPathField("typings", packageInfo.Contents.Typings, packageInfo.PackageDirectory);
-				if (packageFile.ok) {
+				final packageFile = r.getPackageJSONPathField("typings", packageInfo.Contents.Typings, packageInfo.PackageDirectory.AsDirectoryPath());
+				if (packageFile != null) {
 					return packageFile;
 				}
 			}
-			final packageFile = r.getPackageJSONPathField("types", packageInfo.Contents.Types, packageInfo.PackageDirectory);
-			if (packageFile.ok) {
+			final packageFile = r.getPackageJSONPathField("types", packageInfo.Contents.Types, packageInfo.PackageDirectory.AsDirectoryPath());
+			if (packageFile != null) {
 				return packageFile;
 			}
 		}
 		if ((extensions & (extensionsImplementationFiles | extensionsDeclaration)) != 0) {
-			return r.getPackageJSONPathField("main", packageInfo.Contents.Main, packageInfo.PackageDirectory);
+			return r.getPackageJSONPathField("main", packageInfo.Contents.Main, packageInfo.PackageDirectory.AsDirectoryPath());
 		}
-		return new ValueOk("", false);
+		return null;
 	}
 
-	function getPackageJsonInfo(packageDirectory:String):Null<InfoCacheEntry> {
+	function getPackageJsonInfo(packageDirectory:PackageDirectory):Null<InfoCacheEntry> {
 		final r = this;
-		// PORT: perf — look up by the directory first (InfoCache.GetByDirectory); packageJsonPath on demand
-		var packageJsonPath:Null<String> = null;
-		var existing = r.resolver.caches.packageJsonInfoCache.GetByDirectory(packageDirectory);
-		if (existing == null) {
-			packageJsonPath = Tspath.CombinePaths(packageDirectory, "package.json");
-			existing = r.resolver.caches.packageJsonInfoCache.Get(packageJsonPath);
-			if (existing != null) {
-				r.resolver.caches.packageJsonInfoCache.SetByDirectory(packageDirectory, existing);
-			}
-		} else if (r.tracer != null) {
-			packageJsonPath = Tspath.CombinePaths(packageDirectory, "package.json");
-		}
+		final existing = r.resolver.caches.packageJsonInfoCache.Get(packageDirectory);
 		if (existing != null) {
 			if (existing.Contents != null) {
 				if (r.tracer != null) {
-					r.tracer.write(Diagnostics.File_0_exists_according_to_earlier_cached_lookups, packageJsonPath);
+					r.tracer.write(Diagnostics.File_0_exists_according_to_earlier_cached_lookups, packageDirectory.ResolveFile("package.json"));
 				}
 				return existing.WithPackageDirectory(packageDirectory);
 			} else {
 				if (existing.DirectoryExists && r.tracer != null) {
-					r.tracer.write(Diagnostics.File_0_does_not_exist_according_to_earlier_cached_lookups, packageJsonPath);
+					r.tracer.write(Diagnostics.File_0_does_not_exist_according_to_earlier_cached_lookups, packageDirectory.ResolveFile("package.json"));
 				}
 				return null;
 			}
 		}
 
-		final directoryExists = r.resolver.host.FS().DirectoryExists(packageDirectory);
-		if (directoryExists && r.resolver.host.FS().FileExists(packageJsonPath)) {
+		final packageJsonFileName = packageDirectory.ResolveFile("package.json");
+		final directoryExists = r.resolver.fs.DirectoryExists(packageDirectory.AsDirectoryPath());
+		if (directoryExists && r.resolver.fs.FileExists(packageJsonFileName)) {
 			// Ignore error
-			final contents = r.resolver.host.FS().ReadFile(packageJsonPath).value;
+			final contents = r.resolver.fs.ReadFile(packageJsonFileName).value;
 			final parsed = Packagejson.Parse(contents);
 			final packageJsonContent = parsed.value, err = parsed.err;
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Found_package_json_at_0, packageJsonPath);
+				r.tracer.write(Diagnostics.Found_package_json_at_0, packageJsonFileName);
 			}
 			final contentsJson = new PackageJson();
 			contentsJson.Fields = packageJsonContent;
 			contentsJson.Parseable = err == null;
 			var result = new InfoCacheEntry(packageDirectory, true, contentsJson);
-			result = r.resolver.caches.packageJsonInfoCache.Set(packageJsonPath, result);
-			r.resolver.caches.packageJsonInfoCache.SetByDirectory(packageDirectory, result);
+			result = r.resolver.caches.packageJsonInfoCache.Set(packageDirectory, result);
 			return result.WithPackageDirectory(packageDirectory);
 		} else {
 			if (directoryExists && r.tracer != null) {
-				r.tracer.write(Diagnostics.File_0_does_not_exist, packageJsonPath);
+				r.tracer.write(Diagnostics.File_0_does_not_exist, packageJsonFileName);
 			}
-			final actual = r.resolver.caches.packageJsonInfoCache.Set(packageJsonPath, new InfoCacheEntry(packageDirectory, directoryExists));
-			r.resolver.caches.packageJsonInfoCache.SetByDirectory(packageDirectory, actual);
+			r.resolver.caches.packageJsonInfoCache.Set(packageDirectory, new InfoCacheEntry(packageDirectory, directoryExists));
 		}
 		return null;
 	}
 
-	function getPackageId(resolvedFileName:String, packageInfo:Null<InfoCacheEntry>):PackageId {
+	inline function packageDirectory(directory:RootedDirectoryPath):PackageDirectory {
+		return this.resolver.caches.packageJsonInfoCache.PackageDirectory(directory);
+	}
+
+	function getPackageId(resolvedFileName:RootedFilePath, packageInfo:Null<InfoCacheEntry>):PackageId {
 		final r = this;
 		if (packageInfo.Exists()) {
 			final packageJsonContent = packageInfo.Contents;
@@ -1741,8 +1846,9 @@ class ResolutionState {
 				final version = packageJsonContent.Version.GetValue();
 				if (version.ok) {
 					var subModuleName = "";
-					if (resolvedFileName.length > packageInfo.PackageDirectory.length) {
-						subModuleName = resolvedFileName.substring(packageInfo.PackageDirectory.length + 1);
+					final relative = resolvedFileName.RelativeTo(packageInfo.PackageDirectory.AsDirectoryPath());
+					if (relative != null) {
+						subModuleName = relative.AsString();
 					}
 					return new PackageId(name.value, subModuleName, version.value, r.readPackageJsonPeerDependencies(packageInfo));
 				}
@@ -1761,17 +1867,17 @@ class ResolutionState {
 		if (r.tracer != null) {
 			r.tracer.write(Diagnostics.X_package_json_has_a_peerDependencies_field);
 		}
-		final packageDirectory = r.realPath(packageJsonInfo.PackageDirectory);
-		final nodeModulesIndex = packageDirectory.lastIndexOf("/node_modules");
-		if (nodeModulesIndex == -1) {
+		final packageDirectory = r.realPath(Tspath.RootedFilePathFromPath(packageJsonInfo.PackageDirectory.AsDirectoryPath().AsPath()));
+		final split = packageDirectory.SplitAtLastComponent("node_modules");
+		if (split == null) {
 			return "";
 		}
-		final nodeModules = packageDirectory.substring(0, nodeModulesIndex + "/node_modules".length) + "/";
+		final nodeModules = split.through;
 		final names = [for (k in peerDependencies.Value.keys()) k];
 		Slices.SortFunc(names, Strings.Compare);
 		final builder = new StringBuf();
 		for (name in names) {
-			final peerPackageJson = r.getPackageJsonInfo(nodeModules + name);
+			final peerPackageJson = r.getPackageJsonInfo(r.packageDirectory(nodeModules.ResolveDirectory(name)));
 			if (peerPackageJson.Exists()) {
 				final version = peerPackageJson.Contents.Version.Value;
 				builder.add("+");
@@ -1798,13 +1904,13 @@ class ResolutionState {
 		return n;
 	}
 
-	function realPath(path:String):String {
+	function realPath(path:RootedFilePath):RootedFilePath {
 		final r = this;
-		final rp = Tspath.NormalizePath(r.resolver.host.FS().Realpath(path));
+		final rp = r.resolver.fs.Realpath(path.AsPath());
 		if (r.tracer != null) {
 			r.tracer.write(Diagnostics.Resolving_real_path_for_0_result_1, path, rp);
 		}
-		return rp;
+		return Tspath.RootedFilePathFromPath(rp);
 	}
 
 	function validatePackageJSONField(fieldName:String, field:TypeValidatedField):Bool {
@@ -1824,23 +1930,23 @@ class ResolutionState {
 		return false;
 	}
 
-	// PORT: (string, bool) → ValueOk.
-	function getPackageJSONPathField(fieldName:String, field:Expected<String>, directory:String):ValueOk<String> {
+	// PORT: (resolutionCandidate, bool) → null when !ok.
+	function getPackageJSONPathField(fieldName:String, field:Expected<String>, directory:RootedDirectoryPath):Null<ResolutionCandidate> {
 		final r = this;
 		if (!r.validatePackageJSONField(fieldName, field)) {
-			return new ValueOk("", false);
+			return null;
 		}
 		if (field.Value == "") {
 			if (r.tracer != null) {
 				r.tracer.write(Diagnostics.X_package_json_had_a_falsy_0_field, fieldName);
 			}
-			return new ValueOk("", false);
+			return null;
 		}
-		final path = Tspath.NormalizePath(Tspath.CombinePaths(directory, field.Value));
+		final path = ResolutionCandidate.FromDirectoryPath(directory, field.Value);
 		if (r.tracer != null) {
-			r.tracer.write(Diagnostics.X_package_json_has_0_field_1_that_references_2, fieldName, field.Value, path);
+			r.tracer.write(Diagnostics.X_package_json_has_0_field_1_that_references_2, fieldName, field.Value, path.AsString());
 		}
-		return new ValueOk(path, true);
+		return path;
 	}
 
 	function conditionMatches(condition:String):Bool {
@@ -1876,12 +1982,12 @@ class ResolutionState {
 					if (exports.AsString().indexOf("*") != exports.AsString().lastIndexOf("*")) {
 						return;
 					}
-					final patternPath = Tspath.ResolvePath(packageJson.PackageDirectory, exports.AsString());
+					final patternPath = Tspath.ResolvePath(packageJson.PackageDirectory.String(), exports.AsString());
 					final starIndex = patternPath.indexOf("*");
 					final leadingSlice = starIndex < 0 ? patternPath : patternPath.substring(0, starIndex);
 					final trailingSlice = starIndex < 0 ? "" : patternPath.substring(starIndex + 1);
-					final caseSensitive = r.resolver.host.FS().UseCaseSensitiveFileNames();
-					final files = Vfsmatch.ReadDirectory(r.resolver.host.FS(), r.resolver.host.GetCurrentDirectory(), packageJson.PackageDirectory,
+					final caseSensitive = r.resolver.caseSensitivity.IsCaseSensitive();
+					final files = Vfsmatch.ReadDirectory(r.resolver.fs, packageJson.PackageDirectory.AsDirectoryPath(),
 						r.extensions.Array(), null, [Tspath.ChangeFullExtension(replaceFirst(exports.AsString(), "*", "**/*"), ".*")],
 						Vfsmatch.UnlimitedDepth);
 					if (files != null) {
@@ -1903,7 +2009,7 @@ class ResolutionState {
 					if (Slices.Contains(partsAfterFirst, "..") || Slices.Contains(partsAfterFirst, ".") || Slices.Contains(partsAfterFirst, "node_modules")) {
 						return;
 					}
-					final resolvedTarget = Tspath.ResolvePath(packageJson.PackageDirectory, exports.AsString());
+					final resolvedTarget = ResolutionCandidate.FromDirectoryPath(packageJson.PackageDirectory.AsDirectoryPath(), exports.AsString());
 					final result = r.loadFileNameFromPackageJSONField(r.extensions, resolvedTarget, exports.AsString());
 					if (result.isResolved()) {
 						if (entrypoints == null)
@@ -2013,9 +2119,12 @@ class Resolver {
 
 	// PORT: perf — getPackageScopeForPath results by directory (see there)
 	public var packageScopeCache:SyncMap<String, Null<InfoCacheEntry>> = new SyncMap<String, Null<InfoCacheEntry>>();
-	public var host:ResolutionHost = null;
+	public var fs:FS = null;
+	public var baseDirectory:RootedDirectoryPath = cast "";
+	// PORT: fs.CaseSensitivity(), read once.
+	public var caseSensitivity:CaseSensitivity = CaseSensitive;
 	public var compilerOptions:CompilerOptions = null;
-	public var typingsLocation:String = "";
+	public var typingsLocation:RootedDirectoryPath = cast "";
 	public var projectName:String = "";
 	// TypeScript main (content mappers): extensions resolved as fully specified imports.
 	public var extraExtensions:Null<Array<String>> = null;
@@ -2031,14 +2140,18 @@ class Resolver {
 		return null;
 	}
 
-	public function GetPackageScopeForPath(directory:String):Null<InfoCacheEntry> {
+	public inline function BaseDirectory():RootedDirectoryPath {
+		return this.baseDirectory;
+	}
+
+	public function GetPackageScopeForPath(directory:RootedDirectoryPath):Null<InfoCacheEntry> {
 		final state = new ResolutionState();
 		state.compilerOptions = this.compilerOptions;
 		state.resolver = this;
 		return state.getPackageScopeForPath(directory);
 	}
 
-	public function PackageJsonCacheEntries(f:(key:Path, value:InfoCacheEntry) -> Bool):Void {
+	public function PackageJsonCacheEntries(f:(key:PathKey, value:InfoCacheEntry) -> Bool):Void {
 		this.caches.packageJsonInfoCache.Range(f);
 	}
 
@@ -2063,11 +2176,11 @@ class Resolver {
 
 		final compilerOptions = Module.GetCompilerOptionsWithRedirect(r.compilerOptions, redirectedReference);
 
-		final tr = compilerOptions.GetEffectiveTypeRoots(r.host.GetCurrentDirectory());
+		final tr = compilerOptions.GetEffectiveTypeRoots(r.baseDirectory);
 		final typeRoots = tr.value, fromConfig = tr.ok;
 		if (traceBuilder != null) {
 			traceBuilder.write(Diagnostics.Resolving_type_reference_directive_0_containing_file_1_root_directory_2, typeReferenceDirectiveName,
-				containingFile, typeRoots == null ? "" : typeRoots.join(","));
+				containingFile.AsString(), typeRoots == null ? "" : (cast typeRoots : Array<String>).join(","));
 			traceBuilder.traceResolutionUsingProjectReference(redirectedReference);
 		}
 
@@ -2102,7 +2215,7 @@ class Resolver {
 
 		final compilerOptions = Module.GetCompilerOptionsWithRedirect(r.compilerOptions, redirectedReference);
 		if (traceBuilder != null) {
-			traceBuilder.write(Diagnostics.Resolving_module_0_from_1, moduleName, containingFile);
+			traceBuilder.write(Diagnostics.Resolving_module_0_from_1, moduleName, containingFile.AsString());
 			traceBuilder.traceResolutionUsingProjectReference(redirectedReference);
 		}
 
@@ -2155,9 +2268,9 @@ class Resolver {
 			redirectedReference, r, null);
 		// TypeScript main (#65105): a relative package name resolves to that directory.
 		if (Tspath.IsExternalModuleNameRelative(moduleName)) {
-			final packageDirectory = Tspath.GetNormalizedAbsolutePath(moduleName, containingDirectory);
-			if (r.host.FS().DirectoryExists(packageDirectory)) {
-				final p = state.getOriginalAndResolvedFileName(packageDirectory);
+			final packageDirectory = containingDirectory.ResolveDirectory(moduleName);
+			if (r.fs.DirectoryExists(packageDirectory)) {
+				final p = state.getOriginalAndResolvedFileName(Tspath.RootedFilePathFromPath(packageDirectory.AsPath()));
 				return state.createResolvedModuleHandlingSymlink(new Resolved(p.b, "", null, p.a));
 			}
 			return null;
@@ -2185,9 +2298,9 @@ class Resolver {
 			r, traceBuilder);
 		if (traceBuilder != null) {
 			traceBuilder.write(Diagnostics.Auto_discovery_for_typings_is_enabled_in_project_0_Running_extra_resolution_pass_for_module_1_using_cache_location_2,
-				r.projectName, moduleName, r.typingsLocation);
+				r.projectName, moduleName, r.typingsLocation.AsString());
 		}
-		final globalResolved = state.loadModuleFromImmediateNodeModulesDirectory(extensionsDeclaration, /* PORT: transitional, unchecked */ cast r.typingsLocation, false);
+		final globalResolved = state.loadModuleFromImmediateNodeModulesDirectory(extensionsDeclaration, r.typingsLocation, false);
 		if (globalResolved == null) {
 			return originalResult;
 		}
@@ -2203,9 +2316,9 @@ class Resolver {
 	}
 
 	@:allow(ts.module)
-	function resolveConfig(moduleName:String, containingFile:String):ResolvedModule {
+	function resolveConfig(moduleName:String, containingFile:RootedFilePath):ResolvedModule {
 		final r = this;
-		final containingDirectory:RootedDirectoryPath = /* PORT: transitional, unchecked */ cast Tspath.GetDirectoryPath(containingFile);
+		final containingDirectory = containingFile.Directory();
 		final state = Module.newResolutionState(moduleName, containingDirectory, false /*isTypeReferenceDirective*/, ModuleKindCommonJS,
 			r.compilerOptions, null, r, null);
 		state.isConfigLookup = true;
@@ -2245,27 +2358,27 @@ class Resolver {
 		}
 
 		var result:Null<Array<ResolvedEntrypoint>> = null;
-		final mainResolution = state.loadNodeModuleFromDirectoryWorker(extensions, packageJson.PackageDirectory, packageJson);
+		final mainResolution = state.loadNodeModuleFromDirectoryWorker(extensions, packageJson.PackageDirectory.AsDirectoryPath(), packageJson);
 
 		if (mainResolution.isResolved()) {
 			result = [r.createResolvedEntrypointHandlingSymlink(mainResolution.path, packageName, null, null, EndingFixed)];
 		}
 
 		if (enableDirectorySearch) {
-			final otherFiles = Vfsmatch.ReadDirectory(r.host.FS(), r.host.GetCurrentDirectory(), packageJson.PackageDirectory, extensions.Array(),
+			final otherFiles = Vfsmatch.ReadDirectory(r.fs, packageJson.PackageDirectory.AsDirectoryPath(), extensions.Array(),
 				["node_modules"], ["**/*"], Vfsmatch.UnlimitedDepth);
 
-			final comparePathsOptions = new ComparePathsOptions(r.host.FS().UseCaseSensitiveFileNames());
+			final caseSensitivity = r.caseSensitivity;
 			if (otherFiles != null) {
 				for (file in otherFiles) {
-					if (mainResolution.isResolved() && Tspath.ComparePaths_legacy(file, mainResolution.path, comparePathsOptions) == 0) {
+					if (mainResolution.isResolved() && caseSensitivity.CompareFilePaths(file, mainResolution.path) == 0) {
 						continue;
 					}
 
+					final relative = caseSensitivity.RelativeFilePathFromDirectory(packageJson.PackageDirectory.AsDirectoryPath(), file);
 					if (result == null)
 						result = [];
-					result.push(r.createResolvedEntrypointHandlingSymlink(file,
-						Tspath.ResolvePath(packageName, Tspath.GetRelativePathFromDirectory_legacy(packageJson.PackageDirectory, file, comparePathsOptions)), null,
+					result.push(r.createResolvedEntrypointHandlingSymlink(file, packageName + "/" + (relative == null ? "" : relative.AsString()), null,
 						null, EndingChangeable));
 				}
 			}
@@ -2278,18 +2391,19 @@ class Resolver {
 	}
 
 	@:allow(ts.module)
-	function createResolvedEntrypointHandlingSymlink(fileName:String, moduleSpecifier:String, includeConditions:Null<Set<String>>,
+	function createResolvedEntrypointHandlingSymlink(fileName:RootedFilePath, moduleSpecifier:String, includeConditions:Null<Set<String>>,
 			excludeConditions:Null<Set<String>>, ending:Ending):ResolvedEntrypoint {
-		var originalFileName = "";
+		var originalFileName:RootedFilePath = cast "";
 		var resolvedFileName = fileName;
-		final realPath = this.host.FS().Realpath(fileName);
-		if (realPath != fileName) {
+		final realPath = this.fs.Realpath(fileName.AsPath());
+		if (realPath != fileName.AsPath()) {
 			originalFileName = fileName;
-			resolvedFileName = realPath;
+			resolvedFileName = Tspath.RootedFilePathFromPath(realPath);
 		}
 		final e = new ResolvedEntrypoint();
 		e.OriginalFileName = originalFileName;
 		e.ResolvedFileName = resolvedFileName;
+		e.ResolvedPath = this.caseSensitivity.PathKey(resolvedFileName.AsPath());
 		e.ModuleSpecifier = moduleSpecifier;
 		e.IncludeConditions = includeConditions;
 		e.ExcludeConditions = excludeConditions;
@@ -2330,9 +2444,10 @@ enum abstract Ending(Int) from Int to Int {
 
 class ResolvedEntrypoint {
 	// OriginalFileName is the symlink path if the entrypoint was discovered at a symlink. Empty otherwise.
-	public var OriginalFileName:String = "";
+	public var OriginalFileName:RootedFilePath = cast "";
 	// ResolvedFileName is the real path to the entrypoint file.
-	public var ResolvedFileName:String = "";
+	public var ResolvedFileName:RootedFilePath = cast "";
+	public var ResolvedPath:PathKey = cast "";
 	public var ModuleSpecifier:String = "";
 	// Ending indicates whether the file name and extension portion of ModuleSpecifier is fixed or can be changed.
 	public var Ending:Ending = EndingFixed;
@@ -2343,7 +2458,7 @@ class ResolvedEntrypoint {
 
 	public function new() {}
 
-	public function SymlinkOrRealpath():String {
+	public function SymlinkOrRealpath():RootedFilePath {
 		if (this.OriginalFileName != "") {
 			return this.OriginalFileName;
 		}
@@ -2381,9 +2496,28 @@ class NodeModulesAncestors {
 	public function nodeModulesExists(resolver:Resolver, i:Int):Bool {
 		var s = state[i];
 		if (s == 0) {
-			s = resolver.host.FS().DirectoryExists(directories[i].ResolveDirectory("node_modules")) ? 1 : 2;
+			s = resolver.fs.DirectoryExists(directories[i].ResolveDirectory("node_modules")) ? 1 : 2;
 			state[i] = s;
 		}
 		return s == 1;
+	}
+}
+
+// Go unexported type `fileSystemResolutionHost` (ResolveConfig).
+class FileSystemResolutionHost implements ResolutionHost {
+	final fs:FS;
+	final currentDirectory:RootedDirectoryPath;
+
+	public function new(fs:FS, currentDirectory:RootedDirectoryPath) {
+		this.fs = fs;
+		this.currentDirectory = currentDirectory;
+	}
+
+	public function FS():FS {
+		return this.fs;
+	}
+
+	public function GetCurrentDirectory():RootedDirectoryPath {
+		return this.currentDirectory;
 	}
 }

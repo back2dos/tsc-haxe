@@ -1,5 +1,6 @@
 package ts.vfs.iovfs;
 
+import ts.tspath.RootedPath;
 import go.Errors.Error;
 import go.Fs.FileMode;
 import go.Time;
@@ -58,24 +59,23 @@ class IoFS implements FsWithSys {
 		return this.useCaseSensitiveFileNames;
 	}
 
-	public function DirectoryExists(path:String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		return this.common.DirectoryExists(path);
 	}
 
-	public function FileExists(path:String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		return this.common.FileExists(path);
 	}
 
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		return this.common.GetAccessibleEntries(path);
 	}
 
-	public function Stat(path:String):Null<FileInfo> {
-		Internal.RootLength(path); // Assert path is rooted
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		return this.common.Stat(path);
 	}
 
-	public function ReadFile(path:String):ValueOk<String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
 		return this.common.ReadFile(path);
 	}
 
@@ -83,44 +83,40 @@ class IoFS implements FsWithSys {
 		return this.common.WalkDir(root, walkFn);
 	}
 
-	public function Remove(path:String):Null<Error> {
-		Internal.RootLength(path); // Assert path is rooted
-		return this.remove(path);
+	public function Remove(path:RootedPath):Null<Error> {
+		return this.remove(path.AsString());
 	}
 
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error> {
-		Internal.RootLength(path); // Assert path is rooted
-		return this.chtimes(path, aTime, mTime);
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
+		return this.chtimes(path.AsString(), aTime, mTime);
 	}
 
-	public function Realpath(path:String):String {
-		final split = Internal.SplitPath(path);
-		// splitPath normalizes the path into parts (e.g. "c:/foo/bar" -> "c:/", "foo/bar")
-		// Put them back together to call realpath.
-		final realpath = this.realpath(split.a + split.b);
+	public function Realpath(path:RootedPath):RootedPath {
+		final split = path.RootAndRelativePath();
+		final realpath = this.realpath(split.a.AsString() + split.b);
 		if (realpath.err != null) {
 			return path;
 		}
-		return realpath.value;
+		return Tspath.RootedPathFromAbsolute(realpath.value);
 	}
 
-	function writeFileEnsuringDir(path:String, content:String, write:(path:String, content:String) -> Null<Error>):Null<Error> {
-		Internal.RootLength(path); // Assert path is rooted
-		if (write(path, content) == null) {
+	function writeFileEnsuringDir(path:RootedFilePath, content:String, write:(path:String, content:String) -> Null<Error>):Null<Error> {
+		final pathString = path.AsString();
+		if (write(pathString, content) == null) {
 			return null;
 		}
-		final err = this.mkdirAll(Tspath.GetDirectoryPath(Tspath.NormalizePath(path)));
+		final err = this.mkdirAll(path.Directory().AsString());
 		if (err != null) {
 			return err;
 		}
-		return write(path, content);
+		return write(pathString, content);
 	}
 
-	public function WriteFile(path:String, content:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, content:String):Null<Error> {
 		return this.writeFileEnsuringDir(path, content, this.writeFile);
 	}
 
-	public function AppendFile(path:String, content:String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, content:String):Null<Error> {
 		return this.writeFileEnsuringDir(path, content, this.appendFile);
 	}
 

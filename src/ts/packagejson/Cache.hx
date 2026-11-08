@@ -202,12 +202,55 @@ class VersionPaths {
 	}
 }
 
+// PORT: Go struct value → final class; == on Go values → Equals.
+class PackageDirectory {
+	final name:RootedDirectoryPath;
+	final key:PathKey;
+
+	public function new(name:RootedDirectoryPath, key:PathKey) {
+		this.name = name;
+		this.key = key;
+	}
+
+	public function toString():String {
+		return this.name.AsString();
+	}
+
+	public inline function String():String {
+		return this.name.AsString();
+	}
+
+	public inline function AsDirectoryPath():RootedDirectoryPath {
+		return this.name;
+	}
+
+	public inline function PathKey():PathKey {
+		return this.key;
+	}
+
+	public inline function Equals(other:PackageDirectory):Bool {
+		return this.name == other.name && this.key == other.key;
+	}
+
+	public function Parent():PackageDirectory {
+		final parentName = this.name.AsPath().Directory();
+		if (parentName == this.name) {
+			return this;
+		}
+		return new PackageDirectory(parentName, this.key.Parent());
+	}
+
+	public inline function ResolveFile(path:String):RootedFilePath {
+		return this.name.ResolveFile(path);
+	}
+}
+
 class InfoCacheEntry {
-	public var PackageDirectory:String = "";
+	public var PackageDirectory:PackageDirectory = null;
 	public var DirectoryExists:Bool = false;
 	public var Contents:Null<PackageJson> = null;
 
-	public function new(PackageDirectory:String = "", DirectoryExists:Bool = false, ?Contents:PackageJson) {
+	public function new(PackageDirectory:PackageDirectory, DirectoryExists:Bool = false, ?Contents:PackageJson) {
 		this.PackageDirectory = PackageDirectory;
 		this.DirectoryExists = DirectoryExists;
 		this.Contents = Contents;
@@ -222,23 +265,17 @@ class InfoCacheEntry {
 		return this == null || this.Contents == null ? null : this.Contents;
 	}
 
-	public inline function GetDirectory():String {
-		return this == null ? "" : this.PackageDirectory;
-	}
-
 	// WithPackageDirectory returns an entry whose PackageDirectory matches the
 	// caller's value. The package.json info cache is keyed by the canonical
-	// path of the package.json file, but multiple callers may look up the same
-	// package.json using directory paths that differ only by a trailing
-	// separator (e.g. "node_modules/preact/compat" vs
-	// "node_modules/preact/compat/"). Because the cache uses first-writer-wins
-	// semantics, a later caller may receive an entry whose PackageDirectory
-	// doesn't match its own candidate path. Downstream code compares the
-	// candidate against PackageDirectory, so we must return a corrected
-	// shallow copy when they diverge.
+	// package directory, but multiple callers may use directory paths whose
+	// presentation differs while their canonical identity is the same. Because
+	// the cache uses first-writer-wins semantics, a later caller may receive an
+	// entry whose PackageDirectory doesn't match its own candidate path.
+	// Downstream code compares the candidate against PackageDirectory, so return a
+	// corrected shallow copy when they diverge.
 	// See https://github.com/microsoft/TypeScript/pull/50740.
-	public function WithPackageDirectory(packageDirectory:String):InfoCacheEntry {
-		if (this.PackageDirectory == packageDirectory) {
+	public function WithPackageDirectory(packageDirectory:PackageDirectory):InfoCacheEntry {
+		if (this.PackageDirectory == packageDirectory || this.PackageDirectory.Equals(packageDirectory)) {
 			return this;
 		}
 		return new InfoCacheEntry(packageDirectory, this.DirectoryExists, this.Contents);
@@ -246,45 +283,36 @@ class InfoCacheEntry {
 }
 
 class InfoCache {
-	var cache:SyncMap<Path, InfoCacheEntry> = new SyncMap<Path, InfoCacheEntry>();
-	var currentDirectory:String = "";
-	var useCaseSensitiveFileNames:Bool = false;
+	var cache:SyncMap<PathKey, InfoCacheEntry> = new SyncMap<PathKey, InfoCacheEntry>();
+	var caseSensitivity:CaseSensitivity;
 
-	public function new(currentDirectory:String = "", useCaseSensitiveFileNames:Bool = false) {
-		this.currentDirectory = currentDirectory;
-		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+	public function new(caseSensitivity:CaseSensitivity) {
+		this.caseSensitivity = caseSensitivity;
 	}
 
-	public function Get(packageJsonPath:String):Null<InfoCacheEntry> {
-		final key = Tspath.ToPath(packageJsonPath, this.currentDirectory, this.useCaseSensitiveFileNames);
-		final r = this.cache.Load(key);
+	public inline function PackageDirectory(directory:RootedDirectoryPath):PackageDirectory {
+		return new ts.packagejson.Cache.PackageDirectory(directory, this.caseSensitivity.PathKey(directory.AsPath()));
+	}
+
+	public inline function CaseSensitivity():CaseSensitivity {
+		return this.caseSensitivity;
+	}
+
+	public function Get(directory:PackageDirectory):Null<InfoCacheEntry> {
+		final r = this.cache.Load(directory.PathKey());
 		if (r.ok) {
 			return r.value;
 		}
 		return null;
 	}
 
-	public function Set(packageJsonPath:String, info:InfoCacheEntry):InfoCacheEntry {
-		final key = Tspath.ToPath(packageJsonPath, this.currentDirectory, this.useCaseSensitiveFileNames);
-		final actual = this.cache.LoadOrStore(key, info).value;
+	public function Set(directory:PackageDirectory, info:InfoCacheEntry):InfoCacheEntry {
+		final actual = this.cache.LoadOrStore(directory.PathKey(), info).value;
 		return actual;
 	}
 
-	public function Range(f:(key:Path, value:InfoCacheEntry) -> Bool):Void {
+	public function Range(f:(key:PathKey, value:InfoCacheEntry) -> Bool):Void {
 		this.cache.Range(f);
 	}
-
-	// PORT: perf — the entry of a package directory by the directory string as the resolver passes it, so
-	// a repeated lookup skips combining "package.json" and ToPath (TypeScript main keys this cache by the
-	// typed package directory, #64159). The key mapping is fixed for this cache and entries are
-	// first-writer-wins, so the memo returns what Get(ToPath(directory + "/package.json")) returns.
-	var byDirectory:SyncMap<String, InfoCacheEntry> = new SyncMap<String, InfoCacheEntry>();
-
-	public inline function GetByDirectory(packageDirectory:String):Null<InfoCacheEntry> {
-		return this.byDirectory.Load(packageDirectory).value;
-	}
-
-	public inline function SetByDirectory(packageDirectory:String, entry:InfoCacheEntry):Void {
-		this.byDirectory.Store(packageDirectory, entry);
-	}
 }
+

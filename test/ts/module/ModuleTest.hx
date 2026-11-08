@@ -22,7 +22,7 @@ class ModuleTest {
 			], true);
 			final host = new ResolutionHostStub(fs, "/repo");
 			final opts = bundlerOptions();
-			final resolver = Module.NewResolver(host, opts, "", "");
+			final resolver = Module.NewResolver(host, opts, cast "", "");
 
 			for (name in ["pkg", "pkg/"]) {
 				final r = resolver.ResolveModuleName(name, Tspath.RootedFilePathFromAbsolute("/repo/src/file.ts"), ModuleKindESNext, null).a;
@@ -55,7 +55,7 @@ class ModuleTest {
 			final replacements = new Replacements();
 			// blockingFS: the first caller to reach the gate runs the other resolution, which
 			// arrives second; then both pass the gate.
-			replacements.FileExists = function(path:String):Bool {
+			replacements.FileExists = function(path:RootedFilePath):Bool {
 				if (path == pkgJSONPath) {
 					arrived++;
 					if (arrived == 1 && other != null) {
@@ -68,7 +68,7 @@ class ModuleTest {
 			};
 			final fs = Wrapvfs.Wrap(base, replacements);
 			final host = new ResolutionHostStub(fs, "/repo");
-			final resolver = Module.NewResolver(host, bundlerOptions(), "", "");
+			final resolver = Module.NewResolver(host, bundlerOptions(), cast "", "");
 
 			final results:Array<Pair<String, Bool>> = [];
 			final resolve = function(name:String) {
@@ -103,7 +103,7 @@ class ModuleTest {
 			];
 			final fs = new FlipFileExistsFS(Vfstest.FromMap(files, true), rootPkgJSON);
 			final host = new ResolutionHostStub(fs.fs, "/repo");
-			final resolver = Module.NewResolver(host, bundlerOptions(), "", "");
+			final resolver = Module.NewResolver(host, bundlerOptions(), cast "", "");
 
 			var panicked = false;
 			final results:Array<Pair<String, Bool>> = [];
@@ -168,7 +168,7 @@ class ModuleTest {
 			];
 			final fs = new FlipFileExistsFS(Vfstest.FromMap(files, true), peerPkgJSON);
 			final host = new ResolutionHostStub(fs.fs, "/repo");
-			final resolver = Module.NewResolver(host, bundlerOptions(), "", "");
+			final resolver = Module.NewResolver(host, bundlerOptions(), cast "", "");
 
 			var panicked = false;
 			final results:Array<Pair<String, Bool>> = [];
@@ -256,7 +256,7 @@ class FlipFileExistsFS {
 		this.fs = Wrapvfs.Wrap(base, replacements);
 	}
 
-	function fileExists(path:String):Bool {
+	function fileExists(path:RootedFilePath):Bool {
 		if (path == this.targetPath) {
 			this.callCount++;
 			final n = this.callCount;
@@ -275,7 +275,7 @@ class FlipFileExistsFS {
 		return this.base.FileExists(path);
 	}
 
-	function readFile(path:String):ValueOk<String> {
+	function readFile(path:RootedFilePath):ValueOk<String> {
 		if (path == this.targetPath) {
 			this.readArrived = true;
 		}

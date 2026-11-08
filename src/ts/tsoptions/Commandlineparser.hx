@@ -76,7 +76,7 @@ class CommandLineParser {
 
 	// PORT: body of parseResponseFile after the defer.
 	function parseResponseFileWorker(fileName:String):Void {
-		final r = Tsoptions.tryReadFile(fileName, function(fileName:String):ValueOk<String> {
+		final r = Tsoptions.tryReadFile(/* PORT: transitional (main: typed fileName) */ Tspath.RootedFilePathFromAbsolute(fileName), function(fileName:RootedFilePath):ValueOk<String> {
 			if (this.fs == null) {
 				return new ValueOk<String>("", false);
 			}

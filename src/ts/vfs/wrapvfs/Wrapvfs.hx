@@ -1,5 +1,6 @@
 package ts.vfs.wrapvfs;
 
+import ts.tspath.RootedPath;
 import go.Errors.Error;
 import go.Time;
 import go.Tuple.ValueOk;
@@ -8,17 +9,17 @@ import ts.vfs.Vfs;
 // Port of wrapvfs.go.
 class Replacements {
 	public var UseCaseSensitiveFileNames:Null<() -> Bool> = null;
-	public var FileExists:Null<(String) -> Bool> = null;
-	public var ReadFile:Null<(String) -> ValueOk<String>> = null;
-	public var WriteFile:Null<(String, String) -> Null<Error>> = null;
-	public var AppendFile:Null<(String, String) -> Null<Error>> = null;
-	public var Remove:Null<(String) -> Null<Error>> = null;
-	public var Chtimes:Null<(String, Time, Time) -> Null<Error>> = null;
-	public var DirectoryExists:Null<(String) -> Bool> = null;
-	public var GetAccessibleEntries:Null<(String) -> Entries> = null;
-	public var Stat:Null<(String) -> Null<FileInfo>> = null;
+	public var FileExists:Null<(RootedFilePath) -> Bool> = null;
+	public var ReadFile:Null<(RootedFilePath) -> ValueOk<String>> = null;
+	public var WriteFile:Null<(RootedFilePath, String) -> Null<Error>> = null;
+	public var AppendFile:Null<(RootedFilePath, String) -> Null<Error>> = null;
+	public var Remove:Null<(RootedPath) -> Null<Error>> = null;
+	public var Chtimes:Null<(RootedPath, Time, Time) -> Null<Error>> = null;
+	public var DirectoryExists:Null<(RootedDirectoryPath) -> Bool> = null;
+	public var GetAccessibleEntries:Null<(RootedDirectoryPath) -> Entries> = null;
+	public var Stat:Null<(RootedPath) -> Null<FileInfo>> = null;
 	public var WalkDir:Null<(String, WalkDirFunc) -> Null<Error>> = null;
-	public var Realpath:Null<(String) -> String> = null;
+	public var Realpath:Null<(RootedPath) -> RootedPath> = null;
 
 	public function new() {}
 }
@@ -47,7 +48,7 @@ class WrappedFS implements FS {
 	}
 
 	// FileExists implements [vfs.FS].
-	public function FileExists(path:String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		if (this.replacements.FileExists != null) {
 			return this.replacements.FileExists(path);
 		}
@@ -55,7 +56,7 @@ class WrappedFS implements FS {
 	}
 
 	// ReadFile implements [vfs.FS].
-	public function ReadFile(path:String):ValueOk<String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<String> {
 		if (this.replacements.ReadFile != null) {
 			return this.replacements.ReadFile(path);
 		}
@@ -63,7 +64,7 @@ class WrappedFS implements FS {
 	}
 
 	// WriteFile implements [vfs.FS].
-	public function WriteFile(path:String, data:String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {
 		if (this.replacements.WriteFile != null) {
 			return this.replacements.WriteFile(path, data);
 		}
@@ -71,7 +72,7 @@ class WrappedFS implements FS {
 	}
 
 	// AppendFile implements [vfs.FS].
-	public function AppendFile(path:String, data:String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, data:String):Null<Error> {
 		if (this.replacements.AppendFile != null) {
 			return this.replacements.AppendFile(path, data);
 		}
@@ -79,7 +80,7 @@ class WrappedFS implements FS {
 	}
 
 	// Remove implements [vfs.FS].
-	public function Remove(path:String):Null<Error> {
+	public function Remove(path:RootedPath):Null<Error> {
 		if (this.replacements.Remove != null) {
 			return this.replacements.Remove(path);
 		}
@@ -87,7 +88,7 @@ class WrappedFS implements FS {
 	}
 
 	// Chtimes implements [vfs.FS].
-	public function Chtimes(path:String, aTime:Time, mTime:Time):Null<Error> {
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
 		if (this.replacements.Chtimes != null) {
 			return this.replacements.Chtimes(path, aTime, mTime);
 		}
@@ -95,7 +96,7 @@ class WrappedFS implements FS {
 	}
 
 	// DirectoryExists implements [vfs.FS].
-	public function DirectoryExists(path:String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		if (this.replacements.DirectoryExists != null) {
 			return this.replacements.DirectoryExists(path);
 		}
@@ -103,7 +104,7 @@ class WrappedFS implements FS {
 	}
 
 	// GetAccessibleEntries implements [vfs.FS].
-	public function GetAccessibleEntries(path:String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		if (this.replacements.GetAccessibleEntries != null) {
 			return this.replacements.GetAccessibleEntries(path);
 		}
@@ -111,7 +112,7 @@ class WrappedFS implements FS {
 	}
 
 	// Stat implements [vfs.FS].
-	public function Stat(path:String):Null<FileInfo> {
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		if (this.replacements.Stat != null) {
 			return this.replacements.Stat(path);
 		}
@@ -127,7 +128,7 @@ class WrappedFS implements FS {
 	}
 
 	// Realpath implements [vfs.FS].
-	public function Realpath(path:String):String {
+	public function Realpath(path:RootedPath):RootedPath {
 		if (this.replacements.Realpath != null) {
 			return this.replacements.Realpath(path);
 		}

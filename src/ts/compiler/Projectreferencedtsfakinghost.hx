@@ -36,7 +36,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 	}
 
 	// FileExists implements vfs.FS.
-	public function FileExists(path:std.String):Bool {
+	public function FileExists(path:RootedFilePath):Bool {
 		if (this.projectReferenceFileMapper.opts.Host.FS().FileExists(path)) {
 			return true;
 		}
@@ -48,33 +48,33 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 	}
 
 	// ReadFile implements vfs.FS.
-	public function ReadFile(path:std.String):ValueOk<std.String> {
+	public function ReadFile(path:RootedFilePath):ValueOk<std.String> {
 		// Dont need to override as we cannot mimick read file
 		return this.projectReferenceFileMapper.opts.Host.FS().ReadFile(path);
 	}
 
 	// WriteFile implements vfs.FS.
-	public function WriteFile(path:std.String, data:std.String):Null<Error> {
+	public function WriteFile(path:RootedFilePath, data:std.String):Null<Error> {
 		throw "should not be called by resolver";
 	}
 
 	// AppendFile implements vfs.FS.
-	public function AppendFile(path:std.String, data:std.String):Null<Error> {
+	public function AppendFile(path:RootedFilePath, data:std.String):Null<Error> {
 		throw "should not be called by resolver";
 	}
 
 	// Remove implements vfs.FS.
-	public function Remove(path:std.String):Null<Error> {
+	public function Remove(path:RootedPath):Null<Error> {
 		throw "should not be called by resolver";
 	}
 
 	// Chtimes implements vfs.FS.
-	public function Chtimes(path:std.String, aTime:Time, mTime:Time):Null<Error> {
+	public function Chtimes(path:RootedPath, aTime:Time, mTime:Time):Null<Error> {
 		throw "should not be called by resolver";
 	}
 
 	// DirectoryExists implements vfs.FS.
-	public function DirectoryExists(path:std.String):Bool {
+	public function DirectoryExists(path:RootedDirectoryPath):Bool {
 		if (this.projectReferenceFileMapper.opts.Host.FS().DirectoryExists(path)) {
 			this.handleDirectoryCouldBeSymlink(path);
 			return true;
@@ -83,12 +83,12 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 	}
 
 	// GetAccessibleEntries implements vfs.FS.
-	public function GetAccessibleEntries(path:std.String):Entries {
+	public function GetAccessibleEntries(path:RootedDirectoryPath):Entries {
 		throw "should not be called by resolver";
 	}
 
 	// Stat implements vfs.FS.
-	public function Stat(path:std.String):Null<FileInfo> {
+	public function Stat(path:RootedPath):Null<FileInfo> {
 		throw "should not be called by resolver";
 	}
 
@@ -98,10 +98,10 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 	}
 
 	// Realpath implements vfs.FS.
-	public function Realpath(path:std.String):std.String {
+	public function Realpath(path:RootedPath):RootedPath {
 		final result = this.knownSymlinks.Files().Load(this.toPath(path));
 		if (result.ok) {
-			return result.value;
+			return /* PORT: transitional, unchecked (main: KnownSymlinks.Files stores RootedFilePath) */ cast result.value;
 		}
 		return this.projectReferenceFileMapper.opts.Host.FS().Realpath(path);
 	}
@@ -110,7 +110,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 		return Tspath.ToPath(path, this.projectReferenceFileMapper.opts.Host.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
 	}
 
-	function handleDirectoryCouldBeSymlink(directory:std.String):Void {
+	function handleDirectoryCouldBeSymlink(directory:RootedDirectoryPath):Void {
 		if (Tspath.ContainsIgnoredPath(directory)) {
 			return;
 		}
@@ -125,7 +125,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 			return;
 		}
 
-		final realDirectory = this.Realpath(directory);
+		final realDirectory:std.String = this.Realpath(directory.AsPath());
 		var realPath:Path;
 		if (realDirectory == directory) {
 			// not symlinked
@@ -152,7 +152,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 			return false;
 		}
 		// Check if the directory or file is a symlinked package
-		final packageRoot = Module.ParseNodeModuleFromPath(fileOrDirectory, true /*isFolder*/);
+		final packageRoot = Module.NodeModulePackageRootForDirectory(/* PORT: transitional, unchecked (main: typed fileOrDirectory) */ cast fileOrDirectory);
 		if (packageRoot != "") {
 			this.handleDirectoryCouldBeSymlink(packageRoot);
 		}
@@ -192,7 +192,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 	function fileExistsIfProjectReferenceDts(file:std.String):Tristate {
 		final source = this.projectReferenceFileMapper.getProjectReferenceFromOutputDts(this.toPath(file));
 		if (source != null) {
-			return Core.IfElse(this.projectReferenceFileMapper.opts.Host.FS().FileExists(source.Source), TSTrue, TSFalse);
+			return Core.IfElse(this.projectReferenceFileMapper.opts.Host.FS().FileExists(/* PORT: transitional, unchecked (main: typed Source) */ cast source.Source), TSTrue, TSFalse);
 		}
 		return TSUnknown;
 	}

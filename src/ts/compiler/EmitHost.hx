@@ -126,7 +126,7 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 	}
 
 	public function WriteFile(fileName:std.String, text:std.String):Null<Error> {
-		return this.program.Host().FS().WriteFile(fileName, text);
+		return this.program.Host().FS().WriteFile(/* PORT: transitional (main: typed output file names) */ Tspath.RootedFilePathFromAbsolute(fileName), text);
 	}
 
 	public function GetEmitResolver():EmitResolver {
