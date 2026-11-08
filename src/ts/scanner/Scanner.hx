@@ -180,6 +180,38 @@ class Scanner {
 		ok ? t : null;
 	}
 
+	// PORT: perf — identifier texts shared between the identifiers of the files this scanner scans (Go's
+	// substrings share the source text; a Haxe substring is a copy that the AST keeps and the minor GC
+	// copies again). A direct-mapped cache by length and a few units: a miss (or a collision) makes the
+	// substring and takes the slot. Values only: the strings are equal either way.
+	static inline final ID_CACHE_BITS = 14;
+
+	var idCache:haxe.ds.Vector<String> = null;
+
+	function identifierText(start:Int, end:Int):String {
+		var c = idCache;
+		if (c == null)
+			c = idCache = new haxe.ds.Vector<String>(1 << ID_CACHE_BITS);
+		final t = text;
+		final n = end - start;
+		final mid = start + (n >> 1);
+		final a = StringTools.fastCodeAt(t, start) | (StringTools.fastCodeAt(t, mid) << 8) | (StringTools.fastCodeAt(t, end - 1) << 16) | (n << 24);
+		final b = StringTools.fastCodeAt(t, start + (n > 1 ? 1 : 0)) | (StringTools.fastCodeAt(t, end - (n > 1 ? 2 : 1)) << 8)
+			| (StringTools.fastCodeAt(t, mid - (n > 2 ? 1 : 0)) << 16);
+		final h = ((a * 0x9E3779B1) ^ (b * 0x85EBCA77)) >>> (32 - ID_CACHE_BITS);
+		final k = c[h];
+		if (k != null && k.length == n) {
+			var i = 0;
+			while (i < n && StringTools.fastCodeAt(k, i) == StringTools.fastCodeAt(t, start + i))
+				i++;
+			if (i == n)
+				return k;
+		}
+		final s = t.substring(start, end);
+		c[h] = s;
+		return s;
+	}
+
 	// The index in kwTable of the keyword equal to text[start:end] (ASCII), or -1.
 	inline function keywordAt(start:Int, end:Int):Int {
 		final n = end - start;
@@ -1719,7 +1751,7 @@ class Scanner {
 					tokenValue = kwTable[kw];
 					identifierToken = kwKinds[kw] != KindUnknown ? kwKinds[kw] : KindIdentifier;
 				} else {
-					tokenValue = text.substring(start, pos);
+					tokenValue = identifierText(start, pos);
 					identifierToken = KindIdentifier;
 				}
 				return true;
