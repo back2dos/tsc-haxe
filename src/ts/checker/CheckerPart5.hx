@@ -1322,7 +1322,7 @@ class CheckerPart5 {
 				d.allTypeParameters = all;
 				d.outerTypeParameterCount = outerTypeParameterCount;
 				d.resolvedTypeArguments = d.TypeParameters();
-				d.instantiations = new StringMap<Type>();
+				d.instantiations = new ts.core.HashKeyMap<Type>();
 				d.instantiations.set(Checker.getTypeListKey(d.resolvedTypeArguments).Key(), t);
 				d.target = t;
 			}

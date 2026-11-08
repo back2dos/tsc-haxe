@@ -2488,7 +2488,7 @@ class CheckerPart6 {
 		final data = target.AsObjectType();
 		final key = Checker.getTypeInstantiationKey(typeArguments, newAlias, (t.objectFlags & (Checker.ObjectFlagsSingleSignatureType : ObjectFlags)) != 0).Key();
 		if (data.instantiations == null) {
-			data.instantiations = new StringMap<Type>();
+			data.instantiations = new ts.core.HashKeyMap<Type>();
 			data.instantiations.set(Checker.getTypeInstantiationKey(typeParameters, target.alias, false).Key(), target);
 		}
 		var result = data.instantiations.get(key);
@@ -3892,7 +3892,7 @@ class CheckerPart6 {
 					// Initialize the instantiation cache for generic type aliases. The declared type corresponds to
 					// an instantiation of the type alias with the type parameters supplied as type arguments.
 					links.typeParameters = typeParameters;
-					links.instantiations = new StringMap<Type>();
+					links.instantiations = new ts.core.HashKeyMap<Type>();
 					links.instantiations.set(Checker.getTypeListKey(typeParameters).Key(), t);
 				}
 				if (t == c.intrinsicMarkerType && symbol.Name == "BuiltinIteratorReturn") {

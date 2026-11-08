@@ -280,7 +280,7 @@ class CheckerPart7 {
 			root.alias = alias;
 			links.resolvedType = c.getConditionalType(root, null /*mapper*/, false /*forConstraint*/, null);
 			if (outerTypeParameters != null) {
-				root.instantiations = new StringMap<Type>();
+				root.instantiations = new ts.core.HashKeyMap<Type>();
 				root.instantiations.set(Checker.getConditionalTypeKey(outerTypeParameters, null /*alias*/, false /*forConstraint*/).Key(), links.resolvedType);
 			}
 		}
@@ -844,7 +844,7 @@ class CheckerPart7 {
 		}
 		typeParameters.push(d.thisType);
 		d.allTypeParameters = typeParameters;
-		d.instantiations = new StringMap<Type>();
+		d.instantiations = new ts.core.HashKeyMap<Type>();
 		d.instantiations.set(Checker.getTypeListKey(d.TypeParameters()).Key(), t);
 		d.target = t;
 		d.resolvedTypeArguments = d.TypeParameters();

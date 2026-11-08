@@ -116,7 +116,7 @@ abstract RecursionId(Dynamic) {
 
 @:allow(ts.checker)
 class Relation {
-	var results:StringMap<RelationComparisonResult> /* key: checker.CacheHashKey */ = null;
+	var results:ts.core.HashKeyMap<RelationComparisonResult> /* key: checker.CacheHashKey */ = null;
 	var count:Int = 0; // PORT: len(map) — StringMap has no O(1) size, so set() counts new keys
 
 	public function new() {}
@@ -146,7 +146,7 @@ class Relation {
 	// PORT: set with a key already encoded by keyString (avoids re-encoding on the hot path)
 	function setByKey(key:std.String, result:RelationComparisonResult):Void {
 		if (results == null) {
-			results = new StringMap<RelationComparisonResult>();
+			results = new ts.core.HashKeyMap<RelationComparisonResult>();
 		}
 		if (!results.exists(key)) {
 			count++;

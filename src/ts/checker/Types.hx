@@ -310,7 +310,7 @@ class ExportTypeLinks extends ts.core.Linkstore.LinkEntry {
 class TypeAliasLinks extends ts.core.Linkstore.LinkEntry {
 	var declaredType:Type = null;
 	var typeParameters:Array<Type> = null; // Type parameters of type alias (undefined if non-generic)
-	var instantiations:StringMap<Type> /* key: checker.CacheHashKey */ = null; // Instantiations of generic type alias (undefined if non-generic)
+	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null; // Instantiations of generic type alias (undefined if non-generic)
 	var isConstructorDeclaredProperty:Bool = false;
 
 	public function new() {
@@ -1245,7 +1245,7 @@ class StructuredType extends ConstrainedType {
 class ObjectType extends StructuredType {
 	var target:Type = null; // Target of instantiated type
 	var mapper:TypeMapper = null; // Type mapper for instantiated type
-	var instantiations:StringMap<Type> /* key: checker.CacheHashKey */ = null; // Map of type instantiations
+	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null; // Map of type instantiations
 
 	public function new() {
 		super();
@@ -1595,7 +1595,7 @@ class ConditionalRoot {
 	var isDistributive:Bool = false;
 	var inferTypeParameters:Array<Type> = null;
 	var outerTypeParameters:Array<Type> = null;
-	var instantiations:StringMap<Type> /* key: checker.CacheHashKey */ = null;
+	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
 	var alias:TypeAlias = null;
 
 	public function new() {}

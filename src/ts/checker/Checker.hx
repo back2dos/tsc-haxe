@@ -1422,13 +1422,13 @@ class Checker {
 	var bigintLiteralTypes:StringMap<Type> /* key: jsnum.PseudoBigInt, encoded by PseudoBigInt.String() */ = null;
 	var enumLiteralTypes:StringMap<Type> /* key: checker.EnumLiteralKey */ = null;
 	var enumNaNLiteralTypes:IdentityMap<Symbol, Type> = null;
-	var indexedAccessTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
-	var templateLiteralTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
+	var indexedAccessTypes:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
+	var templateLiteralTypes:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
 	var stringMappingTypes:StringMap<Type> /* key: checker.StringMappingKey */ = null;
 	var uniqueESSymbolTypes:IdentityMap<Symbol, Type> = null;
 	var thisExpandoKinds:IdentityMap<Symbol, ThisAssignmentDeclarationKind> = null;
 	var thisExpandoLocations:IdentityMap<Symbol, Node> = null;
-	var subtypeReductionCache:StringMap<Array<Type>> /* key: checker.CacheHashKey */ = null;
+	var subtypeReductionCache:ts.core.HashKeyMap<Array<Type>> /* key: checker.CacheHashKey */ = null;
 	var cachedTypes:StringMap<Type> /* key: checker.CachedTypeKey */ = null;
 	var cachedSignatures:StringMap<Signature> /* key: checker.CachedSignatureKey */ = null;
 	var undefinedProperties:IdentityMap<Symbol, Symbol> = null;
@@ -1442,7 +1442,7 @@ class Checker {
 	var iterationTypesCache:StringMap<IterationTypes> /* key: checker.IterationTypesKey */ = null;
 	// PORT: from TypeScript main (microsoft/typescript-go#64915, #65059): member layouts and the class or interface types
 	// whose members are being resolved
-	var memberLayoutCache:StringMap<MemberLayout> /* key: checker.CacheHashKey */ = new StringMap();
+	var memberLayoutCache:ts.core.HashKeyMap<MemberLayout> /* key: checker.CacheHashKey */ = new ts.core.HashKeyMap();
 	var memberLayoutCount:Int = 0;
 	var resolvingObjectTypeStack:Array<ResolvingObjectType> = [];
 	var markerTypes:Set<Type> = new Set<Type>();
@@ -1452,7 +1452,7 @@ class Checker {
 	var requireSymbol:Symbol = null;
 	var unknownSymbol:Symbol = null;
 	var unresolvedSymbols:StringMap<Symbol> = null;
-	var errorTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
+	var errorTypes:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
 	var moduleSymbols:IdentityMap<Node, Symbol> = null;
 	var globalThisSymbol:Symbol = null;
 	var symbolTableAliasCache:IntMap<Array<Symbol>> = null;
@@ -1476,10 +1476,10 @@ class Checker {
 		return suggestionNameResolver.Resolve(location, name, meaning, nameNotFoundMessage, isUse, excludeGlobals);
 	}
 
-	var tupleTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
-	var unionTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
+	var tupleTypes:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
+	var unionTypes:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
 	var unionOfUnionTypes:StringMap<Type> /* key: checker.UnionOfUnionKey */ = null;
-	var intersectionTypes:StringMap<Type> /* key: checker.CacheHashKey */ = null;
+	var intersectionTypes:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
 	var propertiesTypes:StringMap<Type> /* key: checker.PropertiesTypesKey */ = null;
 	var diagnostics:DiagnosticsCollection = new DiagnosticsCollection();
 	var suggestionDiagnostics:DiagnosticsCollection = new DiagnosticsCollection();
@@ -1881,13 +1881,13 @@ class Checker {
 		c.bigintLiteralTypes = new StringMap<Type>();
 		c.enumLiteralTypes = new StringMap<Type>();
 		c.enumNaNLiteralTypes = new IdentityMap<Symbol, Type>();
-		c.indexedAccessTypes = new StringMap<Type>();
-		c.templateLiteralTypes = new StringMap<Type>();
+		c.indexedAccessTypes = new ts.core.HashKeyMap<Type>();
+		c.templateLiteralTypes = new ts.core.HashKeyMap<Type>();
 		c.stringMappingTypes = new StringMap<Type>();
 		c.uniqueESSymbolTypes = new IdentityMap<Symbol, Type>();
 		c.thisExpandoKinds = new IdentityMap<Symbol, ThisAssignmentDeclarationKind>();
 		c.thisExpandoLocations = new IdentityMap<Symbol, Node>();
-		c.subtypeReductionCache = new StringMap<Array<Type>>();
+		c.subtypeReductionCache = new ts.core.HashKeyMap<Array<Type>>();
 		c.cachedTypes = new StringMap<Type>();
 		c.cachedSignatures = new StringMap<Signature>();
 		c.undefinedProperties = new IdentityMap<Symbol, Symbol>();
@@ -1904,17 +1904,17 @@ class Checker {
 		c.requireSymbol = c.newSymbol(SymbolFlagsProperty, "require");
 		c.unknownSymbol = c.newSymbol(SymbolFlagsProperty, "unknown");
 		c.unresolvedSymbols = new StringMap<Symbol>();
-		c.errorTypes = new StringMap<Type>();
+		c.errorTypes = new ts.core.HashKeyMap<Type>();
 		c.moduleSymbols = new IdentityMap<Node, Symbol>();
 		c.globalThisSymbol = c.newSymbolEx(SymbolFlagsModule, "globalThis", CheckFlagsReadonly);
 		c.globalThisSymbol.Exports = c.globals;
 		c.globals.set(c.globalThisSymbol.Name, c.globalThisSymbol);
 		c.nameResolver = c.createNameResolver(); // PORT: perf (typed resolver hooks), see resolveName
 		c.suggestionNameResolver = c.createNameResolverForSuggestion();
-		c.tupleTypes = new StringMap<Type>();
-		c.unionTypes = new StringMap<Type>();
+		c.tupleTypes = new ts.core.HashKeyMap<Type>();
+		c.unionTypes = new ts.core.HashKeyMap<Type>();
 		c.unionOfUnionTypes = new StringMap<Type>();
-		c.intersectionTypes = new StringMap<Type>();
+		c.intersectionTypes = new ts.core.HashKeyMap<Type>();
 		c.propertiesTypes = new StringMap<Type>();
 		c.mergedSymbols = new LinkStore<Symbol, MergedSymbolLinks>(() -> new MergedSymbolLinks());
 		c.patternForType = new IdentityMap<Type, Node>();
@@ -1972,7 +1972,7 @@ class Checker {
 		c.unknownEmptyObjectType = c.newAnonymousType(null /*symbol*/, null, null, null, null);
 		c.unknownUnionType = c.createUnknownUnionType();
 		c.emptyGenericType = c.newAnonymousType(null /*symbol*/, null, null, null, null);
-		c.emptyGenericType.AsObjectType().instantiations = new StringMap<Type>();
+		c.emptyGenericType.AsObjectType().instantiations = new ts.core.HashKeyMap<Type>();
 		c.anyFunctionType = c.newAnonymousType(null /*symbol*/, null, null, null, null);
 		c.anyFunctionType.objectFlags |= ObjectFlagsNonInferrableType;
 		c.noConstraintType = c.newAnonymousType(null /*symbol*/, null, null, null, null);
