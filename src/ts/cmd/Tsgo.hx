@@ -13,6 +13,15 @@ class Tsgo {
 	static function runMain():Int {
 		Core.ApplyDebugStackLimit();
 		final args = Sys.args();
+		#if (target.name == "hxmc" && !hxmc.wasm_gc && hxmc.target != "wasm32-wasi")
+		// PORT: perf — a one-shot compile keeps ~everything it allocates until it exits, so its first major
+		// collection copies a live set (t3code-server: 510 MB live of 471 MB at go.GcInit's 512 MB limit, 929
+		// of 942 at 1024), and below 4 GB it is cheaper not to run one at all: t3code-server 5.41 s at 512 MB,
+		// 5.54 s at 1024, 5.30 s at 4096 (old space 2.8 GB, no major collection); ts6-solution -b 1.66 s /
+		// 1114 MB peak at 512, 1.55 s / 752 MB at 4096. Not in watch mode (a long run that leaves garbage).
+		if (args.indexOf("--watch") < 0 && args.indexOf("-w") < 0)
+			hxmc.rt.Gc.setOldLimit(4096);
+		#end
 		if (args.length > 0) {
 			switch (args[0]) {
 				case "--lsp", "--api":
