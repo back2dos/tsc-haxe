@@ -222,14 +222,20 @@ class NodeBuilderImpl {
 			this.ctx.typeStack = [];
 		}
 		this.ctx.typeStack.push(t);
+		// PORT: the Go defer (pop the type stack) runs at each return.
+		// If t is an ancestor in the current expansion, return early to avoid unbounded recursion.
+		if (this.isTypeOnStack(t)) {
+			this.ctx.typeStack.pop();
+			return;
+		}
 		if (t.alias != null) {
 			this.shouldExpandType(t, true);
 		}
 		if (!this.ctx.canIncreaseExpansionDepth) {
 			this.shouldExpandType(t, false);
 		}
-		this.ctx.typeStack.pop();
 		if (this.ctx.canIncreaseExpansionDepth) {
+			this.ctx.typeStack.pop();
 			return;
 		}
 		// Recurse into type arguments (e.g., check Apple in Promise<Apple>).
@@ -239,11 +245,13 @@ class NodeBuilderImpl {
 				for (arg in args) {
 					this.checkTypeExpandability(arg);
 					if (this.ctx.canIncreaseExpansionDepth) {
+						this.ctx.typeStack.pop();
 						return;
 					}
 				}
 			}
 		}
+		this.ctx.typeStack.pop();
 	}
 
 	function appendReferenceToType(root:TypeNode, ref:TypeNode):TypeNode {
@@ -433,7 +441,7 @@ class NodeBuilderImpl {
 	}
 
 	function tryGetResolvedSymbolFromTypeNode(node:Node):Symbol {
-		if (node == null) {
+		if (node == null || node.Parent == null) {
 			return null;
 		}
 		this.ch.getTypeFromTypeNode(node);
@@ -519,7 +527,7 @@ class NodeBuilderImpl {
 				if (nameType != null && nameType.flags & (TypeFlagsEnumLiteral | TypeFlagsUniqueESSymbol) != 0) {
 					final oldEnclosing = this.ctx.enclosingDeclaration;
 					this.ctx.enclosingDeclaration = nameType.symbol.ValueDeclaration;
-					final result = this.f.NewComputedPropertyName(this.symbolToExpression(nameType.symbol, meaning));
+					final result = this.f.NewComputedPropertyName(this.symbolToExpressionWorker(nameType.symbol, meaning));
 					this.ctx.enclosingDeclaration = oldEnclosing;
 					return result;
 				}
@@ -770,7 +778,12 @@ class NodeBuilderImpl {
 	}
 
 	function symbolToExpression(symbol:Symbol, mask:SymbolFlags):Expression {
-		final chain = this.lookupSymbolChain(symbol, mask, false);
+		this.ctx.tracker.TrackSymbol(symbol, this.ctx.enclosingDeclaration, mask);
+		return this.symbolToExpressionWorker(symbol, mask);
+	}
+
+	function symbolToExpressionWorker(symbol:Symbol, mask:SymbolFlags):Expression {
+		final chain = this.lookupSymbolChainWorker(symbol, mask, false);
 		return this.createExpressionFromSymbolChain(chain, Core.len(chain) - 1);
 	}
 
@@ -1891,14 +1904,22 @@ class NodeBuilderImpl {
 			symbol = b.ch.getSymbolOfDeclaration(declaration);
 		}
 		if (t == null) {
-			t = b.ctx.enclosingSymbolTypes.get(Ast.GetSymbolId(symbol));
-			if (t == null) {
-				if (symbol.Flags & SymbolFlagsAccessor != 0 && declaration.Kind == KindSetAccessor) {
-					t = b.ch.instantiateType(b.ch.getWriteTypeOfSymbol(symbol), b.ctx.mapper);
-				} else if (symbol != null && (symbol.Flags & (SymbolFlagsTypeLiteral | SymbolFlagsSignature) == 0)) {
-					t = b.ch.instantiateType(b.ch.getWidenedLiteralType(b.ch.getTypeOfSymbol(symbol)), b.ctx.mapper);
+			if (symbol == null) {
+				if (Ast.IsVariableLike(declaration)) {
+					t = b.ch.getTypeForVariableLikeDeclaration(declaration, false, CheckModeNormal);
 				} else {
 					t = b.ch.errorType;
+				}
+			} else {
+				t = b.ctx.enclosingSymbolTypes.get(Ast.GetSymbolId(symbol));
+				if (t == null) {
+					if (symbol.Flags & SymbolFlagsAccessor != 0 && declaration.Kind == KindSetAccessor) {
+						t = b.ch.instantiateType(b.ch.getWriteTypeOfSymbol(symbol), b.ctx.mapper);
+					} else if (symbol != null && (symbol.Flags & (SymbolFlagsTypeLiteral | SymbolFlagsSignature) == 0)) {
+						t = b.ch.instantiateType(b.ch.getWidenedLiteralType(b.ch.getTypeOfSymbol(symbol)), b.ctx.mapper);
+					} else {
+						t = b.ch.errorType;
+					}
 				}
 			}
 		}
@@ -1924,14 +1945,17 @@ class NodeBuilderImpl {
 		if (!b.isActivelyExpanding() && tryReuse && b.ctx.enclosingDeclaration != null && declaration != null
 			&& (Ast.IsAccessor(declaration)
 				|| (Ast.HasInferredType(declaration) && !Ast.NodeIsSynthesized(declaration) && (t.ObjectFlags() & ObjectFlagsRequiresWidening) == 0))) {
-			final remove = b.addSymbolTypeToContext(symbol, t);
+			var remove:() -> Void = null;
+			if (symbol != null) {
+				remove = b.addSymbolTypeToContext(symbol, t);
+			}
 			var pt:PseudoType = null;
 			if (Ast.IsAccessor(declaration)) {
 				pt = ts.pseudochecker.Lookup.GetTypeOfAccessor(b.pc, declaration);
 			} else {
 				pt = ts.pseudochecker.Lookup.GetTypeOfDeclaration(b.pc, declaration);
 			}
-			if ((pt == null || pt.Kind == PseudoTypeKindNoResult) && Ast.IsBinaryExpression(declaration)) {
+			if ((pt == null || pt.Kind == PseudoTypeKindNoResult) && Ast.IsBinaryExpression(declaration) && symbol != null) {
 				final decl = Core.Find(symbol.Declarations, d -> Checker.hasTypeAnnotation(d));
 				if (decl != null) {
 					// Binary expressions have a first-in-wins type annotation system. The first one with an annotation supplies the type for the rest.
@@ -1974,7 +1998,9 @@ class NodeBuilderImpl {
 					}
 				}
 			}
-			remove();
+			if (remove != null) {
+				remove();
+			}
 		}
 		if (result == null) {
 			if (reportedInferenceFallback) {
@@ -1994,6 +2020,10 @@ class NodeBuilderImpl {
 	}
 
 	function shouldUsePlaceholderForProperty(propertySymbol:Symbol):Bool {
+		// Reverse mapped type placeholders are for display, not declaration emit.
+		if (this.ctx.flags & FlagsAllowAnonymousIdentifier == 0) {
+			return false;
+		}
 		// Use placeholders for reverse mapped types we've either
 		// (1) already descended into, or
 		// (2) are nested reverse mappings within a mapping over a non-anonymous type, or
@@ -2099,7 +2129,7 @@ class NodeBuilderImpl {
 		return name != null && Ast.IsStringLiteral(name) && name.AsStringLiteral().TokenFlags & TokenFlagsSingleQuote != 0;
 	}
 
-	function getPropertyNameNodeForSymbol(symbol:Symbol):Node {
+	function getPropertyNameNodeForSymbol(symbol:Symbol, enclosingDeclaration:Node):Node {
 		// For hash-private names, clone the original private identifier from the declaration
 		if (symbol.ValueDeclaration != null) {
 			final declName = symbol.ValueDeclaration.Name();
@@ -2110,7 +2140,7 @@ class NodeBuilderImpl {
 		final stringNamed = Core.len(symbol.Declarations) != 0 && Core.Every(symbol.Declarations, (d:Node) -> this.isStringNamed(d));
 		final singleQuote = Core.len(symbol.Declarations) != 0 && Core.Every(symbol.Declarations, (d:Node) -> this.isSingleQuotedStringNamed(d));
 		final isMethod = symbol.Flags & SymbolFlagsMethod != 0;
-		final fromNameType = this.getPropertyNameNodeForSymbolFromNameType(symbol, singleQuote, stringNamed, isMethod);
+		final fromNameType = this.getPropertyNameNodeForSymbolFromNameType(symbol, enclosingDeclaration, singleQuote, stringNamed, isMethod);
 		if (fromNameType != null) {
 			return fromNameType;
 		}
@@ -2128,13 +2158,30 @@ class NodeBuilderImpl {
 	}
 
 	// See getNameForSymbolFromNameType for a stringy equivalent
-	function getPropertyNameNodeForSymbolFromNameType(symbol:Symbol, singleQuote:Bool, stringNamed:Bool, isMethod:Bool):Node {
+	function getPropertyNameNodeForSymbolFromNameType(symbol:Symbol, enclosingDeclaration:Node, singleQuote:Bool, stringNamed:Bool, isMethod:Bool):Node {
 		if (!this.ch.valueSymbolLinks.Has(symbol)) {
 			return null;
 		}
 		final nameType = this.ch.valueSymbolLinks.TryGet(symbol).nameType;
 		if (nameType == null) {
 			return null;
+		}
+		var enumEnclosingDeclaration = enclosingDeclaration;
+		if (enumEnclosingDeclaration == null && this.ctx.enclosingFile != null) {
+			enumEnclosingDeclaration = this.ctx.enclosingFile.AsNode();
+		}
+		if (nameType.flags & TypeFlagsEnumLiteral != 0) {
+			var enumSymbol = nameType.symbol.Parent;
+			if (enumSymbol == null) {
+				enumSymbol = nameType.symbol;
+			}
+			if (enumEnclosingDeclaration != null && this.ch.IsSymbolAccessibleByFlags(enumSymbol, enumEnclosingDeclaration, SymbolFlagsValue)) {
+				final saveEnclosingDeclaration = this.ctx.enclosingDeclaration;
+				this.ctx.enclosingDeclaration = enumEnclosingDeclaration;
+				final result = this.f.NewComputedPropertyName(this.symbolToExpression(nameType.symbol, SymbolFlagsValue));
+				this.ctx.enclosingDeclaration = saveEnclosingDeclaration;
+				return result;
+			}
 		}
 		if (nameType.flags & TypeFlagsStringOrNumberLiteral != 0) {
 			var name = "";
@@ -2154,7 +2201,9 @@ class NodeBuilderImpl {
 			return this.createPropertyNameNodeForIdentifierOrLiteral(name, singleQuote, stringNamed, isMethod, symbol);
 		}
 		if (nameType.flags & TypeFlagsUniqueESSymbol != 0) {
-			return this.f.NewComputedPropertyName(this.symbolToExpression(nameType.AsUniqueESSymbolType().symbol, SymbolFlagsValue));
+			// The reference was tracked in the destination scope by trackComputedName.
+			// Reconstructing its spelling in the source scope must not paint that scope's declarations visible.
+			return this.f.NewComputedPropertyName(this.symbolToExpressionWorker(nameType.AsUniqueESSymbolType().symbol, SymbolFlagsValue));
 		}
 		return null;
 	}
@@ -2202,7 +2251,7 @@ class NodeBuilderImpl {
 		} else {
 			b.ctx.enclosingDeclaration = saveEnclosingDeclaration;
 		}
-		final propertyName = b.getPropertyNameNodeForSymbol(propertySymbol);
+		final propertyName = b.getPropertyNameNodeForSymbol(propertySymbol, saveEnclosingDeclaration);
 		b.ctx.enclosingDeclaration = saveEnclosingDeclaration;
 		b.ctx.approximateLength += Utf8.ByteLen(Ast.SymbolName(propertySymbol)) + 1; // PORT: byte (Go len of a UTF-8 string)
 
@@ -2350,9 +2399,11 @@ class NodeBuilderImpl {
 		}
 		if (resolvedType.indexInfos != null) {
 			for (info in resolvedType.indexInfos) {
-				typeElements = Slices.Concat(typeElements,
-					this.indexInfoToObjectComputedNamesOrSignatureDeclaration(info,
-						Core.IfElse(resolvedType.objectFlags & ObjectFlagsReverseMapped != 0, this.createElidedInformationPlaceholder(), null)));
+				var typeNode:TypeNode = null;
+				if (resolvedType.objectFlags & ObjectFlagsReverseMapped != 0 && this.ctx.flags & FlagsAllowAnonymousIdentifier != 0) {
+					typeNode = this.createElidedInformationPlaceholder();
+				}
+				typeElements = Slices.Concat(typeElements, this.indexInfoToObjectComputedNamesOrSignatureDeclaration(info, typeNode));
 			}
 		}
 
@@ -2463,7 +2514,9 @@ class NodeBuilderImpl {
 	}
 
 	function shouldWriteTypeOfFunctionSymbol(symbol:Symbol, typeId:TypeId):Pair<Bool, Symbol> {
-		final isStaticMethodSymbol = symbol.Flags & SymbolFlagsMethod != 0 && Core.Some(symbol.Declarations, (declaration:Node) -> {
+		// `typeof C.name` can only be written when the member name is a valid identifier
+		final isStaticMethodSymbol = symbol.Flags & SymbolFlagsMethod != 0 && Scanner.IsIdentifierText(symbol.Name, LanguageVariantStandard)
+			&& Core.Some(symbol.Declarations, (declaration:Node) -> {
 			return Ast.IsStatic(declaration) && !this.ch.isLateBindableIndexSignature(Ast.GetNameOfDeclaration(declaration));
 		});
 		var isNonLocalFunctionSymbol = false;
@@ -2544,7 +2597,7 @@ class NodeBuilderImpl {
 					// in turn try to reuse the same node again. Mark the type as visited around the reuse
 					// attempt so the inner recursion bottoms out via the visitedTypes guard below.
 					if (this.ctx.visitedTypes.Has(typeId)) {
-						return this.createElidedInformationPlaceholder();
+						return this.createCyclicStructurePlaceholder();
 					}
 					this.ctx.visitedTypes.Add(typeId);
 					final typeNode = this.tryReuseExistingNonParameterTypeNode(existing, t, null, null);
@@ -2554,7 +2607,7 @@ class NodeBuilderImpl {
 					}
 				}
 				if (this.ctx.visitedTypes.Has(typeId)) {
-					return this.createElidedInformationPlaceholder();
+					return this.createCyclicStructurePlaceholder();
 				}
 				return this.visitAndTransformType(t, (b:NodeBuilderImpl, t:Type) -> b.createTypeNodeFromObjectType(t));
 			}
@@ -2586,19 +2639,27 @@ class NodeBuilderImpl {
 					// The specified symbol flags need to be reinterpreted as type flags
 					return this.symbolToTypeNode(typeAlias, SymbolFlagsType, null);
 				} else {
-					return this.createElidedInformationPlaceholder();
+					return this.createCyclicStructurePlaceholder();
 				}
 			} else {
 				return this.visitAndTransformType(t, (b:NodeBuilderImpl, t:Type) -> b.createTypeNodeFromObjectType(t));
 			}
+		} else if (t.objectFlags & ObjectFlagsReverseMapped != 0 && this.ctx.flags & FlagsAllowAnonymousIdentifier == 0) {
+			if (this.ctx.visitedTypes.Has(typeId)) {
+				return this.createCyclicStructurePlaceholder();
+			}
+			return this.visitAndTransformType(t, (b:NodeBuilderImpl, t:Type) -> b.createTypeNodeFromObjectType(t));
 		} else {
-			// Anonymous types without a symbol are never circular.
+			// Reverse mapped types use property and index signature placeholders for display.
 			return this.createTypeNodeFromObjectType(t);
 		}
 	}
 
 	function getTypeFromTypeNode(node:TypeNode, noMappedTypes:Bool):Type {
 		// !!! noMappedTypes optional param support
+		if (node.Parent == null) {
+			return this.ch.errorType;
+		}
 		final t = this.ch.getTypeFromTypeNode(node);
 		if (this.ctx.mapper == null) {
 			return t;
@@ -2614,15 +2675,19 @@ class NodeBuilderImpl {
 	function typeToTypeNodeOrCircularityElision(t:Type):TypeNode {
 		if (t.flags & TypeFlagsUnion != 0) {
 			if (this.ctx.visitedTypes.Has(t.id)) {
-				if (this.ctx.flags & FlagsAllowAnonymousIdentifier == 0) {
-					this.ctx.encounteredError = true;
-					this.ctx.tracker.ReportCyclicStructureError();
-				}
-				return this.createElidedInformationPlaceholder();
+				return this.createCyclicStructurePlaceholder();
 			}
 			return this.visitAndTransformType(t, (b:NodeBuilderImpl, t:Type) -> b.typeToTypeNode(t));
 		}
 		return this.typeToTypeNode(t);
+	}
+
+	function createCyclicStructurePlaceholder():TypeNode {
+		if (this.ctx.flags & FlagsAllowAnonymousIdentifier == 0) {
+			this.ctx.encounteredError = true;
+			this.ctx.tracker.ReportCyclicStructureError();
+		}
+		return this.createElidedInformationPlaceholder();
 	}
 
 	function conditionalTypeToTypeNode(_t:Type):TypeNode {
@@ -2687,7 +2752,7 @@ class NodeBuilderImpl {
 		return this.ch.getSymbolOfNode(host);
 	}
 
-	function typeReferenceToTypeNode(t:Type):TypeNode {
+	function arrayOrTupleTypeToNode(t:Type):TypeNode {
 		var typeArguments:Array<Type> = this.ch.getTypeArguments(t);
 		if (t.Target() == this.ch.globalArrayType || t.Target() == this.ch.globalReadonlyArrayType) {
 			if (this.ctx.flags & FlagsWriteArrayAsGenericType != 0) {
@@ -2702,7 +2767,8 @@ class NodeBuilderImpl {
 			} else {
 				return this.f.NewTypeOperatorNode(KindReadonlyKeyword, arrayType);
 			}
-		} else if (t.Target().objectFlags & ObjectFlagsTuple != 0) {
+		} else {
+			Debug.Assert(t.Target().objectFlags & ObjectFlagsTuple != 0);
 			typeArguments = Core.SameMapIndex(typeArguments, (arg:Type, i:Int) -> {
 				var isOptional = false;
 				if (i < Core.len(t.Target().AsTupleType().elementInfos)) {
@@ -2753,7 +2819,12 @@ class NodeBuilderImpl {
 			this.ctx.encounteredError = true;
 			return null;
 			// TODO: GH#18217
-		} else if (this.ctx.flags & FlagsWriteClassExpressionAsTypeLiteral != 0 && t.symbol.ValueDeclaration != null && Ast.IsClassLike(t.symbol.ValueDeclaration)
+		}
+	}
+
+	function typeReferenceToTypeNode(t:Type):TypeNode {
+		var typeArguments:Array<Type> = this.ch.getTypeArguments(t);
+		if (this.ctx.flags & FlagsWriteClassExpressionAsTypeLiteral != 0 && t.symbol.ValueDeclaration != null && Ast.IsClassLike(t.symbol.ValueDeclaration)
 			&& !this.ch.IsValueSymbolAccessible(t.symbol, this.ctx.enclosingDeclaration)) {
 			return this.createAnonymousTypeNode(t);
 		} else {
@@ -2834,11 +2905,23 @@ class NodeBuilderImpl {
 			return this.createElidedInformationPlaceholder();
 		}
 
-		final typeId = t.id;
+		var typeId = t.id;
+		final isArrayOrTuple = this.ch.isArrayOrTupleType(t);
+		if (isArrayOrTuple) {
+			// Deferred and regular references share a cycle identity.
+			typeId = this.ch.createTypeReference(t.Target(), this.ch.getTypeArguments(t)).id;
+		}
+		if (this.ctx.visitedTypes.Has(typeId)) {
+			return this.createCyclicStructurePlaceholder();
+		}
+
 		final isConstructorObject = t.objectFlags & ObjectFlagsAnonymous != 0 && t.symbol != null && t.symbol.Flags & SymbolFlagsClass != 0;
 		// PORT: struct key CompositeSymbolIdentity encoded as "<isConstructorNode 0/1>:<symbolId>:<nodeId>"; null = Go nil *id.
 		var id:Null<std.String> = null;
-		if (t.objectFlags & ObjectFlagsReference != 0 && t.AsTypeReference().node != null) {
+		if (isArrayOrTuple) {
+			// Do not bound finite container nesting by the shared Array symbol or tuple origin.
+			id = null;
+		} else if (t.objectFlags & ObjectFlagsReference != 0 && t.AsTypeReference().node != null) {
 			id = "0:0:" + Ast.GetNodeId(t.AsTypeReference().node);
 		} else if (t.flags & TypeFlagsConditional != 0) {
 			id = "0:0:" + Ast.GetNodeId(t.AsConditionalType().root.node.AsNode());
@@ -2850,8 +2933,11 @@ class NodeBuilderImpl {
 		// Since instantiations of the same anonymous type have the same symbol, tracking symbols instead
 		// of types allows us to catch circular references to instantiations of the same anonymous type
 
-		// PORT: struct key CompositeTypeCacheIdentity encoded as "<typeId>:<flags>:<internalFlags>".
-		final key = typeId + ":" + (this.ctx.flags : Int) + ":" + (this.ctx.internalFlags : Int);
+		// PORT: struct key CompositeTypeCacheIdentity encoded as "<typeId>:<flags>:<internalFlags>[:<inferTypeParameters key>]".
+		var key = typeId + ":" + (this.ctx.flags : Int) + ":" + (this.ctx.internalFlags : Int);
+		if (Core.len(this.ctx.inferTypeParameters) != 0) {
+			key += ":" + Checker.getTypeListKey(this.ctx.inferTypeParameters).Key();
+		}
 		// Don't rely on type cache if we're expanding a type, because we need to compute `canIncreaseExpansionDepth`.
 		final canUseCache = this.ctx.maxExpansionDepth < 0;
 		if (canUseCache && this.ctx.enclosingDeclaration != null && this.links.Has(this.ctx.enclosingDeclaration)) {
@@ -2872,11 +2958,31 @@ class NodeBuilderImpl {
 			}
 		}
 
+		// PORT: the Go defer (restore the origin depth) runs before each return below.
+		var origin:Null<std.String> = null;
+		var originDepth = 0;
+		if (t.objectFlags & ObjectFlagsReverseMapped != 0) {
+			// Growing type arguments can prevent a reverse mapped type from repeating.
+			// Bound expansion by its mapped declaration as well as its type identity.
+			origin = "0:0:" + Ast.GetNodeId(t.AsReverseMappedType().mappedType.AsMappedType().declaration.AsNode());
+			final d = this.ctx.symbolDepth.get(origin);
+			originDepth = d == null ? 0 : d;
+			if (originDepth >= 100) {
+				this.ctx.truncating = true;
+				return this.createElidedInformationPlaceholder();
+			}
+			this.ctx.symbolDepth.set(origin, originDepth + 1);
+		}
+
 		var depth = 0;
 		if (id != null) {
 			final d = this.ctx.symbolDepth.get(id);
 			depth = d == null ? 0 : d;
 			if (depth > 10) {
+				this.ctx.truncating = true;
+				if (origin != null) {
+					this.ctx.symbolDepth.set(origin, originDepth);
+				}
 				return this.createElidedInformationPlaceholder();
 			}
 			this.ctx.symbolDepth.set(id, depth + 1);
@@ -2906,6 +3012,9 @@ class NodeBuilderImpl {
 			this.ctx.symbolDepth.set(id, depth);
 		}
 		this.ctx.trackedSymbols = prevTrackedSymbols;
+		if (origin != null) {
+			this.ctx.symbolDepth.set(origin, originDepth);
+		}
 		return result;
 
 		// !!! TODO: Attempt node reuse or parse nodes to minimize copying once text range setting is set up
@@ -3123,7 +3232,9 @@ class NodeBuilderImpl {
 					this.ctx.depth--;
 					return result;
 				}
-				if (t.AsTypeReference().node != null) {
+				if (this.ch.isArrayOrTupleType(t)) {
+					return this.visitAndTransformType(t, (b:NodeBuilderImpl, t:Type) -> b.arrayOrTupleTypeToNode(t));
+				} else if (t.AsTypeReference().node != null) {
 					return this.visitAndTransformType(t, (b:NodeBuilderImpl, t:Type) -> b.typeReferenceToTypeNode(t));
 				} else {
 					return this.typeReferenceToTypeNode(t);
