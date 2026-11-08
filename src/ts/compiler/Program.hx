@@ -1492,8 +1492,72 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	public function GetDeclarationDiagnostics(ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+		#if tshx_parallel
+		if (sourceFile == null && this.compilerCheckerPool != null && !this.SingleThreaded()) {
+			return Compiler.SortAndDeduplicateDiagnostics(Slices.Concat(...this.declarationDiagnosticsByChecker(ctx)));
+		}
+		#end
 		return this.collectDiagnostics(ctx, sourceFile, true /*concurrent*/, this.getDeclarationDiagnosticsForFile);
 	}
+
+	#if tshx_parallel
+	// PORT: hxmc (-D tshx-parallel), perf — Go queues one concurrent task per file (collectDiagnosticsFromFiles); the
+	// port's NewWorkGroup is single-threaded, so the declaration transforms of `--declaration --noEmit` ran on one
+	// thread. Like emit (#64922), the files of each checker are transformed in one task: a checker shared by concurrent
+	// tasks would create types in a scheduling-dependent order. Each task visits its files in reverse program order, the
+	// order of the single-threaded work group, so every checker sees the same sequence as before (same results).
+	function declarationDiagnosticsByChecker(ctx:Context):Array<Array<Diagnostic>> {
+		final files = this.files;
+		final diagnostics:Array<Array<Diagnostic>> = [for (_ in 0...files.length) null];
+		final fresh:Array<Bool> = [for (_ in 0...files.length) false];
+		final groups = this.compilerCheckerPool.groupFilesByChecker(files);
+		// go.Par runs the queue in order on a fixed set of threads: the largest group first
+		final sizes = [for (group in groups) {
+			var size = 0;
+			if (group != null)
+				for (i in group)
+					if (!files[i].IsDeclarationFile)
+						size += files[i].Text().length;
+			size;
+		}];
+		final order = [for (i in 0...groups.length) i];
+		order.sort((a, b) -> sizes[a] != sizes[b] ? sizes[b] - sizes[a] : a - b);
+		final wg:WorkGroup = new ParallelWorkGroup();
+		for (g in order) {
+			final group = groups[g];
+			if (Core.len(group) == 0)
+				continue;
+			wg.Queue(function() {
+				var k = group.length - 1;
+				while (k >= 0) {
+					final i = group[k];
+					final file = files[i];
+					if (file.IsDeclarationFile) {
+						diagnostics[i] = [];
+					} else if (this.declarationDiagnosticCache.exists(file)) {
+						diagnostics[i] = this.declarationDiagnosticCache.get(file);
+					} else {
+						final h = Compiler.newEmitHost(ctx, this, file);
+						final host = h.a, done = h.b;
+						diagnostics[i] = try Compiler.getDeclarationDiagnostics(host, file) catch (e:Dynamic) {
+							done();
+							throw e;
+						}
+						done();
+						fresh[i] = true;
+					}
+					k--;
+				}
+			});
+		}
+		wg.RunAndWait();
+		// the cache is not thread-safe: fill it after the tasks
+		for (i in 0...files.length)
+			if (fresh[i])
+				this.declarationDiagnosticCache.set(files[i], diagnostics[i]);
+		return diagnostics;
+	}
+	#end
 
 	function getSemanticDiagnosticsWithChecker(ctx:Context, c:Checker, sourceFile:SourceFile):Array<Diagnostic> {
 		return Core.Concatenate(Compiler.FilterNoEmitSemanticDiagnostics(this.getBindAndCheckDiagnosticsWithChecker(ctx, c, sourceFile), this.Options()),
