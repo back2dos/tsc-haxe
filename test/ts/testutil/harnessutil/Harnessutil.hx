@@ -92,31 +92,31 @@ class Harnessutil {
 		// !!!
 		// ts.assign(options, ts.convertToOptionsWithAbsolutePaths(options, path => ts.getNormalizedAbsolutePath(path, currentDirectory)));
 		if (compilerOptions.OutDir != "") {
-			compilerOptions.OutDir = Tspath.GetNormalizedAbsolutePath(compilerOptions.OutDir, currentDirectory);
+			compilerOptions.OutDir = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.OutDir, currentDirectory);
 		}
 		if (compilerOptions.Project != "") {
-			compilerOptions.Project = Tspath.GetNormalizedAbsolutePath(compilerOptions.Project, currentDirectory);
+			compilerOptions.Project = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.Project, currentDirectory);
 		}
 		if (compilerOptions.RootDir != "") {
-			compilerOptions.RootDir = Tspath.GetNormalizedAbsolutePath(compilerOptions.RootDir, currentDirectory);
+			compilerOptions.RootDir = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.RootDir, currentDirectory);
 		}
 		if (compilerOptions.TsBuildInfoFile != "") {
-			compilerOptions.TsBuildInfoFile = Tspath.GetNormalizedAbsolutePath(compilerOptions.TsBuildInfoFile, currentDirectory);
+			compilerOptions.TsBuildInfoFile = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.TsBuildInfoFile, currentDirectory);
 		}
 		if (compilerOptions.BaseUrl != "") {
-			compilerOptions.BaseUrl = Tspath.GetNormalizedAbsolutePath(compilerOptions.BaseUrl, currentDirectory);
+			compilerOptions.BaseUrl = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.BaseUrl, currentDirectory);
 		}
 		if (compilerOptions.DeclarationDir != "") {
-			compilerOptions.DeclarationDir = Tspath.GetNormalizedAbsolutePath(compilerOptions.DeclarationDir, currentDirectory);
+			compilerOptions.DeclarationDir = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.DeclarationDir, currentDirectory);
 		}
 		if (compilerOptions.RootDirs != null) {
 			for (i in 0...compilerOptions.RootDirs.length) {
-				compilerOptions.RootDirs[i] = Tspath.GetNormalizedAbsolutePath(compilerOptions.RootDirs[i], currentDirectory);
+				compilerOptions.RootDirs[i] = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.RootDirs[i], currentDirectory);
 			}
 		}
 		if (compilerOptions.TypeRoots != null) {
 			for (i in 0...compilerOptions.TypeRoots.length) {
-				compilerOptions.TypeRoots[i] = Tspath.GetNormalizedAbsolutePath(compilerOptions.TypeRoots[i], currentDirectory);
+				compilerOptions.TypeRoots[i] = cast Tspath.GetNormalizedAbsolutePath(compilerOptions.TypeRoots[i], currentDirectory);
 			}
 		}
 
@@ -458,7 +458,7 @@ class Harnessutil {
 			?contentMapperProject:ts.contentmapper.Host.Project):CachedCompilerHost {
 		final tracer = NewTracerForBaselining(new ComparePathsOptions(fs.UseCaseSensitiveFileNames(), currentDirectory), new go.Strings.Builder());
 		final h = new CachedCompilerHost();
-		h.CompilerHost = Compiler.NewCompilerHost(currentDirectory, fs, defaultLibraryPath, null, function(msg:Message, args:Array<Any>) {
+		h.CompilerHost = Compiler.NewCompilerHost(Tspath.RootedDirectoryPathFromAbsolute(currentDirectory), fs, defaultLibraryPath, null, function(msg:Message, args:Array<Any>) {
 			tracer.Trace(msg, ...args);
 		}, contentMapperProject);
 		h.tracer = tracer;

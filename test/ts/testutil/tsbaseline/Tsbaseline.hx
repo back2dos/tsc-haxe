@@ -728,7 +728,7 @@ class Tsbaseline {
 			}
 			if (Core.len(result.Diagnostics) == 0 && StringTools.endsWith(file.UnitName, Tspath.ExtensionJson)) {
 				final parseOpts = new SourceFileParseOptions();
-				parseOpts.FileName = file.UnitName;
+				parseOpts.FileName = cast file.UnitName;
 				parseOpts.Path = file.UnitName;
 				final fileParseResult = Parser.ParseSourceFile(parseOpts, file.Content, ScriptKindJSON);
 				if (Core.len(fileParseResult.Diagnostics()) > 0) {

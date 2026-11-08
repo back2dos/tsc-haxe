@@ -121,7 +121,7 @@ class Testrunner {
 				final configFileName = Tspath.GetNormalizedAbsolutePath(data.name, currentDirectory);
 				final path = Tspath.ToPath(data.name, parseConfigHost.GetCurrentDirectory(), parseConfigHost.Vfs.UseCaseSensitiveFileNames());
 				final opts = new SourceFileParseOptions();
-				opts.FileName = configFileName;
+				opts.FileName = cast configFileName;
 				opts.Path = path;
 				final configJson = Parser.ParseSourceFile(opts, data.content, ScriptKindJSON);
 				final tsConfigSourceFile = new TsConfigSourceFile(configJson);
@@ -523,7 +523,7 @@ class Testrunner {
 		final basename = Tspath.GetBaseFileName(filename);
 		var configuredName = basename;
 		if (namedConfiguration != null && namedConfiguration.Name != "") {
-			final extname = Tspath.GetAnyExtensionFromPath(basename, null, false);
+			final extname = Tspath.GetAnyExtensionFromPath(basename, null, Tspath.CaseSensitive);
 			final extensionlessBasename = basename.substring(0, basename.length - extname.length);
 			configuredName = Fmt.Sprintf("%s(%s)%s", [extensionlessBasename, namedConfiguration.Name, extname]);
 		}

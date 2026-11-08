@@ -15,6 +15,6 @@ class VfsParseConfigHost implements ParseConfigHost {
 	}
 
 	public function GetCurrentDirectory():RootedDirectoryPath {
-		return this.CurrentDirectory;
+		return /* PORT: transitional, unchecked */ cast this.CurrentDirectory;
 	}
 }
