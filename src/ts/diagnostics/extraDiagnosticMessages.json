@@ -1,0 +1,14 @@
+{
+    "An index signature must have a type annotation.": {
+        "category": "Error",
+        "code": 1021
+    },
+    "'resolution-mode' is the only valid key for type import attributes.": {
+        "category": "Error",
+        "code": 1463
+    },
+    "Type import attributes should have exactly one key - 'resolution-mode' - with value 'import' or 'require'.": {
+        "category": "Error",
+        "code": 1464
+    }
+}
