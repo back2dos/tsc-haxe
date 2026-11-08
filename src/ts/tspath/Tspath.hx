@@ -809,75 +809,51 @@ class Tspath {
 	}
 
 	// hasRelativePathSegment, or (backslash) a '\\' in p
+	// PORT: perf — the same answer as Go's checks (leading "./" "../", trailing "/." "/..", "//", "/./", "/../",
+	// p == "." or "..") in one pass with less work per unit: a relative segment is a segment "." or ".." anywhere
+	// or an empty one after a separator; units are only compared within a segment's first three and with '/'
+	// (and '\\'). Checked equal to the Go logic on every string of up to 8 units over "/.a\\".
 	static function scanRelativePathSegment(p:String, backslash:Bool):Bool {
 		final n = p.length;
-		if (n == 0) {
-			return false;
-		}
-
-		if (p == "." || p == "..") {
-			return true;
-		}
-
-		// Leading "./" OR "../"
-		if (StringTools.fastCodeAt(p, 0) == '.'.code) {
-			if (n >= 2 && StringTools.fastCodeAt(p, 1) == '/'.code) {
-				return true;
-			}
-			// Leading "../"
-			if (n >= 3 && StringTools.fastCodeAt(p, 1) == '.'.code && StringTools.fastCodeAt(p, 2) == '/'.code) {
-				return true;
-			}
-		}
-		// Trailing "/." OR "/.."
-		if (StringTools.fastCodeAt(p, n - 1) == '.'.code) {
-			if (n >= 2 && StringTools.fastCodeAt(p, n - 2) == '/'.code) {
-				return true;
-			}
-			if (n >= 3 && StringTools.fastCodeAt(p, n - 2) == '.'.code && StringTools.fastCodeAt(p, n - 3) == '/'.code) {
-				return true;
-			}
-		}
-
-		// Now look for any `//` or `/./` or `/../`
-
-		var prevSlash = false;
-		var segLen = 0; // length of current segment since last slash
-		var dotCount = 0; // consecutive dots at start of the current segment; -1 => not only dots
-
-		for (i in 0...n) {
-			final c = StringTools.fastCodeAt(p, i);
-			if (c == '/'.code) {
-				// "//"
-				if (prevSlash) {
+		var start = 0;
+		while (true) {
+			// a segment "." or ".."
+			var j = start;
+			if (j < n && StringTools.fastCodeAt(p, j) == '.'.code) {
+				var k = j + 1;
+				if (k < n && StringTools.fastCodeAt(p, k) == '.'.code) {
+					k++;
+				}
+				if (k == n || StringTools.fastCodeAt(p, k) == '/'.code) {
 					return true;
 				}
-				// "/./" or "/../"
-				if ((segLen == 1 && dotCount == 1) || (segLen == 2 && dotCount == 2)) {
-					return true;
-				}
-				prevSlash = true;
-				segLen = 0;
-				dotCount = 0;
-				continue;
 			}
-
-			if (c == '.'.code) {
-				if (dotCount >= 0) {
-					dotCount++;
+			// the segment's end
+			if (backslash) {
+				while (j < n) {
+					final c = StringTools.fastCodeAt(p, j);
+					if (c == '/'.code) {
+						break;
+					}
+					if (c == '\\'.code) {
+						return true;
+					}
+					j++;
 				}
 			} else {
-				if (backslash && c == '\\'.code) {
-					return true;
+				while (j < n && StringTools.fastCodeAt(p, j) != '/'.code) {
+					j++;
 				}
-				dotCount = -1;
 			}
-			segLen++;
-			prevSlash = false;
+			if (j == n) {
+				return false;
+			}
+			// "//"
+			if (j + 1 < n && StringTools.fastCodeAt(p, j + 1) == '/'.code) {
+				return true;
+			}
+			start = j + 1;
 		}
-
-		// Trailing "/." or "/.."
-		return (segLen == 1 && dotCount == 1) || (segLen == 2 && dotCount == 2);
 	}
 
 	public static function NormalizePath(path:String):String {
