@@ -27,7 +27,7 @@ class Tsoptions {
 	static final nilStringSlice:Array<std.String> = [];
 	static final emptyStringSlice:Array<std.String> = [];
 
-	static inline function isString(v:Dynamic):Bool {
+	@:allow(ts.tsoptions) static inline function isString(v:Dynamic):Bool {
 		return Std.isOfType(v, std.String);
 	}
 
@@ -701,6 +701,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "deduplicatePackages";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Type_Checking;
 					o.Description = Diagnostics.Deduplicate_packages_with_the_same_name_and_version;
 					o.DefaultValueDescription = true;
@@ -870,7 +873,8 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "target";
 					o.ShortName = "t";
-					o.Kind = CommandLineOptionTypeEnum; // targetOptionMap
+					o.Kind = CommandLineOptionTypeEnum;
+					o.AffectsSemanticDiagnostics = true; // targetOptionMap
 					o.AffectsSourceFile = true;
 					o.AffectsModuleResolution = true;
 					o.AffectsEmit = true;
@@ -886,7 +890,8 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "module";
 					o.ShortName = "m";
-					o.Kind = CommandLineOptionTypeEnum; // moduleOptionMap
+					o.Kind = CommandLineOptionTypeEnum;
+					o.AffectsSemanticDiagnostics = true; // moduleOptionMap
 					o.AffectsModuleResolution = true;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -1037,6 +1042,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "importHelpers";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
 					o.AffectsSourceFile = true;
@@ -1060,6 +1066,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "isolatedModules";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Interop_Constraints;
 					o.Description = Diagnostics.Ensure_that_each_file_can_be_safely_transpiled_without_relying_on_other_imports;
 					o.transpileOptionValue = TSTrue;
@@ -1082,6 +1091,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "isolatedDeclarations";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.Category = Diagnostics.Interop_Constraints;
 					o.Description = Diagnostics.Require_sufficient_annotation_on_exports_so_other_tools_can_trivially_generate_declaration_files;
 					o.DefaultValueDescription = false;
@@ -1130,6 +1140,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "noImplicitAny";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.strictFlag = true;
@@ -1142,6 +1153,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "strictNullChecks";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.strictFlag = true;
@@ -1154,6 +1166,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "strictFunctionTypes";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.strictFlag = true;
@@ -1166,6 +1179,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "strictBindCallApply";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.strictFlag = true;
@@ -1190,6 +1204,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "strictBuiltinIteratorReturn";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.strictFlag = true;
@@ -1202,6 +1217,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "noImplicitThis";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.strictFlag = true;
@@ -1214,6 +1230,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "useUnknownInCatchVariables";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.strictFlag = true;
@@ -1272,6 +1289,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "exactOptionalPropertyTypes";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Type_Checking;
@@ -1306,6 +1324,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "noUncheckedIndexedAccess";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Type_Checking;
@@ -1341,6 +1360,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "moduleResolution";
 					o.Kind = CommandLineOptionTypeEnum;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					//    new Map(Object.entries({
 					//         // N.B. The first entry specifies the value shown in `tsc --init`
 					//         node10: ModuleResolutionKind.Node10,
@@ -1372,6 +1394,9 @@ class Tsoptions {
 					// use type = object to copy the value as-is
 					o.Name = "paths";
 					o.Kind = CommandLineOptionTypeObject;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsModuleResolution = true;
 					o.allowConfigDirTemplateSubstitution = true;
 					o.IsTSConfigOnly = true;
@@ -1386,6 +1411,9 @@ class Tsoptions {
 					// use type = object to copy the value as-is
 					o.Name = "rootDirs";
 					o.Kind = CommandLineOptionTypeList;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.IsTSConfigOnly = true;
 					o.AffectsModuleResolution = true;
 					o.allowConfigDirTemplateSubstitution = true;
@@ -1399,6 +1427,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "typeRoots";
 					o.Kind = CommandLineOptionTypeList;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsModuleResolution = true;
 					o.allowConfigDirTemplateSubstitution = true;
 					o.Category = Diagnostics.Modules;
@@ -1409,6 +1440,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "types";
 					o.Kind = CommandLineOptionTypeList;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsProgramStructure = true;
 					o.ShowInSimplifiedHelpView = true;
 					o.Category = Diagnostics.Modules;
@@ -1464,6 +1498,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "moduleSuffixes";
 					o.Kind = CommandLineOptionTypeList;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.listPreserveFalsyValues = true;
 					o.AffectsModuleResolution = true;
 					o.Category = Diagnostics.Modules;
@@ -1474,6 +1511,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "allowImportingTsExtensions";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Modules;
@@ -1486,6 +1524,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "rewriteRelativeImportExtensions";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsEmit = true;
 					o.AffectsSemanticDiagnostics = true;
 					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Modules;
@@ -1495,8 +1534,23 @@ class Tsoptions {
 				},
 				{
 					final o = new CommandLineOption();
+					o.Name = "disableDynamicImportExtensionRewriting";
+					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
+					o.Category = Diagnostics.Modules;
+					o.Description = Diagnostics.Disable_runtime_rewriting_of_file_extensions_in_non_literal_import_and_require_calls_when_rewriteRelativeImportExtensions_is_enabled;
+					o.DefaultValueDescription = false;
+					o;
+				},
+				{
+					final o = new CommandLineOption();
 					o.Name = "resolvePackageJsonExports";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsModuleResolution = true;
 					o.Category = Diagnostics.Modules;
 					o.Description = Diagnostics.Use_the_package_json_exports_field_when_resolving_package_imports;
@@ -1507,6 +1561,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "resolvePackageJsonImports";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsModuleResolution = true;
 					o.Category = Diagnostics.Modules;
 					o.Description = Diagnostics.Use_the_package_json_imports_field_when_resolving_imports;
@@ -1517,6 +1574,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "customConditions";
 					o.Kind = CommandLineOptionTypeList;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsModuleResolution = true;
 					o.Category = Diagnostics.Modules;
 					o.Description = Diagnostics.Conditions_to_set_in_addition_to_the_resolver_specific_defaults_when_resolving_imports;
@@ -1595,6 +1655,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "jsxFactory";
 					o.Kind = CommandLineOptionTypeString;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Language_and_Environment;
 					o.Description = Diagnostics.Specify_the_JSX_factory_function_used_when_targeting_React_JSX_emit_e_g_React_createElement_or_h;
 					o.DefaultValueDescription = "`React.createElement`";
@@ -1604,6 +1667,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "jsxFragmentFactory";
 					o.Kind = CommandLineOptionTypeString;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Language_and_Environment;
 					o.Description = Diagnostics.Specify_the_JSX_Fragment_reference_used_for_fragments_when_targeting_React_JSX_emit_e_g_React_Fragment_or_Fragment;
 					o.DefaultValueDescription = "React.Fragment";
@@ -1637,6 +1703,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "allowArbitraryExtensions";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsProgramStructure = true;
 					o.Category = Diagnostics.Modules;
 					o.Description = Diagnostics.Enable_importing_files_with_any_extension_provided_a_declaration_file_is_present;
@@ -1647,6 +1716,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "reactNamespace";
 					o.Kind = CommandLineOptionTypeString;
+					o.AffectsSemanticDiagnostics = true;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Language_and_Environment;
@@ -1802,6 +1872,7 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "preserveConstEnums";
 					o.Kind = CommandLineOptionTypeBoolean;
+					o.AffectsSemanticDiagnostics = true;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
 					o.Category = Diagnostics.Emit;
@@ -1903,6 +1974,9 @@ class Tsoptions {
 					final o = new CommandLineOption();
 					o.Name = "moduleDetection";
 					o.Kind = CommandLineOptionTypeEnum;
+					o.AffectsSemanticDiagnostics = true;
+					o.AffectsEmit = true;
+					o.AffectsBuildInfo = true;
 					o.AffectsSourceFile = true;
 					o.AffectsModuleResolution = true;
 					o.Description = Diagnostics.Control_what_method_is_used_to_detect_module_format_JS_files;
@@ -1965,10 +2039,17 @@ class Tsoptions {
 		return false;
 	}
 
+	// PORT: TypeScript main's generated comparisons (options_generated.go, #64712) also compare
+	// GetPathsBasePath(""), which is not an option declaration.
+	static function pathsBasePathChanged(oldOptions:Null<CompilerOptions>, newOptions:Null<CompilerOptions>):Bool {
+		return oldOptions != null && newOptions != null && oldOptions != newOptions
+			&& oldOptions.GetPathsBasePath("") != newOptions.GetPathsBasePath("");
+	}
+
 	public static function CompilerOptionsAffectSemanticDiagnostics(oldOptions:Null<CompilerOptions>, newOptions:Null<CompilerOptions>):Bool {
 		return optionsHaveChanges(oldOptions, newOptions, function(option:CommandLineOption):Bool {
 			return option.AffectsSemanticDiagnostics;
-		});
+		}) || pathsBasePathChanged(oldOptions, newOptions);
 	}
 
 	public static function CompilerOptionsAffectDeclarationPath(oldOptions:Null<CompilerOptions>, newOptions:Null<CompilerOptions>):Bool {
@@ -1980,7 +2061,7 @@ class Tsoptions {
 	public static function CompilerOptionsAffectEmit(oldOptions:Null<CompilerOptions>, newOptions:Null<CompilerOptions>):Bool {
 		return optionsHaveChanges(oldOptions, newOptions, function(option:CommandLineOption):Bool {
 			return option.AffectsEmit;
-		});
+		}) || pathsBasePathChanged(oldOptions, newOptions);
 	}
 
 	// --- declstypeacquisition.go ---
@@ -2206,7 +2287,6 @@ class Tsoptions {
 	static function get_LibMap():OrderedMap<std.String, Dynamic> {
 		if (_LibMap == null) {
 			_LibMap = Collections.NewOrderedMapFromList([
-				// JavaScript only
 				new MapEntry<std.String, Dynamic>("es5", "lib.es5.d.ts"),
 				new MapEntry<std.String, Dynamic>("es6", "lib.es2015.d.ts"),
 				new MapEntry<std.String, Dynamic>("es2015", "lib.es2015.d.ts"),
@@ -2221,8 +2301,8 @@ class Tsoptions {
 				new MapEntry<std.String, Dynamic>("es2023", "lib.es2023.d.ts"),
 				new MapEntry<std.String, Dynamic>("es2024", "lib.es2024.d.ts"),
 				new MapEntry<std.String, Dynamic>("es2025", "lib.es2025.d.ts"),
+				new MapEntry<std.String, Dynamic>("es2026", "lib.es2026.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext", "lib.esnext.d.ts"),
-				// Host only
 				new MapEntry<std.String, Dynamic>("dom", "lib.dom.d.ts"),
 				new MapEntry<std.String, Dynamic>("dom.iterable", "lib.dom.iterable.d.ts"),
 				new MapEntry<std.String, Dynamic>("dom.asynciterable", "lib.dom.asynciterable.d.ts"),
@@ -2231,7 +2311,6 @@ class Tsoptions {
 				new MapEntry<std.String, Dynamic>("webworker.iterable", "lib.webworker.iterable.d.ts"),
 				new MapEntry<std.String, Dynamic>("webworker.asynciterable", "lib.webworker.asynciterable.d.ts"),
 				new MapEntry<std.String, Dynamic>("scripthost", "lib.scripthost.d.ts"),
-				// ES2015 and later By-feature options
 				new MapEntry<std.String, Dynamic>("es2015.core", "lib.es2015.core.d.ts"),
 				new MapEntry<std.String, Dynamic>("es2015.collection", "lib.es2015.collection.d.ts"),
 				new MapEntry<std.String, Dynamic>("es2015.generator", "lib.es2015.generator.d.ts"),
@@ -2294,7 +2373,13 @@ class Tsoptions {
 				new MapEntry<std.String, Dynamic>("es2025.iterator", "lib.es2025.iterator.d.ts"),
 				new MapEntry<std.String, Dynamic>("es2025.promise", "lib.es2025.promise.d.ts"),
 				new MapEntry<std.String, Dynamic>("es2025.regexp", "lib.es2025.regexp.d.ts"),
-				// Fallback for backward compatibility
+				new MapEntry<std.String, Dynamic>("es2026.array", "lib.es2026.array.d.ts"),
+				new MapEntry<std.String, Dynamic>("es2026.collection", "lib.es2026.collection.d.ts"),
+				new MapEntry<std.String, Dynamic>("es2026.error", "lib.es2026.error.d.ts"),
+				new MapEntry<std.String, Dynamic>("es2026.iterator", "lib.es2026.iterator.d.ts"),
+				new MapEntry<std.String, Dynamic>("es2026.json", "lib.es2026.json.d.ts"),
+				new MapEntry<std.String, Dynamic>("es2026.math", "lib.es2026.math.d.ts"),
+				new MapEntry<std.String, Dynamic>("es2026.typedarrays", "lib.es2026.typedarrays.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.asynciterable", "lib.es2018.asynciterable.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.symbol", "lib.es2019.symbol.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.bigint", "lib.es2020.bigint.d.ts"),
@@ -2303,20 +2388,19 @@ class Tsoptions {
 				new MapEntry<std.String, Dynamic>("esnext.regexp", "lib.es2024.regexp.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.string", "lib.es2024.string.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.float16", "lib.es2025.float16.d.ts"),
-				new MapEntry<std.String, Dynamic>("esnext.iterator", "lib.es2025.iterator.d.ts"),
-				new MapEntry<std.String, Dynamic>("esnext.promise", "lib.es2025.promise.d.ts"),
-				// ESNext By-feature options
-				new MapEntry<std.String, Dynamic>("esnext.array", "lib.esnext.array.d.ts"),
-				new MapEntry<std.String, Dynamic>("esnext.collection", "lib.esnext.collection.d.ts"),
+				new MapEntry<std.String, Dynamic>("esnext.array", "lib.es2026.array.d.ts"),
+				new MapEntry<std.String, Dynamic>("esnext.collection", "lib.es2026.collection.d.ts"),
+				new MapEntry<std.String, Dynamic>("esnext.error", "lib.es2026.error.d.ts"),
+				new MapEntry<std.String, Dynamic>("esnext.typedarrays", "lib.es2026.typedarrays.d.ts"),
+				new MapEntry<std.String, Dynamic>("esnext.iterator", "lib.esnext.iterator.d.ts"),
+				new MapEntry<std.String, Dynamic>("esnext.promise", "lib.esnext.promise.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.date", "lib.esnext.date.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.decorators", "lib.esnext.decorators.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.disposable", "lib.esnext.disposable.d.ts"),
-				new MapEntry<std.String, Dynamic>("esnext.error", "lib.esnext.error.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.intl", "lib.esnext.intl.d.ts"),
+				new MapEntry<std.String, Dynamic>("esnext.modulesource", "lib.esnext.modulesource.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.sharedmemory", "lib.esnext.sharedmemory.d.ts"),
 				new MapEntry<std.String, Dynamic>("esnext.temporal", "lib.esnext.temporal.d.ts"),
-				new MapEntry<std.String, Dynamic>("esnext.typedarrays", "lib.esnext.typedarrays.d.ts"),
-				// Decorators
 				new MapEntry<std.String, Dynamic>("decorators", "lib.decorators.d.ts"),
 				new MapEntry<std.String, Dynamic>("decorators.legacy", "lib.decorators.legacy.d.ts"),
 			]);
@@ -2396,6 +2480,7 @@ class Tsoptions {
 				new MapEntry<std.String, Dynamic>("es2023", ScriptTargetES2023),
 				new MapEntry<std.String, Dynamic>("es2024", ScriptTargetES2024),
 				new MapEntry<std.String, Dynamic>("es2025", ScriptTargetES2025),
+				new MapEntry<std.String, Dynamic>("es2026", ScriptTargetES2026),
 				new MapEntry<std.String, Dynamic>("esnext", ScriptTargetESNext),
 			]);
 		}
@@ -2477,6 +2562,7 @@ class Tsoptions {
 		if (_targetToLibMap == null) {
 			final m = new IntMap<std.String>();
 			m.set(ScriptTargetESNext, "lib.esnext.full.d.ts");
+			m.set(ScriptTargetES2026, "lib.es2026.full.d.ts");
 			m.set(ScriptTargetES2025, "lib.es2025.full.d.ts");
 			m.set(ScriptTargetES2024, "lib.es2024.full.d.ts");
 			m.set(ScriptTargetES2023, "lib.es2023.full.d.ts");
@@ -2586,7 +2672,9 @@ class Tsoptions {
 			unknownOptionErrorText:std.String, // optional
 			node:Null<Node>, // optional
 			sourceFile:Null<SourceFile>, // optional
-			alternateMode:Null<AlternateModeDiagnostics> // optional
+			alternateMode:Null<AlternateModeDiagnostics>, // optional
+			?unknownDidYouMeanDiagnostic:Message, // optional; nil skips suggestion
+			?optionsNameMap:CommandLineOptionNameMap // optional; nil skips suggestion
 	):Diagnostic {
 		if (alternateMode != null && alternateMode.optionsNameMap != null) {
 			final otherOption = alternateMode.optionsNameMap.Get(Strings.ToLower(unknownOption));
@@ -2602,7 +2690,13 @@ class Tsoptions {
 		if (unknownOptionErrorText == "") {
 			unknownOptionErrorText = unknownOption;
 		}
-		// TODO: possibleOption := spelling suggestion
+		if (unknownDidYouMeanDiagnostic != null && optionsNameMap != null) {
+			final possibleOption = optionsNameMap.GetSpellingSuggestion(unknownOption);
+			if (possibleOption != null) {
+				return CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, node, unknownDidYouMeanDiagnostic, unknownOptionErrorText,
+					possibleOption.Name);
+			}
+		}
 		return CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, node, unknownOptionDiagnostic, unknownOptionErrorText);
 	}
 
@@ -2780,22 +2874,31 @@ class Tsoptions {
 		return null;
 	}
 
-	static function parseProjectReference(json:Dynamic):Null<Array<ProjectReference>> {
-		var result:Null<Array<ProjectReference>> = null;
+	static function parseProjectReference(json:Dynamic):Null<ProjectReferenceParseResult> {
 		if (isOrderedMap(json)) {
 			final v:OrderedMap<std.String, Dynamic> = json;
-			final reference = new ProjectReference();
+			final result = new ProjectReferenceParseResult();
 			final p = v.Get("path");
 			if (p.ok) {
-				reference.Path = mustString(p.value);
+				result.hasPath = true;
+				final value:Dynamic = p.value;
+				if (Std.isOfType(value, std.String)) {
+					result.reference.Path = value;
+					result.pathValid = true;
+				}
 			}
 			final c = v.Get("circular");
 			if (c.ok) {
-				reference.Circular = mustBool(c.value);
+				result.hasCircular = true;
+				final value:Dynamic = c.value;
+				if (Std.isOfType(value, Bool)) {
+					result.reference.Circular = value;
+					result.circularValid = true;
+				}
 			}
-			result = [reference];
+			return result;
 		}
-		return result;
+		return null;
 	}
 
 	static function parseJsonToStringKey(json:Dynamic):OrderedMap<std.String, Dynamic> {
@@ -3045,6 +3148,8 @@ class Tsoptions {
 				allOptions.ResolvePackageJsonImports = ParseTristate(value);
 			case "reactNamespace":
 				allOptions.ReactNamespace = ParseString(value);
+			case "disableDynamicImportExtensionRewriting":
+				allOptions.DisableDynamicImportExtensionRewriting = ParseTristate(value);
 			case "rewriteRelativeImportExtensions":
 				allOptions.RewriteRelativeImportExtensions = ParseTristate(value);
 			case "rootDir":
@@ -3801,7 +3906,10 @@ class Tsoptions {
 				} else if (keyText != "" && extraKeyDiagnostics(parentOption.Name) != null) {
 					final unknownNameDiag = extraKeyDiagnostics(parentOption.Name);
 					if (parentOption.ElementOptions != null) {
-						final possibleOption = parentOption.ElementOptions.Get(keyText);
+						var possibleOption = parentOption.ElementOptions.Get(keyText);
+						if (possibleOption == null) {
+							possibleOption = parentOption.ElementOptions.GetSpellingSuggestion(keyText);
+						}
 						if (possibleOption != null && possibleOption.Name != keyText) {
 							propertySetErrors = appendDiag(propertySetErrors,
 								CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, propertyAssignment.Name(),
@@ -3825,7 +3933,7 @@ class Tsoptions {
 						propertySetErrors = appendDiag(propertySetErrors,
 							CreateDiagnosticForNodeInSourceFile(sourceFile, propertyAssignment.Name(), Diagnostics.Unknown_option_excludes_Did_you_mean_exclude));
 					}
-					if (Core.Find(OptionsDeclarations, function(option:CommandLineOption):Bool {
+					if (Core.Find(optionsForCompiler, function(option:CommandLineOption):Bool {
 						return option.Name == keyText;
 					}) != null) {
 						if (rootCompilerOptions == null)
@@ -3840,9 +3948,10 @@ class Tsoptions {
 		final r = convertConfigFileToObject(sourceFile, new JsonConversionNotifier(tsconfigRootOptionsMap, onPropertySet));
 		final json = r.a;
 		errors = appendDiags(errors, r.b);
-		// if len(rootCompilerOptions) != 0  && json != nil && json.CompilerOptions != nil {
-		//    errors = append(errors, ast.NewDiagnostic(sourceFile, rootCompilerOptions[0], diagnostics.X_0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file))
-		// }
+		if (Core.len(rootCompilerOptions) != 0 && isOrderedMap(json) && !(json : OrderedMap<std.String, Dynamic>).Has("compilerOptions")) {
+			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFile(sourceFile, rootCompilerOptions[0],
+				Diagnostics.X_0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file, Ast.GetTextOfPropertyName(rootCompilerOptions[0])));
+		}
 		final parsed = new ParsedTsconfig();
 		parsed.raw = json;
 		parsed.options = compilerOptions;
@@ -3877,7 +3986,7 @@ class Tsoptions {
 			if (Tspath.GetBaseFileName(sourceFile.FileName()) == "jsconfig.json") {
 				baseFileName = "jsconfig.json";
 			}
-			final errors = [Ast.NewCompilerDiagnostic(Diagnostics.The_root_value_of_a_0_file_must_be_an_object, baseFileName)];
+			final errors = [CreateDiagnosticForNodeInSourceFile(sourceFile, rootExpression, Diagnostics.The_root_value_of_a_0_file_must_be_an_object, baseFileName)];
 			// Last-ditch error recovery. Somewhat useful because the JSON parser will recover from some parse errors by
 			// synthesizing a top-level array literal expression. There's a reasonable chance the first element of that
 			// array is a well-formed configuration object, made into an array element by stray characters.
@@ -3940,7 +4049,7 @@ class Tsoptions {
 
 		switch (opt.extraValidation) {
 			case extraValidationSpec:
-				final diag = specToDiagnostic(mustString(val), false);
+				final diag = specToDiagnostic(mustString(val), false, ""); // PORT: watch options (removed in TypeScript main)
 				if (diag != null) {
 					errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, valueExpression, diag));
 				}
@@ -4051,6 +4160,11 @@ class Tsoptions {
 			final errors = r.b;
 			if (Core.len(errors) > 0 || validatedValue == null) {
 				return new Pair<Dynamic, Null<Array<Diagnostic>>>(validatedValue, errors);
+			} else if (isString(validatedValue) && opt.IsFilePath && isNetworkPathValue(validatedValue, basePath)) {
+				// PORT: opt.PathKind.IsRooted() — the options with a rooted path kind are the IsFilePath ones.
+				return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, [
+					CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, valueExpression, Diagnostics.Network_path_0_is_not_supported, validatedValue)
+				]);
 			} else {
 				return new Pair<Dynamic, Null<Array<Diagnostic>>>(normalizeNonListOptionValue(opt, basePath, validatedValue), errors);
 			}
@@ -4113,6 +4227,14 @@ class Tsoptions {
 		return new Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, errors);
 	}
 
+	// isNetworkPathValue reports whether a path written in a config file refers
+	// to a network location once resolved against basePath. Checking the resolved
+	// path matches what the file system refuses to access, since normalization
+	// can add or remove a `/??/` prefix.
+	@:allow(ts.tsoptions) static function isNetworkPathValue(value:std.String, basePath:std.String):Bool {
+		return ts.nativepath.Nativepath.IsNetworkPath(Tspath.GetNormalizedAbsolutePath(value, basePath));
+	}
+
 	static function getExtendsConfigPath(extendedConfig:std.String, host:ParseConfigHost, basePath:std.String, valueExpression:Null<Node>,
 			sourceFile:Null<SourceFile>):Pair<std.String, Null<Array<Diagnostic>>> {
 		extendedConfig = Tspath.NormalizeSlashes(extendedConfig);
@@ -4120,6 +4242,11 @@ class Tsoptions {
 		var errorFile:Null<SourceFile> = null;
 		if (sourceFile != null) {
 			errorFile = sourceFile;
+		}
+		if (isNetworkPathValue(extendedConfig, basePath)) {
+			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.Network_path_0_is_not_supported,
+				extendedConfig));
+			return new Pair<std.String, Null<Array<Diagnostic>>>("", errors);
 		}
 		if (Tspath.IsRootedDiskPath(extendedConfig) || StringTools.startsWith(extendedConfig, "./") || StringTools.startsWith(extendedConfig, "../")) {
 			var extendedConfigPath = Tspath.GetNormalizedAbsolutePath(extendedConfig, basePath);
@@ -4149,7 +4276,7 @@ class Tsoptions {
 		return new Pair<std.String, Null<Array<Diagnostic>>>("", errors);
 	}
 
-	static function commandLineOptionsToMap(compilerOptions:Array<CommandLineOption>):CommandLineOptionNameMap {
+	@:allow(ts.tsoptions) static function commandLineOptionsToMap(compilerOptions:Array<CommandLineOption>):CommandLineOptionNameMap {
 		final result = new CommandLineOptionNameMap();
 		for (i in 0...compilerOptions.length) {
 			(result : StringMap<CommandLineOption>).set(compilerOptions[i].Name, compilerOptions[i]);
@@ -4196,29 +4323,15 @@ class Tsoptions {
 				continue;
 			}
 			if (opt == null) {
-				errors = appendDiag(errors, createUnknownOptionError(key, result.UnknownOptionDiagnostic(), "", null, null, null));
+				errors = appendDiag(errors, createUnknownOptionError(key, result.UnknownOptionDiagnostic(), "", null, null, null, result.UnknownDidYouMeanDiagnostic(),
+					optionsNameMap));
 				continue;
 			}
 
-			final commandLineOptionEnumMapVal = opt.EnumMap();
-			if (commandLineOptionEnumMapVal != null) {
-				if (isString(value)) {
-					final r = commandLineOptionEnumMapVal.Get(Strings.ToLower(value));
-					if (r.ok) {
-						errors = result.ParseOption(key, r.value);
-					}
-				} else {
-					final r = convertJsonOption(opt, value, basePath, null, null, null);
-					errors = appendDiags(errors, r.b);
-					final compilerOptionsErr = result.ParseOption(key, r.a);
-					errors = appendDiags(errors, compilerOptionsErr);
-				}
-			} else {
-				final r = convertJsonOption(opt, value, basePath, null, null, null);
-				errors = appendDiags(errors, r.b);
-				final compilerOptionsErr = result.ParseOption(key, r.a);
-				errors = appendDiags(errors, compilerOptionsErr);
-			}
+			final r = convertJsonOption(opt, value, basePath, null, null, null);
+			errors = appendDiags(errors, r.b);
+			final compilerOptionsErr = result.ParseOption(key, r.a);
+			errors = appendDiags(errors, compilerOptionsErr);
 		}
 		return new Pair<O, Null<Array<Diagnostic>>>(result, errors);
 	}
@@ -4603,7 +4716,9 @@ class Tsoptions {
 		var errors:Null<Array<Diagnostic>> = null;
 		if (Slices.Contains(resolutionStack, resolvedPath)) {
 			var result:ParsedTsconfig = null;
-			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Circularity_detected_while_resolving_configuration_Colon_0));
+			final cycle:Array<std.String> = [for (p in resolutionStack.slice(Slices.Index(resolutionStack, resolvedPath))) (p : std.String)];
+			cycle.push(resolvedPath);
+			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Circularity_detected_while_resolving_configuration_Colon_0, cycle.join(" -> ")));
 			if (json.Size() == 0) {
 				result = new ParsedTsconfig();
 				result.raw = json;
@@ -4724,7 +4839,9 @@ class Tsoptions {
 				final keys = result.extendedSourceFiles.Keys();
 				if (keys != null) {
 					for (extendedSourceFile in keys.keys()) {
-						sourceFile.ExtendedSourceFiles = Core.InsertSorted(sourceFile.ExtendedSourceFiles, extendedSourceFile, Strings.Compare);
+						if (Tspath.ToPath(extendedSourceFile, "", host.FS().UseCaseSensitiveFileNames()) != resolvedPath) {
+							sourceFile.ExtendedSourceFiles = Core.InsertSorted(sourceFile.ExtendedSourceFiles, extendedSourceFile, Strings.Compare);
+						}
 					}
 				}
 			}
@@ -4850,7 +4967,7 @@ class Tsoptions {
 		// test whether a file or directory should be excluded before recursively traversing the
 		// file system.
 		if (includeSpecs.sliceValue != null) {
-			final r = validateSpecs(includeSpecs.sliceValue, true /*disallowTrailingRecursion*/, tsconfigToSourceFile(sourceFile), "include");
+			final r = validateSpecs(includeSpecs.sliceValue, true /*disallowTrailingRecursion*/, basePathForFileNames, tsconfigToSourceFile(sourceFile), "include");
 			validatedIncludeSpecsBeforeSubstitution = r.a;
 			errors = appendDiags(errors, r.b);
 			if ((validatedIncludeSpecs = getSubstitutedStringArrayWithConfigDirTemplate(validatedIncludeSpecsBeforeSubstitution, basePathForFileNames)) == null) {
@@ -4858,7 +4975,7 @@ class Tsoptions {
 			}
 		}
 		if (excludeSpecs.sliceValue != null) {
-			final r = validateSpecs(excludeSpecs.sliceValue, false /*disallowTrailingRecursion*/, tsconfigToSourceFile(sourceFile), "exclude");
+			final r = validateSpecs(excludeSpecs.sliceValue, false /*disallowTrailingRecursion*/, basePathForFileNames, tsconfigToSourceFile(sourceFile), "exclude");
 			validatedExcludeSpecs = r.a;
 			errors = appendDiags(errors, r.b);
 			final validatedExcludeSpecsWithSubstitution = getSubstitutedStringArrayWithConfigDirTemplate(validatedExcludeSpecs, basePathForFileNames);
@@ -4872,6 +4989,10 @@ class Tsoptions {
 			});
 			for (spec in fileSpecs) {
 				if (isString(spec)) {
+					if (isNetworkPathValue(spec, basePathForFileNames)) {
+						errors = appendDiag(errors, createDiagnosticForSpec(tsconfigToSourceFile(sourceFile), "files", Diagnostics.Network_path_0_is_not_supported, spec));
+						continue;
+					}
 					if (validatedFilesSpecBeforeSubstitution == null)
 						validatedFilesSpecBeforeSubstitution = [];
 					validatedFilesSpecBeforeSubstitution.push(spec);
@@ -4919,23 +5040,32 @@ class Tsoptions {
 			}, "object");
 			if (newReferencesOfRaw.sliceValue != null) {
 				projectReferences = [];
-				for (reference in newReferencesOfRaw.sliceValue) {
-					final refs = parseProjectReference(reference);
-					if (refs != null) {
-						for (ref in refs) {
-							if (ref.Path == "") {
-								if (sourceFile == null) {
-									errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "reference.path", "string"));
-								}
-							} else {
-								final pr = new ProjectReference();
-								pr.Path = Tspath.GetNormalizedAbsolutePath(ref.Path, basePath);
-								pr.OriginalPath = ref.Path;
-								pr.Circular = ref.Circular;
-								projectReferences.push(pr);
-							}
-						}
+				for (index in 0...newReferencesOfRaw.sliceValue.length) {
+					final reference:Dynamic = newReferencesOfRaw.sliceValue[index];
+					final ref = parseProjectReference(reference);
+					if (ref == null) {
+						continue;
 					}
+					if (!ref.hasPath || !ref.pathValid) {
+						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "path", Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "reference.path", "string"));
+						continue;
+					}
+					if (ref.reference.Path == "") {
+						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "path", Diagnostics.Compiler_option_0_cannot_be_given_an_empty_string, "reference.path"));
+						continue;
+					}
+					if (isNetworkPathValue(ref.reference.Path, basePath)) {
+						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "path", Diagnostics.Network_path_0_is_not_supported, ref.reference.Path));
+						continue;
+					}
+					if (ref.hasCircular && !ref.circularValid) {
+						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "circular", Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "reference.circular", "boolean"));
+					}
+					final pr = new ProjectReference();
+					pr.Path = Tspath.GetNormalizedAbsolutePath(ref.reference.Path, basePath);
+					pr.OriginalPath = ref.reference.Path;
+					pr.Circular = ref.reference.Circular;
+					projectReferences.push(pr);
 				}
 			}
 			return projectReferences;
@@ -4972,16 +5102,17 @@ class Tsoptions {
 		return Core.len(fileNames) == 0 && canJsonReportNoInputFiles && Core.len(resolutionStack) == 0;
 	}
 
-	static function validateSpecs(specs:Dynamic, disallowTrailingRecursion:Bool, jsonSourceFile:Null<SourceFile>,
+	static function createDiagnosticForSpec(jsonSourceFile:Null<SourceFile>, specKey:std.String, message:Message, spec:std.String):Diagnostic {
+		final element = GetTsConfigPropArrayElementValue(jsonSourceFile, specKey, spec);
+		var node:Null<Node> = null;
+		if (element != null) {
+			node = element.AsNode();
+		}
+		return CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(jsonSourceFile, node, message, spec);
+	}
+
+	static function validateSpecs(specs:Dynamic, disallowTrailingRecursion:Bool, basePath:std.String, jsonSourceFile:Null<SourceFile>,
 			specKey:std.String):Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>> {
-		final createDiagnostic = function(message:Message, spec:std.String):Diagnostic {
-			final element = GetTsConfigPropArrayElementValue(jsonSourceFile, specKey, spec);
-			var node:Null<Node> = null;
-			if (element != null) {
-				node = element.AsNode();
-			}
-			return CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(jsonSourceFile, node, message, spec);
-		};
 		var errors:Null<Array<Diagnostic>> = null;
 		var finalSpecs:Null<Array<std.String>> = null;
 		final arr:Null<Array<Dynamic>> = asAnySlice(specs);
@@ -4990,9 +5121,9 @@ class Tsoptions {
 				if (!isString(spec)) {
 					continue;
 				}
-				final diag = specToDiagnostic(spec, disallowTrailingRecursion);
+				final diag = specToDiagnostic(spec, disallowTrailingRecursion, basePath);
 				if (diag != null) {
-					errors = appendDiag(errors, createDiagnostic(diag, spec));
+					errors = appendDiag(errors, createDiagnosticForSpec(jsonSourceFile, specKey, diag, spec));
 				} else {
 					if (finalSpecs == null)
 						finalSpecs = [];
@@ -5003,7 +5134,12 @@ class Tsoptions {
 		return new Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>>(finalSpecs, errors);
 	}
 
-	static function specToDiagnostic(spec:std.String, disallowTrailingRecursion:Bool):Null<Message> {
+	static function specToDiagnostic(spec:std.String, disallowTrailingRecursion:Bool, basePath:std.String):Null<Message> {
+		// `?` is a wildcard in specs, so only UNC and device roots can name a
+		// network path; a `/??/` spec matches local directories.
+		if (StringTools.startsWith(Tspath.GetNormalizedAbsolutePath(spec, basePath), "//")) {
+			return Diagnostics.Network_path_0_is_not_supported;
+		}
 		if (disallowTrailingRecursion && invalidTrailingRecursion(spec)) {
 			return Diagnostics.File_specification_cannot_end_in_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0;
 		}
@@ -5065,6 +5201,9 @@ class Tsoptions {
 	}
 
 	public static function CreateDiagnosticAtReferenceSyntax(config:ParsedCommandLine, index:Int, message:Message, ...args:Any):Null<Diagnostic> {
+		if (config.ConfigFile == null) {
+			return null;
+		}
 		final args = args.toArray();
 		return ForEachTsConfigPropArray(config.ConfigFile.SourceFile, "references", function(property:PropertyAssignment):Null<Diagnostic> {
 			if (Ast.IsArrayLiteralExpression(property.Initializer)) {
@@ -5075,6 +5214,31 @@ class Tsoptions {
 			}
 			return null;
 		});
+	}
+
+	static function createDiagnosticAtProjectReferenceProperty(sourceFile:Null<TsConfigSourceFile>, index:Int, propertyName:std.String, message:Message,
+			...args:Any):Diagnostic {
+		final args = args.toArray();
+		var node:Node = null;
+		if (sourceFile != null) {
+			node = ForEachTsConfigPropArray(sourceFile.SourceFile, "references", function(property:PropertyAssignment):Null<Node> {
+				if (Ast.IsArrayLiteralExpression(property.Initializer)) {
+					final elements = property.Initializer.Elements();
+					if (Core.len(elements) > index && Ast.IsObjectLiteralExpression(elements[index])) {
+						final propertyNode = ForEachPropertyAssignment(elements[index].AsObjectLiteralExpression(), propertyName,
+							function(property:PropertyAssignment):Null<Node> {
+								return property.Initializer;
+							});
+						if (propertyNode != null) {
+							return propertyNode;
+						}
+						return elements[index];
+					}
+				}
+				return null;
+			});
+		}
+		return CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(tsconfigToSourceFile(sourceFile), node, message, ...args);
 	}
 
 	public static function GetCallbackForFindingPropertyAssignmentByValue(value:std.String):(property:PropertyAssignment) -> Null<Node> {
@@ -5648,6 +5812,7 @@ class Tsoptions {
 			new CompilerOptionsField("ResolvePackageJsonExports", "resolvePackageJsonExports", FieldTristate),
 			new CompilerOptionsField("ResolvePackageJsonImports", "resolvePackageJsonImports", FieldTristate),
 			new CompilerOptionsField("RemoveComments", "removeComments", FieldTristate),
+			new CompilerOptionsField("DisableDynamicImportExtensionRewriting", "disableDynamicImportExtensionRewriting", FieldTristate),
 			new CompilerOptionsField("RewriteRelativeImportExtensions", "rewriteRelativeImportExtensions", FieldTristate),
 			new CompilerOptionsField("ReactNamespace", "reactNamespace", FieldString),
 			new CompilerOptionsField("RootDir", "rootDir", FieldString),
@@ -5808,4 +5973,15 @@ class CompilerOptionsField {
 				return a == b;
 		}
 	}
+}
+
+// PORT: Go projectReferenceParseResult (parsinghelpers.go)
+class ProjectReferenceParseResult {
+	public var reference:ProjectReference = new ProjectReference();
+	public var hasPath:Bool = false;
+	public var pathValid:Bool = false;
+	public var hasCircular:Bool = false;
+	public var circularValid:Bool = false;
+
+	public function new() {}
 }
