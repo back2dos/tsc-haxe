@@ -502,7 +502,7 @@ class UtilitiesTest {
 		T.isTrue(i1 > 0);
 		T.eq(i1 + 1, i2);
 		T.eq(i1, Ast.GetNodeId(n1));
-		final s = new Symbol();
+		final s = new ts.ast.Symbol.SymbolWithData();
 		final sid = Ast.GetSymbolId(s);
 		T.isTrue(sid > 0);
 		T.eq(sid, Ast.GetSymbolId(s));

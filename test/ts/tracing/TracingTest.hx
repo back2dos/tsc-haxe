@@ -216,10 +216,10 @@ class TracingTest {
 		final file = Parser.ParseSourceFile(opts, "let x = 1;\n  let y: string = 'é😀';\n", ScriptKindTS);
 		final s0 = file.Statements.Nodes[0];
 		final s1 = file.Statements.Nodes[1];
-		final sym = new Symbol();
+		final sym = new ts.ast.Symbol.SymbolWithData();
 		sym.Name = "Foo";
 		sym.Declarations = [s1];
-		final alias = new Symbol();
+		final alias = new ts.ast.Symbol.SymbolWithData();
 		alias.Name = "Bar";
 
 		final t1 = new FakeType(1);

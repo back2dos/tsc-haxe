@@ -103,7 +103,7 @@ class Binder {
 	var seenParseError:Bool = false;
 	var symbolCount:Int = 0;
 	var notConstEnumOnlyModules:Set<Symbol> = new Set<Symbol>();
-	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new Symbol());
+	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new ts.ast.Symbol.SymbolWithData());
 	var flowNodeArena:Arena<FlowNode> = new Arena<FlowNode>(() -> new FlowNode());
 	var flowListArena:Arena<FlowList> = new Arena<FlowList>(() -> new FlowList());
 	var singleDeclarationsArena:Arena<Node> = new Arena<Node>(() -> null);

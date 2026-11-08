@@ -470,7 +470,7 @@ class NameResolver {
 	function argumentsSymbol():Symbol {
 		if (ArgumentsSymbol == null) {
 			// Default implementation synthesizes a transient symbol for `arguments`
-			final s = new Symbol();
+			final s = new ts.ast.Symbol.SymbolWithData();
 			s.Name = "arguments";
 			s.Flags = SymbolFlagsProperty | SymbolFlagsTransient;
 			ArgumentsSymbol = s;

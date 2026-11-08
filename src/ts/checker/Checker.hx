@@ -1483,7 +1483,7 @@ class Checker {
 	var propertiesTypes:StringMap<Type> /* key: checker.PropertiesTypesKey */ = null;
 	var diagnostics:DiagnosticsCollection = new DiagnosticsCollection();
 	var suggestionDiagnostics:DiagnosticsCollection = new DiagnosticsCollection();
-	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new Symbol());
+	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new ts.ast.Symbol.SymbolWithData());
 	var signatureArena:Arena<Signature> = new Arena<Signature>(() -> new Signature());
 	var indexInfoArena:Arena<IndexInfo> = new Arena<IndexInfo>(() -> new IndexInfo());
 	var mergedExportsChecked:Set<Symbol> = new Set<Symbol>();
@@ -2133,7 +2133,7 @@ class Checker {
 		if (primitiveTypeAliasSuggestions_ == null) {
 			final result = new StringMap<Symbol>();
 			for (e in [["string", "String"], ["number", "Number"], ["boolean", "Boolean"], ["object", "Object"], ["bigint", "BigInt"], ["symbol", "Symbol"]]) {
-				final sym = new Symbol();
+				final sym = new ts.ast.Symbol.SymbolWithData();
 				sym.Flags = SymbolFlagsTypeAlias | SymbolFlagsTransient;
 				sym.Name = e[0];
 				result.set(e[1], sym);

@@ -710,7 +710,7 @@ class CoreTest {
 			// (keys are pointers in the compiler: nodes and symbols, which hold their links)
 			final store = new LinkStore<ts.ast.Symbol, ts.checker.Types.SymbolNodeLinks>(() -> new ts.checker.Types.SymbolNodeLinks());
 			final store2 = new LinkStore<ts.ast.Symbol, ts.checker.Types.SymbolNodeLinks>(() -> new ts.checker.Types.SymbolNodeLinks());
-			final a = new ts.ast.Symbol();
+			final a = new ts.ast.Symbol.SymbolWithData();
 			T.isTrue(!store.Has(a));
 			T.eq(null, store.TryGet(a));
 			final s = store.Get(a);

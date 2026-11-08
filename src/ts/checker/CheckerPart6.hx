@@ -747,11 +747,10 @@ class CheckerPart6 {
 		}
 		// Keep the flags from the symbol we're instantiating.  Mark that is instantiated, and
 		// also transient so that we can just store data on it directly.
-		final result = c.newSymbol(symbol.Flags, symbol.Name);
+		// PORT: perf — from TypeScript main (microsoft/typescript-go#64691): a new transient symbol that shares the
+		// underlying data (name, declarations, parent, value declaration) with the original symbol
+		final result = c.newSharedDataSymbol(symbol);
 		result.CheckFlags = CheckFlagsInstantiated | (symbol.CheckFlags & (CheckFlagsReadonly | CheckFlagsLate | CheckFlagsOptionalParameter | CheckFlagsRestParameter));
-		result.Declarations = symbol.Declarations;
-		result.Parent = symbol.Parent;
-		result.ValueDeclaration = symbol.ValueDeclaration;
 		final resultLinks = c.valueSymbolLinks.Get(result);
 		resultLinks.target = symbol;
 		resultLinks.mapper = m;

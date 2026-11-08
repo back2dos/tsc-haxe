@@ -2179,6 +2179,13 @@ class CheckerPart4 {
 		return result;
 	}
 
+	static function newSharedDataSymbol(c:Checker, symbol:Symbol):Symbol {
+		c.SymbolCount++;
+		final result = Symbol.NewSharedData(symbol);
+		result.Flags = symbol.Flags | SymbolFlagsTransient;
+		return result;
+	}
+
 	static function newSymbolEx(c:Checker, flags:SymbolFlags, name:std.String, checkFlags:CheckFlags):Symbol {
 		final result = c.newSymbol(flags, name);
 		result.CheckFlags = checkFlags;
