@@ -84,6 +84,7 @@ class CompilerOptions {
 	public var ResolvePackageJsonExports:Tristate = TSUnknown; // json:"resolvePackageJsonExports,omitzero"
 	public var ResolvePackageJsonImports:Tristate = TSUnknown; // json:"resolvePackageJsonImports,omitzero"
 	public var RemoveComments:Tristate = TSUnknown; // json:"removeComments,omitzero"
+	public var DisableDynamicImportExtensionRewriting:Tristate = TSUnknown; // json:"disableDynamicImportExtensionRewriting,omitzero"
 	public var RewriteRelativeImportExtensions:Tristate = TSUnknown; // json:"rewriteRelativeImportExtensions,omitzero"
 	public var ReactNamespace:String = ""; // json:"reactNamespace,omitzero"
 	public var RootDir:String = ""; // json:"rootDir,omitzero"
@@ -233,6 +234,7 @@ class CompilerOptions {
 		target.ResolvePackageJsonExports = this.ResolvePackageJsonExports;
 		target.ResolvePackageJsonImports = this.ResolvePackageJsonImports;
 		target.RemoveComments = this.RemoveComments;
+		target.DisableDynamicImportExtensionRewriting = this.DisableDynamicImportExtensionRewriting;
 		target.RewriteRelativeImportExtensions = this.RewriteRelativeImportExtensions;
 		target.ReactNamespace = this.ReactNamespace;
 		target.RootDir = this.RootDir;
@@ -646,21 +648,22 @@ enum abstract ScriptTarget(Int) from Int to Int {
 	var ScriptTargetES2023 = 10;
 	var ScriptTargetES2024 = 11;
 	var ScriptTargetES2025 = 12;
+	var ScriptTargetES2026 = 13;
 	var ScriptTargetESNext = 99;
 	var ScriptTargetJSON = 100;
 	var ScriptTargetLatest = 99; // ScriptTargetESNext
-	var ScriptTargetLatestStandard = 12; // ScriptTargetES2025
+	var ScriptTargetLatestStandard = 13; // ScriptTargetES2026
 
 	// --- scripttarget_stringer_generated.go ---
 
 	static final _ScriptTarget_name_0 = [
-		"None", "ES5", "ES2015", "ES2016", "ES2017", "ES2018", "ES2019", "ES2020", "ES2021", "ES2022", "ES2023", "ES2024", "ES2025"
+		"None", "ES5", "ES2015", "ES2016", "ES2017", "ES2018", "ES2019", "ES2020", "ES2021", "ES2022", "ES2023", "ES2024", "ES2025", "ES2026"
 	];
 	static final _ScriptTarget_name_1 = ["ESNext", "JSON"];
 
 	public function String():String {
 		var i:Int = this;
-		if (0 <= i && i <= 12) {
+		if (0 <= i && i <= 13) {
 			return _ScriptTarget_name_0[i];
 		} else if (99 <= i && i <= 100) {
 			i -= 99;

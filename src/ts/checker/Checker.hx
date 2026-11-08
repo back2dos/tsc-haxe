@@ -6414,6 +6414,9 @@ class Checker {
 			add("Array", "es2022", ["at"]);
 			add("Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Iterator", "es2015", []);
+			add("IteratorConstructor", "es2026", ["concat"]);
+			add("RawJSON", "es2026", []);
+			add("JSON", "es2026", ["isRawJSON", "rawJSON"]);
 			add("AsyncIterator", "es2015", []);
 			add("ArrayBuffer", "es2024", ["maxByteLength", "resizable", "resize", "detached", "transfer", "transferToFixedLength"]);
 			add("Atomics", "es2017", ["add", "and", "compareExchange", "exchange", "isLockFree", "load", "or", "store", "sub", "wait", "notify", "xor"]);
@@ -6430,7 +6433,7 @@ class Checker {
 			add("RegExpConstructor", "es2025", ["escape"]);
 			add("Reflect", "es2015", ["apply", "construct", "defineProperty", "deleteProperty", "get", "getOwnPropertyDescriptor", "getPrototypeOf", "has", "isExtensible", "ownKeys", "preventExtensions", "set", "setPrototypeOf"]);
 			add("ArrayConstructor", "es2015", ["from", "of"]);
-			add("ArrayConstructor", "esnext", ["fromAsync"]);
+			add("ArrayConstructor", "es2026", ["fromAsync"]);
 			add("ObjectConstructor", "es2015", ["assign", "getOwnPropertySymbols", "keys", "is", "setPrototypeOf"]);
 			add("ObjectConstructor", "es2017", ["values", "entries", "getOwnPropertyDescriptors"]);
 			add("ObjectConstructor", "es2019", ["fromEntries"]);
@@ -6439,8 +6442,9 @@ class Checker {
 			add("NumberConstructor", "es2015", ["isFinite", "isInteger", "isNaN", "isSafeInteger", "parseFloat", "parseInt"]);
 			add("Math", "es2015", ["clz32", "imul", "sign", "log10", "log2", "log1p", "expm1", "cosh", "sinh", "tanh", "acosh", "asinh", "atanh", "hypot", "trunc", "fround", "cbrt"]);
 			add("Math", "es2025", ["f16round"]);
+			add("Math", "es2026", ["sumPrecise"]);
 			add("Map", "es2015", ["entries", "keys", "values"]);
-			add("Map", "esnext", ["getOrInsert", "getOrInsertComputed"]);
+			add("Map", "es2026", ["getOrInsert", "getOrInsertComputed"]);
 			add("MapConstructor", "es2024", ["groupBy"]);
 			add("Set", "es2015", ["entries", "keys", "values"]);
 			add("Set", "es2025", ["union", "intersection", "difference", "symmetricDifference", "isSubsetOf", "isSupersetOf", "isDisjointFrom"]);
@@ -6452,7 +6456,7 @@ class Checker {
 			add("Symbol", "es2015", ["for", "keyFor"]);
 			add("Symbol", "es2019", ["description"]);
 			add("WeakMap", "es2015", []);
-			add("WeakMap", "esnext", ["getOrInsert", "getOrInsertComputed"]);
+			add("WeakMap", "es2026", ["getOrInsert", "getOrInsertComputed"]);
 			add("WeakSet", "es2015", []);
 			add("String", "es2015", ["codePointAt", "includes", "endsWith", "normalize", "repeat", "startsWith", "anchor", "big", "blink", "bold", "fixed", "fontcolor", "fontsize", "italics", "link", "small", "strike", "sub", "sup"]);
 			add("String", "es2017", ["padStart", "padEnd"]);
@@ -6483,6 +6487,7 @@ class Checker {
 			add("Int8Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Uint8Array", "es2022", ["at"]);
 			add("Uint8Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
+			add("Uint8Array", "es2026", ["toBase64", "setFromBase64", "toHex", "setFromHex"]);
 			add("Uint8ClampedArray", "es2022", ["at"]);
 			add("Uint8ClampedArray", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Int16Array", "es2022", ["at"]);
@@ -6505,8 +6510,8 @@ class Checker {
 			add("BigUint64Array", "es2022", ["at"]);
 			add("BigUint64Array", "es2023", ["findLastIndex", "findLast", "toReversed", "toSorted", "toSpliced", "with"]);
 			add("Error", "es2022", ["cause"]);
-			add("ErrorConstructor", "esnext", ["isError"]);
-			add("Uint8ArrayConstructor", "esnext", ["fromBase64", "fromHex"]);
+			add("ErrorConstructor", "es2026", ["isError"]);
+			add("Uint8ArrayConstructor", "es2026", ["fromBase64", "fromHex"]);
 			add("DisposableStack", "esnext", []);
 			add("AsyncDisposableStack", "esnext", []);
 			add("Date", "esnext", ["toTemporalInstant"]);

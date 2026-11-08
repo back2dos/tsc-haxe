@@ -13,7 +13,6 @@ See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
 
-
 /// <reference lib="es2018.intl" />
 declare namespace Intl {
     /**
@@ -465,7 +464,6 @@ declare namespace Intl {
 
     interface PluralRulesConstructor {
         new (locales?: LocalesArgument, options?: PluralRulesOptions): PluralRules;
-        (locales?: LocalesArgument, options?: PluralRulesOptions): PluralRules;
 
         supportedLocalesOf(locales: LocalesArgument, options?: { localeMatcher?: "lookup" | "best fit"; }): string[];
     }

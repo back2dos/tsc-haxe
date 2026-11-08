@@ -408,7 +408,7 @@ class Estransforms {
 		switch (options.GetEmitScriptTarget()) {
 			case ScriptTargetESNext:
 				return esDecoratorAndClassFields(opts);
-			case ScriptTargetES2025, ScriptTargetES2024, ScriptTargetES2023, ScriptTargetES2022, ScriptTargetES2021:
+			case ScriptTargetES2026, ScriptTargetES2025, ScriptTargetES2024, ScriptTargetES2023, ScriptTargetES2022, ScriptTargetES2021:
 				return NewESNextTransformer(opts);
 			case ScriptTargetES2020:
 				return NewES2021Transformer(opts);
