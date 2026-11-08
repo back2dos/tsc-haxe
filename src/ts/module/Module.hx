@@ -26,7 +26,7 @@ class Module {
 		return new Resolved();
 	}
 
-	static function newResolutionState(name:String, containingDirectory:String, isTypeReferenceDirective:Bool, resolutionMode:ResolutionMode,
+	static function newResolutionState(name:String, containingDirectory:RootedDirectoryPath, isTypeReferenceDirective:Bool, resolutionMode:ResolutionMode,
 			compilerOptions:CompilerOptions, redirectedReference:Null<ResolvedProjectReference>, resolver:Resolver,
 			traceBuilder:Null<Tracer>):ResolutionState {
 		final state = new ResolutionState();
@@ -214,29 +214,25 @@ class Module {
 	// to look inside of it. The Node CommonJS resolution algorithm doesn't call this out
 	// (https://nodejs.org/api/modules.html#all-together), but it seems that module paths ending
 	// in `.` are actually normalized to `./` before proceeding with the resolution algorithm.
-	static function normalizePathForCJSResolution(containingDirectory:String, moduleName:String):String {
-		final combined = Tspath.CombinePaths(containingDirectory, moduleName);
-		// PORT: perf — the last of GetPathComponents(combined, "") without splitting the path (combined has
-		// normalized slashes, so GetPathComponents' CombinePaths returns it as is)
-		final rootLength = Tspath.GetRootLength(combined);
-		var end = combined.length;
-		if (end > rootLength && StringTools.fastCodeAt(combined, end - 1) == '/'.code) {
-			end--; // pathComponents drops one trailing empty component
+	// PORT: main returns a resolutionCandidate; this port's candidates are still strings: the candidate's
+	// AsString() (its path, with a trailing separator when it is directory-only).
+	static function normalizePathForCJSResolution(containingDirectory:RootedDirectoryPath, moduleName:String):String {
+		// trimmedModuleName := strings.TrimRight(moduleName, `/\`); lastPart after its last separator
+		var end = moduleName.length;
+		while (end > 0 && (StringTools.fastCodeAt(moduleName, end - 1) == '/'.code || StringTools.fastCodeAt(moduleName, end - 1) == '\\'.code)) {
+			end--;
 		}
-		final lastPartIsDots = if (combined.length == rootLength) {
-			false; // the last part is the root
-		} else {
-			var start = end;
-			while (start > rootLength && StringTools.fastCodeAt(combined, start - 1) != '/'.code)
-				start--;
-			final n = end - start;
-			(n == 1 || n == 2) && StringTools.fastCodeAt(combined, start) == '.'.code
-				&& (n == 1 || StringTools.fastCodeAt(combined, start + 1) == '.'.code);
+		var start = end;
+		while (start > 0 && StringTools.fastCodeAt(moduleName, start - 1) != '/'.code && StringTools.fastCodeAt(moduleName, start - 1) != '\\'.code) {
+			start--;
 		}
-		if (lastPartIsDots) {
-			return Tspath.EnsureTrailingDirectorySeparator(Tspath.NormalizePath(combined));
-		}
-		return Tspath.NormalizePath(combined);
+		final n = end - start;
+		final lastPartIsDots = (n == 1 || n == 2) && StringTools.fastCodeAt(moduleName, start) == '.'.code
+			&& (n == 1 || StringTools.fastCodeAt(moduleName, start + 1) == '.'.code);
+		// resolutionCandidateFromDirectoryPath (disk paths: no dynamic URI encoding)
+		final path:String = Tspath.HasTrailingDirectorySeparator(moduleName) ? containingDirectory.ResolveDirectory(moduleName) : containingDirectory.ResolveFile(moduleName);
+		final directoryOnly = end != moduleName.length || lastPartIsDots || Tspath.HasTrailingDirectorySeparator(path);
+		return directoryOnly ? Tspath.EnsureTrailingDirectorySeparator(path) : path;
 	}
 
 	static function matchesPatternWithTrailer(target:String, name:String):Bool {

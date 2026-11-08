@@ -94,7 +94,15 @@ class ResolutionState {
 
 	// request fields
 	var name:String = "";
-	var containingDirectory:String = "";
+	var containingDirectory:RootedDirectoryPath = cast "";
+	var containingDirectoryHasTrailingSeparator:Bool = false;
+
+	function containingDirectoryPath():String {
+		if (this.containingDirectoryHasTrailingSeparator) {
+			return Tspath.EnsureTrailingDirectorySeparator(this.containingDirectory.AsString());
+		}
+		return this.containingDirectory.AsString();
+	}
 	var isConfigLookup:Bool = false;
 	var features:NodeResolutionFeatures = NodeResolutionFeaturesNone;
 	var esmMode:Bool = false;
@@ -164,7 +172,7 @@ class ResolutionState {
 		var resolved:Null<Resolved> = null;
 		if (!fromConfig || !fromInferredTypesContainingFile) {
 			if (r.tracer != null) {
-				r.tracer.write(Diagnostics.Looking_up_in_node_modules_folder_initial_location_0, r.containingDirectory);
+				r.tracer.write(Diagnostics.Looking_up_in_node_modules_folder_initial_location_0, r.containingDirectoryPath());
 			}
 			if (!Tspath.IsExternalModuleNameRelative(r.name)) {
 				resolved = r.loadModuleFromNearestNodeModulesDirectory(false /*typesScopeOnly*/);
@@ -347,8 +355,7 @@ class ResolutionState {
 
 	function loadModuleFromSelfNameReference():Null<Resolved> {
 		final r = this;
-		final directoryPath = Tspath.GetNormalizedAbsolutePath(r.containingDirectory, r.resolver.host.GetCurrentDirectory());
-		final scope = r.getPackageScopeForPath(directoryPath);
+		final scope = r.getPackageScopeForPath(r.containingDirectory);
 		if (!scope.Exists() || scope.Contents.Exports.IsFalsy()) {
 			// !!! falsy check seems wrong?
 			return Module.continueSearching();
@@ -383,7 +390,7 @@ class ResolutionState {
 		// to ensure that self-name imports of their own package can resolve back to their
 		// input JS files via `tryLoadInputFileForPath` at a higher priority than their output
 		// declaration files, so we need to do a single pass with all extensions for that case.
-		if (r.compilerOptions.GetAllowJS() && r.containingDirectory.indexOf("/node_modules/") < 0) {
+		if (r.compilerOptions.GetAllowJS() && !r.containingDirectory.ContainsLowercaseDirectorySequence("/node_modules/")) {
 			return r.loadModuleFromExports(scope, r.extensions, subpath);
 		}
 		final priorityExtensions = r.extensions & (extensionsTypeScript | extensionsDeclaration);
@@ -403,7 +410,7 @@ class ResolutionState {
 			}
 			return Module.continueSearching();
 		}
-		final directoryPath = Tspath.GetNormalizedAbsolutePath(r.containingDirectory, r.resolver.host.GetCurrentDirectory());
+		final directoryPath = r.containingDirectory;
 		final scope = r.getPackageScopeForPath(directoryPath);
 		if (!scope.Exists()) {
 			if (r.tracer != null) {
@@ -536,19 +543,23 @@ class ResolutionState {
 							r.tracer.write(Diagnostics.Using_0_subpath_1_with_target_2, "imports", key, combinedLookup);
 							r.tracer.write(Diagnostics.Resolving_module_0_from_1, combinedLookup, scopeContainingDirectory);
 						}
-						final name = r.name, containingDirectory = r.containingDirectory;
+						final name = r.name, containingDirectory = r.containingDirectory,
+							containingDirectoryHasTrailingSeparator = r.containingDirectoryHasTrailingSeparator;
 						r.name = combinedLookup;
-						r.containingDirectory = scopeContainingDirectory;
+						r.containingDirectory = /* PORT: transitional, unchecked */ cast Tspath.RemoveTrailingDirectorySeparator(scope.PackageDirectory);
+						r.containingDirectoryHasTrailingSeparator = true;
 						// PORT: defer restores name/containingDirectory; done at each return.
 						final result = r.resolveNodeLike();
 						if (result.IsResolved()) {
 							r.name = name;
 							r.containingDirectory = containingDirectory;
+							r.containingDirectoryHasTrailingSeparator = containingDirectoryHasTrailingSeparator;
 							return new Resolved(result.ResolvedFileName, result.Extension, result.PackageId, result.OriginalPath,
 								result.ResolvedUsingTsExtension);
 						}
 						r.name = name;
 						r.containingDirectory = containingDirectory;
+						r.containingDirectoryHasTrailingSeparator = containingDirectoryHasTrailingSeparator;
 						return Module.continueSearching();
 					}
 					if (r.tracer != null) {
@@ -816,9 +827,9 @@ class ResolutionState {
 			}
 			return null;
 		}
-		final result = Tspath.ForEachAncestorDirectory(r.containingDirectory, function(directory:String):ValueOk<Resolved> {
+		final result = r.containingDirectory.ForEachAncestorDirectory(function(directory:RootedDirectoryPath):ValueOk<Resolved> {
 			// !!! stop at global cache
-			if (Tspath.GetBaseFileName(directory) != "node_modules") {
+			if (directory.BaseName() != "node_modules") {
 				final result = r.loadModuleFromImmediateNodeModulesDirectory(ext, directory, typesScopeOnly);
 				return new ValueOk<Resolved>(result, !result.shouldContinueSearching());
 			}
@@ -827,9 +838,9 @@ class ResolutionState {
 		return result.value;
 	}
 
-	function loadModuleFromImmediateNodeModulesDirectory(extensions:Extensions, directory:String, typesScopeOnly:Bool):Null<Resolved> {
+	function loadModuleFromImmediateNodeModulesDirectory(extensions:Extensions, directory:RootedDirectoryPath, typesScopeOnly:Bool):Null<Resolved> {
 		final r = this;
-		final nodeModulesFolder = Tspath.CombinePaths(directory, "node_modules");
+		final nodeModulesFolder = directory.ResolveDirectory("node_modules");
 		if (!r.resolver.host.FS().DirectoryExists(nodeModulesFolder)) {
 			if (r.tracer != null) {
 				r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, nodeModulesFolder);
@@ -845,7 +856,7 @@ class ResolutionState {
 		}
 
 		if ((extensions & extensionsDeclaration) != 0) {
-			final nodeModulesAtTypes = Tspath.CombinePaths(nodeModulesFolder, "@types");
+			final nodeModulesAtTypes = nodeModulesFolder.ResolveDirectory("@types");
 			if (!r.resolver.host.FS().DirectoryExists(nodeModulesAtTypes)) {
 				if (r.tracer != null) {
 					r.tracer.write(Diagnostics.Directory_0_does_not_exist_skipping_all_lookups_in_it, nodeModulesAtTypes);
@@ -858,7 +869,7 @@ class ResolutionState {
 		return Module.continueSearching();
 	}
 
-	function loadModuleFromSpecificNodeModulesDirectory(ext:Extensions, moduleName:String, nodeModulesDirectory:String):Null<Resolved> {
+	function loadModuleFromSpecificNodeModulesDirectory(ext:Extensions, moduleName:String, nodeModulesDirectory:RootedDirectoryPath):Null<Resolved> {
 		final r = this;
 		// Strip any trailing directory separator so that imports like `pkg/` and `pkg`
 		// produce identical `candidate` and `packageDirectory` strings. Otherwise the
@@ -868,12 +879,15 @@ class ResolutionState {
 		// causing `loadNodeModuleFromDirectoryWorker`'s `ComparePaths(candidate, ...)`
 		// check to fail and skip loading the package's `main`/`types` entry.
 		// https://github.com/microsoft/typescript-go/issues/3526
-		final candidate = Tspath.RemoveTrailingDirectorySeparator(Tspath.NormalizePath(Tspath.CombinePaths(nodeModulesDirectory, moduleName)));
+		// PORT: main's candidate (resolutionCandidateFromDirectoryPath(...).AsDirectoryPath()) as a string
+		final candidate:String = Tspath.HasTrailingDirectorySeparator(moduleName) ? nodeModulesDirectory.ResolveDirectory(moduleName) : nodeModulesDirectory.ResolveFile(moduleName);
 		final pr = Module.ParsePackageName(moduleName);
 		final packageName = pr.a, rest = pr.b;
-		var packageDirectory = Tspath.CombinePaths(nodeModulesDirectory, packageName);
+		var packageDirectory:String;
 		if (packageName == "") {
 			packageDirectory = candidate;
+		} else {
+			packageDirectory = nodeModulesDirectory.ResolveDirectory(packageName);
 		}
 
 		if (r.resolvePackageDirectoryOnly) {
@@ -1031,8 +1045,9 @@ class ResolutionState {
 	function getOriginalAndResolvedFileName(fileName:String):Pair<String, String> {
 		final r = this;
 		final resolvedFileName = r.realPath(fileName);
-		final comparePathsOptions = new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames(), r.resolver.host.GetCurrentDirectory());
-		if (Tspath.ComparePaths_legacy(fileName, resolvedFileName, comparePathsOptions) == 0) {
+		final caseSensitivity = Tspath.caseSensitivityOf(r.resolver.host.FS().UseCaseSensitiveFileNames());
+		// PORT: transitional — the resolver's file names are still strings (main: RootedFilePath)
+		if (caseSensitivity.CompareFilePaths(/* PORT: transitional, unchecked */ cast fileName, /* PORT: transitional, unchecked */ cast resolvedFileName) == 0) {
 			// If the fileName and realpath are differing only in casing, prefer fileName
 			// so that we can issue correct errors for casing under forceConsistentCasingInFileNames
 			return new Pair("", fileName);
@@ -1517,7 +1532,9 @@ class ResolutionState {
 		var versionPaths = new VersionPaths();
 		if (packageInfo.Exists()) {
 			versionPaths = packageInfo.Contents.GetVersionPaths(r.getTraceFunc());
-			if (Tspath.ComparePaths_legacy(candidate, packageInfo.PackageDirectory, new ComparePathsOptions(r.resolver.host.FS().UseCaseSensitiveFileNames())) == 0) {
+			final caseSensitivity = Tspath.caseSensitivityOf(r.resolver.host.FS().UseCaseSensitiveFileNames());
+			// PORT: transitional — candidate and package directory are still strings (main: typed)
+			if (caseSensitivity.ComparePaths(/* PORT: transitional, unchecked */ cast candidate, /* PORT: transitional, unchecked */ cast packageInfo.PackageDirectory) == 0) {
 				final file = r.getPackageFile(ext, packageInfo);
 				if (file.ok) {
 					packageFile = file.value;
@@ -1986,7 +2003,7 @@ class Resolver {
 	// PORT: perf — loadModuleFromNearestNodeModulesDirectoryWorker's walk by containing directory
 	final nodeModulesAncestorsCache:SyncMap<String, NodeModulesAncestors> = new SyncMap<String, NodeModulesAncestors>();
 
-	public function nodeModulesAncestors(containingDirectory:String):NodeModulesAncestors {
+	public function nodeModulesAncestors(containingDirectory:RootedDirectoryPath):NodeModulesAncestors {
 		final cached = this.nodeModulesAncestorsCache.Load(containingDirectory).value;
 		if (cached != null) {
 			return cached;
@@ -2026,13 +2043,13 @@ class Resolver {
 	}
 
 	// PORT: (*ResolvedTypeReferenceDirective, []DiagAndArgs) → Pair.
-	public function ResolveTypeReferenceDirective(typeReferenceDirectiveName:String, containingFile:String, resolutionMode:ResolutionMode,
+	public function ResolveTypeReferenceDirective(typeReferenceDirectiveName:String, containingFile:RootedFilePath, resolutionMode:ResolutionMode,
 			redirectedReference:Null<ResolvedProjectReference>):Pair<ResolvedTypeReferenceDirective, Null<Array<DiagAndArgs>>> {
 		final r = this;
-		final containingDirectory = Tspath.GetDirectoryPath(containingFile);
+		final containingDirectory = containingFile.Directory();
 		final traceBuilder = r.newTraceBuilder();
 
-		final fromInferredTypesContainingFile = StringTools.endsWith(containingFile, Module.InferredTypesContainingFile);
+		final fromInferredTypesContainingFile = containingFile.BaseName() == Module.InferredTypesContainingFile;
 
 		final cacheKey = new TypeRefDirectiveResolutionCacheKey(containingDirectory, typeReferenceDirectiveName, resolutionMode,
 			Module.getRedirectConfigName(redirectedReference), fromInferredTypesContainingFile);
@@ -2068,10 +2085,10 @@ class Resolver {
 	}
 
 	// PORT: (*ResolvedModule, []DiagAndArgs) → Pair.
-	public function ResolveModuleName(moduleName:String, containingFile:String, resolutionMode:ResolutionMode,
+	public function ResolveModuleName(moduleName:String, containingFile:RootedFilePath, resolutionMode:ResolutionMode,
 			redirectedReference:Null<ResolvedProjectReference>):Pair<ResolvedModule, Null<Array<DiagAndArgs>>> {
 		final r = this;
-		final containingDirectory = Tspath.GetDirectoryPath(containingFile);
+		final containingDirectory = containingFile.Directory();
 		final traceBuilder = r.newTraceBuilder();
 
 		final cacheKey = new ModuleResolutionCacheKey(containingDirectory, moduleName, resolutionMode, Module.getRedirectConfigName(redirectedReference));
@@ -2129,11 +2146,11 @@ class Resolver {
 		return new Pair(finalResult, traceBuilder.getTraces());
 	}
 
-	public function ResolvePackageDirectory(moduleName:String, containingFile:String, resolutionMode:ResolutionMode,
+	public function ResolvePackageDirectory(moduleName:String, containingFile:RootedFilePath, resolutionMode:ResolutionMode,
 			redirectedReference:Null<ResolvedProjectReference>):Null<ResolvedModule> {
 		final r = this;
 		final compilerOptions = Module.GetCompilerOptionsWithRedirect(r.compilerOptions, redirectedReference);
-		final containingDirectory = Tspath.GetDirectoryPath(containingFile);
+		final containingDirectory = containingFile.Directory();
 		final state = Module.newResolutionState(moduleName, containingDirectory, false /*isTypeReferenceDirective*/, resolutionMode, compilerOptions,
 			redirectedReference, r, null);
 		// TypeScript main (#65105): a relative package name resolves to that directory.
@@ -2153,7 +2170,7 @@ class Resolver {
 		return null;
 	}
 
-	function tryResolveFromTypingsLocation(moduleName:String, containingDirectory:String, originalResult:ResolvedModule,
+	function tryResolveFromTypingsLocation(moduleName:String, containingDirectory:RootedDirectoryPath, originalResult:ResolvedModule,
 			traceBuilder:Null<Tracer>):ResolvedModule {
 		final r = this;
 		if (r.typingsLocation == ""
@@ -2170,7 +2187,7 @@ class Resolver {
 			traceBuilder.write(Diagnostics.Auto_discovery_for_typings_is_enabled_in_project_0_Running_extra_resolution_pass_for_module_1_using_cache_location_2,
 				r.projectName, moduleName, r.typingsLocation);
 		}
-		final globalResolved = state.loadModuleFromImmediateNodeModulesDirectory(extensionsDeclaration, r.typingsLocation, false);
+		final globalResolved = state.loadModuleFromImmediateNodeModulesDirectory(extensionsDeclaration, /* PORT: transitional, unchecked */ cast r.typingsLocation, false);
 		if (globalResolved == null) {
 			return originalResult;
 		}
@@ -2188,7 +2205,7 @@ class Resolver {
 	@:allow(ts.module)
 	function resolveConfig(moduleName:String, containingFile:String):ResolvedModule {
 		final r = this;
-		final containingDirectory = Tspath.GetDirectoryPath(containingFile);
+		final containingDirectory:RootedDirectoryPath = /* PORT: transitional, unchecked */ cast Tspath.GetDirectoryPath(containingFile);
 		final state = Module.newResolutionState(moduleName, containingDirectory, false /*isTypeReferenceDirective*/, ModuleKindCommonJS,
 			r.compilerOptions, null, r, null);
 		state.isConfigLookup = true;
@@ -2341,19 +2358,19 @@ class ResolvedEntrypoint {
 // the ancestors without node_modules (untraced, these only return continueSearching) instead of combining the
 // path, hashing it and looking it up in the file system cache again for every module name.
 class NodeModulesAncestors {
-	public final directories:Array<String> = [];
+	public final directories:Array<RootedDirectoryPath> = [];
 
 	// 0: not asked yet, 1: exists, 2: does not exist (a benign race: threads store the same value)
 	final state:Array<Int> = [];
 
-	public function new(containingDirectory:String) {
+	public function new(containingDirectory:RootedDirectoryPath) {
 		var directory = containingDirectory;
 		while (true) {
-			if (Tspath.GetBaseFileName(directory) != "node_modules") {
+			if (directory.BaseName() != "node_modules") {
 				directories.push(directory);
 				state.push(0);
 			}
-			final parentPath = Tspath.GetDirectoryPath(directory);
+			final parentPath = directory.AsPath().Directory();
 			if (parentPath == directory) {
 				break;
 			}
@@ -2364,7 +2381,7 @@ class NodeModulesAncestors {
 	public function nodeModulesExists(resolver:Resolver, i:Int):Bool {
 		var s = state[i];
 		if (s == 0) {
-			s = resolver.host.FS().DirectoryExists(Tspath.CombinePaths(directories[i], "node_modules")) ? 1 : 2;
+			s = resolver.host.FS().DirectoryExists(directories[i].ResolveDirectory("node_modules")) ? 1 : 2;
 			state[i] = s;
 		}
 		return s == 1;

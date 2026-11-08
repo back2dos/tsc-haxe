@@ -180,16 +180,16 @@ class ModuleGoldenTest {
 				};
 				switch (kind) {
 					case "module":
-						final r = resolver.ResolveModuleName(opName, from, mode, null);
+						final r = resolver.ResolveModuleName(opName, Tspath.RootedFilePathFromAbsolute(from), mode, null);
 						writeTraces(r.b);
 						writeModule(r.a);
 					case "typeRef":
-						final r = resolver.ResolveTypeReferenceDirective(opName, from, mode, null);
+						final r = resolver.ResolveTypeReferenceDirective(opName, Tspath.RootedFilePathFromAbsolute(from), mode, null);
 						writeTraces(r.b);
 						final t = r.a;
 						out.add('resolved: ${q(t.ResolvedFileName)} original: ${q(t.OriginalPath)} primary: ${b(t.Primary)} external: ${b(t.IsExternalLibraryImport)} pkg: ${q(t.PackageId.String())}\n');
 					case "packageDir":
-						writeModule(resolver.ResolvePackageDirectory(opName, from, mode, null));
+						writeModule(resolver.ResolvePackageDirectory(opName, Tspath.RootedFilePathFromAbsolute(from), mode, null));
 					case "config":
 						writeModule(Module.ResolveConfig(opName, from, host));
 					case "packageScope":

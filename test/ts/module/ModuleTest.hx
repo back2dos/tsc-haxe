@@ -25,7 +25,7 @@ class ModuleTest {
 			final resolver = Module.NewResolver(host, opts, "", "");
 
 			for (name in ["pkg", "pkg/"]) {
-				final r = resolver.ResolveModuleName(name, "/repo/src/file.ts", ModuleKindESNext, null).a;
+				final r = resolver.ResolveModuleName(name, Tspath.RootedFilePathFromAbsolute("/repo/src/file.ts"), ModuleKindESNext, null).a;
 				if (!r.IsResolved()) {
 					T.fail('"$name" failed to resolve');
 				}
@@ -76,7 +76,7 @@ class ModuleTest {
 				if (StringTools.endsWith(name, "/")) {
 					containingFile = "/repo/src/b/file.ts";
 				}
-				final r = resolver.ResolveModuleName(name, containingFile, ModuleKindESNext, null).a;
+				final r = resolver.ResolveModuleName(name, Tspath.RootedFilePathFromAbsolute(containingFile), ModuleKindESNext, null).a;
 				results.push(new Pair(name, r.IsResolved()));
 			};
 			other = () -> resolve("pkg/");
@@ -112,7 +112,7 @@ class ModuleTest {
 			final resolve = function(containingFile:String) {
 				var resolved = false;
 				try {
-					final r = resolver.ResolveModuleName("pkg/sub", containingFile, ModuleKindESNext, null).a;
+					final r = resolver.ResolveModuleName("pkg/sub", Tspath.RootedFilePathFromAbsolute(containingFile), ModuleKindESNext, null).a;
 					resolved = r.IsResolved();
 				} catch (e:Dynamic) {
 					panicked = true;
@@ -175,7 +175,7 @@ class ModuleTest {
 			final resolve = function(containingFile:String) {
 				var resolved = false;
 				try {
-					final r = resolver.ResolveModuleName("pkg", containingFile, ModuleKindESNext, null).a;
+					final r = resolver.ResolveModuleName("pkg", Tspath.RootedFilePathFromAbsolute(containingFile), ModuleKindESNext, null).a;
 					resolved = r.IsResolved();
 				} catch (e:Dynamic) {
 					panicked = true;

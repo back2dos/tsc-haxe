@@ -3033,7 +3033,7 @@ class Tsoptions {
 		resolverOptions.ModuleResolution = ModuleResolutionKindBundler;
 		final resolver = ts.module.Module.NewResolver(new ResolverHost(new ContentMapperResolutionHost(fs, /* PORT: transitional, unchecked */ cast Tspath.GetDirectoryPath(containingFile))),
 			resolverOptions, "", "");
-		final resolved = resolver.ResolvePackageDirectory(packageName, containingFile, ts.core.Core.ResolutionModeNone, null);
+		final resolved = resolver.ResolvePackageDirectory(packageName, /* PORT: transitional, unchecked */ cast containingFile, ts.core.Core.ResolutionModeNone, null);
 		if (resolved == null || resolved.ResolvedFileName == "") {
 			return new Triple(new Manifest(), "", Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_package_0_could_not_be_resolved, packageName));
 		}

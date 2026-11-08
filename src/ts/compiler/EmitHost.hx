@@ -142,7 +142,7 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 	}
 
 	public function ResolveModuleName(moduleName:std.String, containingFile:std.String, resolutionMode:ResolutionMode):ResolvedModule {
-		final resolved = this.program.processedFiles.resolver.ResolveModuleName(moduleName, containingFile, resolutionMode, null).a;
+		final resolved = this.program.processedFiles.resolver.ResolveModuleName(moduleName, /* PORT: transitional, unchecked */ cast containingFile, resolutionMode, null).a;
 		return resolved;
 	}
 }

@@ -2326,7 +2326,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 						}
 					}
 
-					final packageResolution = this.resolver.ResolvePackageDirectory(dep, packageJsonName, Core.ResolutionModeCommonJS, null);
+					final packageResolution = this.resolver.ResolvePackageDirectory(dep, /* PORT: transitional, unchecked */ cast packageJsonName, Core.ResolutionModeCommonJS, null);
 					if (packageResolution.IsResolved() && packageResolution.OriginalPath != "") {
 						knownSymlinks.ProcessResolution(Tspath.CombinePaths(packageResolution.OriginalPath, "package.json"),
 							Tspath.CombinePaths(packageResolution.ResolvedFileName, "package.json"));
@@ -2338,7 +2338,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	public function ResolveModuleName(moduleName:std.String, containingFile:std.String, resolutionMode:ResolutionMode):ResolvedModule {
-		final resolved = this.resolver.ResolveModuleName(moduleName, containingFile, resolutionMode, null).a;
+		final resolved = this.resolver.ResolveModuleName(moduleName, /* PORT: transitional, unchecked */ cast containingFile, resolutionMode, null).a;
 		return resolved;
 	}
 

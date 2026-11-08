@@ -83,23 +83,23 @@ class ProjectReferenceFileMapper {
 	}
 
 	// PORT: (*tsoptions.ParsedCommandLine, string) → Pair
-	function getRedirectForResolution(file:HasFileName):Pair<ParsedCommandLine, std.String> {
+	function getRedirectForResolution(file:HasFileName):Pair<ParsedCommandLine, RootedFilePath> {
 		final path = file.Path();
 		// Check if outputdts of source file from project reference
 		final output = this.getProjectReferenceFromSource(path);
 		if (output != null) {
-			return new Pair(output.Resolved, output.Source);
+			return new Pair(output.Resolved, (/* PORT: transitional, unchecked */ cast output.Source : RootedFilePath));
 		}
 
 		// Source file from project reference
 		final resultFromDts = this.getProjectReferenceFromOutputDts(path);
 		if (resultFromDts != null) {
-			return new Pair(resultFromDts.Resolved, resultFromDts.Source);
+			return new Pair(resultFromDts.Resolved, (/* PORT: transitional, unchecked */ cast resultFromDts.Source : RootedFilePath));
 		}
 
 		final realpathDtsToSource = this.getSourceToDtsIfSymlink(file);
 		if (realpathDtsToSource != null) {
-			return new Pair(realpathDtsToSource.Resolved, realpathDtsToSource.Source);
+			return new Pair(realpathDtsToSource.Resolved, (/* PORT: transitional, unchecked */ cast realpathDtsToSource.Source : RootedFilePath));
 		}
 		return new Pair(null, file.FileName());
 	}
