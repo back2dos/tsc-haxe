@@ -31,11 +31,38 @@ class FlowNode {
 	public var Flags:FlowFlags = 0;
 	public var Node:Node = null; // Associated AST node
 	public var Antecedent:FlowNode = null; // Antecedent for all but FlowLabel
-	public var Antecedents:FlowList = null; // Linked list of antecedents for FlowLabel
+	// PORT: perf — only a label has antecedents (a FlowLabelNode: the binder makes every node with a label flag one),
+	// the other flow nodes are 8 B smaller
+	public var Antecedents(get, set):FlowList; // Linked list of antecedents for FlowLabel
 	// PORT: perf — (from tsrs) the flow memo's hash of this node (ts.checker.FlowMemo), assigned on first use (0: none yet).
 	public var memoId:Int = 0;
 
 	public function new() {}
+
+	inline function get_Antecedents():FlowList {
+		final l = Std.downcast(this, FlowLabelNode);
+		return l == null ? null : l.labelAntecedents;
+	}
+
+	function set_Antecedents(v:FlowList):FlowList {
+		final l = Std.downcast(this, FlowLabelNode);
+		if (l == null) {
+			if (v == null) {
+				return v;
+			}
+			throw "FlowNode.Antecedents: not a label";
+		}
+		return l.labelAntecedents = v;
+	}
+}
+
+// PORT: perf — a flow label (FlowFlagsLabel): a flow node with antecedents
+class FlowLabelNode extends FlowNode {
+	public var labelAntecedents:FlowList = null;
+
+	public function new() {
+		super();
+	}
 }
 
 class FlowList {

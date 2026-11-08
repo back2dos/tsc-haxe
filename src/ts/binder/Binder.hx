@@ -585,7 +585,7 @@ class Binder {
 	}
 
 	function newFlowNode(flags:FlowFlags):FlowNode {
-		final result = flowNodeArena.New();
+		final result = flags & FlowFlagsLabel != 0 ? new FlowLabelNode() : flowNodeArena.New(); // PORT: perf (FlowNode.Antecedents)
 		result.Flags = flags;
 		return result;
 	}
