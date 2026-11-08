@@ -281,6 +281,11 @@ class CheckerPart3 {
 			return c.createPromiseReturnType(node, c.anyType);
 		}
 		final specifier = args[0];
+		if (c.compilerOptions.RewriteRelativeImportExtensions.IsTrue()
+			&& !c.compilerOptions.DisableDynamicImportExtensionRewriting.IsTrue()
+			&& !Ast.IsStringLiteralLike(specifier)) {
+			c.checkExternalEmitHelpers(node, ExternalEmitHelpersRewriteRelativeImportExtension);
+		}
 		final specifierType = c.checkExpressionCached(specifier);
 		var optionsType:Type = null;
 		if (args.length > 1) {
@@ -293,6 +298,7 @@ class CheckerPart3 {
 		if (specifierType.flags & TypeFlagsNullable != 0 || !c.isTypeAssignableTo(specifierType, c.stringType)) {
 			c.error(specifier, Diagnostics.Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0, c.TypeToString(specifierType));
 		}
+		var importAttributesType:Type = null;
 		if (optionsType != null) {
 			final importCallOptionsType = c.getGlobalImportCallOptionsTypeChecked();
 			if (importCallOptionsType != c.emptyObjectType) {
@@ -306,13 +312,18 @@ class CheckerPart3 {
 					}
 				}
 			}
+			importAttributesType = c.getTypeOfPropertyOfType(optionsType, "with");
+		}
+		if (Ast.IsSourcePhaseImportCall(node)) {
+			return c.createPromiseReturnType(node, c.getGlobalAbstractModuleSourceType());
 		}
 		// resolveExternalModuleName will return undefined if the moduleReferenceExpression is not a string literal
-		final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/);
+		final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/, importAttributesType);
 		if (moduleSymbol != null) {
 			final esModuleSymbol = c.resolveExternalModuleSymbol(moduleSymbol, true /*dontResolveAlias*/);
 			if (esModuleSymbol != null) {
-				var syntheticType = c.getTypeWithSyntheticDefaultOnly(c.getTypeOfSymbol(esModuleSymbol), esModuleSymbol, moduleSymbol, specifier);
+				var syntheticType = c.getTypeWithSyntheticDefaultOnly(c.getTypeOfSymbol(esModuleSymbol), esModuleSymbol, moduleSymbol, specifier,
+					importAttributesType);
 				if (syntheticType == null) {
 					syntheticType = c.getTypeWithSyntheticDefaultImportType(c.getTypeOfSymbol(esModuleSymbol), esModuleSymbol, moduleSymbol, specifier);
 				}
@@ -328,6 +339,12 @@ class CheckerPart3 {
 	 * @returns On success, the expression's signature's return type. On failure, anyType.
 	 */
 	static function checkCallExpression(c:Checker, node:Node, checkMode:CheckMode):Type {
+		if (c.compilerOptions.RewriteRelativeImportExtensions.IsTrue()
+			&& !c.compilerOptions.DisableDynamicImportExtensionRewriting.IsTrue()
+			&& Ast.IsInJSFile(node) && Ast.IsRequireCall(node, false /*requireStringLiteralLikeArgument*/)
+			&& !Ast.IsStringLiteralLike(node.Arguments()[0])) {
+			c.checkExternalEmitHelpers(node, ExternalEmitHelpersRewriteRelativeImportExtension);
+		}
 		c.checkGrammarTypeArguments(node, node.TypeArgumentList());
 		final signature = c.getResolvedSignature(node, null /*candidatesOutArray*/, checkMode);
 		if (signature == c.resolvingSignature) {
@@ -496,7 +513,7 @@ class CheckerPart3 {
 			if (!c.isErrorType(superType)) {
 				// In super call, the candidate signatures are the matching arity signatures of the base constructor function instantiated
 				// with the type arguments specified in the extends clause.
-				final baseTypeNode = Ast.GetExtendsHeritageClauseElement(Ast.GetContainingClass(node));
+				final baseTypeNode = Ast.GetClassExtendsHeritageElement(Ast.GetContainingClass(node));
 				if (baseTypeNode != null) {
 					final baseConstructors = c.getInstantiatedConstructorsForTypeArguments(superType, baseTypeNode.TypeArguments(), baseTypeNode);
 					return c.resolveCall(node, baseConstructors, candidatesOutArray, checkMode, SignatureFlagsNone, null);
@@ -3849,15 +3866,16 @@ class CheckerPart3 {
 	}
 
 	/**
-	 * Climbs up parents to an ExpressionWithTypeArguments, and returns its expression,
-	 * but returns undefined if that expression is not an EntityNameExpression.
+	 * Climbs up parents to a heritage clause element and returns its entity name.
 	 */
 	static function getEntityNameForExtendingInterface(c:Checker, node:Node):Node {
 		switch (node.Kind) {
-			case KindIdentifier, KindPropertyAccessExpression:
+			case KindIdentifier, KindQualifiedName, KindPropertyAccessExpression:
 				if (node.Parent != null) {
 					return c.getEntityNameForExtendingInterface(node.Parent);
 				}
+			case KindTypeReference:
+				return node.AsTypeReferenceNode().TypeName;
 			case KindExpressionWithTypeArguments:
 				if (Ast.IsEntityNameExpression(node.Expression())) {
 					return node.Expression();

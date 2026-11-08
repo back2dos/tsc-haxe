@@ -532,7 +532,7 @@ class FileLoader {
 			for (index in 0...moduleNames.length) {
 				final entry = moduleNames[index];
 				final moduleName = entry.Text();
-				if (moduleName == "") {
+				if (moduleName == "" || Ast.IsSourcePhaseImport(entry.Parent)) {
 					continue;
 				}
 

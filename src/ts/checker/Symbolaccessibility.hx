@@ -257,7 +257,7 @@ class Symbolaccessibility {
 					// Synthetic names can't be resolved by `resolveExternalModuleName` - they'll cause a debug assert if they error
 					continue;
 				}
-				final resolvedModule = c.resolveExternalModuleName(enclosingDeclaration, importRef /*ignoreErrors*/, true);
+				final resolvedModule = c.resolveExternalModuleName(enclosingDeclaration, importRef /*ignoreErrors*/, true, c.getImportAttributesTypeForModuleSpecifier(importRef));
 				if (resolvedModule == null) {
 					continue;
 				}

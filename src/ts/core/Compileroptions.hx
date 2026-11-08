@@ -532,6 +532,16 @@ enum abstract ModuleKind(Int) from Int to Int {
 		return ModuleKindNode18 <= moduleKind && moduleKind <= ModuleKindNodeNext || moduleKind == ModuleKindPreserve || moduleKind == ModuleKindESNext;
 	}
 
+	public function SupportsDeferredImports():Bool {
+		final moduleKind:ModuleKind = cast this;
+		return moduleKind == ModuleKindESNext || moduleKind == ModuleKindPreserve;
+	}
+
+	public function SupportsSourcePhaseImports():Bool {
+		final moduleKind:ModuleKind = cast this;
+		return moduleKind == ModuleKindESNext || moduleKind == ModuleKindNodeNext || moduleKind == ModuleKindPreserve;
+	}
+
 	// --- modulekind_stringer_generated.go ---
 
 	static final _ModuleKind_name_0 = ["None", "CommonJS", "AMD", "UMD", "System", "ES2015", "ES2020", "ES2022"];

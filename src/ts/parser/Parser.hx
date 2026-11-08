@@ -2045,7 +2045,7 @@ class Parser {
 			&& Core.Some(modifiers.Nodes, isExportModifier)) {
 			setContextFlags(NodeFlagsAwaitContext, true /*value*/);
 		}
-		var heritageClauses = parseHeritageClauses();
+		var heritageClauses = parseHeritageClauses(false /*isInterface*/);
 		var members:NodeList = null;
 		if (parseExpected(KindOpenBraceToken)) {
 			// ClassTail[Yield,Await] : (Modified) See 14.5
@@ -2111,21 +2111,57 @@ class Parser {
 		return modifier.Kind == KindAsyncKeyword;
 	};
 
-	function parseHeritageClauses():NodeList {
+	function parseHeritageClauses(isInterface:Bool):NodeList {
 		// ClassTail[Yield,Await] : (Modified) See 14.5
 		//      ClassHeritage[?Yield,?Await]opt { ClassBody[?Yield,?Await]opt }
 		if (isHeritageClause()) {
-			return parseList(PCHeritageClauses, fn_parseHeritageClause);
+			// PORT: perf (one function value per heritage kind instead of a closure per call)
+			return parseList(PCHeritageClauses, isInterface ? fn_parseHeritageClauseInterface : fn_parseHeritageClauseClass);
 		}
 		return null;
 	}
 
-	function parseHeritageClause():Node {
+	function parseHeritageClause(isInterface:Bool):Node {
 		var pos = nodePos();
 		var kind = token;
 		nextToken();
-		var types = parseDelimitedList(PCHeritageClauseElement, fn_parseExpressionWithTypeArguments);
+		var parseElement = fn_parseExpressionWithTypeArguments;
+		if (isTypeHeritageClause(isInterface, kind)) {
+			parseElement = fn_parseTypeHeritageClauseElement;
+		}
+		var types = parseDelimitedList(PCHeritageClauseElement, parseElement);
 		return checkJSSyntax(finishNode(factory.NewHeritageClause(kind, types), pos));
+	}
+
+	static function isTypeHeritageClause(isInterface:Bool, token:Kind):Bool {
+		return isInterface && token == KindExtendsKeyword || !isInterface && token == KindImplementsKeyword;
+	}
+
+	function parseTypeHeritageClauseElement():Node {
+		var pos = nodePos();
+		var expressionWithTypeArguments = parseExpressionWithTypeArguments().AsExpressionWithTypeArguments();
+		if (!isValidHeritageTypeReferenceExpression(expressionWithTypeArguments.Expression)) {
+			return expressionWithTypeArguments.AsNode();
+		}
+		var typeName = convertEntityNameExpressionToEntityName(expressionWithTypeArguments.Expression);
+		return finishNode(factory.NewTypeReferenceNode(typeName, expressionWithTypeArguments.TypeArguments), pos);
+	}
+
+	static function isValidHeritageTypeReferenceExpression(node:Node):Bool {
+		if (Ast.IsIdentifier(node)) {
+			return Ast.NodeIsPresent(node);
+		}
+		return Ast.IsPropertyAccessExpression(node) && !Ast.IsOptionalChain(node) && Ast.NodeIsPresent(node.Name())
+			&& isValidHeritageTypeReferenceExpression(node.Expression());
+	}
+
+	function convertEntityNameExpressionToEntityName(node:Node):Node {
+		if (Ast.IsIdentifier(node)) {
+			return node;
+		}
+		final propertyAccess = node.AsPropertyAccessExpression();
+		final result = factory.NewQualifiedName(convertEntityNameExpressionToEntityName(propertyAccess.Expression), propertyAccess.Name());
+		return finishNodeWithEnd(result, node.Pos(), node.End());
 	}
 
 	function parseExpressionWithTypeArguments():Node {
@@ -2379,7 +2415,7 @@ class Parser {
 		parseExpected(KindInterfaceKeyword);
 		var name = parseIdentifier();
 		var typeParameters = parseTypeParameters();
-		var heritageClauses = parseHeritageClauses();
+		var heritageClauses = parseHeritageClauses(true /*isInterface*/);
 		var members = parseObjectTypeMembers();
 		var result = finishNode(factory.NewInterfaceDeclaration(modifiers, name, typeParameters, heritageClauses, members), pos);
 		this.withJSDoc(result, jsdoc);
@@ -7826,8 +7862,16 @@ class Parser {
 		return p.parseExpressionWithTypeArguments();
 	};
 
-	static final fn_parseHeritageClause:(p:Parser) -> Node = function(p:Parser):Node {
-		return p.parseHeritageClause();
+	static final fn_parseHeritageClauseInterface:(p:Parser) -> Node = function(p:Parser):Node {
+		return p.parseHeritageClause(true /*isInterface*/);
+	};
+
+	static final fn_parseHeritageClauseClass:(p:Parser) -> Node = function(p:Parser):Node {
+		return p.parseHeritageClause(false /*isInterface*/);
+	};
+
+	static final fn_parseTypeHeritageClauseElement:(p:Parser) -> Node = function(p:Parser):Node {
+		return p.parseTypeHeritageClauseElement();
 	};
 
 	static final fn_parseImportAttribute:(p:Parser) -> Node = function(p:Parser):Node {

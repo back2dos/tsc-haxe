@@ -247,33 +247,31 @@ class Modulespecifiers {
 
 	public static function GetModuleSpecifiers(moduleSymbol:Symbol, checker:CheckerShape, compilerOptions:CompilerOptions,
 			importingSourceFile:SourceFileForSpecifierGeneration, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences,
-			options:ModuleSpecifierOptions, forAutoImports:Bool):Array<String> {
-		final result = GetModuleSpecifiersWithInfo(moduleSymbol, checker, compilerOptions, importingSourceFile, host, userPreferences, options,
-			forAutoImports);
-		return result.a;
+			options:ModuleSpecifierOptions, forAutoImports:Bool):ModuleSpecifiersResult {
+		return GetModuleSpecifiersWithInfo(moduleSymbol, checker, compilerOptions, importingSourceFile, host, userPreferences, options, forAutoImports);
 	}
 
-	// PORT: ([]string, ResultKind) → Pair.
 	public static function GetModuleSpecifiersWithInfo(moduleSymbol:Symbol, checker:CheckerShape, compilerOptions:CompilerOptions,
 			importingSourceFile:SourceFileForSpecifierGeneration, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences,
-			options:ModuleSpecifierOptions, forAutoImports:Bool):Pair<Array<String>, ResultKind> {
+			options:ModuleSpecifierOptions, forAutoImports:Bool):ModuleSpecifiersResult {
 		final ambient = tryGetModuleNameFromAmbientModule(moduleSymbol, checker);
-		if (ambient.length > 0) {
-			if (forAutoImports && IsExcludedByRegex(ambient, userPreferences.AutoImportSpecifierExcludeRegexes)) {
-				return new Pair<Array<String>, ResultKind>(null, ResultKindAmbient);
+		if (ambient.name.length > 0) {
+			if (forAutoImports && IsExcludedByRegex(ambient.name, userPreferences.AutoImportSpecifierExcludeRegexes)) {
+				return new ModuleSpecifiersResult(null, ResultKindAmbient, ambient.symbol);
 			}
-			return new Pair<Array<String>, ResultKind>([ambient], ResultKindAmbient);
+			return new ModuleSpecifiersResult([ambient.name], ResultKindAmbient, ambient.symbol);
 		}
 
 		final moduleSourceFile = Ast.GetSourceFileOfModule(moduleSymbol);
 		if (moduleSourceFile == null) {
-			return new Pair<Array<String>, ResultKind>(null, ResultKindNone);
+			return new ModuleSpecifiersResult();
 		}
 
 		// Use original source file name when file is from project reference output
 		final moduleFileName = host.GetSourceOfProjectReferenceIfOutputIncluded(SourceFileAdapter.Of(moduleSourceFile));
 
-		return GetModuleSpecifiersForFileWithInfo(importingSourceFile, moduleFileName, compilerOptions, host, userPreferences, options, forAutoImports);
+		final r = GetModuleSpecifiersForFileWithInfo(importingSourceFile, moduleFileName, compilerOptions, host, userPreferences, options, forAutoImports);
+		return new ModuleSpecifiersResult(r.a, r.b);
 	}
 
 	public static function GetModuleSpecifiersForFileWithInfo(importingSourceFile:SourceFileForSpecifierGeneration, moduleFileName:String,
@@ -285,12 +283,12 @@ class Modulespecifiers {
 		return computeModuleSpecifiers(modulePaths, compilerOptions, importingSourceFile, host, userPreferences, options, forAutoImports);
 	}
 
-	static function tryGetModuleNameFromAmbientModule(moduleSymbol:Symbol, checker:CheckerShape):String {
+	static function tryGetModuleNameFromAmbientModule(moduleSymbol:Symbol, checker:CheckerShape):AmbientModuleInfo {
 		if (moduleSymbol.Declarations != null) {
 			for (decl in moduleSymbol.Declarations) {
 				if (Ast.IsModuleWithStringLiteralName(decl)
 					&& (!Ast.IsModuleAugmentationExternal(decl) || !Tspath.IsExternalModuleNameRelative(decl.Name().Text()))) {
-					return decl.Name().Text();
+					return new AmbientModuleInfo(decl.Name().Text(), moduleSymbol);
 				}
 			}
 		}
@@ -334,11 +332,11 @@ class Modulespecifiers {
 				}
 				// TODO: Possible strada bug - isn't this insufficient in the presence of merge symbols?
 				if (exportSymbol == d.Symbol()) {
-					return possibleContainer.Name().Text();
+					return new AmbientModuleInfo(possibleContainer.Name().Text(), possibleContainer.Symbol());
 				}
 			}
 		}
-		return "";
+		return new AmbientModuleInfo("", null);
 	}
 
 	static function getInfo(importingSourceFileName:String, host:ModuleSpecifierGenerationHost):Info {
@@ -904,7 +902,10 @@ class Modulespecifiers {
 			var moduleFileName = "";
 			while (true) {
 				// If the module could be imported by a directory name, use that directory's name
-				final pkgJsonResults = tryDirectoryWithPackageJson(parts, pathObj, importingSourceFile, host, overrideMode, options, allowedEndings);
+				final currentParts = new NodeModulePathParts(parts.TopLevelNodeModulesIndex, parts.TopLevelPackageNameIndex, packageRootIndex,
+					parts.FileNameIndex);
+				final pkgJsonResults = tryDirectoryWithPackageJson(currentParts, parts.PackageRootIndex, pathObj, importingSourceFile, host, overrideMode,
+					options, allowedEndings);
 				final moduleFileToTry = pkgJsonResults.moduleFileToTry;
 				final packageRootPath = pkgJsonResults.packageRootPath;
 				final blockedByExports = pkgJsonResults.blockedByExports;
@@ -942,7 +943,7 @@ class Modulespecifiers {
 		return Module.GetPackageNameFromTypesPackageName(nodeModulesDirectoryName);
 	}
 
-	static function tryDirectoryWithPackageJson(parts:NodeModulePathParts, pathObj:ModulePath, importingSourceFile:SourceFileForSpecifierGeneration,
+	static function tryDirectoryWithPackageJson(parts:NodeModulePathParts, packageBaseRootIndex:Int, pathObj:ModulePath, importingSourceFile:SourceFileForSpecifierGeneration,
 			host:ModuleSpecifierGenerationHost, overrideMode:ResolutionMode, options:CompilerOptions,
 			allowedEndings:Array<ModuleSpecifierEnding>):PkgJsonDirAttemptResult {
 		var rootIdx = parts.PackageRootIndex;
@@ -956,7 +957,7 @@ class Modulespecifiers {
 		final packageJson = host.GetPackageJsonInfo(packageJsonPath);
 		if (packageJson == null) {
 			// No package.json exists; an index.js will still resolve as the package name
-			final fileName = moduleFileToTry.substring(parts.PackageRootIndex + 1);
+			final fileName = moduleFileToTry.substring(packageBaseRootIndex + 1);
 			if (fileName == "index.d.ts" || fileName == "index.js" || fileName == "index.ts" || fileName == "index.tsx") {
 				return new PkgJsonDirAttemptResult(moduleFileToTry, packageRootPath);
 			} else {
@@ -1869,5 +1870,15 @@ class Modulespecifiers {
 
 		// For other extensions (like .json), return as-is
 		return specifier;
+	}
+}
+
+private class AmbientModuleInfo {
+	public final name:String;
+	public final symbol:Symbol;
+
+	public function new(name:String, symbol:Symbol) {
+		this.name = name;
+		this.symbol = symbol;
 	}
 }

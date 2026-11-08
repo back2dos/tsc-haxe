@@ -1589,6 +1589,8 @@ class Checker {
 	var anyBaseTypeIndexInfo:IndexInfo = null;
 	var patternAmbientModules:Array<PatternAmbientModule> = null;
 	var patternAmbientModuleAugmentations:SymbolTable = null;
+	var patternAmbientModuleAugmentationTargets:SymbolTable = null;
+	var moduleImportAttributesTypes:IdentityMap<Symbol, Type> = null;
 	var globalObjectType:Type = null;
 	var globalFunctionType:Type = null;
 	var globalCallableFunctionType:Type = null;
@@ -1670,6 +1672,7 @@ class Checker {
 	var getGlobalPromiseType:() -> Type = null;
 	var getGlobalPromiseTypeChecked:() -> Type = null;
 	var getGlobalPromiseLikeType:() -> Type = null;
+	var getGlobalAbstractModuleSourceType:() -> Type = null;
 	var getGlobalPromiseConstructorSymbol:() -> Symbol = null;
 	var getGlobalPromiseConstructorSymbolOrNil:() -> Symbol = null;
 	var getGlobalOmitSymbol:() -> Symbol = null;
@@ -2015,6 +2018,7 @@ class Checker {
 		c.comparableRelation = new Relation();
 		c.identityRelation = new Relation();
 		c.enumRelation = new StringMap<RelationComparisonResult>();
+		c.moduleImportAttributesTypes = new IdentityMap<Symbol, Type>();
 		c.getGlobalESSymbolType = c.getGlobalTypeResolver("Symbol", 0 /*arity*/, false /*reportErrors*/);
 		c.getGlobalBigIntType = c.getGlobalTypeResolver("BigInt", 0 /*arity*/, false /*reportErrors*/);
 		c.getGlobalImportMetaType = c.getGlobalTypeResolver("ImportMeta", 0 /*arity*/, true /*reportErrors*/);
@@ -2036,6 +2040,7 @@ class Checker {
 		c.getGlobalPromiseType = c.getGlobalTypeResolver("Promise", 1 /*arity*/, false /*reportErrors*/);
 		c.getGlobalPromiseTypeChecked = c.getGlobalTypeResolver("Promise", 1 /*arity*/, true /*reportErrors*/);
 		c.getGlobalPromiseLikeType = c.getGlobalTypeResolver("PromiseLike", 1 /*arity*/, true /*reportErrors*/);
+		c.getGlobalAbstractModuleSourceType = c.getGlobalTypeResolver("AbstractModuleSource", 0 /*arity*/, true /*reportErrors*/);
 		c.getGlobalPromiseConstructorSymbol = c.getGlobalValueSymbolResolver("Promise", true /*reportErrors*/);
 		c.getGlobalPromiseConstructorSymbolOrNil = c.getGlobalValueSymbolResolver("Promise", false /*reportErrors*/);
 		c.getGlobalOmitSymbol = c.getGlobalTypeAliasResolver("Omit", 2 /*arity*/, true /*reportErrors*/);
@@ -2790,7 +2795,7 @@ class Checker {
 	static function getBaseTypeNodeOfClass(t:Type):Node {
 		final decl = Ast.GetClassLikeDeclarationOfSymbol(t.symbol);
 		if (decl != null) {
-			return Ast.GetExtendsHeritageClauseElement(decl);
+			return Ast.GetClassExtendsHeritageElement(decl);
 		}
 		return null;
 	}
@@ -3577,6 +3582,7 @@ class Checker {
 
 	static function getInferenceInfoForType(n:InferenceState, t:Type):InferenceInfo {
 		if (t.flags & TypeFlagsTypeVariable != 0) {
+			t = getNonDistributedTypeParameter(t);
 			if (n.inferences != null) {
 				for (inference in n.inferences) {
 					if (t == inference.typeParameter) {
@@ -3713,18 +3719,39 @@ class Checker {
 		return m2;
 	}
 
+	// --- mapper.go ---
+
+	static function getMappedType(t:Type, mapper:TypeMapper):Type {
+		return mapper.Map(getNonDistributedTypeParameter(t));
+	}
+
+	static function getNonDistributedTypeParameter(t:Type):Type {
+		if (t.flags & TypeFlagsTypeParameter != 0 && t.AsTypeParameter().isDistributed) {
+			return t.AsTypeParameter().constraint;
+		}
+		return t;
+	}
+
+	static function isSimpleIdentifierTypeReference(node:Node):Bool {
+		return Ast.IsTypeReferenceNode(node) && Ast.IsIdentifier(node.AsTypeReferenceNode().TypeName) && node.TypeArgumentList() == null;
+	}
+
+	public static function IsDistributedTypeParameter(t:Type):Bool {
+		return t.flags & TypeFlagsTypeParameter != 0 && t.AsTypeParameter().isDistributed;
+	}
+
 	static function prependTypeMapping(source:Type, target:Type, mapper:TypeMapper):TypeMapper {
 		if (mapper == null) {
-			return newSimpleTypeMapper(source, target);
+			return newSimpleTypeMapper(getNonDistributedTypeParameter(source), target);
 		}
-		return newMergedTypeMapper(newSimpleTypeMapper(source, target), mapper);
+		return newMergedTypeMapper(newSimpleTypeMapper(getNonDistributedTypeParameter(source), target), mapper);
 	}
 
 	static function appendTypeMapping(mapper:TypeMapper, source:Type, target:Type):TypeMapper {
 		if (mapper == null) {
-			return newSimpleTypeMapper(source, target);
+			return newSimpleTypeMapper(getNonDistributedTypeParameter(source), target);
 		}
-		return newMergedTypeMapper(mapper, newSimpleTypeMapper(source, target));
+		return newMergedTypeMapper(mapper, newSimpleTypeMapper(getNonDistributedTypeParameter(source), target));
 	}
 
 	static function newSimpleTypeMapper(source:Type, target:Type):TypeMapper {
@@ -3973,13 +4000,13 @@ class Checker {
 	static function tryGetModuleSpecifierFromDeclarationWorker(node:Node):Node {
 		switch (node.Kind) {
 			case KindVariableDeclaration | KindBindingElement:
-				final requireCall = Ast.FindAncestor(node.Initializer(), (node:Node) -> {
-					return Ast.IsRequireCall(node, true /*requireStringLiteralLikeArgument*/);
+				final moduleCall = Ast.FindAncestor(node.Initializer(), (node:Node) -> {
+					return Ast.IsRequireCall(node, true /*requireStringLiteralLikeArgument*/) || Ast.IsImportCall(node);
 				});
-				if (requireCall == null) {
+				if (moduleCall == null) {
 					return null;
 				}
-				return requireCall.Arguments()[0];
+				return moduleCall.Arguments()[0];
 			case KindImportDeclaration | KindExportDeclaration | KindJSDocImportTag:
 				return node.ModuleSpecifier();
 			case KindImportEqualsDeclaration:
@@ -4244,7 +4271,7 @@ class Checker {
 			}
 			if (s.Flags & SymbolFlagsTypeParameter != 0) {
 				final declaredType = b.ch.getDeclaredTypeOfSymbol(s);
-				if (b.ctx.mapper != null && b.ctx.mapper.Map(declaredType) != declaredType) {
+				if (b.ctx.mapper != null && getMappedType(declaredType, b.ctx.mapper) != declaredType) {
 					return null; // refers to type parameter remapped by context (TODO improvement: just return the remapped param name?)
 				}
 			}
@@ -6413,12 +6440,12 @@ class Checker {
 		return null;
 	}
 
-	static function isInNameOfExpressionWithTypeArguments(node:Node):Bool {
-		while (node.Parent.Kind == KindPropertyAccessExpression) {
+	static function isInNameOfExpressionWithTypeArgumentsOrHeritageTypeReference(node:Node):Bool {
+		while (node.Parent.Kind == KindPropertyAccessExpression || node.Parent.Kind == KindQualifiedName) {
 			node = node.Parent;
 		}
 
-		return node.Parent.Kind == KindExpressionWithTypeArguments;
+		return node.Parent.Kind == KindExpressionWithTypeArguments || Ast.IsNameOfHeritageClauseTypeReference(node);
 	}
 
 	static function getIndexSymbolFromSymbolTable(symbolTable:SymbolTable):Symbol {
@@ -6799,9 +6826,7 @@ class Checker {
 
 	// True if the symbol is for an external module, as opposed to a namespace.
 	public static function IsExternalModuleSymbol(moduleSymbol:Symbol):Bool {
-		final name = moduleSymbol.Name;
-		final firstRune = name.length == 0 ? go.Utf16.RuneError : go.Utf16.CodePointAt(name, 0);
-		return moduleSymbol.Flags & SymbolFlagsModule != 0 && firstRune == '"'.code;
+		return moduleSymbol.IsExternalModule();
 	}
 
 	public static function ValueToString(value:Any):std.String {

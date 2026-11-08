@@ -102,6 +102,7 @@ class Jsx {
 	}
 
 	static function checkJsxAttributes(c:Checker, node:Node, checkMode:CheckMode):Type {
+		c.checkNodeDeferred(node);
 		return c.createJsxAttributesTypeFromAttributesProperty(node.Parent, checkMode);
 	}
 
@@ -739,12 +740,6 @@ class Jsx {
 					}
 					if (attributeDecl.Name().Text() == jsxChildrenPropertyName) {
 						explicitlySpecifyChildrenAttribute = true;
-					}
-					if (contextualType != null) {
-						final prop = c.getPropertyOfType(contextualType, member.Name);
-						if (prop != null && prop.Declarations != null && c.isDeprecatedSymbol(prop) && Ast.IsIdentifier(attributeDecl.Name())) {
-							c.addDeprecatedSuggestion(attributeDecl.Name(), prop.Declarations, attributeDecl.Name().Text());
-						}
 					}
 					if (contextualType != null && (checkMode & CheckModeInferential) != 0 && (checkMode & CheckModeSkipContextSensitive) == 0 && c.isContextSensitive(attributeDecl)) {
 						final inferenceContext = c.getInferenceContext(attributes);
@@ -1462,7 +1457,7 @@ class Jsx {
 			return null;
 		}
 		final errorMessage = Diagnostics.This_JSX_tag_requires_the_module_path_0_to_exist_but_none_could_be_found_Make_sure_you_have_types_for_the_appropriate_package_installed;
-		final mod = c.resolveExternalModule(Core.OrElse(specifier, canonicalErrorTag), moduleReference, errorMessage, canonicalErrorTag, false);
+		final mod = c.resolveExternalModule(Core.OrElse(specifier, canonicalErrorTag), moduleReference, errorMessage, canonicalErrorTag, false, null /*importAttributesType*/);
 		var result:Symbol = null;
 		if (mod != null && mod != c.unknownSymbol) {
 			result = c.getMergedSymbol(c.resolveSymbol(mod));

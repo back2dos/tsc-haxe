@@ -625,6 +625,9 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		if (!Ast.IsStringLiteralLike(moduleSpecifier)) {
 			throw "moduleSpecifier must be a StringLiteralLike";
 		}
+		if (Ast.IsSourcePhaseImport(moduleSpecifier.Parent)) {
+			return null;
+		}
 		final mode = this.GetModeForUsageLocation(file, moduleSpecifier);
 		return this.GetResolvedModule(file, moduleSpecifier.Text(), mode);
 	}
@@ -2058,7 +2061,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 				if (file.Imports() == null)
 					continue;
 				for (imp in file.Imports()) {
-					if (Tspath.IsExternalModuleNameRelative(imp.Text())) {
+					if (Ast.IsSourcePhaseImport(imp.Parent) || Tspath.IsExternalModuleNameRelative(imp.Text())) {
 						continue;
 					}
 					final resolvedModules = this.resolvedModules.get(file.Path());

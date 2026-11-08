@@ -198,7 +198,9 @@ class ESModuleTransformer {
 	}
 
 	function visitCallExpression(node:CallExpression):Node {
-		if (compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
+		if (compilerOptions.RewriteRelativeImportExtensions.IsTrue()
+			&& (!compilerOptions.DisableDynamicImportExtensionRewriting.IsTrue()
+				|| Core.len(node.Arguments.Nodes) > 0 && Ast.IsStringLiteralLike(node.Arguments.Nodes[0]))) {
 			if (Ast.IsImportCall(node.AsNode()) && Core.len(node.Arguments.Nodes) > 0
 				|| Ast.IsInJSFile(node.AsNode()) && Ast.IsRequireCall(node.AsNode(), false /*requireStringLiteralLikeArgument*/)) {
 				return visitImportOrRequireCall(node);

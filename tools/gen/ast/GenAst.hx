@@ -427,6 +427,12 @@ class GenAst {
 		}
 		w.write('var KindCount = $value;');
 		names.push("KindCount");
+		// flow.go: the synthetic kinds of the flow data nodes follow KindCount (stringer output includes them).
+		for (flowKind in ["kindFlowSwitchClauseData", "kindFlowReduceLabelData"]) {
+			value++;
+			w.write('var $flowKind = $value; // flow.go');
+			names.push(flowKind);
+		}
 		for (m in markers)
 			w.write('var Kind${m.name} = Kind${m.value};');
 		w.write("");
@@ -926,7 +932,66 @@ class GenAst {
 		return w.toString().trim();
 	}
 
+	// Kinds by the node type that the last ast.json declaration of the kind maps to (Go: canonicalNodesByKind; JS Map order).
+	static function canonicalNodesByKind():Array<{node:NodeType, kinds:Array<String>}> {
+		final kindOrder:Array<String> = [];
+		final nodeByKind = new Map<String, NodeType>();
+		for (node in api.nodes()) {
+			for (kind in node.allKinds()) {
+				final k = kind.formatGoConstant();
+				if (!nodeByKind.exists(k))
+					kindOrder.push(k);
+				nodeByKind.set(k, node);
+			}
+		}
+		final result:Array<{node:NodeType, kinds:Array<String>}> = [];
+		for (k in kindOrder) {
+			final node = nodeByKind.get(k);
+			var entry = Lambda.find(result, e -> e.node == node);
+			if (entry == null) {
+				entry = {node: node, kinds: []};
+				result.push(entry);
+			}
+			entry.kinds.push(k);
+		}
+		return result;
+	}
+
 	static function generateNewFactory(w:CodeWriter, node:NodeType) {
+		if (node.name == "Token") {
+			// NewToken allocates the node type that each token kind belongs to (as in main's generate-go-ast.ts).
+			final tokenKinds = [for (kind in node.allKinds()) kind.formatGoConstant()];
+			w.write("public function NewToken(kind:TokenSyntaxKind):Node {");
+			w.push();
+			w.write("if (!Ast.IsTokenKind(kind)) {");
+			w.push();
+			w.write('throw "Invalid token kind";');
+			w.pop();
+			w.write("}");
+			w.write("switch (kind) {");
+			w.push();
+			for (e in canonicalNodesByKind()) {
+				if (e.node == node)
+					continue;
+				final overlapping = [for (k in e.kinds) if (tokenKinds.contains(k)) k];
+				if (overlapping.length == 0)
+					continue;
+				w.write('case ${overlapping.join(" | ")}:');
+				w.push();
+				w.write('return this.newNode(kind, new ${e.node.name}());');
+				w.pop();
+			}
+			w.write("default:");
+			w.push();
+			w.write("return this.newNode(kind, new Token());");
+			w.pop();
+			w.pop();
+			w.write("}");
+			w.pop();
+			w.write("}");
+			w.write("");
+			return;
+		}
 		final members = schemaMembers(node);
 		final kindMember = Lambda.find(members, m -> m.isKindParam());
 		final nodeFlagsMembers = [for (m in members) if (isNodeFlagsMember(m)) m];

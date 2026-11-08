@@ -788,9 +788,10 @@ class DeclarationTransformer {
 	}
 
 	function transformHeritageClause(clause:HeritageClause):Node {
-		final retainedClauses = Core.Filter(clause.Types.Nodes, function(t:Node):Bool {
-			return Ast.IsEntityNameExpression(t.AsExpressionWithTypeArguments().Expression)
-				|| (clause.Token == KindExtendsKeyword && t.Expression().Kind == KindNullKeyword);
+		final retainedClauses = Core.Filter(clause.Types.Nodes, function(t:HeritageClauseElement):Bool {
+			final name = Ast.GetHeritageClauseElementName(t);
+			return Ast.IsEntityName(name) || Ast.IsEntityNameExpression(name)
+				|| (clause.Token == KindExtendsKeyword && Ast.IsExpressionWithTypeArguments(t) && t.Expression().Kind == KindNullKeyword);
 		});
 		if (Core.len(retainedClauses) == 0) {
 			return null; // elide empty clause

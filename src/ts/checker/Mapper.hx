@@ -248,13 +248,13 @@ class Mapper {
 	// PORT: perf — from TypeScript 7.1 (microsoft/typescript-go#4798): what combineTypeMappers(m1, m2).Map(t) gives
 	static function mapTypeWithCompositeMapper(c:Checker, t:Type, m1:TypeMapper, m2:TypeMapper):Type {
 		if (m1 == null) {
-			return m2.Map(t);
+			return Checker.getMappedType(t, m2);
 		}
-		final t1 = m1.Map(t);
+		final t1 = Checker.getMappedType(t, m1);
 		if (t1 != t) {
 			return c.instantiateType(t1, m2);
 		}
-		return m2.Map(t);
+		return Checker.getMappedType(t, m2);
 	}
 
 	// Maps forward-references to later types parameters to the empty object type.

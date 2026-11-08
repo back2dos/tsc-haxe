@@ -166,192 +166,193 @@ kind 163 KindBigIntKeyword
 kind 164 KindOverrideKeyword
 kind 165 KindOfKeyword
 kind 166 KindDeferKeyword
-kind 167 KindQualifiedName
-kind 168 KindComputedPropertyName
-kind 169 KindTypeParameter
-kind 170 KindParameter
-kind 171 KindDecorator
-kind 172 KindPropertySignature
-kind 173 KindPropertyDeclaration
-kind 174 KindMethodSignature
-kind 175 KindMethodDeclaration
-kind 176 KindClassStaticBlockDeclaration
-kind 177 KindConstructor
-kind 178 KindGetAccessor
-kind 179 KindSetAccessor
-kind 180 KindCallSignature
-kind 181 KindConstructSignature
-kind 182 KindIndexSignature
-kind 183 KindTypePredicate
-kind 184 KindTypeReference
-kind 185 KindFunctionType
-kind 186 KindConstructorType
-kind 187 KindTypeQuery
-kind 188 KindTypeLiteral
-kind 189 KindArrayType
-kind 190 KindTupleType
-kind 191 KindOptionalType
-kind 192 KindRestType
-kind 193 KindUnionType
-kind 194 KindIntersectionType
-kind 195 KindConditionalType
-kind 196 KindInferType
-kind 197 KindParenthesizedType
-kind 198 KindThisType
-kind 199 KindTypeOperator
-kind 200 KindIndexedAccessType
-kind 201 KindMappedType
-kind 202 KindLiteralType
-kind 203 KindNamedTupleMember
-kind 204 KindTemplateLiteralType
-kind 205 KindTemplateLiteralTypeSpan
-kind 206 KindImportType
-kind 207 KindObjectBindingPattern
-kind 208 KindArrayBindingPattern
-kind 209 KindBindingElement
-kind 210 KindArrayLiteralExpression
-kind 211 KindObjectLiteralExpression
-kind 212 KindPropertyAccessExpression
-kind 213 KindElementAccessExpression
-kind 214 KindCallExpression
-kind 215 KindNewExpression
-kind 216 KindTaggedTemplateExpression
-kind 217 KindTypeAssertionExpression
-kind 218 KindParenthesizedExpression
-kind 219 KindFunctionExpression
-kind 220 KindArrowFunction
-kind 221 KindDeleteExpression
-kind 222 KindTypeOfExpression
-kind 223 KindVoidExpression
-kind 224 KindAwaitExpression
-kind 225 KindPrefixUnaryExpression
-kind 226 KindPostfixUnaryExpression
-kind 227 KindBinaryExpression
-kind 228 KindConditionalExpression
-kind 229 KindTemplateExpression
-kind 230 KindYieldExpression
-kind 231 KindSpreadElement
-kind 232 KindClassExpression
-kind 233 KindOmittedExpression
-kind 234 KindExpressionWithTypeArguments
-kind 235 KindAsExpression
-kind 236 KindNonNullExpression
-kind 237 KindMetaProperty
-kind 238 KindSyntheticExpression
-kind 239 KindSatisfiesExpression
-kind 240 KindTemplateSpan
-kind 241 KindSemicolonClassElement
-kind 242 KindBlock
-kind 243 KindEmptyStatement
-kind 244 KindVariableStatement
-kind 245 KindExpressionStatement
-kind 246 KindIfStatement
-kind 247 KindDoStatement
-kind 248 KindWhileStatement
-kind 249 KindForStatement
-kind 250 KindForInStatement
-kind 251 KindForOfStatement
-kind 252 KindContinueStatement
-kind 253 KindBreakStatement
-kind 254 KindReturnStatement
-kind 255 KindWithStatement
-kind 256 KindSwitchStatement
-kind 257 KindLabeledStatement
-kind 258 KindThrowStatement
-kind 259 KindTryStatement
-kind 260 KindDebuggerStatement
-kind 261 KindVariableDeclaration
-kind 262 KindVariableDeclarationList
-kind 263 KindFunctionDeclaration
-kind 264 KindClassDeclaration
-kind 265 KindInterfaceDeclaration
-kind 266 KindTypeAliasDeclaration
-kind 267 KindEnumDeclaration
-kind 268 KindModuleDeclaration
-kind 269 KindModuleBlock
-kind 270 KindCaseBlock
-kind 271 KindNamespaceExportDeclaration
-kind 272 KindImportEqualsDeclaration
-kind 273 KindImportDeclaration
-kind 274 KindImportClause
-kind 275 KindNamespaceImport
-kind 276 KindNamedImports
-kind 277 KindImportSpecifier
-kind 278 KindExportAssignment
-kind 279 KindExportDeclaration
-kind 280 KindNamedExports
-kind 281 KindNamespaceExport
-kind 282 KindExportSpecifier
-kind 283 KindMissingDeclaration
-kind 284 KindExternalModuleReference
-kind 285 KindJsxElement
-kind 286 KindJsxSelfClosingElement
-kind 287 KindJsxOpeningElement
-kind 288 KindJsxClosingElement
-kind 289 KindJsxFragment
-kind 290 KindJsxOpeningFragment
-kind 291 KindJsxClosingFragment
-kind 292 KindJsxAttribute
-kind 293 KindJsxAttributes
-kind 294 KindJsxSpreadAttribute
-kind 295 KindJsxExpression
-kind 296 KindJsxNamespacedName
-kind 297 KindCaseClause
-kind 298 KindDefaultClause
-kind 299 KindHeritageClause
-kind 300 KindCatchClause
-kind 301 KindImportAttributes
-kind 302 KindImportAttribute
-kind 303 KindPropertyAssignment
-kind 304 KindShorthandPropertyAssignment
-kind 305 KindSpreadAssignment
-kind 306 KindEnumMember
-kind 307 KindSourceFile
-kind 308 KindJSDocTypeExpression
-kind 309 KindJSDocNameReference
-kind 310 KindJSDocAllType
-kind 311 KindJSDocNullableType
-kind 312 KindJSDocNonNullableType
-kind 313 KindJSDocOptionalType
-kind 314 KindJSDocVariadicType
-kind 315 KindJSDoc
-kind 316 KindJSDocText
-kind 317 KindJSDocTypeLiteral
-kind 318 KindJSDocSignature
-kind 319 KindJSDocLink
-kind 320 KindJSDocLinkCode
-kind 321 KindJSDocLinkPlain
-kind 322 KindJSDocUnknownTag
-kind 323 KindJSDocAugmentsTag
-kind 324 KindJSDocImplementsTag
-kind 325 KindJSDocDeprecatedTag
-kind 326 KindJSDocPublicTag
-kind 327 KindJSDocPrivateTag
-kind 328 KindJSDocProtectedTag
-kind 329 KindJSDocReadonlyTag
-kind 330 KindJSDocOverrideTag
-kind 331 KindJSDocCallbackTag
-kind 332 KindJSDocOverloadTag
-kind 333 KindJSDocParameterTag
-kind 334 KindJSDocReturnTag
-kind 335 KindJSDocThisTag
-kind 336 KindJSDocTypeTag
-kind 337 KindJSDocTemplateTag
-kind 338 KindJSDocTypedefTag
-kind 339 KindJSDocSeeTag
-kind 340 KindJSDocPropertyTag
-kind 341 KindJSDocThrowsTag
-kind 342 KindJSDocSatisfiesTag
-kind 343 KindJSDocImportTag
-kind 344 KindSyntaxList
-kind 345 KindJSTypeAliasDeclaration
-kind 346 KindJSImportDeclaration
-kind 347 KindNotEmittedStatement
-kind 348 KindPartiallyEmittedExpression
-kind 349 KindSyntheticReferenceExpression
-kind 350 KindNotEmittedTypeElement
-kind 351 KindCount
-kind 352 Kind(352)
+kind 167 KindSourceKeyword
+kind 168 KindQualifiedName
+kind 169 KindComputedPropertyName
+kind 170 KindTypeParameter
+kind 171 KindParameter
+kind 172 KindDecorator
+kind 173 KindPropertySignature
+kind 174 KindPropertyDeclaration
+kind 175 KindMethodSignature
+kind 176 KindMethodDeclaration
+kind 177 KindClassStaticBlockDeclaration
+kind 178 KindConstructor
+kind 179 KindGetAccessor
+kind 180 KindSetAccessor
+kind 181 KindCallSignature
+kind 182 KindConstructSignature
+kind 183 KindIndexSignature
+kind 184 KindTypePredicate
+kind 185 KindTypeReference
+kind 186 KindFunctionType
+kind 187 KindConstructorType
+kind 188 KindTypeQuery
+kind 189 KindTypeLiteral
+kind 190 KindArrayType
+kind 191 KindTupleType
+kind 192 KindOptionalType
+kind 193 KindRestType
+kind 194 KindUnionType
+kind 195 KindIntersectionType
+kind 196 KindConditionalType
+kind 197 KindInferType
+kind 198 KindParenthesizedType
+kind 199 KindThisType
+kind 200 KindTypeOperator
+kind 201 KindIndexedAccessType
+kind 202 KindMappedType
+kind 203 KindLiteralType
+kind 204 KindNamedTupleMember
+kind 205 KindTemplateLiteralType
+kind 206 KindTemplateLiteralTypeSpan
+kind 207 KindImportType
+kind 208 KindObjectBindingPattern
+kind 209 KindArrayBindingPattern
+kind 210 KindBindingElement
+kind 211 KindArrayLiteralExpression
+kind 212 KindObjectLiteralExpression
+kind 213 KindPropertyAccessExpression
+kind 214 KindElementAccessExpression
+kind 215 KindCallExpression
+kind 216 KindNewExpression
+kind 217 KindTaggedTemplateExpression
+kind 218 KindTypeAssertionExpression
+kind 219 KindParenthesizedExpression
+kind 220 KindFunctionExpression
+kind 221 KindArrowFunction
+kind 222 KindDeleteExpression
+kind 223 KindTypeOfExpression
+kind 224 KindVoidExpression
+kind 225 KindAwaitExpression
+kind 226 KindPrefixUnaryExpression
+kind 227 KindPostfixUnaryExpression
+kind 228 KindBinaryExpression
+kind 229 KindConditionalExpression
+kind 230 KindTemplateExpression
+kind 231 KindYieldExpression
+kind 232 KindSpreadElement
+kind 233 KindClassExpression
+kind 234 KindOmittedExpression
+kind 235 KindExpressionWithTypeArguments
+kind 236 KindAsExpression
+kind 237 KindNonNullExpression
+kind 238 KindMetaProperty
+kind 239 KindSyntheticExpression
+kind 240 KindSatisfiesExpression
+kind 241 KindTemplateSpan
+kind 242 KindSemicolonClassElement
+kind 243 KindBlock
+kind 244 KindEmptyStatement
+kind 245 KindVariableStatement
+kind 246 KindExpressionStatement
+kind 247 KindIfStatement
+kind 248 KindDoStatement
+kind 249 KindWhileStatement
+kind 250 KindForStatement
+kind 251 KindForInStatement
+kind 252 KindForOfStatement
+kind 253 KindContinueStatement
+kind 254 KindBreakStatement
+kind 255 KindReturnStatement
+kind 256 KindWithStatement
+kind 257 KindSwitchStatement
+kind 258 KindLabeledStatement
+kind 259 KindThrowStatement
+kind 260 KindTryStatement
+kind 261 KindDebuggerStatement
+kind 262 KindVariableDeclaration
+kind 263 KindVariableDeclarationList
+kind 264 KindFunctionDeclaration
+kind 265 KindClassDeclaration
+kind 266 KindInterfaceDeclaration
+kind 267 KindTypeAliasDeclaration
+kind 268 KindEnumDeclaration
+kind 269 KindModuleDeclaration
+kind 270 KindModuleBlock
+kind 271 KindCaseBlock
+kind 272 KindNamespaceExportDeclaration
+kind 273 KindImportEqualsDeclaration
+kind 274 KindImportDeclaration
+kind 275 KindImportClause
+kind 276 KindNamespaceImport
+kind 277 KindNamedImports
+kind 278 KindImportSpecifier
+kind 279 KindExportAssignment
+kind 280 KindExportDeclaration
+kind 281 KindNamedExports
+kind 282 KindNamespaceExport
+kind 283 KindExportSpecifier
+kind 284 KindMissingDeclaration
+kind 285 KindExternalModuleReference
+kind 286 KindJsxElement
+kind 287 KindJsxSelfClosingElement
+kind 288 KindJsxOpeningElement
+kind 289 KindJsxClosingElement
+kind 290 KindJsxFragment
+kind 291 KindJsxOpeningFragment
+kind 292 KindJsxClosingFragment
+kind 293 KindJsxAttribute
+kind 294 KindJsxAttributes
+kind 295 KindJsxSpreadAttribute
+kind 296 KindJsxExpression
+kind 297 KindJsxNamespacedName
+kind 298 KindCaseClause
+kind 299 KindDefaultClause
+kind 300 KindHeritageClause
+kind 301 KindCatchClause
+kind 302 KindImportAttributes
+kind 303 KindImportAttribute
+kind 304 KindPropertyAssignment
+kind 305 KindShorthandPropertyAssignment
+kind 306 KindSpreadAssignment
+kind 307 KindEnumMember
+kind 308 KindSourceFile
+kind 309 KindJSDocTypeExpression
+kind 310 KindJSDocNameReference
+kind 311 KindJSDocAllType
+kind 312 KindJSDocNullableType
+kind 313 KindJSDocNonNullableType
+kind 314 KindJSDocOptionalType
+kind 315 KindJSDocVariadicType
+kind 316 KindJSDoc
+kind 317 KindJSDocText
+kind 318 KindJSDocTypeLiteral
+kind 319 KindJSDocSignature
+kind 320 KindJSDocLink
+kind 321 KindJSDocLinkCode
+kind 322 KindJSDocLinkPlain
+kind 323 KindJSDocUnknownTag
+kind 324 KindJSDocAugmentsTag
+kind 325 KindJSDocImplementsTag
+kind 326 KindJSDocDeprecatedTag
+kind 327 KindJSDocPublicTag
+kind 328 KindJSDocPrivateTag
+kind 329 KindJSDocProtectedTag
+kind 330 KindJSDocReadonlyTag
+kind 331 KindJSDocOverrideTag
+kind 332 KindJSDocCallbackTag
+kind 333 KindJSDocOverloadTag
+kind 334 KindJSDocParameterTag
+kind 335 KindJSDocReturnTag
+kind 336 KindJSDocThisTag
+kind 337 KindJSDocTypeTag
+kind 338 KindJSDocTemplateTag
+kind 339 KindJSDocTypedefTag
+kind 340 KindJSDocSeeTag
+kind 341 KindJSDocPropertyTag
+kind 342 KindJSDocThrowsTag
+kind 343 KindJSDocSatisfiesTag
+kind 344 KindJSDocImportTag
+kind 345 KindSyntaxList
+kind 346 KindJSTypeAliasDeclaration
+kind 347 KindJSImportDeclaration
+kind 348 KindNotEmittedStatement
+kind 349 KindPartiallyEmittedExpression
+kind 350 KindSyntheticReferenceExpression
+kind 351 KindNotEmittedTypeElement
+kind 352 KindCount
+kind 353 kindFlowSwitchClauseData
 case NewArrayLiteralExpression *ast.NodeList,bool 0 1
 kind KindArrayLiteralExpression flags 0
 fec p0.0 p0.1
@@ -803,7 +804,7 @@ vec-changed false KindBindingElement fec rp0 rp1 rp2 rp3
 clone false KindBindingElement 3 9 8388608 fec p0 p1 p2 p3
 deep KindBindingElement@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 8 7 5
-case NewBindingPattern ast.Kind,*ast.NodeList 207 1
+case NewBindingPattern ast.Kind,*ast.NodeList 208 1
 kind KindObjectBindingPattern flags 0
 fec p1.0 p1.1
 data 000000000
@@ -853,7 +854,7 @@ vec-changed false KindObjectBindingPattern fec rp1.0 rp1.1
 clone false KindObjectBindingPattern 3 9 8388608 fec p1.0 p1.1
 deep KindObjectBindingPattern@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 6 5 3
-case NewBindingPattern ast.Kind,*ast.NodeList 208 1
+case NewBindingPattern ast.Kind,*ast.NodeList 209 1
 kind KindArrayBindingPattern flags 0
 fec p1.0 p1.1
 data 000000000
@@ -1204,12 +1205,12 @@ vec-changed false KindCaseBlock fec rp0.0 rp0.1
 clone false KindCaseBlock 3 9 8388608 fec p0.0 p0.1
 deep KindCaseBlock@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 6 5 3
-case NewCaseOrDefaultClause ast.Kind,*ast.Node,*ast.NodeList 297 1
+case NewCaseClause *ast.Node,*ast.NodeList 0 1
 kind KindCaseClause flags 0
-fec p1 p2.0 p2.1
+fec p0 p1.0 p1.1
 data 000000000
 modifiers nil
-acc Expression p1
+acc Expression p0
 acc Type nil
 acc Initializer panic
 acc Name nil
@@ -1232,7 +1233,7 @@ acc ArgumentList panic
 acc TypeArgumentList panic
 acc TypeParameterList panic
 acc MemberList panic
-acc StatementList p2
+acc StatementList p1
 acc CommentList panic
 acc PropertyList panic
 acc ElementList panic
@@ -1250,59 +1251,9 @@ acc IsJSDoc false
 facts 4194304
 pfacts 4194304
 vec-same true
-vec-changed false KindCaseClause fec rp1 rp2.0 rp2.1
-clone false KindCaseClause 3 9 8388608 fec p1 p2.0 p2.1
+vec-changed false KindCaseClause fec rp0 rp1.0 rp1.1
+clone false KindCaseClause 3 9 8388608 fec p0 p1.0 p1.1
 deep KindCaseClause@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
-hooks 7 6 4
-case NewCaseOrDefaultClause ast.Kind,*ast.Node,*ast.NodeList 298 1
-kind KindDefaultClause flags 0
-fec p1 p2.0 p2.1
-data 000000000
-modifiers nil
-acc Expression panic
-acc Type nil
-acc Initializer panic
-acc Name nil
-acc TagName panic
-acc PropertyName nil
-acc PropertyNameOrName nil
-acc PostfixToken nil
-acc QuestionToken nil
-acc QuestionDotToken panic
-acc TypeExpression panic
-acc ClassName panic
-acc Label panic
-acc Attributes panic
-acc Children panic
-acc ModuleSpecifier panic
-acc ImportClause panic
-acc Statement panic
-acc Body nil
-acc ArgumentList panic
-acc TypeArgumentList panic
-acc TypeParameterList panic
-acc MemberList panic
-acc StatementList p2
-acc CommentList panic
-acc PropertyList panic
-acc ElementList panic
-acc IsTypeOnly false
-acc CanHaveStatements true
-acc ModifierFlags 0
-acc Text panic
-acc RawText panic
-acc Decorators nil
-acc ModifierNodes nil
-acc Symbol true
-acc LocalSymbol true
-acc Locals true
-acc IsJSDoc false
-facts 4194304
-pfacts 4194304
-vec-same true
-vec-changed false KindDefaultClause fec rp1 rp2.0 rp2.1
-clone false KindDefaultClause 3 9 8388608 fec p1 p2.0 p2.1
-deep KindDefaultClause@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 7 6 4
 case NewCatchClause *ast.Node,*ast.Node 0 1
 kind KindCatchClause flags 0
@@ -1957,6 +1908,56 @@ vec-changed false KindDecorator fec rp0
 clone false KindDecorator 3 9 8388608 fec p0
 deep KindDecorator@-1,-1 KindIdentifier@-1,-1
 hooks 5 4 2
+case NewDefaultClause *ast.NodeList 0 1
+kind KindDefaultClause flags 0
+fec p0.0 p0.1
+data 000000000
+modifiers nil
+acc Expression panic
+acc Type nil
+acc Initializer panic
+acc Name nil
+acc TagName panic
+acc PropertyName nil
+acc PropertyNameOrName nil
+acc PostfixToken nil
+acc QuestionToken nil
+acc QuestionDotToken panic
+acc TypeExpression panic
+acc ClassName panic
+acc Label panic
+acc Attributes panic
+acc Children panic
+acc ModuleSpecifier panic
+acc ImportClause panic
+acc Statement panic
+acc Body nil
+acc ArgumentList panic
+acc TypeArgumentList panic
+acc TypeParameterList panic
+acc MemberList panic
+acc StatementList p0
+acc CommentList panic
+acc PropertyList panic
+acc ElementList panic
+acc IsTypeOnly false
+acc CanHaveStatements true
+acc ModifierFlags 0
+acc Text panic
+acc RawText panic
+acc Decorators nil
+acc ModifierNodes nil
+acc Symbol true
+acc LocalSymbol true
+acc Locals true
+acc IsJSDoc false
+facts 4194304
+pfacts 4194304
+vec-same true
+vec-changed false KindDefaultClause fec rp0.0 rp0.1
+clone false KindDefaultClause 3 9 8388608 fec p0.0 p0.1
+deep KindDefaultClause@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
+hooks 6 5 3
 case NewDeleteExpression *ast.Node 0 1
 kind KindDeleteExpression flags 0
 fec p0
@@ -2707,7 +2708,7 @@ vec-changed false KindExternalModuleReference fec rp0
 clone false KindExternalModuleReference 3 9 8388608 fec p0
 deep KindExternalModuleReference@-1,-1 KindIdentifier@-1,-1
 hooks 5 4 2
-case NewForInOrOfStatement ast.Kind,*ast.Node,*ast.Node,*ast.Node,*ast.Node 250 1
+case NewForInOrOfStatement ast.Kind,*ast.Node,*ast.Node,*ast.Node,*ast.Node 251 1
 kind KindForInStatement flags 0
 fec p1 p2 p3 p4
 data 100100000
@@ -2757,7 +2758,7 @@ vec-changed false KindForInStatement fec rp1 rp2 rp3 rp4
 clone false KindForInStatement 3 9 8388608 fec p1 p2 p3 p4
 deep KindForInStatement@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 8 7 5
-case NewForInOrOfStatement ast.Kind,*ast.Node,*ast.Node,*ast.Node,*ast.Node 251 1
+case NewForInOrOfStatement ast.Kind,*ast.Node,*ast.Node,*ast.Node,*ast.Node 252 1
 kind KindForOfStatement flags 0
 fec p1 p2 p3 p4
 data 100100000
@@ -4912,7 +4913,7 @@ vec-changed false KindJSDocOverrideTag fec rp0 rp1.0 rp1.1
 clone false KindJSDocOverrideTag 3 9 8388608 fec p0 p1.0 p1.1
 deep KindJSDocOverrideTag@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 7 6 4
-case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 333 1
+case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 334 1
 kind KindJSDocParameterTag flags 0
 fec p1 p2 p4 p6.0 p6.1
 data 000000000
@@ -4962,7 +4963,7 @@ vec-changed false KindJSDocParameterTag fec rp1 rp2 rp4 rp6.0 rp6.1
 clone false KindJSDocParameterTag 3 9 8388608 fec p1 p2 p4 p6.0 p6.1
 deep KindJSDocParameterTag@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 9 8 6
-case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 333 0
+case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 334 0
 kind KindJSDocParameterTag flags 0
 fec p1 p4 p2 p6.0 p6.1
 data 000000000
@@ -5012,7 +5013,7 @@ vec-changed false KindJSDocParameterTag fec rp1 rp4 rp2 rp6.0 rp6.1
 clone false KindJSDocParameterTag 3 9 8388608 fec p1 p4 p2 p6.0 p6.1
 deep KindJSDocParameterTag@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 9 8 6
-case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 340 1
+case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 341 1
 kind KindJSDocPropertyTag flags 0
 fec p1 p2 p4 p6.0 p6.1
 data 000000000
@@ -5062,7 +5063,7 @@ vec-changed false KindJSDocPropertyTag fec rp1 rp2 rp4 rp6.0 rp6.1
 clone false KindJSDocPropertyTag 3 9 8388608 fec p1 p2 p4 p6.0 p6.1
 deep KindJSDocPropertyTag@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 9 8 6
-case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 340 0
+case NewJSDocParameterOrPropertyTag ast.Kind,*ast.Node,*ast.Node,bool,*ast.Node,bool,*ast.NodeList 341 0
 kind KindJSDocPropertyTag flags 0
 fec p1 p4 p2 p6.0 p6.1
 data 000000000
@@ -6716,7 +6717,7 @@ hooks 8 7 5
 case NewJsxSpreadAttribute *ast.Node 0 1
 kind KindJsxSpreadAttribute flags 0
 fec p0
-data 000000000
+data 010000000
 modifiers nil
 acc Expression p0
 acc Type nil
@@ -7565,9 +7566,9 @@ vec-changed false KindModuleBlock fec rp0.0 rp0.1
 clone false KindModuleBlock 3 9 8388608 fec p0.0 p0.1
 deep KindModuleBlock@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
 hooks 6 5 3
-case NewModuleDeclaration *ast.ModifierList,ast.Kind,*ast.Node,*ast.Node 145 1
+case NewModuleDeclaration *ast.ModifierList,ast.Kind,*ast.Node,*ast.Node,*ast.Node 145 1
 kind KindModuleDeclaration flags 0
-fec p0.0 p0.1 p2 p3
+fec p0.0 p0.1 p2 p3 p4
 data 111100100
 modifiers p0
 acc Expression panic
@@ -7583,12 +7584,12 @@ acc QuestionDotToken panic
 acc TypeExpression panic
 acc ClassName panic
 acc Label panic
-acc Attributes panic
+acc Attributes p3
 acc Children panic
 acc ModuleSpecifier panic
 acc ImportClause panic
 acc Statement panic
-acc Body p3
+acc Body p4
 acc ArgumentList panic
 acc TypeArgumentList panic
 acc TypeParameterList panic
@@ -7611,10 +7612,10 @@ acc IsJSDoc false
 facts 4198401
 pfacts 4198401
 vec-same true
-vec-changed false KindModuleDeclaration fec rp0.0 rp0.1 rp2 rp3
-clone false KindModuleDeclaration 3 9 8388608 fec p0.0 p0.1 p2 p3
-deep KindModuleDeclaration@-1,-1 KindExportKeyword@-1,-1 KindAsyncKeyword@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
-hooks 8 7 5
+vec-changed false KindModuleDeclaration fec rp0.0 rp0.1 rp2 rp3 rp4
+clone false KindModuleDeclaration 3 9 8388608 fec p0.0 p0.1 p2 p3 p4
+deep KindModuleDeclaration@-1,-1 KindExportKeyword@-1,-1 KindAsyncKeyword@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1 KindIdentifier@-1,-1
+hooks 9 8 6
 case NewNamedExports *ast.NodeList 0 1
 kind KindNamedExports flags 0
 fec p0.0 p0.1
@@ -8118,7 +8119,7 @@ hooks 3 2 2
 case NewNotEmittedTypeElement  0 1
 kind KindNotEmittedTypeElement flags 0
 fec -
-data 000000000
+data 010000000
 modifiers nil
 acc Expression panic
 acc Type nil
@@ -10419,7 +10420,7 @@ hooks 3 2 2
 case NewToken ast.Kind 109 1
 kind KindThisKeyword flags 0
 fec -
-data 000000000
+data 100000000
 modifiers nil
 acc Expression panic
 acc Type nil

@@ -139,13 +139,15 @@ class ResolutionState {
 				}
 				if (fromConfig) {
 					// Custom typeRoots resolve as file or directory just like we do modules
-					final resolvedFromFile = r.loadModuleFromFile(extensionsDeclaration, candidate);
-					if (!resolvedFromFile.shouldContinueSearching()) {
-						final packageDirectory = Module.ParseNodeModuleFromPath(resolvedFromFile.path, false);
-						if (packageDirectory != "") {
-							resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(packageDirectory));
+					if (!Tspath.HasTrailingDirectorySeparator(candidate)) {
+						final resolvedFromFile = r.loadModuleFromFile(extensionsDeclaration, candidate);
+						if (!resolvedFromFile.shouldContinueSearching()) {
+							final packageDirectory = Module.ParseNodeModuleFromPath(resolvedFromFile.path, false);
+							if (packageDirectory != "") {
+								resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(packageDirectory));
+							}
+							return r.createResolvedTypeReferenceDirective(resolvedFromFile, true /*primary*/);
 						}
-						return r.createResolvedTypeReferenceDirective(resolvedFromFile, true /*primary*/);
 					}
 				}
 				final resolvedFromDirectory = r.loadNodeModuleFromDirectory(extensionsDeclaration, candidate, true /*considerPackageJson*/);
@@ -210,13 +212,15 @@ class ResolutionState {
 				}
 				continue;
 			}
-			final resolvedFromFile = r.loadModuleFromFile(extensionsDeclaration, candidate);
-			if (!resolvedFromFile.shouldContinueSearching()) {
-				final packageDirectory = Module.ParseNodeModuleFromPath(resolvedFromFile.path, false);
-				if (packageDirectory != "") {
-					resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(packageDirectory));
+			if (!Tspath.HasTrailingDirectorySeparator(candidate)) {
+				final resolvedFromFile = r.loadModuleFromFile(extensionsDeclaration, candidate);
+				if (!resolvedFromFile.shouldContinueSearching()) {
+					final packageDirectory = Module.ParseNodeModuleFromPath(resolvedFromFile.path, false);
+					if (packageDirectory != "") {
+						resolvedFromFile.packageId = r.getPackageId(resolvedFromFile.path, r.getPackageJsonInfo(packageDirectory));
+					}
+					return resolvedFromFile;
 				}
-				return resolvedFromFile;
 			}
 			final resolved = r.loadNodeModuleFromDirectory(extensionsDeclaration, candidate, true /*considerPackageJson*/);
 			if (!resolved.shouldContinueSearching()) {

@@ -1341,7 +1341,9 @@ class TypeParameter extends ConstrainedType {
 	var target:Type = null;
 	var mapper:TypeMapper = null;
 	var isThisType:Bool = false;
+	var isDistributed:Bool = false;
 	var resolvedDefaultType:Type = null;
+	var distributedType:Type = null;
 
 	public function new() {
 		super();

@@ -50,9 +50,21 @@ class NodeBuilderLinks {
 
 @:allow(ts.checker)
 class NodeBuilderSymbolLinks {
-	var specifierCache:ModeAwareCache<std.String> = null;
+	var specifierCache:ModeAwareCache<ModuleSpecifierResult> = null;
 
 	public function new() {}
+}
+
+// PORT: Go value struct moduleSpecifierResult; copied (never shared) where Go mutates a copy.
+@:allow(ts.checker)
+class ModuleSpecifierResult {
+	var specifier:std.String = "";
+	var importAttributesType:Type = null;
+
+	public function new(specifier:std.String = "", importAttributesType:Type = null) {
+		this.specifier = specifier;
+		this.importAttributesType = importAttributesType;
+	}
 }
 
 @:allow(ts.checker)
@@ -596,24 +608,23 @@ class NodeBuilderImpl {
 			}
 			final contextFile = Ast.GetSourceFileOfNode(this.e.MostOriginal(this.ctx.enclosingDeclaration)); // TODO: Just use b.ctx.enclosingFile ? Or is the delayed lookup important for context moves?
 			final targetFile = Ast.GetSourceFileOfModule(chain[0]);
-			var specifier:std.String = "";
-			var attributes:Node = null;
+			var specifierResult = new ModuleSpecifierResult();
+			var importModeOverride:ResolutionMode = Core.ResolutionModeNone;
 			if (this.ch.compilerOptions.GetModuleResolutionKind() == ModuleResolutionKindNode16
 				|| this.ch.compilerOptions.GetModuleResolutionKind() == ModuleResolutionKindNodeNext) {
 				// An `import` type directed at an esm format file is only going to resolve in esm mode - set the esm mode assertion
 				if (targetFile != null && contextFile != null && this.ch.program.GetEmitModuleFormatOfFile(ts.modulespecifiers.Types.SourceFileAdapter.Of(targetFile)) == ModuleKindESNext
 					&& this.ch.program.GetEmitModuleFormatOfFile(ts.modulespecifiers.Types.SourceFileAdapter.Of(targetFile)) != this.ch.program.GetEmitModuleFormatOfFile(ts.modulespecifiers.Types.SourceFileAdapter.Of(contextFile))) {
-					specifier = this.getSpecifierForModuleSymbol(chain[0], ModuleKindESNext);
-					attributes = this.f.NewImportAttributes(KindWithKeyword,
-						this.f.NewNodeList([this.f.NewImportAttribute(this.newStringLiteral("resolution-mode"), this.newStringLiteral("import"))]), false);
+					specifierResult = this.getSpecifierForModuleSymbol(chain[0], ModuleKindESNext);
+					importModeOverride = ModuleKindESNext;
 				}
 			}
-			if (specifier.length == 0) {
-				specifier = this.getSpecifierForModuleSymbol(chain[0], Core.ResolutionModeNone);
+			if (specifierResult.specifier.length == 0) {
+				specifierResult = this.getSpecifierForModuleSymbol(chain[0], Core.ResolutionModeNone);
 			}
 			if ((this.ctx.flags & FlagsAllowNodeModulesRelativePaths == 0) /* && b.ch.compilerOptions.GetModuleResolutionKind() != core.ModuleResolutionKindClassic */
-				&& specifier.indexOf("/node_modules/") >= 0) {
-				final oldSpecifier = specifier;
+				&& specifierResult.specifier.indexOf("/node_modules/") >= 0) {
+				final oldSpecifierResult = specifierResult;
 
 				if (this.ch.compilerOptions.GetModuleResolutionKind() == ModuleResolutionKindNode16
 					|| this.ch.compilerOptions.GetModuleResolutionKind() == ModuleResolutionKindNodeNext) {
@@ -622,29 +633,26 @@ class NodeBuilderImpl {
 					if (this.ch.program.GetEmitModuleFormatOfFile(ts.modulespecifiers.Types.SourceFileAdapter.Of(contextFile)) == ModuleKindESNext) {
 						swappedMode = ModuleKindCommonJS;
 					}
-					specifier = this.getSpecifierForModuleSymbol(chain[0], swappedMode);
+					specifierResult = this.getSpecifierForModuleSymbol(chain[0], swappedMode);
 
-					if (specifier.indexOf("/node_modules/") >= 0) {
+					if (specifierResult.specifier.indexOf("/node_modules/") >= 0) {
 						// Still unreachable :(
-						specifier = oldSpecifier;
+						specifierResult = oldSpecifierResult;
 					} else {
-						var modeStr = "require";
-						if (swappedMode == ModuleKindESNext) {
-							modeStr = "import";
-						}
-						attributes = this.f.NewImportAttributes(KindWithKeyword,
-							this.f.NewNodeList([this.f.NewImportAttribute(this.newStringLiteral("resolution-mode"), this.newStringLiteral(modeStr))]), false);
+						importModeOverride = swappedMode;
 					}
 				}
 
-				if (attributes == null) {
+				if (importModeOverride == Core.ResolutionModeNone) {
 					// If ultimately we can only name the symbol with a reference that dives into a `node_modules` folder, we should error
 					// since declaration files with these kinds of references are liable to fail when published :(
 					this.ctx.encounteredError = true;
-					this.ctx.tracker.ReportLikelyUnsafeImportRequiredError(oldSpecifier, symbol.Name);
+					this.ctx.tracker.ReportLikelyUnsafeImportRequiredError(oldSpecifierResult.specifier, symbol.Name);
 				}
 			}
 
+			final attributes = this.createImportAttributesForModuleSpecifier(specifierResult, importModeOverride);
+			final specifier = specifierResult.specifier;
 			final lit = this.f.NewLiteralTypeNode(this.newStringLiteral(specifier));
 			this.ctx.approximateLength += Utf8.ByteLen(specifier) + 10; // specifier + import("")
 			if (nonRootParts == null || Ast.IsEntityName(nonRootParts)) {
@@ -801,9 +809,9 @@ class NodeBuilderImpl {
 		}
 
 		if (Checker.startsWithSingleOrDoubleQuote(symbolName) && Core.Some(symbol.Declarations, Checker.hasNonGlobalAugmentationExternalModuleSymbol)) {
-			final specifier = this.getSpecifierForModuleSymbol(symbol, Core.ResolutionModeNone);
-			this.ctx.approximateLength += 2 + Utf8.ByteLen(specifier); // PORT: byte (Go len of a UTF-8 string)
-			return this.newStringLiteral(specifier);
+			final specifierResult = this.getSpecifierForModuleSymbol(symbol, Core.ResolutionModeNone);
+			this.ctx.approximateLength += 2 + Utf8.ByteLen(specifierResult.specifier); // PORT: byte (Go len of a UTF-8 string)
+			return this.newStringLiteral(specifierResult.specifier);
 		}
 
 		if (index == 0 || Checker.canUsePropertyAccess(symbolName)) {
@@ -1025,7 +1033,7 @@ class NodeBuilderImpl {
 					final p = new SortedSymbolNamePair();
 					p.sym = symbol;
 					if (Core.Some(symbol.Declarations, Checker.hasNonGlobalAugmentationExternalModuleSymbol)) {
-						p.name = this.getSpecifierForModuleSymbol(symbol, Core.ResolutionModeNone);
+						p.name = this.getSpecifierForModuleSymbol(symbol, Core.ResolutionModeNone).specifier;
 					} else {
 						p.name = "";
 					}
@@ -1095,7 +1103,17 @@ class NodeBuilderImpl {
 		return Utilities.compareSymbolsWorker(this.ch, a.sym, b.sym); // must sort symbols for stable ordering
 	}
 
-	function getSpecifierForModuleSymbol(symbol:Symbol, overrideImportMode:ResolutionMode):std.String {
+	function getSpecifierForModuleSymbol(symbol:Symbol, overrideImportMode:ResolutionMode):ModuleSpecifierResult {
+		final enclosingDeclaration = this.e.MostOriginal(this.ctx.enclosingDeclaration);
+		var originalModuleSpecifier:Node = null;
+		if (Checker.canHaveModuleSpecifier(enclosingDeclaration)) {
+			originalModuleSpecifier = Checker.TryGetModuleSpecifierFromDeclaration(enclosingDeclaration);
+		}
+		var originalImportAttributesType:Type = null;
+		if (originalModuleSpecifier != null) {
+			originalImportAttributesType = this.ch.getImportAttributesTypeForModuleSpecifier(originalModuleSpecifier);
+		}
+
 		var file = Ast.GetDeclarationOfKind(symbol, KindSourceFile);
 		if (file == null) {
 			final equivalentSymbol = Core.FirstNonNil(symbol.Declarations, (d:Node) -> {
@@ -1107,22 +1125,27 @@ class NodeBuilderImpl {
 		}
 
 		if (file == null) {
-			if (Ast.IsAmbientModuleSymbolName(symbol.Name)) {
-				return Stringutil.StripQuotes(symbol.Name);
+			final declaration = Core.Find(symbol.Declarations, Ast.IsModuleWithStringLiteralName);
+			if (declaration != null) {
+				final specifier = declaration.Name().Text();
+				if (originalImportAttributesType != null && this.moduleSpecifierResolvesToSymbol(specifier, originalImportAttributesType, symbol)) {
+					return new ModuleSpecifierResult(specifier, originalImportAttributesType);
+				}
+				return new ModuleSpecifierResult(specifier, this.ch.getTypeOfModuleImportAttributes(symbol));
+			}
+			final specifier = Ast.TryGetAmbientModuleNameFromSymbolName(symbol.Name);
+			if (specifier != null) {
+				return new ModuleSpecifierResult(specifier);
 			}
 		}
 		if (this.ctx.enclosingFile == null) {
-			if (Ast.IsAmbientModuleSymbolName(symbol.Name)) {
-				return Stringutil.StripQuotes(symbol.Name);
+			final specifier = Ast.TryGetAmbientModuleNameFromSymbolName(symbol.Name);
+			if (specifier != null) {
+				return new ModuleSpecifierResult(specifier);
 			}
-			return Ast.GetSourceFileOfModule(symbol).FileName();
+			return new ModuleSpecifierResult(Ast.GetSourceFileOfModule(symbol).FileName());
 		}
 
-		final enclosingDeclaration = this.e.MostOriginal(this.ctx.enclosingDeclaration);
-		var originalModuleSpecifier:Node = null;
-		if (Checker.canHaveModuleSpecifier(enclosingDeclaration)) {
-			originalModuleSpecifier = Checker.TryGetModuleSpecifierFromDeclaration(enclosingDeclaration);
-		}
 		final contextFile = this.ctx.enclosingFile;
 		var resolutionMode = overrideImportMode;
 		if (resolutionMode == Core.ResolutionModeNone && originalModuleSpecifier != null) {
@@ -1133,10 +1156,10 @@ class NodeBuilderImpl {
 		final cacheKey = new ts.module.Types.ModeAwareCacheKey((contextFile.Path() : std.String), resolutionMode).Key();
 		final links = this.symbolLinks.Get(symbol);
 		if (links.specifierCache == null) {
-			links.specifierCache = new ModeAwareCache<std.String>();
+			links.specifierCache = new ModeAwareCache<ModuleSpecifierResult>();
 		}
 		if (links.specifierCache.exists(cacheKey)) {
-			return links.specifierCache.get(cacheKey);
+			return this.moduleSpecifierResultForSymbol(links.specifierCache.get(cacheKey), originalImportAttributesType, symbol);
 		}
 		// For declaration bundles, we need to generate absolute paths relative to the common source dir for imports,
 		// just like how the declaration emitter does for the ambient module declarations - we can easily accomplish this
@@ -1154,16 +1177,79 @@ class NodeBuilderImpl {
 		prefs.ImportModuleSpecifierPreference = specifierPref;
 		prefs.ImportModuleSpecifierEnding = endingPref;
 		// PORT: Go passes *Checker and Host where structural interfaces are expected; Haxe needs adapters (PORTING.md §3).
-		final allSpecifiers = Modulespecifiers.GetModuleSpecifiers(symbol, new NodeBuilderCheckerShapeAdapter(this.ch), specifierCompilerOptions,
+		final moduleSpecifiersResult = Modulespecifiers.GetModuleSpecifiers(symbol, new NodeBuilderCheckerShapeAdapter(this.ch), specifierCompilerOptions,
 			ts.modulespecifiers.Types.SourceFileAdapter.Of(contextFile), new NodeBuilderSpecifierHostAdapter(host), prefs,
 			new ts.modulespecifiers.Types.ModuleSpecifierOptions(overrideImportMode), false /*forAutoImports*/);
-		if (Core.len(allSpecifiers) == 0) {
-			links.specifierCache.set(cacheKey, "");
-			return "";
+		Debug.Assert(Core.len(moduleSpecifiersResult.Specifiers) > 0);
+		final result = new ModuleSpecifierResult(moduleSpecifiersResult.Specifiers[0]);
+		if (moduleSpecifiersResult.AmbientModuleSymbol != null) {
+			result.importAttributesType = this.ch.getTypeOfModuleImportAttributes(moduleSpecifiersResult.AmbientModuleSymbol);
 		}
-		final specifier = allSpecifiers[0];
-		links.specifierCache.set(cacheKey, specifier);
-		return specifier;
+		links.specifierCache.set(cacheKey, result);
+		return this.moduleSpecifierResultForSymbol(result, originalImportAttributesType, symbol);
+	}
+
+	// PORT: Go takes the result by value and returns a modified copy.
+	function moduleSpecifierResultForSymbol(result:ModuleSpecifierResult, importAttributesType:Type, symbol:Symbol):ModuleSpecifierResult {
+		if (importAttributesType != null && this.moduleSpecifierResolvesToSymbol(result.specifier, importAttributesType, symbol)) {
+			return new ModuleSpecifierResult(result.specifier, importAttributesType);
+		}
+		return result;
+	}
+
+	function moduleSpecifierResolvesToSymbol(specifier:std.String, importAttributesType:Type, symbol:Symbol):Bool {
+		var location = this.ctx.enclosingDeclaration;
+		if (location == null && this.ctx.enclosingFile != null) {
+			location = this.ctx.enclosingFile.AsNode();
+		}
+		if (location == null) {
+			return false;
+		}
+		final resolved = this.ch.resolveExternalModule(location, specifier, null, null, false /*isForAugmentation*/, importAttributesType);
+		return resolved != null && this.ch.getMergedSymbol(resolved) == this.ch.getMergedSymbol(symbol);
+	}
+
+	function createImportAttributesForModuleSpecifier(result:ModuleSpecifierResult, importModeOverride:ResolutionMode):Node {
+		final isEmptyAttributesType = result.importAttributesType == null || this.ch.isEmptyObjectType(result.importAttributesType);
+		if (isEmptyAttributesType && importModeOverride == Core.ResolutionModeNone) {
+			return null;
+		}
+
+		var properties:Array<Symbol> = [];
+		if (!isEmptyAttributesType) {
+			final props = this.ch.getPropertiesOfType(result.importAttributesType);
+			properties = props == null ? [] : props.copy();
+		}
+		properties.sort((a, b) -> go.Strings.Compare(a.Name, b.Name));
+		final attributes:Array<Node> = [];
+		var resolutionMode = "";
+		if (importModeOverride != Core.ResolutionModeNone) {
+			resolutionMode = Core.IfElse(importModeOverride == Core.ResolutionModeESM, "import", "require");
+			attributes.push(this.f.NewImportAttribute(this.newStringLiteral("resolution-mode"), this.newStringLiteral(resolutionMode)));
+			this.ctx.approximateLength += "resolution-mode".length + resolutionMode.length + 6; // `"resolution-mode": "value"`
+		}
+		for (property in properties) {
+			final name = property.Name;
+			final propertyType = this.ch.getTypeOfSymbol(property);
+			if (propertyType.flags & TypeFlagsStringLiteral == 0) {
+				continue;
+			}
+			final value = Checker.getStringLiteralValue(propertyType);
+			var nameNode:Node = null;
+			if (Scanner.IsIdentifierText(name, LanguageVariantStandard)) {
+				nameNode = this.f.NewIdentifier(name);
+			} else {
+				nameNode = this.newStringLiteral(name);
+				this.ctx.approximateLength += 2;
+			}
+			attributes.push(this.f.NewImportAttribute(nameNode, this.newStringLiteral(value)));
+			this.ctx.approximateLength += Utf8.ByteLen(name) + Utf8.ByteLen(value) + 4; // `name: "value"` PORT: byte
+		}
+		if (attributes.length == 0) {
+			return null;
+		}
+		this.ctx.approximateLength += 16 + 2 * (attributes.length - 1); // `, { with: { , ... , } }`
+		return this.f.NewImportAttributes(KindWithKeyword, this.f.NewNodeList(attributes), false);
 	}
 
 	function typeParameterToDeclarationWithConstraint(typeParameter:Type, constraintNode:TypeNode):TypeParameterDeclarationNode {
@@ -3036,16 +3122,8 @@ class NodeBuilderImpl {
 	}
 
 	function typeToTypeNode(t:Type):TypeNode {
-		// Push type onto typeStack for expansion depth tracking
 		// PORT: defer — the body runs in a local function; the deferred restores run after it returns or throws.
 		var pushedTypeStack = false;
-		if (this.ctx.maxExpansionDepth >= 0 && t != null) {
-			if (this.ctx.typeStack == null) {
-				this.ctx.typeStack = [];
-			}
-			this.ctx.typeStack.push(t);
-			pushedTypeStack = true;
-		}
 		var deferredDepthDecrement = false;
 		final typeArg = t;
 
@@ -3062,6 +3140,17 @@ class NodeBuilderImpl {
 				}
 				this.ctx.approximateLength += 3;
 				return this.f.NewKeywordTypeNode(KindAnyKeyword);
+			}
+
+			t = Checker.getNonDistributedTypeParameter(t);
+
+			// Push type onto typeStack for expansion depth tracking
+			if (this.ctx.maxExpansionDepth >= 0) {
+				if (this.ctx.typeStack == null) {
+					this.ctx.typeStack = [];
+				}
+				this.ctx.typeStack.push(t);
+				pushedTypeStack = true;
 			}
 
 			if (this.ctx.flags & FlagsNoTypeReduction == 0) {
@@ -3438,8 +3527,12 @@ class NodeBuilderImpl {
 			}
 
 			var targetSymbol = symbol;
-			if (symbol.Flags & SymbolFlagsAlias != 0) {
+			if (symbol.Flags & SymbolFlagsAlias != 0 && !this.ch.canGetTypeParametersOfClassOrInterface(symbol)) {
 				targetSymbol = this.ch.resolveAlias(symbol);
+			}
+
+			if (!this.ch.canGetTypeParametersOfClassOrInterface(targetSymbol)) {
+				return null;
 			}
 
 			var params = this.getTypeParametersOfClassOrInterface(targetSymbol);

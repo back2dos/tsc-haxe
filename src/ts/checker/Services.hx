@@ -56,7 +56,17 @@ class Services {
 		};
 
 		final populateSymbols = () -> {
+			var lastLocation:Node = null;
 			while (location != null) {
+				if (Ast.IsModuleDeclaration(location)
+					&& location.AsModuleDeclaration().Attributes != null
+					&& lastLocation == location.AsModuleDeclaration().Attributes) {
+					// Module declaration is not in scope inside its attributes.
+					lastLocation = location;
+					location = location.Parent;
+					continue;
+				}
+
 				if (Checker.canHaveLocals(location) && location.Locals() != null && !Ast.IsGlobalSourceFile(location)) {
 					copySymbols(location.Locals(), meaning);
 				}
@@ -98,6 +108,7 @@ class Services {
 				}
 
 				isStaticSymbol = Ast.IsStatic(location);
+				lastLocation = location;
 				location = location.Parent;
 			}
 

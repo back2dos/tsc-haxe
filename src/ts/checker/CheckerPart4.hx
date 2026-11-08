@@ -254,7 +254,7 @@ class CheckerPart4 {
 
 	static function checkThisBeforeSuper(c:Checker, node:Node, container:Node, diagnosticMessage:Message):Void {
 		final containingClassDecl = container.Parent;
-		final baseTypeNode = Ast.GetExtendsHeritageClauseElement(containingClassDecl);
+		final baseTypeNode = Ast.GetClassExtendsHeritageElement(containingClassDecl);
 		// If a containing class does not have extends clause or the class extends null
 		// skip checking whether super statement is called before "this" accessing.
 		if (baseTypeNode != null && !c.classDeclarationExtendsNull(containingClassDecl)) {
@@ -1178,6 +1178,7 @@ class CheckerPart4 {
 			}
 			return result;
 		}
+		c.checkNodeDeferred(node);
 		final inDestructuringPattern = Ast.IsAssignmentTarget(node);
 		// Grammar checking
 		c.checkGrammarObjectLiteralExpression(node.AsObjectLiteralExpression(), inDestructuringPattern);
@@ -1385,6 +1386,31 @@ class CheckerPart4 {
 			});
 		}
 		return createObjectLiteralType();
+	}
+
+	static function checkContextualDeprecations(c:Checker, node:Node):Void {
+		final contextualType = c.getApparentTypeOfContextualType(node, ContextFlagsNone);
+		for (property in node.Properties()) {
+			if (c.isCanceled()) {
+				return;
+			}
+			if (property.Name() != null && !Ast.IsComputedPropertyName(property.Name())) {
+				c.checkDeprecatedProperty(property.Name(), contextualType);
+			}
+		}
+	}
+
+	static function checkDeprecatedProperty(c:Checker, name:Node, contextualType:Type):Void {
+		if (contextualType == null) {
+			return;
+		}
+		final prop = c.getPropertyOfType(contextualType, name.Text());
+		if (prop == null || Core.len(prop.Declarations) == 0) {
+			return;
+		}
+		if (c.isDeprecatedSymbol(prop)) {
+			c.addDeprecatedSuggestion(name, prop.Declarations, name.Text());
+		}
 	}
 
 	static function checkSpreadPropOverrides(c:Checker, t:Type, props:SymbolTable, spread:Node):Void {
@@ -1647,9 +1673,26 @@ class CheckerPart4 {
 	static function isConstContext(c:Checker, node:Node):Bool {
 		final parent = node.Parent;
 		return Ast.IsConstAssertion(parent)
+			|| c.isInlineImportAttributes(node)
 			|| c.isValidConstAssertionArgument(node) && c.isConstTypeVariable(c.getContextualType(node, ContextFlagsNone), 0)
 			|| (Ast.IsParenthesizedExpression(parent) || Ast.IsArrayLiteralExpression(parent) || Ast.IsSpreadElement(parent)) && c.isConstContext(parent)
 			|| (Ast.IsPropertyAssignment(parent) || Ast.IsShorthandPropertyAssignment(parent) || Ast.IsTemplateSpan(parent)) && c.isConstContext(parent.Parent);
+	}
+
+	static function isInlineImportAttributes(c:Checker, node:Node):Bool {
+		if (!Ast.IsObjectLiteralExpression(node) || !Ast.IsPropertyAssignment(node.Parent) || node.Parent.Initializer() != node) {
+			return false;
+		}
+		final property = node.Parent;
+		if ((!Ast.IsIdentifier(property.Name()) && !Ast.IsStringLiteralLike(property.Name())) || property.Name().Text() != "with") {
+			return false;
+		}
+		final options = property.Parent;
+		if (!Ast.IsObjectLiteralExpression(options)) {
+			return false;
+		}
+		final importCall = Ast.FindAncestor(options, Ast.IsImportCall);
+		return importCall != null && Core.len(importCall.Arguments()) > 1 && Ast.SkipParentheses(importCall.Arguments()[1]) == options;
 	}
 
 	static function isValidConstAssertionArgument(c:Checker, node:Node):Bool {
@@ -2446,7 +2489,7 @@ class CheckerPart4 {
 			if (moduleReference == null) {
 				moduleReference = Ast.GetExternalModuleImportEqualsDeclarationExpression(node);
 			}
-			final immediate = c.resolveExternalModuleName(node, moduleReference, false /*ignoreErrors*/);
+			final immediate = c.resolveExternalModuleName(node, moduleReference, false /*ignoreErrors*/, null /*importAttributesType*/);
 			final resolved = c.resolveExternalModuleSymbol(immediate, true /*dontResolveAlias*/);
 			if (resolved != null && (ModuleKindNode20 : Int) <= (c.moduleKind : Int) && (c.moduleKind : Int) <= (ModuleKindNodeNext : Int)) {
 				final moduleExports = c.getExportOfModule(resolved, Ast.InternalSymbolNameModuleExports, node, true /*dontResolveAlias*/);
@@ -2463,7 +2506,7 @@ class CheckerPart4 {
 	}
 
 	static function resolveExternalModuleTypeByLiteral(c:Checker, name:Node):Type {
-		final moduleSym = c.resolveExternalModuleName(name, name, false /*ignoreErrors*/);
+		final moduleSym = c.resolveExternalModuleName(name, name, false /*ignoreErrors*/, null /*importAttributesType*/);
 		if (moduleSym != null) {
 			final resolvedModuleSymbol = c.resolveExternalModuleSymbol(moduleSym, false /*dontResolveAlias*/);
 			if (resolvedModuleSymbol != null) {
@@ -2531,7 +2574,19 @@ class CheckerPart4 {
 	}
 
 	static function getTargetOfImportClause(c:Checker, node:Node):Symbol {
-		final moduleSymbol = c.resolveExternalModuleName(node, Checker.getModuleSpecifierFromNode(node.Parent), false /*ignoreErrors*/);
+		if (node.AsImportClause().PhaseModifier == KindSourceKeyword) {
+			final alias = c.getSymbolOfDeclaration(node);
+			final links = c.aliasSymbolLinks.Get(alias);
+			if (links.immediateTarget == null) {
+				final symbol = c.newSymbol(SymbolFlagsFunctionScopedVariable, node.Name().Text());
+				symbol.Declarations = alias.Declarations;
+				c.valueSymbolLinks.Get(symbol).resolvedType = c.getGlobalAbstractModuleSourceType();
+				links.immediateTarget = symbol;
+			}
+			return links.immediateTarget;
+		}
+		final moduleSymbol = c.resolveExternalModuleName(node, Checker.getModuleSpecifierFromNode(node.Parent), false /*ignoreErrors*/,
+			c.getTypeFromImportAttributes(Ast.GetImportAttributes(node.Parent)));
 		if (moduleSymbol != null) {
 			return c.getTargetOfModuleDefault(moduleSymbol, node, true /*dontResolveAlias*/);
 		}
@@ -2566,7 +2621,16 @@ class CheckerPart4 {
 		if (specifier == null) {
 			return exportDefaultSymbol;
 		}
-		final hasDefaultOnly = c.isOnlyImportableAsDefault(specifier, moduleSymbol);
+		// node is ImportClause | ImportSpecifier | ExportSpecifier
+		var attributes:Node = null;
+		if (Ast.IsImportClause(node)) {
+			attributes = Ast.GetImportAttributes(node.Parent);
+		} else if (Ast.IsImportSpecifier(node)) {
+			attributes = Ast.GetImportAttributes(node.Parent.Parent.Parent);
+		} else if (Ast.IsExportSpecifier(node)) {
+			attributes = Ast.GetImportAttributes(node.Parent.Parent);
+		}
+		final hasDefaultOnly = c.isOnlyImportableAsDefault(specifier, moduleSymbol, c.getTypeFromImportAttributes(attributes));
 		final hasSyntheticDefault = c.canHaveSyntheticDefault(file, moduleSymbol, dontResolveAlias, specifier);
 		if (exportDefaultSymbol == null && !hasSyntheticDefault && !hasDefaultOnly) {
 			if (Ast.IsImportClause(node)) {
@@ -2607,7 +2671,8 @@ class CheckerPart4 {
 					if (!(Ast.IsExportDeclaration(decl) && decl.ModuleSpecifier() != null)) {
 						return false;
 					}
-					final resolvedExternalModuleName = c.resolveExternalModuleName(decl, decl.ModuleSpecifier(), false /*ignoreErrors*/);
+					final resolvedExternalModuleName = c.resolveExternalModuleName(decl, decl.ModuleSpecifier(), false /*ignoreErrors*/,
+						c.getTypeFromImportAttributes(Ast.GetImportAttributes(decl)));
 					return resolvedExternalModuleName != null && symbolTableGet(resolvedExternalModuleName.Exports, Ast.InternalSymbolNameDefault) != null;
 				});
 				if (defaultExport != null) {
@@ -2632,7 +2697,8 @@ class CheckerPart4 {
 
 	static function getTargetOfNamespaceImport(c:Checker, node:Node, dontRecursivelyResolve:Bool):Symbol {
 		final moduleSpecifier = c.getModuleSpecifierForImportOrExport(node);
-		final immediate = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/);
+		final immediate = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/,
+			c.getTypeFromImportAttributes(Ast.GetImportAttributes(node.Parent.Parent)));
 		final resolved = c.resolveESModuleSymbol(immediate, node, moduleSpecifier, dontRecursivelyResolve);
 		c.markSymbolOfAliasDeclarationIfTypeOnly(node, null);
 		return resolved;
@@ -2641,7 +2707,8 @@ class CheckerPart4 {
 	static function getTargetOfNamespaceExport(c:Checker, node:Node, dontRecursivelyResolve:Bool):Symbol {
 		final moduleSpecifier = c.getModuleSpecifierForImportOrExport(node);
 		if (moduleSpecifier != null) {
-			final immediate = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/);
+			final immediate = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/,
+				c.getTypeFromImportAttributes(Ast.GetImportAttributes(node.Parent)));
 			final resolved = c.resolveESModuleSymbol(immediate, node, moduleSpecifier, dontRecursivelyResolve);
 			c.markSymbolOfAliasDeclarationIfTypeOnly(node, null);
 			return resolved;
@@ -2654,7 +2721,8 @@ class CheckerPart4 {
 		if (Ast.IsImportSpecifier(node) && Ast.ModuleExportNameIsDefault(name)) {
 			final specifier = c.getModuleSpecifierForImportOrExport(node);
 			if (specifier != null) {
-				final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/);
+				final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/,
+					c.getTypeFromImportAttributes(Ast.GetImportAttributes(node.Parent.Parent.Parent)));
 				if (moduleSymbol != null) {
 					return c.getTargetOfModuleDefault(moduleSymbol, node, true /*dontResolveAlias*/);
 				}
@@ -2676,7 +2744,12 @@ class CheckerPart4 {
 		if (moduleSpecifier == null) {
 			moduleSpecifier = Ast.GetExternalModuleName(node);
 		}
-		final moduleSymbol = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/);
+		var attributes:Node = null;
+		if (Ast.HasImportAttributes(node)) {
+			attributes = Ast.GetImportAttributes(node);
+		}
+		final importAttributesType = c.getTypeFromImportAttributes(attributes);
+		final moduleSymbol = c.resolveExternalModuleName(node, moduleSpecifier, false /*ignoreErrors*/, importAttributesType);
 		var name:Node = null;
 		if (!Ast.IsPropertyAccessExpression(specifier)) {
 			name = specifier.PropertyNameOrName();
@@ -2715,7 +2788,7 @@ class CheckerPart4 {
 				var symbolFromModule = c.getExportOfModule(exportContainer, nameText, specifier, dontResolveAlias);
 				if (symbolFromModule == null && nameText == Ast.InternalSymbolNameDefault) {
 					final file = Core.Find(moduleSymbol.Declarations, Ast.IsSourceFile);
-					if (c.isOnlyImportableAsDefault(moduleSpecifier, moduleSymbol) || c.canHaveSyntheticDefault(file, moduleSymbol, dontResolveAlias, moduleSpecifier)) {
+					if (c.isOnlyImportableAsDefault(moduleSpecifier, moduleSymbol, importAttributesType) || c.canHaveSyntheticDefault(file, moduleSymbol, dontResolveAlias, moduleSpecifier)) {
 						symbolFromModule = c.resolveExternalModuleSymbol(moduleSymbol, dontResolveAlias);
 						if (symbolFromModule == null) {
 							symbolFromModule = c.resolveSymbolEx(moduleSymbol, dontResolveAlias);
@@ -2729,7 +2802,7 @@ class CheckerPart4 {
 						symbol = c.combineValueAndTypeSymbols(symbolFromVariable, symbolFromModule);
 					}
 				}
-				if (Ast.IsImportOrExportSpecifier(specifier) && c.isOnlyImportableAsDefault(moduleSpecifier, moduleSymbol) && nameText != Ast.InternalSymbolNameDefault) {
+				if (Ast.IsImportOrExportSpecifier(specifier) && c.isOnlyImportableAsDefault(moduleSpecifier, moduleSymbol, importAttributesType) && nameText != Ast.InternalSymbolNameDefault) {
 					c.error(name, Diagnostics.Named_imports_from_a_JSON_file_into_an_ECMAScript_module_are_not_allowed_when_module_is_set_to_0, c.moduleKind.String());
 				} else if (symbol == null) {
 					c.errorNoModuleMemberSymbol(moduleSymbol, targetSymbol, node, name);
@@ -2803,13 +2876,13 @@ class CheckerPart4 {
 		return null;
 	}
 
-	static function isOnlyImportableAsDefault(c:Checker, usage:Node, resolvedModule:Symbol):Bool {
+	static function isOnlyImportableAsDefault(c:Checker, usage:Node, resolvedModule:Symbol, importAttributesType:Type):Bool {
 		// In Node.js, JSON modules don't get named exports
 		if ((ModuleKindNode16 : Int) <= (c.moduleKind : Int) && (c.moduleKind : Int) <= (ModuleKindNodeNext : Int)) {
 			final usageMode = c.getEmitSyntaxForModuleSpecifierExpression(usage);
 			if (usageMode == ModuleKindESNext) {
 				if (resolvedModule == null) {
-					resolvedModule = c.resolveExternalModuleName(usage, usage, true /*ignoreErrors*/);
+					resolvedModule = c.resolveExternalModuleName(usage, usage, true /*ignoreErrors*/, importAttributesType);
 				}
 				var targetFile:SourceFile = null;
 				if (resolvedModule != null) {
@@ -2963,7 +3036,8 @@ class CheckerPart4 {
 		if (Ast.ModuleExportNameIsDefault(name)) {
 			final specifier = c.getModuleSpecifierForImportOrExport(node);
 			if (specifier != null) {
-				final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/);
+				final moduleSymbol = c.resolveExternalModuleName(node, specifier, false /*ignoreErrors*/,
+					c.getTypeFromImportAttributes(Ast.GetImportAttributes(node.Parent.Parent)));
 				if (moduleSymbol != null) {
 					return c.getTargetOfModuleDefault(moduleSymbol, node, dontResolveAlias);
 				}
@@ -3077,13 +3151,14 @@ class CheckerPart4 {
 		return links.typeOnlyDeclaration != null;
 	}
 
-	static function resolveExternalModuleName(c:Checker, location:Node, moduleReferenceExpression:Node, ignoreErrors:Bool):Symbol {
+	static function resolveExternalModuleName(c:Checker, location:Node, moduleReferenceExpression:Node, ignoreErrors:Bool, importAttributesType:Type):Symbol {
 		var errorMessage = c.getCannotResolveModuleNameErrorForSpecificModule(moduleReferenceExpression);
 		if (errorMessage == null) {
 			errorMessage = Diagnostics.Cannot_find_module_0_or_its_corresponding_type_declarations;
 		}
 		ignoreErrors = ignoreErrors || c.compilerOptions.NoCheck.IsTrue();
-		return c.resolveExternalModuleNameWorker(location, moduleReferenceExpression, Core.IfElse(ignoreErrors, null, errorMessage), ignoreErrors, false /*isForAugmentation*/);
+		return c.resolveExternalModuleNameWorker(location, moduleReferenceExpression, Core.IfElse(ignoreErrors, null, errorMessage), ignoreErrors, false /*isForAugmentation*/,
+			importAttributesType);
 	}
 
 	static function getCannotResolveModuleNameErrorForSpecificModule(c:Checker, moduleName:Node):Message {
@@ -3098,9 +3173,14 @@ class CheckerPart4 {
 		return null;
 	}
 
-	static function resolveExternalModuleNameWorker(c:Checker, location:Node, moduleReferenceExpression:Node, moduleNotFoundError:Message, ignoreErrors:Bool, isForAugmentation:Bool):Symbol {
+	static function resolveExternalModuleNameWorker(c:Checker, location:Node, moduleReferenceExpression:Node, moduleNotFoundError:Message, ignoreErrors:Bool, isForAugmentation:Bool,
+			importAttributesType:Type):Symbol {
 		if (Ast.IsStringLiteralLike(moduleReferenceExpression)) {
-			return c.resolveExternalModule(location, moduleReferenceExpression.Text(), moduleNotFoundError, Core.IfElse(!ignoreErrors, moduleReferenceExpression, null), isForAugmentation);
+			if (Ast.IsSourcePhaseImport(moduleReferenceExpression.Parent)) {
+				return null;
+			}
+			return c.resolveExternalModule(location, moduleReferenceExpression.Text(), moduleNotFoundError, Core.IfElse(!ignoreErrors, moduleReferenceExpression, null), isForAugmentation,
+				importAttributesType);
 		}
 		return null;
 	}
@@ -3114,11 +3194,15 @@ class CheckerPart4 {
 		} else {
 			specifier = Ast.GetExternalModuleName(declaration);
 		}
+		var importAttributesType:Type = null;
+		if (Ast.HasImportAttributes(declaration)) {
+			importAttributesType = c.getTypeFromImportAttributes(Ast.GetImportAttributes(declaration));
+		}
 		// This is only used by emit and type printing, after checking has already reported any
 		// resolution errors for this specifier. Resolve with ignoreErrors so that these queries
 		// don't add new diagnostics (e.g. an implicit-any-module suggestion) as a side effect.
-		// PORT: main also passes the import attributes type (#63931, not ported yet)
-		final moduleSymbol = c.resolveExternalModuleNameWorker(specifier, specifier, null /*moduleNotFoundError*/, true /*ignoreErrors*/, false /*isForAugmentation*/);
+		final moduleSymbol = c.resolveExternalModuleNameWorker(specifier, specifier, null /*moduleNotFoundError*/, true /*ignoreErrors*/, false /*isForAugmentation*/,
+			importAttributesType);
 		if (moduleSymbol == null) {
 			return null;
 		}
@@ -3129,14 +3213,19 @@ class CheckerPart4 {
 		return decl.AsSourceFile();
 	}
 
-	static function resolveExternalModule(c:Checker, location:Node, moduleReference:std.String, moduleNotFoundError:Message, errorNode:Node, isForAugmentation:Bool):Symbol {
+	static function resolveExternalModule(c:Checker, location:Node, moduleReference:std.String, moduleNotFoundError:Message, errorNode:Node, isForAugmentation:Bool,
+			importAttributesType:Type):Symbol {
 		if (errorNode != null && StringTools.startsWith(moduleReference, "@types/")) {
 			final withoutAtTypePrefix = moduleReference.substring("@types/".length);
 			c.error(errorNode, Diagnostics.Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1, withoutAtTypePrefix, moduleReference);
 		}
+		if (importAttributesType == null) {
+			importAttributesType = c.emptyObjectType;
+		}
+
 		final ambientModule = c.tryFindAmbientModule(moduleReference, true /*withAugmentations*/);
 		if (ambientModule != null) {
-			return ambientModule;
+			return c.tryResolvePatternAmbientModule(ambientModule, moduleReference, importAttributesType);
 		}
 
 		final importingSourceFile = Ast.GetSourceFileOfNode(location);
@@ -3321,7 +3410,13 @@ class CheckerPart4 {
 						}
 					}
 				}
-				return c.getMergedSymbol(sourceFile.Symbol);
+				return c.tryResolvePatternAmbientModule(c.getMergedSymbol(sourceFile.Symbol), moduleReference, importAttributesType);
+			}
+			if (!c.isEmptyObjectType(importAttributesType)) {
+				final patternAmbientModule = c.tryResolvePatternAmbientModule(null /*resolvedSymbol*/, moduleReference, importAttributesType);
+				if (patternAmbientModule != null) {
+					return patternAmbientModule;
+				}
 			}
 			if (errorNode != null && moduleNotFoundError != null && !Checker.isSideEffectImport(errorNode)) {
 				c.error(errorNode, Diagnostics.File_0_is_not_a_module, resolvedModule.ResolvedFileName);
@@ -3329,15 +3424,9 @@ class CheckerPart4 {
 			return null;
 		}
 
-		if (Core.len(c.patternAmbientModules) != 0) {
-			final pattern = Core.FindBestPatternMatch(c.patternAmbientModules, (v:PatternAmbientModule) -> v.Pattern, moduleReference);
-			if (pattern != null) {
-				final augmentation = symbolTableGet(c.patternAmbientModuleAugmentations, moduleReference);
-				if (augmentation != null) {
-					return c.getMergedSymbol(augmentation);
-				}
-				return c.getMergedSymbol(pattern.Symbol);
-			}
+		final patternAmbientModule = c.tryResolvePatternAmbientModule(null /*resolvedSymbol*/, moduleReference, importAttributesType);
+		if (patternAmbientModule != null) {
+			return patternAmbientModule;
 		}
 
 		if (errorNode == null) {
@@ -3376,8 +3465,11 @@ class CheckerPart4 {
 				if (!c.compilerOptions.GetResolveJsonModule() && Tspath.FileExtensionIs(moduleReference, Tspath.ExtensionJson)) {
 					c.error(errorNode, Diagnostics.Cannot_find_module_0_Consider_using_resolveJsonModule_to_import_module_with_json_extension, moduleReference);
 				} else if (mode == Core.ResolutionModeESM && resolutionIsNode16OrNext && isExtensionlessRelativePathImport) {
-					final absoluteRef = Tspath.GetNormalizedAbsolutePath(moduleReference, Tspath.GetDirectoryPath(importingSourceFile.FileName()));
-					final suggestedExt = c.getSuggestedImportExtension(absoluteRef);
+					var suggestedExt = "";
+					if (!Tspath.HasTrailingDirectorySeparator(moduleReference)) {
+						final absoluteRef = Tspath.GetNormalizedAbsolutePath(moduleReference, Tspath.GetDirectoryPath(importingSourceFile.FileName()));
+						suggestedExt = c.getSuggestedImportExtension(absoluteRef);
+					}
 					if (suggestedExt != "") {
 						c.error(errorNode,
 							Diagnostics.Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Did_you_mean_0,
@@ -3396,6 +3488,68 @@ class CheckerPart4 {
 		}
 
 		return null;
+	}
+
+	// Resolves the module reference to a pattern ambient module, if one exists.
+	// If a resolved symbol from regular module resolution exists and we have an empty import attributes type,
+	// we prefer the resolved symbol.
+	static function tryResolvePatternAmbientModule(c:Checker, resolvedSymbol:Symbol, moduleReference:std.String, importAttributesType:Type):Symbol {
+		if (c.isEmptyObjectType(importAttributesType) && resolvedSymbol != null) {
+			return resolvedSymbol;
+		}
+		if (Core.len(c.patternAmbientModules) != 0) {
+			final candidates = Core.Filter(c.patternAmbientModules, (v:PatternAmbientModule) -> {
+				final moduleAttributesType = c.getTypeOfModuleImportAttributes(v.Symbol);
+				return v.Pattern.Matches(moduleReference) && c.isTypeAssignableTo(importAttributesType, moduleAttributesType);
+			});
+
+			if (candidates.length > 0) {
+				final augmentation = symbolTableGet(c.patternAmbientModuleAugmentations, moduleReference);
+				final augmentationTarget = symbolTableGet(c.patternAmbientModuleAugmentationTargets, moduleReference);
+
+				if (candidates.length == 1) {
+					final mergedCandidate = c.getMergedSymbol(candidates[0].Symbol);
+					if (augmentation != null && augmentationTarget == mergedCandidate) {
+						return c.getMergedSymbol(augmentation);
+					}
+					return mergedCandidate;
+				}
+
+				final bestTypeCandidates:Array<PatternAmbientModule> = [];
+				for (i in 0...candidates.length) {
+					final candidate = candidates[i];
+					final candidateType = c.getTypeOfModuleImportAttributes(candidate.Symbol);
+					// PORT: label (Go `continue outer`)
+					var dominated = false;
+					for (j in 0...candidates.length) {
+						final other = candidates[j];
+						final otherType = c.getTypeOfModuleImportAttributes(other.Symbol);
+						if (i != j && c.isTypeStrictSubtypeOf(otherType, candidateType) && !c.isTypeIdenticalTo(otherType, candidateType)) {
+							dominated = true;
+							break;
+						}
+					}
+					if (dominated) {
+						continue;
+					}
+					bestTypeCandidates.push(candidate);
+				}
+				if (bestTypeCandidates.length == 1) {
+					final mergedCandidate = c.getMergedSymbol(bestTypeCandidates[0].Symbol);
+					if (augmentation != null && augmentationTarget == mergedCandidate) {
+						return c.getMergedSymbol(augmentation);
+					}
+					return mergedCandidate;
+				}
+				final pattern = Core.FindBestPatternMatch(bestTypeCandidates, (v:PatternAmbientModule) -> v.Pattern, moduleReference);
+				final mergedCandidate = c.getMergedSymbol(pattern.Symbol);
+				if (augmentation != null && augmentationTarget == mergedCandidate) {
+					return c.getMergedSymbol(augmentation);
+				}
+				return mergedCandidate;
+			}
+		}
+		return resolvedSymbol;
 	}
 
 	static function getSuggestedImportSource(c:Checker, moduleReference:std.String, tsExtension:std.String, mode:ResolutionMode):std.String {
@@ -3500,14 +3654,26 @@ class CheckerPart4 {
 		// PORT: sync.Once → flag in the `ambientModulesOnce` field.
 		if (c.ambientModulesOnce == null) {
 			c.ambientModulesOnce = true;
+			final seen = new IdentityMap<Symbol, Bool>();
 			if (c.globals != null) {
 				for (sym => global in c.globals) {
-					if (StringTools.startsWith(sym, "\"") && StringTools.endsWith(sym, "\"")) {
+					if (Ast.IsAmbientModuleSymbolName(sym)) {
 						if (c.ambientModules == null) {
 							c.ambientModules = [];
 						}
 						c.ambientModules.push(global);
+						seen.set(global, true);
 					}
+				}
+			}
+			for (module in c.patternAmbientModules) {
+				final symbol = c.getMergedSymbol(module.Symbol);
+				if (!seen.exists(symbol)) {
+					if (c.ambientModules == null) {
+						c.ambientModules = [];
+					}
+					c.ambientModules.push(symbol);
+					seen.set(symbol, true);
 				}
 			}
 		}
@@ -3549,7 +3715,7 @@ class CheckerPart4 {
 					reference = referenceParent.ModuleSpecifier();
 				}
 				final typ = c.getTypeOfSymbol(symbol);
-				final defaultOnlyType = c.getTypeWithSyntheticDefaultOnly(typ, symbol, moduleSymbol, reference);
+				final defaultOnlyType = c.getTypeWithSyntheticDefaultOnly(typ, symbol, moduleSymbol, reference, c.getImportAttributesTypeForModuleSpecifier(reference));
 				if (defaultOnlyType != null) {
 					return c.cloneTypeAsModuleType(symbol, defaultOnlyType, referenceParent);
 				}
@@ -3592,8 +3758,8 @@ class CheckerPart4 {
 		return Core.len(c.getSignaturesOfStructuredType(t, SignatureKindCall)) > 0 || Core.len(c.getSignaturesOfStructuredType(t, SignatureKindConstruct)) > 0;
 	}
 
-	static function getTypeWithSyntheticDefaultOnly(c:Checker, t:Type, symbol:Symbol, originalSymbol:Symbol, moduleSpecifier:Node):Type {
-		final hasDefaultOnly = c.isOnlyImportableAsDefault(moduleSpecifier, null);
+	static function getTypeWithSyntheticDefaultOnly(c:Checker, t:Type, symbol:Symbol, originalSymbol:Symbol, moduleSpecifier:Node, importAttributesType:Type):Type {
+		final hasDefaultOnly = c.isOnlyImportableAsDefault(moduleSpecifier, null, importAttributesType);
 		if (hasDefaultOnly && t != null && !c.isErrorType(t)) {
 			final key = CachedTypeKey.keyOf(CachedTypeKindDefaultOnlyType, t.id);
 			final cached = c.cachedTypes.get(key);
@@ -3807,7 +3973,7 @@ class CheckerPart4 {
 			&& namespace.ValueDeclaration.Initializer() != null
 			&& c.isCommonJSRequire(namespace.ValueDeclaration.Initializer())) {
 			final moduleName = namespace.ValueDeclaration.Initializer().Arguments()[0];
-			final moduleSym = c.resolveExternalModuleName(moduleName, moduleName, false /*ignoreErrors*/);
+			final moduleSym = c.resolveExternalModuleName(moduleName, moduleName, false /*ignoreErrors*/, null);
 			if (moduleSym != null) {
 				final resolvedModuleSymbol = c.resolveExternalModuleSymbol(moduleSym, false /*dontResolveAlias*/);
 				if (resolvedModuleSymbol != null) {
