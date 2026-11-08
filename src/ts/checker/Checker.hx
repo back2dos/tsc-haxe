@@ -1499,6 +1499,7 @@ class Checker {
 	public var ReverseMappedSymbolLinks:LinkStore<Symbol, ReverseMappedSymbolLinks> = new LinkStore<Symbol, ReverseMappedSymbolLinks>(() -> new ReverseMappedSymbolLinks());
 	var markedAssignmentSymbolLinks:LinkStore<Symbol, MarkedAssignmentSymbolLinks> = new LinkStore<Symbol, MarkedAssignmentSymbolLinks>(() -> new MarkedAssignmentSymbolLinks());
 	var symbolContainerLinks:LinkStore<Symbol, ContainingSymbolLinks> = new LinkStore<Symbol, ContainingSymbolLinks>(() -> new ContainingSymbolLinks());
+	var externalModuleContainers:ExternalModuleContainerIndex = null;
 	var sourceFileLinks:LinkStore<SourceFile, SourceFileLinks> = new LinkStore<SourceFile, SourceFileLinks>(() -> new SourceFileLinks());
 	var regExpScanner:Scanner = null;
 	var patternForType:IdentityMap<Type, Node> = null;

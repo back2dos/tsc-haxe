@@ -2340,8 +2340,12 @@ class CheckerPart4 {
 		c.mergedSymbols.Get(source).target = target;
 	}
 
+	static function getResolvedTarget(c:Checker, symbol:Symbol):Symbol {
+		return c.getMergedSymbol(c.resolveSymbol(c.getMergedSymbol(symbol)));
+	}
+
 	static function getSymbolIfSameReference(c:Checker, s1:Symbol, s2:Symbol):Symbol {
-		if (c.getMergedSymbol(c.resolveSymbol(c.getMergedSymbol(s1))) == c.getMergedSymbol(c.resolveSymbol(c.getMergedSymbol(s2)))) {
+		if (c.getResolvedTarget(s1) == c.getResolvedTarget(s2)) {
 			return s1;
 		}
 		return null;
