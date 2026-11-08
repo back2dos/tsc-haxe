@@ -245,6 +245,27 @@ class Strings {
 		if (chars.length == 0)
 			return -1;
 		final start = from < 0 ? 0 : from;
+		// PORT: perf — ASCII chars (the common case, e.g. a scan of a file's text): a unit scan; a unit of s
+		// that is not ASCII (incl. a surrogate) never equals one of them, so the result is the same
+		var ascii = true;
+		for (j in 0...chars.length)
+			if (StringTools.fastCodeAt(chars, j) >= 0x80) {
+				ascii = false;
+				break;
+			}
+		if (ascii) {
+			final n = s.length, m = chars.length;
+			var i = start;
+			while (i < n) {
+				final u = StringTools.fastCodeAt(s, i);
+				if (u < 0x80)
+					for (j in 0...m)
+						if (StringTools.fastCodeAt(chars, j) == u)
+							return i - start;
+				i++;
+			}
+			return -1;
+		}
 		var i = start;
 		while (i < s.length) {
 			final r = Utf16.CodePointAt(s, i);
