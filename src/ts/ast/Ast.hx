@@ -3088,22 +3088,24 @@ class Ast {
 	// like Go's one byte.
 	public static inline final InternalSymbolNamePrefix = "\u{FFFE}";
 
-	public static inline final InternalSymbolNameCall = InternalSymbolNamePrefix + "call"; // Call signatures
-	public static inline final InternalSymbolNameConstructor = InternalSymbolNamePrefix + "constructor"; // Constructor implementations
-	public static inline final InternalSymbolNameNew = InternalSymbolNamePrefix + "new"; // Constructor signatures
-	public static inline final InternalSymbolNameIndex = InternalSymbolNamePrefix + "index"; // Index signatures
-	public static inline final InternalSymbolNameExportStar = InternalSymbolNamePrefix + "export"; // Module export * declarations
-	public static inline final InternalSymbolNameGlobal = InternalSymbolNamePrefix + "global"; // Global self-reference
-	public static inline final InternalSymbolNameMissing = InternalSymbolNamePrefix + "missing"; // Indicates missing symbol
-	public static inline final InternalSymbolNameType = InternalSymbolNamePrefix + "type"; // Anonymous type literal symbol
-	public static inline final InternalSymbolNameObject = InternalSymbolNamePrefix + "object"; // Anonymous object literal declaration
-	public static inline final InternalSymbolNameJSXAttributes = InternalSymbolNamePrefix + "jsxAttributes"; // Anonymous JSX attributes object literal declaration
-	public static inline final InternalSymbolNameClass = InternalSymbolNamePrefix + "class"; // Unnamed class expression
-	public static inline final InternalSymbolNameFunction = InternalSymbolNamePrefix + "function"; // Unnamed function expression
-	public static inline final InternalSymbolNameComputed = InternalSymbolNamePrefix + "computed"; // Computed property name declaration with dynamic name
-	public static inline final InternalSymbolNameAssignmentDeclaration = InternalSymbolNamePrefix + "assignment"; // Assignment declarations
-	public static inline final InternalSymbolNameInstantiationExpression = InternalSymbolNamePrefix + "instantiationExpression"; // Instantiation expressions
-	public static inline final InternalSymbolNameImportAttributes = InternalSymbolNamePrefix + "importAttributes";
+	// PORT: perf — the names below spell the prefix out: Haxe does not fold InternalSymbolNamePrefix + "call" (a non-ASCII
+	// constant), so every use concatenated a new string at run time (and compared it by content).
+	public static inline final InternalSymbolNameCall = "\u{FFFE}call"; // Call signatures
+	public static inline final InternalSymbolNameConstructor = "\u{FFFE}constructor"; // Constructor implementations
+	public static inline final InternalSymbolNameNew = "\u{FFFE}new"; // Constructor signatures
+	public static inline final InternalSymbolNameIndex = "\u{FFFE}index"; // Index signatures
+	public static inline final InternalSymbolNameExportStar = "\u{FFFE}export"; // Module export * declarations
+	public static inline final InternalSymbolNameGlobal = "\u{FFFE}global"; // Global self-reference
+	public static inline final InternalSymbolNameMissing = "\u{FFFE}missing"; // Indicates missing symbol
+	public static inline final InternalSymbolNameType = "\u{FFFE}type"; // Anonymous type literal symbol
+	public static inline final InternalSymbolNameObject = "\u{FFFE}object"; // Anonymous object literal declaration
+	public static inline final InternalSymbolNameJSXAttributes = "\u{FFFE}jsxAttributes"; // Anonymous JSX attributes object literal declaration
+	public static inline final InternalSymbolNameClass = "\u{FFFE}class"; // Unnamed class expression
+	public static inline final InternalSymbolNameFunction = "\u{FFFE}function"; // Unnamed function expression
+	public static inline final InternalSymbolNameComputed = "\u{FFFE}computed"; // Computed property name declaration with dynamic name
+	public static inline final InternalSymbolNameAssignmentDeclaration = "\u{FFFE}assignment"; // Assignment declarations
+	public static inline final InternalSymbolNameInstantiationExpression = "\u{FFFE}instantiationExpression"; // Instantiation expressions
+	public static inline final InternalSymbolNameImportAttributes = "\u{FFFE}importAttributes";
 	public static inline final InternalSymbolNameExportEquals = "export="; // Export assignment symbol
 	public static inline final InternalSymbolNameDefault = "default"; // Default export symbol (technically not wholly internal, but included here for usability)
 	public static inline final InternalSymbolNameThis = "this";
@@ -4740,7 +4742,7 @@ class Ast {
 			return s.substring(1, s.length - 1);
 		}
 
-		final patternPrefix = InternalSymbolNamePrefix + "\"";
+		final patternPrefix = "\u{FFFE}\""; // PORT: perf — InternalSymbolNamePrefix + "\"" as a literal
 		if (!StringTools.startsWith(s, patternPrefix)) {
 			return null;
 		}
