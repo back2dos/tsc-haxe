@@ -251,8 +251,12 @@ class Tsbaseline {
 		final numTsconfigDiagnostics = Core.CountWhere(diagnostics, function(d:ASTDiagnostic):Bool {
 			return d.File() != null && isTsConfigFile(d.File().FileName());
 		});
+		final numContentMapperSupplementalDiagnostics = Core.CountWhere(diagnostics, function(d:ASTDiagnostic):Bool {
+			final file = d.Diagnostic.File();
+			return file != null && file.IsContentMapperSupplemental();
+		});
 		// Verify we didn't miss any errors in total
-		if (totalErrorsReportedInNonLibraryNonTsconfigFiles + numLibraryDiagnostics + numTsconfigDiagnostics != Core.len(diagnostics)) {
+		if (totalErrorsReportedInNonLibraryNonTsconfigFiles + numLibraryDiagnostics + numTsconfigDiagnostics + numContentMapperSupplementalDiagnostics != Core.len(diagnostics)) {
 			t.Errorf("assertion failed: total number of errors");
 		}
 
@@ -828,7 +832,8 @@ class Tsbaseline {
 				if (result.DTS.Size() == 0 && !options.NoEmit.IsTrue()) {
 					throw "Expected at least one declaration file to be emitted when emitDeclarationOnly:true and no errors were generated";
 				}
-			} else if (result.DTS.Size() != result.GetNumberOfJSFiles(false /*includeJson*/)) {
+			} else if (!Core.Some(result.Program.GetSourceFiles(), function(file:SourceFile):Bool return file.ContentMapper() != "")
+				&& result.DTS.Size() != result.GetNumberOfJSFiles(false /*includeJson*/)) {
 				throw "There were no errors and declFiles generated did not match number of js files generated";
 			}
 		}
@@ -863,7 +868,7 @@ class Tsbaseline {
 				sourceFileName = sourceFile.FileName();
 			}
 
-			final dTsFileName = Tspath.RemoveFileExtension(sourceFileName) + Tspath.GetDeclarationEmitExtensionForPath(sourceFileName);
+			final dTsFileName = Outputpaths.ChangeToDeclarationExtension(sourceFileName, result.Program.Program());
 			return result.DTS.GetOrZero(dTsFileName);
 		};
 
@@ -871,7 +876,8 @@ class Tsbaseline {
 			if (Tspath.IsDeclarationFileName(file.UnitName) || Tspath.HasJSONFileExtension(file.UnitName)) {
 				dtsFiles = appendFile(dtsFiles, file);
 			} else if (result.Program.GetSourceFile(file.UnitName) != null
-				&& (Tspath.HasTSFileExtension(file.UnitName) || (Tspath.HasJSFileExtension(file.UnitName) && options.GetAllowJS()))) {
+				&& (Tspath.HasTSFileExtension(file.UnitName) || (Tspath.HasJSFileExtension(file.UnitName) && options.GetAllowJS())
+					|| result.Program.GetSourceFile(file.UnitName).ContentMapper() != "")) {
 				// PORT: main checks that the program has the file (TypeScript main's js_emit_baseline.go)
 				final declFile = findResultCodeFile(file.UnitName);
 				if (declFile != null && findUnit(declFile.UnitName, declInputFiles) == null && findUnit(declFile.UnitName, declOtherFiles) == null) {
@@ -897,7 +903,7 @@ class Tsbaseline {
 			c.harnessSettings = harnessSettings;
 			c.options = options;
 			c.currentDirectory = currentDirectory.length > 0 ? currentDirectory : harnessSettings.CurrentDirectory;
-			c.configFile = result.Program.Program().CommandLine().ConfigFile;
+			c.config = result.Program.Program().CommandLine();
 			return c;
 		}
 		return null;
@@ -916,9 +922,11 @@ class Tsbaseline {
 			return null;
 		}
 		var tsconfig:ParsedCommandLine = null;
-		if (context.configFile != null) {
+		if (context.config != null && context.config.ConfigFile != null) {
 			tsconfig = new ParsedCommandLine();
-			tsconfig.ConfigFile = context.configFile;
+			tsconfig.ParsedConfig = new ParsedOptions();
+			tsconfig.ParsedConfig.ContentMappers = context.config.ContentMappers();
+			tsconfig.ConfigFile = context.config.ConfigFile;
 		}
 		final declFileCompilationResult = Harnessutil.CompileFilesEx(t, context.declInputFiles == null ? [] : context.declInputFiles,
 			context.declOtherFiles == null ? [] : context.declOtherFiles, context.harnessSettings, context.options, context.currentDirectory, symlinks,
@@ -1012,9 +1020,16 @@ class Tsbaseline {
 		}
 
 		final sourceTDs = Core.Map(sourcemapJSON.Sources, function(s:String):TestFile {
-			return Core.Find(result.Inputs(), function(td:TestFile):Bool {
+			final sourceFile = Core.Find(result.Inputs(), function(td:TestFile):Bool {
 				return StringTools.endsWith(td.UnitName, s);
 			});
+			if (sourceFile != null) {
+				final programSource = result.Program.GetSourceFile(sourceFile.UnitName);
+				if (programSource != null) {
+					return new TestFile(sourceFile.UnitName, programSource.OriginalText());
+				}
+			}
+			return sourceFile;
 		});
 		if (sourceTDs != null && Core.Some(sourceTDs, function(td:TestFile):Bool return td == null)) {
 			return "";
@@ -1056,6 +1071,104 @@ class Tsbaseline {
 		}
 
 		Baseline.Run(t, baselinePath, actual, opts);
+	}
+
+	// --- contentmapper_baseline.go ---
+
+	static final contentMapperFormatOpts:FormattingOptions = {
+		final o = new FormattingOptions();
+		o.NewLine = "\n";
+		o;
+	};
+
+	// DoContentMapperBaseline writes a baseline for content-mapped files that shows the original source, the
+	// transformed source the compiler actually checks, and the file's diagnostics. If the program has no
+	// content-mapped files, no baseline is written.
+	public static function DoContentMapperBaseline(t:T, baselinePath:String, program:ProgramLike, diagnostics:Array<Diagnostic>, opts:Options):Void {
+		final content = getContentMapperBaseline(program, diagnostics);
+		if (content == "") {
+			return;
+		}
+		Baseline.Run(t, replaceTsExtension(baselinePath, ".contentmapper"), content, opts);
+	}
+
+	static function getContentMapperBaseline(program:ProgramLike, diagnostics:Array<Diagnostic>):String {
+		final prog = program.Program();
+		final mapped = new StringMap<ts.contentmapper.Contentmapper.Mapper>();
+		final files:Array<SourceFile> = [];
+		for (file in program.GetSourceFiles()) {
+			final mapper = prog.GetContentMapper(file);
+			if (mapper != null) {
+				mapped.set(file.FileName(), mapper);
+				files.push(file);
+			}
+		}
+		if (files.length == 0) {
+			return "";
+		}
+
+		final b = new StringBuf();
+		for (file in files) {
+			final mapper = mapped.get(file.FileName());
+			b.add('//// [${removeTestPathPrefixes(file.FileName(), false)}] (ScriptKind: ${file.ScriptKind.String()}, ContentMapper: [${mapper.Definition.Extensions == null ? "" : mapper.Definition.Extensions.join(" ")}])\n');
+			b.add("--- Original ---\n");
+			b.add(ensureTrailingNewline(file.OriginalText()));
+			b.add("--- Transformed ---\n");
+			b.add(ensureTrailingNewline(file.Text()));
+			b.add("\n");
+		}
+
+		final fileDiagnostics:Array<Diagnostic> = [];
+		if (diagnostics != null) {
+			for (d in diagnostics) {
+				if (d.File() != null && mapped.exists(d.File().FileName())) {
+					fileDiagnostics.push(d);
+				}
+			}
+		}
+
+		b.add("=== Diagnostics ===\n\n");
+		if (fileDiagnostics.length == 0) {
+			b.add(Baseline.NoContent + "\n");
+			return b.toString();
+		}
+		final rendered = new go.Strings.Builder();
+		Diagnosticwriter.FormatDiagnosticsWithColorAndContext(new go.Strings.BuilderWriter(rendered), Diagnosticwriter.ToDiagnostics(Diagnosticwriter.WrapASTDiagnostics(fileDiagnostics)),
+			contentMapperFormatOpts);
+		b.add(removeTestPathPrefixes(removeAnsiEscapes(rendered.String()), false));
+		return b.toString();
+	}
+
+	// Go: ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m"), ReplaceAllString(s, "").
+	static function removeAnsiEscapes(s:String):String {
+		final b = new StringBuf();
+		var i = 0;
+		while (i < s.length) {
+			if (StringTools.fastCodeAt(s, i) == 0x1b && i + 1 < s.length && StringTools.fastCodeAt(s, i + 1) == "[".code) {
+				var j = i + 2;
+				while (j < s.length) {
+					final c = StringTools.fastCodeAt(s, j);
+					if ((c >= "0".code && c <= "9".code) || c == ";".code)
+						j++;
+					else
+						break;
+				}
+				if (j < s.length && StringTools.fastCodeAt(s, j) == "m".code) {
+					i = j + 1;
+					continue;
+				}
+			}
+			b.addChar(StringTools.fastCodeAt(s, i));
+			i++;
+		}
+		return b.toString();
+	}
+
+	static function ensureTrailingNewline(s:String):String {
+		if (s == "" || StringTools.endsWith(s, "\n")) {
+			return s;
+		}
+		return s + "\n";
 	}
 
 	// --- util.go ---

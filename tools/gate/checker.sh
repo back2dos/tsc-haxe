@@ -99,8 +99,8 @@ for t in $targets; do
 		awk '{ k[$1]=1; n[$1]++; c[$1" "$2]++ }
 			END {
 				printf "%-10s%-7s%-7s%-7s%-7s%-7s\n", "kind", "cases", "pass", "fail", "crash", "skip"
-				split("errors types symbols js map sourcemap trace", ks, " ")
-				for (i = 1; i <= 7; i++) { x = ks[i]; if (x in k) printf "%-10s%-7d%-7d%-7d%-7d%-7d\n", x, n[x], c[x" pass"], c[x" fail"], c[x" crash"], c[x" skip"] }
+				split("errors types symbols js map sourcemap trace contentmapper", ks, " ")
+				for (i = 1; i <= 8; i++) { x = ks[i]; if (x in k) printf "%-10s%-7d%-7d%-7d%-7d%-7d\n", x, n[x], c[x" pass"], c[x" fail"], c[x" crash"], c[x" skip"] }
 			}' "$dir/results.txt"
 	fi
 	echo "time $t $(($(date +%s%3N) - t0))"

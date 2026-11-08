@@ -18,19 +18,19 @@ import ts.testutil.harnessutil.Harnessutil;
 //   --shard I/N     only every N-th test file, starting at I (0-based), for parallel runs
 //   --tolerate-emit-crash  an exception in Program.Emit does not fail the case (empty emit result)
 //
-// Output (stdout): per kind (errors/types/symbols/js/map/sourcemap/trace) the number of cases (= test configurations) and
+// Output (stdout): per kind (errors/types/symbols/js/map/sourcemap/trace/contentmapper) the number of cases (= test configurations) and
 // passed/failed/crashed/skipped. DIR/results.txt has one line per case and kind:
 //   <kind> <status> <suite>/<configured name> <detail>
 // where detail is the first differing line (fail) or the first line of the panic (crash).
 class CheckerGate {
-	static final kinds = ["errors", "types", "symbols", "js", "map", "sourcemap", "trace"];
+	static final kinds = ["errors", "types", "symbols", "js", "map", "sourcemap", "trace", "contentmapper"];
 	static final subtestOfKind = [
 		"errors" => "error", "types" => "type", "symbols" => "symbol", "js" => "output", "map" => "sourcemap", "sourcemap" => "sourcemap record",
-		"trace" => "module resolution"
+		"trace" => "module resolution", "contentmapper" => "content mapper"
 	];
 	static final extOfKind = [
 		"errors" => ".errors.txt", "types" => ".types", "symbols" => ".symbols", "js" => ".js", "map" => ".js.map", "sourcemap" => ".sourcemap.txt",
-		"trace" => ".trace.json"
+		"trace" => ".trace.json", "contentmapper" => ".contentmapper"
 	];
 
 	static var compareLog:Array<{reference:String, local:String, actual:String, matched:Bool}> = [];

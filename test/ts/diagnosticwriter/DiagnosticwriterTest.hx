@@ -171,6 +171,10 @@ private class TestDiag implements Diagnostic {
 		return cat;
 	}
 
+	public function Source():String {
+		return "";
+	}
+
 	public function Localize(l:ts.locale.Locale):String {
 		return msg;
 	}

@@ -3726,6 +3726,14 @@ class NodeBuilderSpecifierHostAdapter implements ModuleSpecifierGenerationHost {
 		return h.CommonSourceDirectory();
 	}
 
+	public function ContentMapperExtensions():Null<Array<std.String>> {
+		return h.ContentMapperExtensions();
+	}
+
+	public function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>> {
+		return h.ContentMapperExtensionRewrites();
+	}
+
 	public function GetCurrentDirectory():std.String {
 		return h.GetCurrentDirectory();
 	}

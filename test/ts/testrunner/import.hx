@@ -33,3 +33,6 @@ import ts.ast.Ast;
 import ts.compiler.Program;
 import ts.checker.Checker.Checker;
 using ts.checker.CheckerPart7;
+import ts.ast.Diagnostic;
+import ts.core.Tristate;
+import ts.core.Tristate.Tristate.*;

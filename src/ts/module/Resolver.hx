@@ -9,6 +9,7 @@ class Resolved {
 	public var packageId:PackageId = new PackageId();
 	public var originalPath:String = "";
 	public var resolvedUsingTsExtension:Bool = false;
+	public var resolvedUsingExtraExtensions:Bool = false;
 
 	public function new(path:String = "", extension:String = "", ?packageId:PackageId, originalPath:String = "",
 			resolvedUsingTsExtension:Bool = false) {
@@ -966,6 +967,7 @@ class ResolutionState {
 			resolvedModule.OriginalPath = resolved.originalPath;
 			resolvedModule.IsExternalLibraryImport = isExternalLibraryImport;
 			resolvedModule.ResolvedUsingTsExtension = resolved.resolvedUsingTsExtension;
+			resolvedModule.ResolvedUsingExtraExtensions = resolved.resolvedUsingExtraExtensions;
 			resolvedModule.Extension = resolved.extension;
 			resolvedModule.PackageId = resolved.packageId;
 		}
@@ -1256,7 +1258,11 @@ class ResolutionState {
 		var extensionless = Tspath.RemoveFileExtension(candidate);
 		if (extensionless == candidate) {
 			// Once TS native extensions are handled, handle arbitrary extensions for declaration file mapping
-			extensionless = candidate.substring(0, candidate.lastIndexOf("."));
+			var extension = Tspath.GetLongestExtensionFromPath(candidate, r.resolver.extraExtensions, false);
+			if (extension == "") {
+				extension = candidate.substring(candidate.lastIndexOf("."));
+			}
+			extensionless = Tspath.RemoveExtension(candidate, extension);
 		}
 
 		final extension = candidate.substring(extensionless.length);
@@ -1409,6 +1415,14 @@ class ResolutionState {
 				}
 				return Module.continueSearching();
 			default:
+				if (r.resolver.extraExtensions != null && r.resolver.extraExtensions.indexOf(originalExtension) >= 0) {
+					// A fully specified import of an extraExtension resolves directly to the file.
+					final resolved = r.tryExtension(originalExtension, extensionless, false);
+					if (!resolved.shouldContinueSearching()) {
+						resolved.resolvedUsingExtraExtensions = true;
+						return resolved;
+					}
+				}
 				if ((extensions & extensionsDeclaration) != 0 && !Tspath.IsDeclarationFileName(extensionless + originalExtension)) {
 					final resolved = r.tryExtension(".d" + originalExtension + ".ts", extensionless, false);
 					if (!resolved.shouldContinueSearching()) {
@@ -1935,6 +1949,8 @@ class Resolver {
 	public var compilerOptions:CompilerOptions = null;
 	public var typingsLocation:String = "";
 	public var projectName:String = "";
+	// TypeScript main (content mappers): extensions resolved as fully specified imports.
+	public var extraExtensions:Null<Array<String>> = null;
 
 	// reportDiagnostic: DiagnosticReporter
 
@@ -2069,6 +2085,15 @@ class Resolver {
 		final containingDirectory = Tspath.GetDirectoryPath(containingFile);
 		final state = Module.newResolutionState(moduleName, containingDirectory, false /*isTypeReferenceDirective*/, resolutionMode, compilerOptions,
 			redirectedReference, r, null);
+		// TypeScript main (#65105): a relative package name resolves to that directory.
+		if (Tspath.IsExternalModuleNameRelative(moduleName)) {
+			final packageDirectory = Tspath.GetNormalizedAbsolutePath(moduleName, containingDirectory);
+			if (r.host.FS().DirectoryExists(packageDirectory)) {
+				final p = state.getOriginalAndResolvedFileName(packageDirectory);
+				return state.createResolvedModuleHandlingSymlink(new Resolved(p.b, "", null, p.a));
+			}
+			return null;
+		}
 		state.resolvePackageDirectoryOnly = true;
 		final result = state.loadModuleFromNearestNodeModulesDirectory(false /*typesScopeOnly*/);
 		if (result != null && result.path != "") {

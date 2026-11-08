@@ -28,8 +28,15 @@ class Diagnostic {
 	var loc:TextRange = new TextRange(0, 0);
 	var code:Int = 0;
 	var category:Category = cast 0;
+	// source, when non-empty, is a custom prefix (e.g. a content mapper's name) shown instead of "TS"
+	// before the code. It marks the diagnostic as coming from an external source whose ranges point
+	// into the file's original, untransformed text.
+	var source:String = "";
 	// Original message; may be nil.
 	var message:Message = null;
+	// messageText is an already-localized message used when message is nil, e.g. a diagnostic
+	// deserialized from an external process that owns its own localization.
+	var messageText:String = "";
 	var messageKey:Key = "";
 	var messageArgs:Array<String> = null;
 	var messageChain:Array<Diagnostic> = null;
@@ -67,6 +74,14 @@ class Diagnostic {
 
 	public function Category():Category {
 		return category;
+	}
+
+	public function Source():String {
+		return source;
+	}
+
+	public function MessageText():String {
+		return messageText;
 	}
 
 	public function MessageKey():Key {
@@ -121,6 +136,12 @@ class Diagnostic {
 		this.repopulateInfo = info;
 	}
 
+	public function SetExternalData(source:String, messageText:String):Diagnostic {
+		this.source = source;
+		this.messageText = messageText;
+		return this;
+	}
+
 	public function SetMessageChain(messageChain:Array<Diagnostic>):Diagnostic {
 		this.messageChain = messageChain;
 		return this;
@@ -157,7 +178,9 @@ class Diagnostic {
 		result.loc = loc;
 		result.code = code;
 		result.category = category;
+		result.source = source;
 		result.message = message;
+		result.messageText = messageText;
 		result.messageKey = messageKey;
 		result.messageArgs = messageArgs;
 		result.messageChain = messageChain;
@@ -170,12 +193,55 @@ class Diagnostic {
 	}
 
 	public function Localize(locale:Locale):String {
-		return Diagnostics.Localize(locale, message, messageKey, messageArgs);
+		if (message == null && messageText != "") {
+			return messageText;
+		}
+		return Diagnostics.Localize(locale, message, messageKey, displayMessageArgs());
 	}
 
 	// For debugging only.
 	public function String():String {
-		return Diagnostics.Localize(Locale.Default, message, messageKey, messageArgs);
+		if (message == null && messageText != "") {
+			return messageText;
+		}
+		return Diagnostics.Localize(Locale.Default, message, messageKey, displayMessageArgs());
+	}
+
+	// displayMessageArgs substitutes the original text for a complete alias span when a diagnostic argument
+	// exactly matches the virtual alias. Stored arguments remain unchanged for code fixes and serialization.
+	function displayMessageArgs():Array<String> {
+		if (file == null || source != "") {
+			return messageArgs;
+		}
+		final alias = ts.spanmap.Spanmap.AliasForVirtualSpan(file.SpanMap(), loc);
+		if (!alias.ok) {
+			return messageArgs;
+		}
+		final segment = alias.value;
+		final virtualText = file.Text();
+		final originalText = file.OriginalText();
+		if (segment.VirtualStart < 0 || segment.VirtualEnd > virtualText.length || segment.OriginalStart < 0
+			|| segment.OriginalEnd > originalText.length) {
+			return messageArgs;
+		}
+		final virtualName = virtualText.substring(segment.VirtualStart, segment.VirtualEnd);
+		final originalName = originalText.substring(segment.OriginalStart, segment.OriginalEnd);
+		var result:Array<String> = null;
+		if (messageArgs != null) {
+			for (i in 0...messageArgs.length) {
+				if (messageArgs[i] != virtualName) {
+					continue;
+				}
+				if (result == null) {
+					result = messageArgs.copy();
+				}
+				result[i] = originalName;
+			}
+		}
+		if (result != null) {
+			return result;
+		}
+		return messageArgs;
 	}
 }
 

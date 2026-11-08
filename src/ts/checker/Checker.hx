@@ -756,6 +756,8 @@ interface Program extends Host {
 
 interface Host {
 	function CommonSourceDirectory():std.String;
+	function ContentMapperExtensions():Null<Array<std.String>>;
+	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
 	function FileExists(path:std.String):Bool;
 	function GetCurrentDirectory():std.String;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;

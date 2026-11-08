@@ -8,6 +8,10 @@ class ParsedOptions {
 
 	public var FileNames:Null<Array<String>> = null; // json:"fileNames"
 	public var ProjectReferences:Null<Array<ProjectReference>> = null; // json:"projectReferences"
+	// TypeScript main (content mappers); main moved ParsedOptions to tsoptions.
+	#if !macro // PORT: Core.hx (with its imports) is also typed in the macro context (Core.OrElse)
+	public var ContentMappers:Null<Array<ts.contentmapper.Contentmapper.Mapper>> = null; // json:"contentMappers"
+	#end
 
 	public function new() {}
 }

@@ -146,6 +146,7 @@ class CompilerOptions {
 	public var Build:Tristate = TSUnknown; // json:"build,omitzero"
 	public var Help:Tristate = TSUnknown; // json:"help,omitzero"
 	public var All:Tristate = TSUnknown; // json:"all,omitzero"
+	public var RunExternalCode:Tristate = TSUnknown; // json:"runExternalCode,omitzero"
 
 	public var PprofDir:String = ""; // json:"pprofDir,omitzero"
 	public var SingleThreaded:Tristate = TSUnknown; // json:"singleThreaded,omitzero"
@@ -287,6 +288,7 @@ class CompilerOptions {
 		target.Build = this.Build;
 		target.Help = this.Help;
 		target.All = this.All;
+		target.RunExternalCode = this.RunExternalCode;
 		target.PprofDir = this.PprofDir;
 		target.SingleThreaded = this.SingleThreaded;
 		target.Quiet = this.Quiet;

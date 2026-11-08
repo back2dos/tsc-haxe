@@ -101,7 +101,16 @@ class Testrunner {
 		for (data in testUnits) {
 			allFiles.set(Tspath.GetNormalizedAbsolutePath(data.name, currentDirectory), data.content);
 		}
-		final parseConfigHost = Tsoptionstest.NewVFSParseConfigHost(allFiles, currentDirectory, true /*useCaseSensitiveFileNames*/);
+		final parseConfigHost = Tsoptionstest.NewVFSParseConfigHostWithSymlinks(allFiles, symlinks, currentDirectory, true /*useCaseSensitiveFileNames*/);
+
+		// Content mappers are gated behind --runExternalCode, a command-line-only option. A test
+		// opts in with a top-level `// @runExternalCode: true`, which we surface to the config
+		// parse as an existing option so the gate passes and the mappers register.
+		var existingOptions:CompilerOptions = null;
+		if (r.globalOptions.get("runexternalcode") == "true") {
+			existingOptions = new CompilerOptions();
+			existingOptions.RunExternalCode = TSTrue;
+		}
 
 		// check if project has tsconfig.json in the list of files
 		var tsConfig:ParsedCommandLine = null;
@@ -117,7 +126,7 @@ class Testrunner {
 				final configJson = Parser.ParseSourceFile(opts, data.content, ScriptKindJSON);
 				final tsConfigSourceFile = new TsConfigSourceFile(configJson);
 				final configDir = Tspath.GetDirectoryPath(configFileName);
-				tsConfig = Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, parseConfigHost, configDir, null, /*existingOptions*/
+				tsConfig = Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, parseConfigHost, configDir, existingOptions,
 					null, /*existingOptionsRaw*/ configFileName, null, /*resolutionStack*/ null, /*extraFileExtensions*/ null /*extendedConfigCache*/);
 				tsConfigFileUnitData = data;
 
@@ -579,6 +588,16 @@ class Testrunner {
 
 		final result = Harnessutil.CompileFiles(t, toBeCompiled == null ? [] : toBeCompiled, otherFiles == null ? [] : otherFiles, harnessConfig, tsConfig,
 			currentDirectory, testCaseContentWithConfig.testCaseContent.symlinks);
+
+		// Content-mapped files are transformed during program construction; the transformed text is what the
+		// compiler actually parses and reports positions against. Baseline that text (rather than the original
+		// foreign source) so the type, symbol, and error baselines line up with the compiler's positions.
+		for (file in Core.Concatenate(toBeCompiled, otherFiles)) {
+			final sf = result.Program.GetSourceFile(Tspath.GetNormalizedAbsolutePath(file.UnitName, currentDirectory));
+			if (sf != null && sf.ContentMapper() != "") {
+				file.Content = sf.Text();
+			}
+		}
 
 		final c = new CompilerTest();
 		c.testName = testName;

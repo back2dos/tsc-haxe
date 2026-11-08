@@ -58,3 +58,5 @@ import ts.ast.Parseoptions;
 import ts.parser.Parser;
 using ts.tsoptions.Errors_;
 import ts.ast.AstGenerated;
+import ts.contentmapper.Contentmapper;
+import ts.tspath.Tspath.ExtensionRewrite;

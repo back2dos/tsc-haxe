@@ -108,6 +108,18 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return this.program.UseCaseSensitiveFileNames();
 	}
 
+	public function ContentMapperExtensions():Array<std.String> {
+		return this.program.ContentMapperExtensions();
+	}
+
+	public function ContentMapperExtensionRewrites():Array<ExtensionRewrite> {
+		return this.program.ContentMapperExtensionRewrites();
+	}
+
+	public function SourceFileMayBeEmitted(file:SourceFile, forceDtsEmit:Bool):Bool {
+		return Compiler.sourceFileMayBeEmitted(file, this, forceDtsEmit);
+	}
+
 	public function IsEmitBlocked(file:std.String):Bool {
 		return this.program.IsEmitBlocked(file);
 	}

@@ -107,6 +107,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	var declarationDiagnosticCache:IdentityMap<SourceFile, Array<Diagnostic>> = new IdentityMap(); // PORT: SyncMap → IdentityMap
 
 	var programDiagnostics:Array<Diagnostic> = null;
+	var contentMapperOptionDiagnostics:Array<Diagnostic> = null;
 	var hasEmitBlockingDiagnostics:Set<Path> = new Set<Path>();
 
 	var sourceFilesToEmitOnce:Bool = false; // PORT: sync.Once → flag
@@ -486,6 +487,31 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.opts.Config;
 	}
 
+	public function ContentMapperProject():ts.contentmapper.Host.Project {
+		return this.opts.Host.ContentMapperProject();
+	}
+
+	// GetContentMapper returns the content mapper that produced the given source file, or nil if the
+	// file was not produced by a content mapper.
+	public function GetContentMapper(file:SourceFile):Mapper {
+		if (file.ContentMapper() == "") {
+			return null;
+		}
+		final mapper = this.opts.Config.GetContentMapperForFileName(file.FileName());
+		if (mapper != null && mapper.Identity() == file.ContentMapper()) {
+			return mapper;
+		}
+		return null;
+	}
+
+	public function ContentMapperExtensions():Array<std.String> {
+		return this.opts.Config.ContentMapperExtensions();
+	}
+
+	public function ContentMapperExtensionRewrites():Array<ExtensionRewrite> {
+		return this.opts.Config.ContentMapperExtensionRewrites();
+	}
+
 	public function Host():CompilerHost {
 		return this.opts.Host;
 	}
@@ -704,9 +730,20 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			final c = r.a, done = r.b;
 			final result = collect(ctx, c, sourceFile);
 			done();
-			return Compiler.SortAndDeduplicateDiagnostics(result);
+			return filterAndSortDiagnostics(result);
 		}
-		return Compiler.SortAndDeduplicateDiagnostics(Slices.Concat(...this.collectCheckerDiagnosticsFromFiles(ctx, this.files, collect)));
+		return filterAndSortDiagnostics(Slices.Concat(...this.collectCheckerDiagnosticsFromFiles(ctx, this.files, collect)));
+	}
+
+	static function filterAndSortDiagnostics(diags:Array<Diagnostic>):Array<Diagnostic> {
+		return Compiler.SortAndDeduplicateDiagnostics(Core.Filter(diags, function(diag:Diagnostic):Bool {
+			final file = diag.File();
+			if (!diag.ReportsUnnecessary() || file == null || file.SpanMap() == null || diag.Source() != "") {
+				return true;
+			}
+			final fidelity = ts.spanmap.Spanmap.VirtualToOriginalSpan(file.SpanMap(), diag.Loc()).b;
+			return fidelity != FidelityNone;
+		}));
 	}
 
 	// collectCheckerDiagnosticsFromFiles collects checker diagnostics for a list of files.
@@ -773,7 +810,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		final allDiags = this.collectCheckerDiagnosticsFromFiles(ctx, sourceFiles, this.getBindAndCheckDiagnosticsWithChecker);
 		final result = new IdentityMap<SourceFile, Array<Diagnostic>>();
 		for (i in 0...allDiags.length) {
-			result.set(sourceFiles[i], Compiler.SortAndDeduplicateDiagnostics(allDiags[i]));
+			result.set(sourceFiles[i], filterAndSortDiagnostics(allDiags[i]));
 		}
 		return result;
 	}
@@ -783,7 +820,20 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	public function GetProgramDiagnostics():Array<Diagnostic> {
-		return Compiler.SortAndDeduplicateDiagnostics(Core.Concatenate(this.programDiagnostics, this.includeProcessor.getDiagnostics(this).GetGlobalDiagnostics()));
+		return Compiler.SortAndDeduplicateDiagnostics(Slices.Concat(this.programDiagnostics, this.processedFiles.contentMapperDiagnostics,
+			this.contentMapperOptionDiagnostics, this.includeProcessor.getDiagnostics(this).GetGlobalDiagnostics()));
+	}
+
+	function collectContentMapperOptionDiagnostics():Void {
+		final project = this.ContentMapperProject();
+		if (project == null) {
+			return;
+		}
+		final optionDiagnostics = project.Diagnostics();
+		this.contentMapperOptionDiagnostics = Core.Map(optionDiagnostics, function(diagnostic:ts.contentmapper.Host.OptionDiagnostic):Diagnostic {
+			final r = Tsoptions.GetContentMapperOptionDiagnosticLocation(this.opts.Config, diagnostic.Mapper, diagnostic.Path);
+			return Ast.NewExternalDiagnostic(r.a, r.b, diagnostic.Source, CategoryError, diagnostic.Code, diagnostic.MessageText);
+		});
 	}
 
 	public function GetIncludeProcessorDiagnostics(sourceFile:SourceFile):Array<Diagnostic> {
@@ -1359,13 +1409,18 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 				}
 			};
 
+			final externalOutputSourceFiles = Core.Filter(this.SourceFiles(), function(sourceFile:SourceFile):Bool {
+				return sourceFile.ContentMapper() != "" && !this.IsSourceFileFromExternalLibrary(sourceFile)
+					&& this.GetProjectReferenceFromSource(sourceFile.Path()) == null;
+			});
 			Outputpaths.ForEachEmittedFile(this, options, function(emitFileNames:ts.outputpaths.Outputpaths.OutputPaths, sourceFile:SourceFile):Bool {
 				verifyEmitFilePath(emitFileNames.JsFilePath());
 				verifyEmitFilePath(emitFileNames.SourceMapFilePath());
 				verifyEmitFilePath(emitFileNames.DeclarationFilePath());
 				verifyEmitFilePath(emitFileNames.DeclarationMapPath());
+				verifyEmitFilePath(emitFileNames.ExternalOutputFilePath());
 				return false;
-			}, this.getSourceFilesToEmit(null, false), false);
+			}, this.getSourceFilesToEmit(null, false), externalOutputSourceFiles, false);
 			verifyEmitFilePath(this.opts.Config.GetBuildInfoFileName());
 		}
 	}
@@ -1497,7 +1552,41 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 				}
 			}
 		}
+		filtered = applyContentMapperDiagnosticDirectives(sourceFile, filtered);
 		return filtered;
+	}
+
+	static function applyContentMapperDiagnosticDirectives(sourceFile:SourceFile, diags:Array<Diagnostic>):Array<Diagnostic> {
+		final directives = sourceFile.DiagnosticDirectives();
+		if (Core.len(directives) == 0) {
+			return diags;
+		}
+		final used = [for (_ in 0...directives.length) false];
+		final markUsed = function(diag:Diagnostic):Bool {
+			if (diag.File() != sourceFile || diag.Source() != "") {
+				return false;
+			}
+			for (i in 0...directives.length) {
+				final directive = directives[i];
+				if (diag.Pos() >= directive.VirtualRange.Pos() && diag.Pos() < directive.VirtualRange.End()) {
+					used[i] = true;
+					return true;
+				}
+			}
+			return false;
+		};
+		final filtered = Core.Filter(diags, function(diag:Diagnostic):Bool {
+			return !markUsed(diag);
+		});
+		final result = filtered == null ? [] : filtered.copy();
+		for (i in 0...directives.length) {
+			final directive = directives[i];
+			if (directive.Policy == MappedDiagnosticDirectivePolicyExpect && !used[i]) {
+				result.push(Ast.NewExternalDiagnostic(sourceFile, directive.OriginalRange, directive.Source, CategoryError, directive.UnusedCode,
+					directive.UnusedMessageText));
+			}
+		}
+		return result;
 	}
 
 	// PORT: ([]*ast.Diagnostic, map[int]ast.CommentDirective) → Pair. The map holds copies of the

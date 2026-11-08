@@ -91,6 +91,7 @@ class ResolvedModule {
 	public var OriginalPath:String = "";
 	public var Extension:String = "";
 	public var ResolvedUsingTsExtension:Bool = false;
+	public var ResolvedUsingExtraExtensions:Bool = false;
 	public var PackageId:PackageId = new PackageId();
 	public var IsExternalLibraryImport:Bool = false;
 	public var AlternateResult:String = "";
