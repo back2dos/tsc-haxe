@@ -2139,12 +2139,12 @@ class CheckerPart4 {
 		return Ast.IsDeprecatedDeclarationWithCachedFlags(declaration, c.getCombinedNodeFlagsCached(declaration));
 	}
 
-	static function addDeprecatedSuggestion(c:Checker, location:Node, declarations:Array<Node>, deprecatedEntity:std.String):Diagnostic {
+	static function addDeprecatedSuggestion(c:Checker, location:Node, declarations:haxe.ds.Vector<Node>, deprecatedEntity:std.String):Diagnostic {
 		final diagnostic = Checker.NewDiagnosticForNode(location, Diagnostics.X_0_is_deprecated, deprecatedEntity);
 		return c.addDeprecatedSuggestionWorker(declarations, diagnostic);
 	}
 
-	static function addDeprecatedSuggestionWorker(c:Checker, declarations:Array<Node>, diagnostic:Diagnostic):Diagnostic {
+	static function addDeprecatedSuggestionWorker(c:Checker, declarations:haxe.ds.Vector<Node>, diagnostic:Diagnostic):Diagnostic {
 		for (declaration in rangeOf(declarations)) {
 			final deprecatedTag = Ast.GetJSDocDeprecatedTag(declaration);
 			if (deprecatedTag != null) {
@@ -2298,7 +2298,7 @@ class CheckerPart4 {
 			// PORT: Go `append(target.Declarations, source.Declarations...)` may share a backing array; build a new array so
 			// no other holder of the old slice sees the appended elements.
 			if (Core.len(source.Declarations) != 0) {
-				target.Declarations = target.Declarations != null ? target.Declarations.concat(source.Declarations) : source.Declarations.copy();
+				target.Declarations = Core.concatVectors(target.Declarations, source.Declarations); // (Vectors are never changed: no copy needed)
 			}
 			if (source.Members != null) {
 				final t = target;
@@ -2355,7 +2355,7 @@ class CheckerPart4 {
 		}
 	}
 
-	static function addDuplicateDeclarationError(c:Checker, node:Node, message:Message, symbolName:std.String, relatedNodes:Array<Node>):Void {
+	static function addDuplicateDeclarationError(c:Checker, node:Node, message:Message, symbolName:std.String, relatedNodes:haxe.ds.Vector<Node>):Void {
 		var errorNode = Checker.getAdjustedNodeForError(node);
 		if (errorNode == null) {
 			errorNode = node;
@@ -2862,7 +2862,7 @@ class CheckerPart4 {
 		}
 		final result = c.newSymbol(valueSymbol.Flags | typeSymbol.Flags, valueSymbol.Name);
 		Debug.Assert(Core.len(valueSymbol.Declarations) > 0 || Core.len(typeSymbol.Declarations) > 0);
-		result.Declarations = compactNodes(Slices.Concat(valueSymbol.Declarations, typeSymbol.Declarations));
+		result.Declarations = VectorBuilder.freezeOrNull(compactNodes(Slices.Concat(Core.vectorToArray(valueSymbol.Declarations), Core.vectorToArray(typeSymbol.Declarations)))); // (alias merges: rare)
 		result.Parent = valueSymbol.Parent;
 		if (result.Parent == null) {
 			result.Parent = typeSymbol.Parent;
@@ -4199,7 +4199,7 @@ class CheckerPart4 {
 				if ((lateSymbol.Flags & Checker.getExcludedSymbolFlags(symbolFlags)) != 0) {
 					// If we have an existing early-bound member, combine its declarations so that we can
 					// report an error at each declaration.
-					var declarations:Array<Node>;
+					var declarations:haxe.ds.Vector<Node>;
 					if (earlySymbol != null) {
 						declarations = Core.Concatenate(earlySymbol.Declarations, lateSymbol.Declarations);
 					} else {

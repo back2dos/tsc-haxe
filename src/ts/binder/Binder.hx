@@ -106,7 +106,6 @@ class Binder {
 	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new ts.ast.Symbol.SymbolWithData());
 	var flowNodeArena:Arena<FlowNode> = new Arena<FlowNode>(() -> new FlowNode());
 	var flowListArena:Arena<FlowList> = new Arena<FlowList>(() -> new FlowList());
-	var singleDeclarationsArena:Arena<Node> = new Arena<Node>(() -> null);
 	var expandoAssignments:Array<ExpandoAssignmentInfo> = null;
 	var seenCommonJSModuleIndicator:Bool = false;
 
@@ -668,8 +667,9 @@ class Binder {
 		return newFlowList(head.Flow, combineFlowLists(head.Next, tail));
 	}
 
-	function newSingleDeclaration(declaration:Node):Array<Node> {
-		return singleDeclarationsArena.NewSlice1(declaration);
+	// PORT: perf — a one-element Vector (Go: a slice of an arena); an append makes a new Vector
+	function newSingleDeclaration(declaration:Node):haxe.ds.Vector<Node> {
+		return Core.vector1(declaration);
 	}
 
 	static function setFlowNodeReferenced(flow:FlowNode):Void {
@@ -1177,10 +1177,7 @@ class Binder {
 			assignmentSymbol = newSymbol(SymbolFlagsNone, Ast.InternalSymbolNameAssignmentDeclaration);
 			exports.set(Ast.InternalSymbolNameAssignmentDeclaration, assignmentSymbol);
 		}
-		if (assignmentSymbol.Declarations == null) {
-			assignmentSymbol.Declarations = [];
-		}
-		assignmentSymbol.Declarations.push(node);
+		assignmentSymbol.Declarations = Core.appendVector(assignmentSymbol.Declarations, node);
 	}
 
 	function bindModuleExportsAssignment(node:Node):Void {
@@ -2773,7 +2770,7 @@ class Binder {
 		if (symbol.Declarations == null) {
 			symbol.Declarations = newSingleDeclaration(node);
 		} else {
-			symbol.Declarations = Core.AppendIfUnique(symbol.Declarations, node);
+			symbol.Declarations = Core.appendIfUniqueVector(symbol.Declarations, node);
 		}
 		// On merge of const enum module with class or function, reset const enum only flag (namespaces will already recalculate)
 		if (symbol.Flags & SymbolFlagsConstEnumOnlyModule != 0 && symbol.Flags & (SymbolFlagsFunction | SymbolFlagsClass | SymbolFlagsRegularEnum) != 0) {

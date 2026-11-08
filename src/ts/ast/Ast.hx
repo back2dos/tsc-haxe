@@ -7365,7 +7365,7 @@ class Ast {
 
 	// type AllAccessorDeclarations → class AllAccessorDeclarations in Utilities.hx.
 
-	public static function GetAllAccessorDeclarationsForDeclaration(accessor:AccessorDeclaration, declarationsOfSymbol:Array<Node>):AllAccessorDeclarations {
+	public static function GetAllAccessorDeclarationsForDeclaration(accessor:AccessorDeclaration, declarationsOfSymbol:haxe.ds.Vector<Node>):AllAccessorDeclarations {
 		var otherKind:Kind = KindUnknown;
 		if (accessor.Kind == KindSetAccessor) {
 			otherKind = KindGetAccessor;
@@ -7420,7 +7420,7 @@ class Ast {
 	public static function GetAllAccessorDeclarations(parentDeclarations:Array<Node>, accessor:AccessorDeclaration):AllAccessorDeclarations {
 		if (HasDynamicName(accessor)) {
 			// dynamic names can only be match up via checker symbol lookup, just return an object with just this accessor
-			return GetAllAccessorDeclarationsForDeclaration(accessor, [accessor]);
+			return GetAllAccessorDeclarationsForDeclaration(accessor, ts.core.Core.vector1(accessor));
 		}
 
 		final accessorName = GetPropertyNameForPropertyNameNode(accessor.Name());
@@ -7440,7 +7440,7 @@ class Ast {
 				}
 			}
 		}
-		return GetAllAccessorDeclarationsForDeclaration(accessor, matches);
+		return GetAllAccessorDeclarationsForDeclaration(accessor, ts.core.VectorBuilder.freezeOrNull(matches));
 	}
 
 	public static function IsAsyncFunction(node:Node):Bool {

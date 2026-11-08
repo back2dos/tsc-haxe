@@ -218,7 +218,7 @@ class TracingTest {
 		final s1 = file.Statements.Nodes[1];
 		final sym = new ts.ast.Symbol.SymbolWithData();
 		sym.Name = "Foo";
-		sym.Declarations = [s1];
+		sym.Declarations = ts.core.Core.vector1(s1);
 		final alias = new ts.ast.Symbol.SymbolWithData();
 		alias.Name = "Bar";
 

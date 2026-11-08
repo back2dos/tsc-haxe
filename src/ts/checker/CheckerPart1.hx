@@ -2445,7 +2445,7 @@ class CheckerPart1 {
 		var multipleConstructorImplementation = false;
 		var hasNonAmbientClass = false;
 		var functionDeclarations:Array<Node> = null;
-		final getCanonicalOverload = (overloads:Array<Node>, implementation:Node) -> {
+		final getCanonicalOverload = (overloads:haxe.ds.Vector<Node>, implementation:Node) -> {
 			// Consider the canonical set of flags to be the flags of the bodyDeclaration or the first declaration
 			// Error on all deviations from this canonical set of flags
 			// The caveat is that if some overloads are defined in lib.d.ts, we don't want to
@@ -2457,7 +2457,7 @@ class CheckerPart1 {
 			}
 			return overloads[0];
 		};
-		final checkFlagAgreementBetweenOverloads = (overloads:Array<Node>, implementation:Node, flagsToCheck:ModifierFlags,
+		final checkFlagAgreementBetweenOverloads = (overloads:haxe.ds.Vector<Node>, implementation:Node, flagsToCheck:ModifierFlags,
 				someOverloadFlags:ModifierFlags, allOverloadFlags:ModifierFlags) -> {
 			// Error if some overloads have a flag that is not shared by all overloads. To find the
 			// deviations, we XOR someOverloadFlags with allOverloadFlags
@@ -2476,7 +2476,7 @@ class CheckerPart1 {
 					group.push(overload_);
 				}
 				for (overloadsInFile in groups) {
-					final canonicalFlagsForFile = c.getEffectiveDeclarationFlags(getCanonicalOverload(overloadsInFile, implementation), flagsToCheck);
+					final canonicalFlagsForFile = c.getEffectiveDeclarationFlags(getCanonicalOverload(VectorBuilder.freeze(overloadsInFile), implementation), flagsToCheck);
 					for (overload_ in overloadsInFile) {
 						final deviation:ModifierFlags = (c.getEffectiveDeclarationFlags(overload_, flagsToCheck) : Int) ^ (canonicalFlags : Int);
 						final deviationInFile:ModifierFlags = (c.getEffectiveDeclarationFlags(overload_, flagsToCheck) : Int) ^ (canonicalFlagsForFile : Int);
@@ -2505,7 +2505,7 @@ class CheckerPart1 {
 				}
 			}
 		};
-		final checkQuestionTokenAgreementBetweenOverloads = (overloads:Array<Node>, implementation:Node, someHaveQuestionToken:Bool,
+		final checkQuestionTokenAgreementBetweenOverloads = (overloads:haxe.ds.Vector<Node>, implementation:Node, someHaveQuestionToken:Bool,
 				allHaveQuestionToken:Bool) -> {
 			if (someHaveQuestionToken != allHaveQuestionToken) {
 				final canonicalHasQuestionToken = Checker.isOptionalDeclaration(getCanonicalOverload(overloads, implementation));

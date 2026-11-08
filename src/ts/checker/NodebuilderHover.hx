@@ -282,7 +282,7 @@ class NodebuilderHover {
 			b.f.NewNodeList(members));
 	}
 
-	static function hoverHeritageClauses(b:NodeBuilderImpl, declarations:Array<Node>):Array<Node> {
+	static function hoverHeritageClauses(b:NodeBuilderImpl, declarations:haxe.ds.Vector<Node>):Array<Node> {
 		var extendsTypes:Array<Node> = null;
 		var implementsTypes:Array<Node> = null;
 		if (declarations != null) {

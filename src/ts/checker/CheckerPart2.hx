@@ -505,13 +505,13 @@ class CheckerPart2 {
 		}
 	}
 
-	static function getClassOrInterfaceDeclarationsOfSymbol(c:Checker, symbol:Symbol):Array<Node> {
+	static function getClassOrInterfaceDeclarationsOfSymbol(c:Checker, symbol:Symbol):haxe.ds.Vector<Node> {
 		return Core.Filter(symbol.Declarations, function(d:Node):Bool {
 			return Ast.IsClassDeclaration(d) || Ast.IsInterfaceDeclaration(d);
 		});
 	}
 
-	static function areTypeParametersIdentical(c:Checker, declarations:Array<Node>, targetParameters:haxe.ds.Vector<Type>, getTypeParameterDeclarations:(node:Node) -> Array<Node>):Bool {
+	static function areTypeParametersIdentical(c:Checker, declarations:haxe.ds.Vector<Node>, targetParameters:haxe.ds.Vector<Type>, getTypeParameterDeclarations:(node:Node) -> Array<Node>):Bool {
 		final maxTypeArgumentCount = Core.len(targetParameters);
 		final minTypeArgumentCount = c.getMinTypeArgumentCount(targetParameters);
 		for (declaration in declarations) {

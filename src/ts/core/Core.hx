@@ -94,6 +94,21 @@ class Core {
 		return v;
 	}
 
+	// Go's append(s, x) for a Vector: a new exact-size Vector (s is never changed)
+	public static function appendVector<T>(s:haxe.ds.Vector<T>, x:T):haxe.ds.Vector<T> {
+		final n = len(s);
+		final v = new haxe.ds.Vector<T>(n + 1);
+		if (n != 0)
+			haxe.ds.Vector.blit(s, 0, v, 0, n);
+		v[n] = x;
+		return v;
+	}
+
+	// core.AppendIfUnique for a Vector: s itself when it has x, else a new Vector with x appended
+	public static inline function appendIfUniqueVector<T>(s:haxe.ds.Vector<T>, x:T):haxe.ds.Vector<T> {
+		return go.Slices.Contains(s, x) ? s : appendVector(s, x);
+	}
+
 	// a[start:end] as a Vector (the same one when it is all of a)
 	public static function subVector<T>(a:haxe.ds.Vector<T>, start:Int, end:Int):haxe.ds.Vector<T> {
 		if (start == 0 && end == len(a))
@@ -812,7 +827,23 @@ class Core {
 		return result;
 	}
 
-	public static function FindLast<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T {
+	public static extern inline overload function FindLast<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool, ?zero:T):T {
+		var result = zero;
+		var i = len(slice) - 1;
+		while (i >= 0) {
+			if (f(slice[i])) {
+				result = slice[i];
+				break;
+			}
+			i--;
+		}
+		return result;
+	}
+
+	public static extern inline overload function FindLast<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T
+		return findLastArr(slice, f, zero);
+
+	static function findLastArr<T>(slice:Null<Array<T>>, f:(T) -> Bool, ?zero:T):T {
 		var i = len(slice) - 1;
 		while (i >= 0) {
 			final value = slice[i];
@@ -869,7 +900,22 @@ class Core {
 		return zero;
 	}
 
-	public static function FirstNonNil<T, U>(slice:Null<Array<T>>, f:(T) -> U, ?zero:U):U {
+	public static extern inline overload function FirstNonNil<T, U>(slice:haxe.ds.Vector<T>, f:(T) -> U, ?zero:U):U {
+		var result = zero;
+		for (i in 0...len(slice)) {
+			final mapped = f(slice[i]);
+			if (!isZero(mapped)) {
+				result = mapped;
+				break;
+			}
+		}
+		return result;
+	}
+
+	public static extern inline overload function FirstNonNil<T, U>(slice:Null<Array<T>>, f:(T) -> U, ?zero:U):U
+		return firstNonNilArr(slice, f, zero);
+
+	static function firstNonNilArr<T, U>(slice:Null<Array<T>>, f:(T) -> U, ?zero:U):U {
 		if (slice != null) {
 			for (value in slice) {
 				final mapped = f(value);

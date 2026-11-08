@@ -142,7 +142,12 @@ class Slices {
 	}
 
 	// slices.Clone: a nil slice stays nil; otherwise a new array with the same elements.
-	public static function Clone<E>(s:Null<Array<E>>):Null<Array<E>> {
+	public static extern inline overload function Clone<E>(s:Null<Array<E>>):Null<Array<E>> {
+		return s == null ? null : s.copy();
+	}
+
+	// a Vector is immutable: its clone is a copy all the same (Go's slices.Clone makes a new slice)
+	public static extern inline overload function Clone<E>(s:haxe.ds.Vector<E>):haxe.ds.Vector<E> {
 		return s == null ? null : s.copy();
 	}
 
@@ -715,7 +720,18 @@ class Slices {
 	}
 
 	// slices.ContainsFunc: whether some element of s satisfies f.
-	public static inline function ContainsFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Bool {
+	public static extern inline overload function ContainsFunc<E>(s:haxe.ds.Vector<E>, f:(E) -> Bool):Bool {
+		var found = false;
+		if (s != null)
+			for (i in 0...s.length)
+				if (f(s[i])) {
+					found = true;
+					break;
+				}
+		return found;
+	}
+
+	public static extern inline overload function ContainsFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Bool {
 		return IndexFunc(s, f) >= 0;
 	}
 

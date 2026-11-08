@@ -6644,7 +6644,7 @@ class Checker {
 		});
 	}
 
-	static function getDeclarationsOfKind(symbol:Symbol, kind:Kind):Array<Node> {
+	static function getDeclarationsOfKind(symbol:Symbol, kind:Kind):haxe.ds.Vector<Node> {
 		return Core.Filter(symbol.Declarations, (d:Node) -> d.Kind == kind);
 	}
 

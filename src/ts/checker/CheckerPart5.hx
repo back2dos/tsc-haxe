@@ -40,7 +40,7 @@ class CheckerPart5 {
 			symbol.Declarations = appendDeclaration(symbol.Declarations, member);
 		} else if ((symbol.Flags & SymbolFlagsReplaceableByMethod) != 0 && (member.Symbol().Flags & SymbolFlagsMethod) != 0) {
 			// Remove all replacable-by-method members, along with their flags.
-			symbol.Declarations = appendNode(Core.Filter(symbol.Declarations, fn_isNotReplacableByMethod), member);
+			symbol.Declarations = Core.appendVector(Core.Filter(symbol.Declarations, fn_isNotReplacableByMethod), member);
 			final oldFlags = symbol.Flags;
 			symbol.Flags = SymbolFlagsTransient;
 			for (d in symbol.Declarations) {
@@ -4098,13 +4098,8 @@ class CheckerPart5 {
 	
 	// PORT: Go `append(symbol.Declarations, d)`: the slice may share its backing array with a cloned symbol
 	// (cloneSymbol forces reallocation in Go), so the append never shows in another holder; copy first.
-	static function appendDeclaration(s:Array<Node>, x:Node):Array<Node> {
-		if (s == null) {
-			return [x];
-		}
-		final r = s.copy();
-		r.push(x);
-		return r;
+	static inline function appendDeclaration(s:haxe.ds.Vector<Node>, x:Node):haxe.ds.Vector<Node> {
+		return Core.appendVector(s, x);
 	}
 	
 	// PORT: Go TypeSystemEntity is `any`; the skeleton's empty interface is not declared by Symbol/Type/Signature,

@@ -1632,7 +1632,7 @@ class CheckerPart6 {
 			}
 		}
 		final result = c.newSymbolEx(propFlags | optionalFlag, name, checkFlags | syntheticFlag);
-		result.Declarations = declarations;
+		result.Declarations = VectorBuilder.freezeOrNull(declarations);
 		if (!hasNonUniformValueDeclaration && firstValueDeclaration != null) {
 			result.ValueDeclaration = firstValueDeclaration;
 			// Inherit information about parent type.
@@ -1690,7 +1690,7 @@ class CheckerPart6 {
 			// PORT: Go deletes the current key while ranging over the map; iterate over a snapshot of the keys.
 			final keys = [for (d in commonDeclarations.Keys().keys()) d];
 			for (d in keys) {
-				if (symbol.Declarations.indexOf(d) < 0) {
+				if (!Slices.Contains(symbol.Declarations, d)) {
 					commonDeclarations.Delete(d);
 				}
 			}

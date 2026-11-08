@@ -25,7 +25,7 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	var dataShared:Bool = false; // data is another symbol's
 	var data:SymbolWithData = null;
 	public var Name(get, set):String;
-	public var Declarations(get, set):Array<Node>;
+	public var Declarations(get, set):haxe.ds.Vector<Node>; // PORT: perf — a Vector (one exact-size object; an append makes a new one)
 	public var ValueDeclaration(get, set):Node;
 	public var Parent(get, set):Symbol;
 	public var Members(get, set):SymbolTable;
@@ -71,11 +71,11 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 		return own().name = v;
 	}
 
-	inline function get_Declarations():Array<Node> {
+	inline function get_Declarations():haxe.ds.Vector<Node> {
 		return data.declarations;
 	}
 
-	function set_Declarations(v:Array<Node>):Array<Node> {
+	function set_Declarations(v:haxe.ds.Vector<Node>):haxe.ds.Vector<Node> {
 		return own().declarations = v;
 	}
 
@@ -174,7 +174,7 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 @:allow(ts.ast.Symbol)
 class SymbolWithData extends Symbol {
 	var name:String = "";
-	var declarations:Array<Node> = null;
+	var declarations:haxe.ds.Vector<Node> = null;
 	var valueDeclaration:Node = null;
 	var parent:Symbol = null;
 	// PORT: perf — from TypeScript main (microsoft/typescript-go#64799, symbolExtra): the optional symbol tables

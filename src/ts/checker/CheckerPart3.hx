@@ -403,7 +403,7 @@ class CheckerPart3 {
 	static function addDeprecatedSuggestionWithSignature(c:Checker, location:Node, declaration:Node, deprecatedEntity:std.String, signatureString:std.String):Diagnostic {
 		final message = Core.IfElse(deprecatedEntity != "", Diagnostics.The_signature_0_of_1_is_deprecated, Diagnostics.X_0_is_deprecated);
 		final diagnostic = Checker.NewDiagnosticForNode(location, message, signatureString, deprecatedEntity);
-		return c.addDeprecatedSuggestionWorker([declaration], diagnostic);
+		return c.addDeprecatedSuggestionWorker(Core.vector1(declaration), diagnostic);
 	}
 
 	static function isSymbolOrSymbolForCall(c:Checker, node:Node):Bool {
@@ -3535,7 +3535,7 @@ class CheckerPart3 {
 				c.error(right, Diagnostics.Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0, right.Text());
 			}
 			if (indexInfo.declaration != null && c.IsDeprecatedDeclaration(indexInfo.declaration)) {
-				c.addDeprecatedSuggestion(right, [indexInfo.declaration], right.Text());
+				c.addDeprecatedSuggestion(right, Core.vector1(indexInfo.declaration), right.Text());
 			}
 		} else {
 			final targetPropSymbol = c.resolveAliasWithDeprecationCheck(prop, right);

@@ -3988,7 +3988,7 @@ class CheckerPart8 {
 				if (Core.len(declarations) != 0) {
 					final symbol = c.newSymbol(SymbolFlagsProperty, Ast.InternalSymbolNameIndex);
 					symbol.CheckFlags |= CheckFlagsIndexSymbol;
-					symbol.Declarations = declarations;
+					symbol.Declarations = VectorBuilder.freeze(declarations);
 					symbol.ValueDeclaration = declarations[0];
 					symbol.Parent = t.symbol;
 					final links = c.valueSymbolLinks.Get(symbol);
