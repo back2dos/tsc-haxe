@@ -11,8 +11,8 @@ import ts.tspath.RootedPath;
 // FS is a file system abstraction over rooted, normalized paths. Operations
 // declare whether they require a file, directory, or either kind of path.
 interface FS {
-	// UseCaseSensitiveFileNames returns true if the file system is case-sensitive.
-	function UseCaseSensitiveFileNames():Bool;
+	// CaseSensitivity returns whether path comparison is case-sensitive.
+	function CaseSensitivity():ts.tspath.CaseSensitivity;
 
 	// FileExists returns true if the file exists.
 	function FileExists(path:RootedFilePath):Bool;

@@ -9,7 +9,7 @@ class Build {
 		// PORT: skipped, watch mode (wm := watchmanager.NewWatchManager(...)).
 		final orchestrator = new Orchestrator();
 		orchestrator.opts = opts;
-		orchestrator.comparePathsOptions = new ComparePathsOptions(opts.Sys.FS().UseCaseSensitiveFileNames(), opts.Sys.GetCurrentDirectory());
+		orchestrator.comparePathsOptions = new ComparePathsOptions(opts.Sys.FS().CaseSensitivity().IsCaseSensitive(), opts.Sys.GetCurrentDirectory());
 		orchestrator.tasks = new SyncMap<Path, BuildTask>();
 		final host = new Host();
 		host.orchestrator = orchestrator;

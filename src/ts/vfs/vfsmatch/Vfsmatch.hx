@@ -302,7 +302,7 @@ class Vfsmatch {
 	@:allow(ts.vfs.vfsmatch)
 	static function matchFileNames(path:RootedDirectoryPath, extensions:Null<Array<String>>, excludes:Null<Array<String>>,
 			includes:Null<Array<String>>, depth:Int, host:FS):Null<Array<RootedFilePath>> {
-		final caseSensitivity = Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames());
+		final caseSensitivity = host.CaseSensitivity();
 
 		final fileMatcher = newGlobMatcher(includes, excludes, path, caseSensitivity, UsageFiles);
 		final directoryMatcher = newGlobMatcher(includes, excludes, path, caseSensitivity, UsageDirectories);

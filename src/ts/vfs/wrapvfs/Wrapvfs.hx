@@ -8,7 +8,7 @@ import ts.vfs.Vfs;
 
 // Port of wrapvfs.go.
 class Replacements {
-	public var UseCaseSensitiveFileNames:Null<() -> Bool> = null;
+	public var CaseSensitivity:Null<() -> ts.tspath.CaseSensitivity> = null;
 	public var FileExists:Null<(RootedFilePath) -> Bool> = null;
 	public var ReadFile:Null<(RootedFilePath) -> ValueOk<String>> = null;
 	public var WriteFile:Null<(RootedFilePath, String) -> Null<Error>> = null;
@@ -39,12 +39,12 @@ class WrappedFS implements FS {
 		this.replacements = replacements;
 	}
 
-	// UseCaseSensitiveFileNames implements [vfs.FS].
-	public function UseCaseSensitiveFileNames():Bool {
-		if (this.replacements.UseCaseSensitiveFileNames != null) {
-			return this.replacements.UseCaseSensitiveFileNames();
+	// CaseSensitivity implements [vfs.FS].
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		if (this.replacements.CaseSensitivity != null) {
+			return this.replacements.CaseSensitivity();
 		}
-		return this.fs.UseCaseSensitiveFileNames();
+		return this.fs.CaseSensitivity();
 	}
 
 	// FileExists implements [vfs.FS].

@@ -85,8 +85,8 @@ class TestFs implements FS {
 
 	// --- forwarded methods of the embedded vfs.FS ---
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.FS.UseCaseSensitiveFileNames();
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		return this.FS.CaseSensitivity();
 	}
 
 	public function FileExists(path:RootedFilePath):Bool {

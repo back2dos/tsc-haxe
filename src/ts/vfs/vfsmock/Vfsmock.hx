@@ -16,7 +16,7 @@ class Vfsmock {
 		m.RemoveFunc = fs.Remove;
 		m.ChtimesFunc = fs.Chtimes;
 		m.StatFunc = fs.Stat;
-		m.UseCaseSensitiveFileNamesFunc = fs.UseCaseSensitiveFileNames;
+		m.CaseSensitivityFunc = fs.CaseSensitivity;
 		m.WalkDirFunc = fs.WalkDir;
 		m.WriteFileFunc = fs.WriteFile;
 		m.AppendFileFunc = fs.AppendFile;

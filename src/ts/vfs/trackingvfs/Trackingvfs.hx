@@ -34,8 +34,8 @@ class FS implements ts.vfs.Vfs.FS {
 		return this.Inner.FileExists(path);
 	}
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.Inner.UseCaseSensitiveFileNames();
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		return this.Inner.CaseSensitivity();
 	}
 
 	public function WriteFile(path:RootedFilePath, data:String):Null<Error> {

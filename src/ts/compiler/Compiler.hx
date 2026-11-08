@@ -435,7 +435,7 @@ class Compiler {
 		loader.opts = opts;
 		// PORT: main's host returns a typed DefaultLibraryPath; here it is still a string, resolved as before.
 		loader.defaultLibraryPath = Tspath.ToRootedDirectoryPath(opts.Host.DefaultLibraryPath(), opts.Host.GetCurrentDirectory());
-		loader.caseSensitivity = Tspath.caseSensitivityOf(opts.Host.FS().UseCaseSensitiveFileNames());
+		loader.caseSensitivity = opts.Host.FS().CaseSensitivity();
 		loader.currentDirectory = opts.Host.GetCurrentDirectory();
 		loader.filesParser = new FilesParser();
 		#if tshx_parallel

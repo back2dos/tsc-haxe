@@ -88,7 +88,7 @@ class FSMockStatCall {
 	}
 }
 
-class FSMockUseCaseSensitiveFileNamesCall {
+class FSMockCaseSensitivityCall {
 
 	public function new() {
 	}
@@ -143,8 +143,8 @@ class FSMock implements FS {
 	// StatFunc mocks the Stat method.
 	public var StatFunc:Null<(String) -> Null<FileInfo>> = null;
 
-	// UseCaseSensitiveFileNamesFunc mocks the UseCaseSensitiveFileNames method.
-	public var UseCaseSensitiveFileNamesFunc:Null<() -> Bool> = null;
+	// CaseSensitivityFunc mocks the CaseSensitivity method.
+	public var CaseSensitivityFunc:Null<() -> ts.tspath.CaseSensitivity> = null;
 
 	// WalkDirFunc mocks the WalkDir method.
 	public var WalkDirFunc:Null<(String, WalkDirFunc) -> Null<Error>> = null;
@@ -162,7 +162,7 @@ class FSMock implements FS {
 	final callsRealpath:Array<FSMockRealpathCall> = [];
 	final callsRemove:Array<FSMockRemoveCall> = [];
 	final callsStat:Array<FSMockStatCall> = [];
-	final callsUseCaseSensitiveFileNames:Array<FSMockUseCaseSensitiveFileNamesCall> = [];
+	final callsCaseSensitivity:Array<FSMockCaseSensitivityCall> = [];
 	final callsWalkDir:Array<FSMockWalkDirCall> = [];
 	final callsWriteFile:Array<FSMockWriteFileCall> = [];
 
@@ -303,19 +303,19 @@ class FSMock implements FS {
 		return this.callsStat.copy();
 	}
 
-	// UseCaseSensitiveFileNames calls UseCaseSensitiveFileNamesFunc.
-	public function UseCaseSensitiveFileNames():Bool {
-		if (this.UseCaseSensitiveFileNamesFunc == null) {
-			throw "FSMock.UseCaseSensitiveFileNamesFunc: method is nil but FS.UseCaseSensitiveFileNames was just called";
+	// CaseSensitivity calls CaseSensitivityFunc.
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		if (this.CaseSensitivityFunc == null) {
+			throw "FSMock.CaseSensitivityFunc: method is nil but FS.CaseSensitivity was just called";
 		}
-		final callInfo = new FSMockUseCaseSensitiveFileNamesCall();
-		this.callsUseCaseSensitiveFileNames.push(callInfo);
-		return this.UseCaseSensitiveFileNamesFunc();
+		final callInfo = new FSMockCaseSensitivityCall();
+		this.callsCaseSensitivity.push(callInfo);
+		return this.CaseSensitivityFunc();
 	}
 
-	// UseCaseSensitiveFileNamesCalls gets all the calls that were made to UseCaseSensitiveFileNames.
-	public function UseCaseSensitiveFileNamesCalls():Array<FSMockUseCaseSensitiveFileNamesCall> {
-		return this.callsUseCaseSensitiveFileNames.copy();
+	// CaseSensitivityCalls gets all the calls that were made to CaseSensitivity.
+	public function CaseSensitivityCalls():Array<FSMockCaseSensitivityCall> {
+		return this.callsCaseSensitivity.copy();
 	}
 
 	// WalkDir calls WalkDirFunc.

@@ -456,7 +456,7 @@ class Harnessutil {
 
 	static function createCompilerHost(fs:FS, defaultLibraryPath:String, currentDirectory:String,
 			?contentMapperProject:ts.contentmapper.Host.Project):CachedCompilerHost {
-		final tracer = NewTracerForBaselining(new ComparePathsOptions(fs.UseCaseSensitiveFileNames(), currentDirectory), new go.Strings.Builder());
+		final tracer = NewTracerForBaselining(new ComparePathsOptions(fs.CaseSensitivity().IsCaseSensitive(), currentDirectory), new go.Strings.Builder());
 		final h = new CachedCompilerHost();
 		h.CompilerHost = Compiler.NewCompilerHost(Tspath.RootedDirectoryPathFromAbsolute(currentDirectory), fs, defaultLibraryPath, null, function(msg:Message, args:Array<Any>) {
 			tracer.Trace(msg, ...args);
@@ -1236,7 +1236,7 @@ class CompilationResult {
 		if (outDir != "") {
 			final common = this.Program.CommonSourceDirectory();
 			if (common != "") {
-				path = Tspath.GetRelativePathFromDirectory_legacy(common, path, new ComparePathsOptions(this.Host.FS().UseCaseSensitiveFileNames(), this.Host.GetCurrentDirectory()));
+				path = Tspath.GetRelativePathFromDirectory_legacy(common, path, new ComparePathsOptions(this.Host.FS().CaseSensitivity().IsCaseSensitive(), this.Host.GetCurrentDirectory()));
 				path = Tspath.CombinePaths(Tspath.ResolvePath(this.Host.GetCurrentDirectory(), this.Options.OutDir), path);
 			}
 		}

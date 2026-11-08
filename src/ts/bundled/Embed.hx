@@ -20,8 +20,8 @@ class WrappedFS implements FS {
 		this.fs = fs;
 	}
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.fs.UseCaseSensitiveFileNames();
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		return this.fs.CaseSensitivity();
 	}
 
 	public function FileExists(path:RootedFilePath):Bool {

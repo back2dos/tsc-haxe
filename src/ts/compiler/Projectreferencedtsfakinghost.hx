@@ -30,9 +30,9 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 
 	public function new() {}
 
-	// UseCaseSensitiveFileNames implements vfs.FS.
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.projectReferenceFileMapper.opts.Host.FS().UseCaseSensitiveFileNames();
+	// CaseSensitivity implements vfs.FS.
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		return this.projectReferenceFileMapper.opts.Host.FS().CaseSensitivity();
 	}
 
 	// FileExists implements vfs.FS.
@@ -107,7 +107,7 @@ class ProjectReferenceDtsFakingVfs implements ts.vfs.Vfs.FS {
 	}
 
 	function toPath(path:std.String):Path {
-		return Tspath.ToPath(path, this.projectReferenceFileMapper.opts.Host.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
+		return Tspath.ToPath(path, this.projectReferenceFileMapper.opts.Host.GetCurrentDirectory(), this.CaseSensitivity().IsCaseSensitive());
 	}
 
 	function handleDirectoryCouldBeSymlink(directory:RootedDirectoryPath):Void {

@@ -31,7 +31,7 @@ interface FsWithSys extends ts.vfs.Vfs.FS {
 class IoFS implements FsWithSys {
 	final common:Common;
 
-	final useCaseSensitiveFileNames:Bool;
+	final caseSensitivity:ts.tspath.CaseSensitivity;
 	final realpath:(path:String) -> ValueError<String>;
 	final writeFile:(path:String, content:String) -> Null<Error>;
 	final appendFile:(path:String, content:String) -> Null<Error>;
@@ -45,7 +45,7 @@ class IoFS implements FsWithSys {
 			mkdirAll:(path:String) -> Null<Error>, remove:(path:String) -> Null<Error>, chtimes:(path:String, aTime:Time, mTime:Time) -> Null<Error>,
 			fsys:go.Fs.FS) {
 		this.common = common;
-		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+		this.caseSensitivity = Tspath.caseSensitivityOf(useCaseSensitiveFileNames);
 		this.realpath = realpath;
 		this.writeFile = writeFile;
 		this.appendFile = appendFile;
@@ -55,8 +55,8 @@ class IoFS implements FsWithSys {
 		this.fsys = fsys;
 	}
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.useCaseSensitiveFileNames;
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		return this.caseSensitivity;
 	}
 
 	public function DirectoryExists(path:RootedDirectoryPath):Bool {

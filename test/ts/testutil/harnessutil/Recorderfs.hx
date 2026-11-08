@@ -41,8 +41,8 @@ class OutputRecorderFS implements FS {
 
 	// --- forwarded vfs.FS methods ---
 
-	public function UseCaseSensitiveFileNames():Bool
-		return FS_.UseCaseSensitiveFileNames();
+	public function CaseSensitivity():ts.tspath.CaseSensitivity
+		return FS_.CaseSensitivity();
 
 	public function FileExists(path:RootedFilePath):Bool
 		return FS_.FileExists(path);

@@ -119,7 +119,7 @@ class Testrunner {
 			final data = testUnits[i];
 			if (Harnessutil.GetConfigNameFromFileName(data.name) != "") {
 				final configFileName = Tspath.GetNormalizedAbsolutePath(data.name, currentDirectory);
-				final path = Tspath.ToPath(data.name, parseConfigHost.GetCurrentDirectory(), parseConfigHost.Vfs.UseCaseSensitiveFileNames());
+				final path = Tspath.ToPath(data.name, parseConfigHost.GetCurrentDirectory(), parseConfigHost.Vfs.CaseSensitivity().IsCaseSensitive());
 				final opts = new SourceFileParseOptions();
 				opts.FileName = cast configFileName;
 				opts.Path = path;

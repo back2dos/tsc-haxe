@@ -151,8 +151,8 @@ class FS implements ts.vfs.Vfs.FS {
 		return ret;
 	}
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.fs.UseCaseSensitiveFileNames();
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		return this.fs.CaseSensitivity();
 	}
 
 	public function WalkDir(root:String, walkFn:WalkDirFunc):Null<Error> {

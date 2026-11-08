@@ -86,7 +86,7 @@ class Module {
 		}
 		r.fs = fs;
 		r.baseDirectory = baseDirectory;
-		r.caseSensitivity = Tspath.caseSensitivityOf(fs.UseCaseSensitiveFileNames());
+		r.caseSensitivity = fs.CaseSensitivity();
 		if (r.caches.packageJsonInfoCache.CaseSensitivity() != r.caseSensitivity) {
 			throw "package JSON cache and resolver must use the same case sensitivity";
 		}
@@ -94,7 +94,7 @@ class Module {
 
 	public static function NewResolver(host:ResolutionHost, options:CompilerOptions, typingsLocation:RootedDirectoryPath, projectName:String):Resolver {
 		final r = new Resolver();
-		r.caches = newCaches(Tspath.caseSensitivityOf(host.FS().UseCaseSensitiveFileNames()), options);
+		r.caches = newCaches(host.FS().CaseSensitivity(), options);
 		r.compilerOptions = options;
 		r.typingsLocation = typingsLocation;
 		r.projectName = projectName;
@@ -111,7 +111,7 @@ class Module {
 		if (opts.PackageJsonCache != null) {
 			r.caches.packageJsonInfoCache = opts.PackageJsonCache;
 		} else {
-			r.caches = newCaches(Tspath.caseSensitivityOf(host.FS().UseCaseSensitiveFileNames()), compilerOptions);
+			r.caches = newCaches(host.FS().CaseSensitivity(), compilerOptions);
 		}
 		initResolver(r, host);
 		return r;

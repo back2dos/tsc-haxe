@@ -9,7 +9,7 @@ class Tsc {
 	static function getFormatOptsOfSys(sys:System, locale:Locale):FormattingOptions {
 		final o = new FormattingOptions();
 		o.NewLine = "\n";
-		o.ComparePathsOptions = new ComparePathsOptions(sys.FS().UseCaseSensitiveFileNames(), sys.GetCurrentDirectory());
+		o.ComparePathsOptions = new ComparePathsOptions(sys.FS().CaseSensitivity().IsCaseSensitive(), sys.GetCurrentDirectory());
 		o.Locale = locale;
 		return o;
 	}

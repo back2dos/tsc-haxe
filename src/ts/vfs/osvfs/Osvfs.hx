@@ -33,6 +33,12 @@ class Osvfs {
 	// PORT: computed on first use (Haxe static init order across classes is not defined).
 	static var isFileSystemCaseSensitiveValue:Null<Bool> = null;
 
+	// PORT: main's fileSystemCaseSensitivity var, computed on first use.
+	@:allow(ts.vfs.osvfs)
+	static inline function fileSystemCaseSensitivity():ts.tspath.CaseSensitivity {
+		return Tspath.caseSensitivityOf(isFileSystemCaseSensitive());
+	}
+
 	@:allow(ts.vfs.osvfs)
 	static function isFileSystemCaseSensitive():Bool {
 		if (isFileSystemCaseSensitiveValue == null) {

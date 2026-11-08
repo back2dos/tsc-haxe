@@ -211,7 +211,7 @@ class Tsoptions {
 		final compilerOptions = convertMapToOptions(optionsWithAbsolutePaths, new CompilerOptionsParser(new CompilerOptions())).CompilerOptions;
 		final watchOptions = convertMapToOptions(optionsWithAbsolutePaths, new WatchOptionsParser(new WatchOptions())).WatchOptions;
 		final result = NewParsedCommandLine(compilerOptions, parser.fileNames,
-			new ComparePathsOptions(host.FS().UseCaseSensitiveFileNames(), host.GetCurrentDirectory()));
+			new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), host.GetCurrentDirectory()));
 		result.ParsedConfig.WatchOptions = watchOptions;
 		result.Errors = parser.errors;
 		result.Raw = parser.options;
@@ -238,7 +238,7 @@ class Tsoptions {
 		result.Errors = parser.errors;
 		result.Raw = parser.options;
 
-		result.comparePathsOptions = new ComparePathsOptions(host.FS().UseCaseSensitiveFileNames(), host.GetCurrentDirectory());
+		result.comparePathsOptions = new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), host.GetCurrentDirectory());
 
 		if (Core.len(result.Projects) == 0) {
 			// tsc -b invoked with no extra arguments; act as if invoked with "tsc -b ."
@@ -4979,7 +4979,7 @@ class Tsoptions {
 			resolutionStack:Null<Array<Path>>, extendedConfigCache:Null<ExtendedConfigCache>,
 			result:ExtendsResult):Pair<Null<ParsedTsconfig>, Null<Array<Diagnostic>>> {
 		var errors:Null<Array<Diagnostic>> = null;
-		final extendedConfigPath = Tspath.ToPath(extendedConfigFileName, host.GetCurrentDirectory(), host.FS().UseCaseSensitiveFileNames());
+		final extendedConfigPath = Tspath.ToPath(extendedConfigFileName, host.GetCurrentDirectory(), host.FS().CaseSensitivity().IsCaseSensitive());
 
 		var cacheEntry:ExtendedConfigCacheEntry = null;
 		// Bypass the cache when we detect a cycle in the resolution stack.
@@ -5042,7 +5042,7 @@ class Tsoptions {
 			basePath:std.String, configFileName:std.String, resolutionStack:Null<Array<Path>>,
 			extendedConfigCache:Null<ExtendedConfigCache>):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
 		basePath = Tspath.NormalizeSlashes(basePath);
-		final resolvedPath = Tspath.ToPath(configFileName, basePath, host.FS().UseCaseSensitiveFileNames());
+		final resolvedPath = Tspath.ToPath(configFileName, basePath, host.FS().CaseSensitivity().IsCaseSensitive());
 		var errors:Null<Array<Diagnostic>> = null;
 		if (Slices.Contains(resolutionStack, resolvedPath)) {
 			var result:ParsedTsconfig = null;
@@ -5106,7 +5106,7 @@ class Tsoptions {
 										return pathStr;
 									} else {
 										if (relativeDifference == "") {
-											final t = new ComparePathsOptions(host.FS().UseCaseSensitiveFileNames(), basePath);
+											final t = new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), basePath);
 											relativeDifference = Tspath.ConvertToRelativePath_legacy(Tspath.GetDirectoryPath(extendedConfigPath), t);
 										}
 										return Tspath.CombinePaths(relativeDifference, pathStr);
@@ -5178,7 +5178,7 @@ class Tsoptions {
 				final keys = result.extendedSourceFiles.Keys();
 				if (keys != null) {
 					for (extendedSourceFile in keys.keys()) {
-						if (Tspath.ToPath(extendedSourceFile, "", host.FS().UseCaseSensitiveFileNames()) != resolvedPath) {
+						if (Tspath.ToPath(extendedSourceFile, "", host.FS().CaseSensitivity().IsCaseSensitive()) != resolvedPath) {
 							sourceFile.ExtendedSourceFiles = Core.InsertSorted(sourceFile.ExtendedSourceFiles, extendedSourceFile, Strings.Compare);
 						}
 					}
@@ -5377,7 +5377,7 @@ class Tsoptions {
 		}
 		final seenContentMapperExtensions = new StringMap<Bool>();
 		var contentMapperExtensions:Null<Array<std.String>> = [];
-		final caseInsensitive = !host.FS().UseCaseSensitiveFileNames();
+		final caseInsensitive = !host.FS().CaseSensitivity().IsCaseSensitive();
 		final canonicalExtension = function(extension:std.String):std.String {
 			return caseInsensitive ? extension.toLowerCase() : extension;
 		};
@@ -5577,7 +5577,7 @@ class Tsoptions {
 		result.Raw = parsedConfig.raw;
 		result.Errors = errors;
 
-		result.comparePathsOptions = new ComparePathsOptions(host.FS().UseCaseSensitiveFileNames(), basePathForFileNames);
+		result.comparePathsOptions = new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), basePathForFileNames);
 		result.literalFileNamesLen = literalFileNamesLen;
 		return result;
 	}
@@ -5924,7 +5924,7 @@ class Tsoptions {
 			options:CompilerOptions, host:FS, extraExtensions:Null<Array<std.String>>):Pair<Array<std.String>, Int> {
 		basePath = Tspath.NormalizePath(basePath);
 		final keyMappper = function(value:std.String):std.String {
-			return Tspath.GetCanonicalFileName(value, host.UseCaseSensitiveFileNames());
+			return Tspath.GetCanonicalFileName(value, host.CaseSensitivity().IsCaseSensitive());
 		};
 		// Literal file names (provided via the "files" array in tsconfig.json) are stored in a
 		// file map with a possibly case insensitive key. We use this map later when when including
@@ -5967,7 +5967,7 @@ class Tsoptions {
 								return StringTools.endsWith(include, Tspath.ExtensionJson);
 							});
 							jsonOnlyIncludeMatchers = Vfsmatch.NewSpecMatcher(includes, /* PORT: transitional, unchecked */ cast basePath, UsageFiles,
-								Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames()));
+								host.CaseSensitivity());
 						}
 						var includeIndex:Int = -1;
 						if (jsonOnlyIncludeMatchers != null) {
@@ -6064,7 +6064,7 @@ class Tsoptions {
 			optionsRaw:Null<OrderedMap<std.String, Dynamic>>, sys:ParseConfigHost,
 			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>> {
 		configFileName = Tspath.GetNormalizedAbsolutePath(configFileName, sys.GetCurrentDirectory());
-		return GetParsedCommandLineOfConfigFilePath(configFileName, Tspath.ToPath(configFileName, sys.GetCurrentDirectory(), sys.FS().UseCaseSensitiveFileNames()),
+		return GetParsedCommandLineOfConfigFilePath(configFileName, Tspath.ToPath(configFileName, sys.GetCurrentDirectory(), sys.FS().CaseSensitivity().IsCaseSensitive()),
 			options, optionsRaw, sys, extendedConfigCache);
 	}
 

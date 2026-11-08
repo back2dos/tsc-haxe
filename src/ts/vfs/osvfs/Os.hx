@@ -17,8 +17,8 @@ class OsFS implements FS {
 		this.common = common;
 	}
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return Osvfs.isFileSystemCaseSensitive();
+	public function CaseSensitivity():ts.tspath.CaseSensitivity {
+		return Osvfs.fileSystemCaseSensitivity();
 	}
 
 	public function ReadFile(path:RootedFilePath):ValueOk<String> {

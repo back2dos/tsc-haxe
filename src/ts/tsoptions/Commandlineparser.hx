@@ -59,7 +59,7 @@ class CommandLineParser {
 
 	function parseResponseFile(fileName:String):Void {
 		fileName = Tspath.GetNormalizedAbsolutePath(fileName, this.currentDirectory);
-		final path = Tspath.ToPath(fileName, this.currentDirectory, this.fs.UseCaseSensitiveFileNames());
+		final path = Tspath.ToPath(fileName, this.currentDirectory, this.fs.CaseSensitivity().IsCaseSensitive());
 		if (this.responseFileStack.Has(path)) {
 			return;
 		}

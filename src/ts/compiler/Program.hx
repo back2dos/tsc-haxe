@@ -337,7 +337,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	// UseCaseSensitiveFileNames implements checker.Program.
 	public function UseCaseSensitiveFileNames():Bool {
-		return this.Host().FS().UseCaseSensitiveFileNames();
+		return this.Host().FS().CaseSensitivity().IsCaseSensitive();
 	}
 
 	public function UsesUriStyleNodeCoreModules():Tristate {
@@ -1398,7 +1398,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 					}
 
 					var emitFileKey:std.String;
-					if (!this.Host().FS().UseCaseSensitiveFileNames()) {
+					if (!this.Host().FS().CaseSensitivity().IsCaseSensitive()) {
 						emitFileKey = Tspath.ToFileNameLowerCase(emitFilePath);
 					} else {
 						emitFileKey = emitFilePath;

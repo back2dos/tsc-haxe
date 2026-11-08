@@ -572,7 +572,7 @@ class Incremental {
 		to.buildInfoDirectory = Tspath.GetDirectoryPath(Tspath.GetNormalizedAbsolutePath(config.GetBuildInfoFileName(), config.GetCurrentDirectory()));
 		to.filePaths = Core.Map(buildInfo.FileNames, function(fileName:std.String):Path {
 			if (IsBuildInfoFileNameDefaultLibrary(fileName)) {
-				return Tspath.ToPath(Tspath.CombinePaths(host.DefaultLibraryPath(), fileName), host.GetCurrentDirectory(), host.FS().UseCaseSensitiveFileNames());
+				return Tspath.ToPath(Tspath.CombinePaths(host.DefaultLibraryPath(), fileName), host.GetCurrentDirectory(), host.FS().CaseSensitivity().IsCaseSensitive());
 			}
 			return Tspath.ToPath(fileName, to.buildInfoDirectory, config.UseCaseSensitiveFileNames());
 		});
