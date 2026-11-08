@@ -155,10 +155,14 @@ class Harnessutil {
 			configFile = tsconfig.ConfigFile;
 			errors = tsconfig.Errors;
 		}
-		final config = new ParsedCommandLine();
-		config.ParsedConfig = new ParsedOptions();
-		config.ParsedConfig.CompilerOptions = compilerOptions;
-		config.ParsedConfig.FileNames = programFileNames;
+		// TypeScript main: the command line's base directory is the tsconfig's, else the current directory
+		// (tsoptions.NewParsedCommandLine with baseDirectory).
+		var baseDirectory = currentDirectory;
+		if (tsconfig != null && tsconfig.GetCurrentDirectory() != "") {
+			baseDirectory = tsconfig.GetCurrentDirectory();
+		}
+		final config = Tsoptions.NewParsedCommandLine(compilerOptions, programFileNames,
+			new ComparePathsOptions(harnessOptions.UseCaseSensitiveFileNames, baseDirectory));
 		config.ConfigFile = configFile;
 		config.Errors = errors;
 		final result = compileFilesWithHost(host, config, harnessOptions);
