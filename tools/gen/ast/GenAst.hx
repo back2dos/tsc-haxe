@@ -568,19 +568,7 @@ class GenAst {
 		w.write('class ${node.name} extends NodeDefault$impl {');
 		w.push();
 		for (f in fields) {
-			if (node.name == "Identifier" && f.name == "Text") {
-				// PORT: perf — Go compares a string's inline length before its bytes; TextLen keeps
-				// Text's length in the node (set with Text), so name compares can reject without
-				// loading the string (Flow.isMatchingReference).
-				w.write('public var Text(default, set):String = "";');
-				w.write('public var TextLen(default, null):Int = 0;');
-				w.write('inline function set_Text(v:String):String {');
-				w.push();
-				w.write('TextLen = v.length;');
-				w.write('return Text = v;');
-				w.pop();
-				w.write('}');
-			} else if (f.origin == node.name) {
+			if (f.origin == node.name) {
 				w.write('public var ${f.name}:${f.hxType} = ${zero(f.hxType)};');
 			} else {
 				w.write('@:isVar public var ${f.name}(get, set):${f.hxType} = ${zero(f.hxType)};');

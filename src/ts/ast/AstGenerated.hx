@@ -496,12 +496,7 @@ class Token extends NodeDefault {
 
 class Identifier extends NodeDefault implements PrimaryExpressionBase implements FlowNodeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
-	public var Text(default, set):String = "";
-	public var TextLen(default, null):Int = 0;
-	inline function set_Text(v:String):String {
-		TextLen = v.length;
-		return Text = v;
-	}
+	public var Text:String = "";
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
 

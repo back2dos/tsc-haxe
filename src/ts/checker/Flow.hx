@@ -2149,11 +2149,9 @@ class Flow {
 					// the symbols of every unrelated declaration seen while walking flow nodes.
 					final name = target.Name();
 					if (name != null && Ast.IsIdentifier(name)) {
-						// PORT: perf — lengths first (Go's inline string length): a mismatch needs no load of the strings
 						final id = name.AsIdentifier();
 						if (source.Kind == KindIdentifier) {
-							final s = source.AsIdentifier();
-							if (id.TextLen != s.TextLen || id.Text != s.Text) {
+							if (id.Text != source.AsIdentifier().Text) {
 								return false;
 							}
 						} else if (id.Text != source.Text()) {
