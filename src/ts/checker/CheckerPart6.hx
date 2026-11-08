@@ -1875,24 +1875,37 @@ class CheckerPart6 {
 	static function somePropertyReducesToNever(c:Checker, t:Type):Bool {
 		// Collect declaration counts for each property across all constituent types of the intersection.
 		// PORT: Go's temporary property counts (an ordered table) → the names in order and their counts
+		// PORT: perf — the names' numbers by name (one lookup per property, the table sized once for all of them) and
+		// the counts by number
 		final names:Array<std.String> = [];
-		final counts = new StringMap<Int>();
+		final counts:Array<Int> = [];
+		final numbers = new StringMap<Int>();
 		final types = t.Types();
-		for (i in 0...types.length) {
-			for (prop in rangeOf(c.getLayoutPropertiesOfType(types[i]))) {
-				final n:Null<Int> = counts.get(prop.Name);
-				if (n == null) {
+		final props = [for (i in 0...types.length) c.getLayoutPropertiesOfType(types[i])];
+		var total = 0;
+		for (ps in props) {
+			total += Core.len(ps);
+		}
+		#if (target.name == "hxmc")
+		numbers.reserve(total);
+		#end
+		for (ps in props) {
+			for (prop in rangeOf(ps)) {
+				final j:Null<Int> = numbers.get(prop.Name);
+				if (j == null) {
+					numbers.set(prop.Name, names.length);
 					names.push(prop.Name);
-					counts.set(prop.Name, 1);
+					counts.push(1);
 				} else {
-					counts.set(prop.Name, n + 1);
+					counts[j]++;
 				}
 			}
 		}
 		// Check if any property appears in more than one constituent type and reduces to 'never'.
 		// Go in the order the properties were found so the combined properties are created in the same order every time.
-		for (name in names) {
-			if (counts.get(name) > 1) {
+		for (j in 0...names.length) {
+			final name = names[j];
+			if (counts[j] > 1) {
 				final prop = c.getPropertyOfUnionOrIntersectionType(t, name, true /*skipObjectFunctionPropertyAugment*/);
 				if (prop != null && c.isNeverReducedProperty(prop)) {
 					return true;
