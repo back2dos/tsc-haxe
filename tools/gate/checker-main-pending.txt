@@ -6,3 +6,5 @@ computedEnumMemberKeyNoCrash1.ts                               segfault
 crossProductUnionIntersectionRepeatedPropDeclarationsNoOOM1.ts runaway memory
 unreachableFlowAfterThrowingForInOfHead1.ts                    hang
 unreachableFlowAfterThrowingForInOfHead2.ts                    hang
+unreachableFlowAfterThrowingForHead1.ts                        hang
+unreachableFlowAfterThrowingForHead2.ts                        segfault
