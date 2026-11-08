@@ -1249,12 +1249,10 @@ class Inference {
 		final modifiers = Checker.getMappedTypeModifiers(r.mappedType);
 		final readonlyMask = (modifiers & MappedTypeModifiersIncludeReadonly) == 0;
 		final optionalMask:SymbolFlags = Core.IfElse((modifiers & MappedTypeModifiersIncludeOptional) != 0, 0, SymbolFlagsOptional);
-		var indexInfos:Array<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if (indexInfo != null) {
-			indexInfos = [
-				c.newIndexInfo(c.stringType, Core.OrElse(c.inferReverseMappedType(indexInfo.valueType, r.mappedType, r.constraintType), c.unknownType),
-					readonlyMask && indexInfo.isReadonly, null, null)
-			];
+			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, Core.OrElse(c.inferReverseMappedType(indexInfo.valueType, r.mappedType, r.constraintType), c.unknownType),
+				readonlyMask && indexInfo.isReadonly, null, null));
 		}
 		final members:SymbolTable = new StringMap<Symbol>();
 		final limitedConstraint = c.getLimitedConstraint(t);
@@ -1398,9 +1396,9 @@ class Inference {
 			}
 			members.set(name, literalProp);
 		}
-		var indexInfos:Array<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if ((t.flags & TypeFlagsString) != 0) {
-			indexInfos = [c.newIndexInfo(c.stringType, c.emptyObjectType, false /*isReadonly*/, null, null)];
+			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, c.emptyObjectType, false /*isReadonly*/, null, null));
 		}
 		return c.newAnonymousType(null, members, null, null, indexInfos);
 	}

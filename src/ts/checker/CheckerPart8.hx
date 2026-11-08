@@ -840,7 +840,7 @@ class CheckerPart8 {
 		if (Checker.IsTypeAny(thenFunction)) {
 			return null;
 		}
-		var thenSignatures:Array<Signature> = null;
+		var thenSignatures:haxe.ds.Vector<Signature> = null;
 		if (thenFunction != null) {
 			thenSignatures = c.getSignaturesOfType(thenFunction, SignatureKindCall);
 		}
@@ -3962,7 +3962,7 @@ class CheckerPart8 {
 		return null;
 	}
 
-	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):Array<IndexInfo> {
+	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):haxe.ds.Vector<IndexInfo> {
 		return Core.Filter(c.getIndexInfosOfType(t), function(info:IndexInfo):Bool {
 			return c.isApplicableIndexType(keyType, info.keyType);
 		});

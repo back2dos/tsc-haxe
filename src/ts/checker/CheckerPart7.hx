@@ -1143,7 +1143,7 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function newAnonymousType(c:Checker, symbol:Symbol, members:SymbolTable, callSignatures:Array<Signature>, constructSignatures:Array<Signature>, indexInfos:Array<IndexInfo>):Type {
+	static function newAnonymousType(c:Checker, symbol:Symbol, members:SymbolTable, callSignatures:haxe.ds.Vector<Signature>, constructSignatures:haxe.ds.Vector<Signature>, indexInfos:haxe.ds.Vector<IndexInfo>):Type {
 		final t = c.newObjectType(ObjectFlagsAnonymous, symbol);
 		c.setStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
 		return t;
@@ -1227,16 +1227,21 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function setStructuredTypeMembers(c:Checker, t:Type, members:SymbolTable, callSignatures:Array<Signature>, constructSignatures:Array<Signature>, indexInfos:Array<IndexInfo>):Void {
+	// PORT: perf — the lists are stored as Vectors: Arrays (fresh lists) are copied once, Vectors held as they are
+	static inline function setStructuredTypeMembersA(c:Checker, t:Type, members:SymbolTable, callSignatures:Array<Signature>, constructSignatures:Array<Signature>, indexInfos:Array<IndexInfo>):Void {
+		c.setStructuredTypeMembers(t, members, VectorBuilder.freezeOrNull(callSignatures), VectorBuilder.freezeOrNull(constructSignatures), VectorBuilder.freezeOrNull(indexInfos));
+	}
+
+	static function setStructuredTypeMembers(c:Checker, t:Type, members:SymbolTable, callSignatures:haxe.ds.Vector<Signature>, constructSignatures:haxe.ds.Vector<Signature>, indexInfos:haxe.ds.Vector<IndexInfo>):Void {
 		t.objectFlags |= ObjectFlagsMembersResolved;
 		final data = t.AsStructuredType();
 		data.members = members;
 		data.properties = c.getNamedMembers(members, t.symbol);
 		if (Core.len(callSignatures) != 0) {
 			if (Core.len(constructSignatures) != 0) {
-				data.signatures = Core.Concatenate(callSignatures, constructSignatures);
+				data.signatures = Core.concatVectors(callSignatures, constructSignatures);
 			} else {
-				// PORT: slices.Clip only limits capacity; Haxe arrays have none.
+				// PORT: slices.Clip only limits capacity; Vectors have none.
 				data.signatures = callSignatures;
 			}
 			data.callSignatureCount = callSignatures.length;

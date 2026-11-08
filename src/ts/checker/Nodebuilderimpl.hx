@@ -524,7 +524,7 @@ class NodeBuilderImpl {
 			return t.AsType();
 		}
 		final typeCopy = this.ch.newAnonymousType(t.symbol, t.getMembers(), t.CallSignatures(),
-			Core.IfElse(Core.len(constructSignatures) > 0, constructSignatures, ([] : Array<Signature>)), t.indexInfos);
+			Core.IfElse(Core.len(constructSignatures) > 0, constructSignatures, Core.emptyVector()), t.indexInfos);
 		t.objectTypeWithoutAbstractConstructSignatures = typeCopy;
 		typeCopy.AsStructuredType().objectTypeWithoutAbstractConstructSignatures = typeCopy;
 		return typeCopy;

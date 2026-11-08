@@ -628,7 +628,7 @@ class CheckerPart6 {
 			final callSignatures = c.getSignaturesOfSymbol(symbolTableGet(members, Ast.InternalSymbolNameCall));
 			final constructSignatures = c.getSignaturesOfSymbol(symbolTableGet(members, Ast.InternalSymbolNameNew));
 			final indexInfos = c.getIndexInfosOfSymbol(symbol);
-			c.setStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
+			c.setStructuredTypeMembersA(t, members, callSignatures, constructSignatures, indexInfos);
 			return;
 		}
 		// Combinations of function, class, enum and module
@@ -671,13 +671,13 @@ class CheckerPart6 {
 				indexInfos = appendOne(indexInfos, c.enumNumberIndexInfo);
 			}
 		}
-		d.indexInfos = indexInfos;
+		d.indexInfos = VectorBuilder.freezeOrNull(indexInfos);
 		// We resolve the members before computing the signatures because a signature may use
 		// typeof with a qualified name expression that circularly references the type we are
 		// in the process of resolving (see issue #6072). The temporarily empty signature list
 		// will never be observed because a qualified name can't reference signatures.
 		if ((symbol.Flags & (SymbolFlagsFunction | SymbolFlagsMethod)) != 0) {
-			d.signatures = c.getSignaturesOfSymbol(symbol);
+			d.signatures = VectorBuilder.freezeOrNull(c.getSignaturesOfSymbol(symbol));
 			d.callSignatureCount = Core.len(d.signatures);
 		}
 		// And likewise for construct signatures for classes
@@ -687,7 +687,7 @@ class CheckerPart6 {
 			if (Core.len(constructSignatures) == 0) {
 				constructSignatures = c.getDefaultConstructSignatures(classType);
 			}
-			d.signatures = appendAll(d.signatures, constructSignatures);
+			d.signatures = Core.Concatenate(d.signatures, VectorBuilder.freezeOrNull(constructSignatures));
 		}
 	}
 
@@ -882,7 +882,7 @@ class CheckerPart6 {
 		} else {
 			Checker.forEachType(c.getLowerBoundOfKeyType(constraintType), addMemberForKeyType);
 		}
-		c.setStructuredTypeMembers(t, members, null, null, indexInfos);
+		c.setStructuredTypeMembers(t, members, null, null, VectorBuilder.freezeOrNull(indexInfos));
 	}
 
 	static function getTypeOfMappedSymbol(c:Checker, symbol:Symbol):Type {
@@ -954,23 +954,23 @@ class CheckerPart6 {
 	static function resolveUnionTypeMembers(c:Checker, t:Type):Void {
 		// The members and properties collections are empty for union types. To get all properties of a union
 		// type use getPropertiesOfType (only the language service uses this).
-		var callSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):Array<Signature> {
+		var callSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):haxe.ds.Vector<Signature> {
 			if (t == c.globalFunctionType) {
-				return [c.unknownSignature];
+				return Core.vector1(c.unknownSignature);
 			}
 			return c.getSignaturesOfType(t, SignatureKindCall);
 		}));
 		if (Core.len(callSignatures) == 0) {
 			callSignatures = c.getArrayMemberCallSignatures(t);
 		}
-		final constructSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):Array<Signature> {
+		final constructSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):haxe.ds.Vector<Signature> {
 			return c.getSignaturesOfType(t, SignatureKindConstruct);
 		}));
 		final indexInfos = c.getUnionIndexInfos(t.Types());
 		c.setStructuredTypeMembers(t, null, callSignatures, constructSignatures, indexInfos);
 	}
 
-	static function getArrayMemberCallSignatures(c:Checker, t:Type):Array<Signature> {
+	static function getArrayMemberCallSignatures(c:Checker, t:Type):haxe.ds.Vector<Signature> {
 		// Check if union is exclusively instantiations of a member of the global Array or ReadonlyArray type.
 		var memberName = "";
 		final types = t.Types();
@@ -1013,7 +1013,12 @@ class CheckerPart6 {
 	// Generic signatures must match exactly, but non-generic signatures are allowed to have extra optional
 	// parameters and may differ in return types. When signatures differ in return types, the resulting return
 	// type is the union of the constituent return types.
-	static function getUnionSignatures(c:Checker, signatureLists:Array<Array<Signature>>):Array<Signature> {
+	// PORT: perf — the constituents' lists are Vectors, the result is built as an Array and returned as a Vector
+	static function getUnionSignatures(c:Checker, signatureLists:Array<haxe.ds.Vector<Signature>>):haxe.ds.Vector<Signature> {
+		return VectorBuilder.freezeOrNull(c.getUnionSignaturesA(signatureLists));
+	}
+
+	static function getUnionSignaturesA(c:Checker, signatureLists:Array<haxe.ds.Vector<Signature>>):Array<Signature> {
 		var result:Array<Signature> = null;
 		var indexWithLengthOverOne = 0;
 		var countLengthOverOne = 0;
@@ -1063,7 +1068,7 @@ class CheckerPart6 {
 			// nature and having overloads in multiple constituents would necessitate making a power set of signatures from the type, whose
 			// ordering would be non-obvious)
 			final masterList = signatureLists[indexWithLengthOverOne];
-			var results:Array<Signature> = masterList.copy();
+			var results:Array<Signature> = masterList.toArray();
 			for (signatures in signatureLists) {
 				if (!Core.Same(signatures, masterList)) {
 					final signature = signatures[0];
@@ -1235,34 +1240,47 @@ class CheckerPart6 {
 			// '{ new(...args: any[]) => A } & { new(s: string) => B }' has a single construct signature
 			// 'new(s: string) => A & B'.
 			if (!mixinFlags[i]) {
-				var signatures = c.getSignaturesOfType(t, SignatureKindConstruct);
+				final signatures = c.getSignaturesOfType(t, SignatureKindConstruct);
 				if (Core.len(signatures) != 0 && mixinCount > 0) {
-					signatures = Core.Map(signatures, function(s:Signature):Signature {
+					constructSignatures = c.appendSignatures(constructSignatures, Core.Map(signatures, function(s:Signature):Signature {
 						final clone = c.cloneSignature(s);
 						clone.resolvedReturnType = c.includeMixinType(c.getReturnTypeOfSignature(s), types, mixinFlags, i);
 						return clone;
-					});
+					}));
+				} else {
+					constructSignatures = c.appendSignatures(constructSignatures, signatures);
 				}
-				constructSignatures = c.appendSignatures(constructSignatures, signatures);
 			}
 			callSignatures = c.appendSignatures(callSignatures, c.getSignaturesOfType(t, SignatureKindCall));
 			for (info in rangeOf(c.getIndexInfosOfType(t))) {
 				indexInfos = c.appendIndexInfo(indexInfos, info, false /*union*/);
 			}
 		}
-		c.setStructuredTypeMembers(t, null, callSignatures, constructSignatures, indexInfos);
+		c.setStructuredTypeMembersA(t, null, callSignatures, constructSignatures, indexInfos);
 	}
 
-	static function appendSignatures(c:Checker, signatures:Array<Signature>, newSignatures:Array<Signature>):Array<Signature> {
+	static extern inline overload function appendSignatures(c:Checker, signatures:Array<Signature>, newSignatures:Array<Signature>):Array<Signature> {
 		for (sig in rangeOf(newSignatures)) {
-			if (Core.len(signatures) == 0 || Core.Every(signatures, function(s:Signature):Bool {
-				return c.compareSignaturesIdentical(s, sig, false /*partialMatch*/, false /*ignoreThisTypes*/, false /*ignoreReturnTypes*/, c.compareTypesIdentical) == TernaryFalse;
-			})) {
-				if (signatures == null) {
-					signatures = [];
-				}
-				signatures.push(sig);
+			signatures = c.appendSignature(signatures, sig);
+		}
+		return signatures;
+	}
+
+	static extern inline overload function appendSignatures(c:Checker, signatures:Array<Signature>, newSignatures:haxe.ds.Vector<Signature>):Array<Signature> {
+		for (i in 0...Core.len(newSignatures)) {
+			signatures = c.appendSignature(signatures, newSignatures[i]);
+		}
+		return signatures;
+	}
+
+	static function appendSignature(c:Checker, signatures:Array<Signature>, sig:Signature):Array<Signature> {
+		if (Core.len(signatures) == 0 || Core.Every(signatures, function(s:Signature):Bool {
+			return c.compareSignaturesIdentical(s, sig, false /*partialMatch*/, false /*ignoreThisTypes*/, false /*ignoreReturnTypes*/, c.compareTypesIdentical) == TernaryFalse;
+		})) {
+			if (signatures == null) {
+				signatures = [];
 			}
+			signatures.push(sig);
 		}
 		return signatures;
 	}
@@ -2979,11 +2997,19 @@ class CheckerPart6 {
 		return Checker.instantiateList(c, symbols, m, instantiateSymbolFn);
 	}
 
-	static function instantiateSignatures(c:Checker, signatures:Array<Signature>, m:TypeMapper):Array<Signature> {
+	static extern inline overload function instantiateSignatures(c:Checker, signatures:haxe.ds.Vector<Signature>, m:TypeMapper):haxe.ds.Vector<Signature> {
+		return Checker.instantiateVector(c, signatures, m, instantiateSignatureFn);
+	}
+
+	static extern inline overload function instantiateSignatures(c:Checker, signatures:Array<Signature>, m:TypeMapper):Array<Signature> {
 		return Checker.instantiateList(c, signatures, m, instantiateSignatureFn);
 	}
 
-	static function instantiateIndexInfos(c:Checker, indexInfos:Array<IndexInfo>, m:TypeMapper):Array<IndexInfo> {
+	static extern inline overload function instantiateIndexInfos(c:Checker, indexInfos:haxe.ds.Vector<IndexInfo>, m:TypeMapper):haxe.ds.Vector<IndexInfo> {
+		return Checker.instantiateVector(c, indexInfos, m, instantiateIndexInfoFn);
+	}
+
+	static extern inline overload function instantiateIndexInfos(c:Checker, indexInfos:Array<IndexInfo>, m:TypeMapper):Array<IndexInfo> {
 		return Checker.instantiateList(c, indexInfos, m, instantiateIndexInfoFn);
 	}
 

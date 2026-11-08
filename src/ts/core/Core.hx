@@ -892,7 +892,15 @@ class Core {
 		return zero;
 	}
 
-	public static function Concatenate<T>(s1:Null<Array<T>>, s2:Null<Array<T>>):Null<Array<T>> {
+	// PORT: perf — Go's Concatenate of two lists as a Vector (one of them when the other is empty, as Go)
+	public static extern inline overload function Concatenate<T>(s1:haxe.ds.Vector<T>, s2:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return len(s2) == 0 ? s1 : len(s1) == 0 ? s2 : concatVectors(s1, s2);
+	}
+
+	public static extern inline overload function Concatenate<T>(s1:Null<Array<T>>, s2:Null<Array<T>>):Null<Array<T>>
+		return concatenateArr(s1, s2);
+
+	static function concatenateArr<T>(s1:Null<Array<T>>, s2:Null<Array<T>>):Null<Array<T>> {
 		if (len(s2) == 0) {
 			return s1;
 		}

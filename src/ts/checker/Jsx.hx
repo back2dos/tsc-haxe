@@ -878,9 +878,9 @@ class Jsx {
 		return childTypes;
 	}
 
-	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):Array<Signature> {
+	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):haxe.ds.Vector<Signature> {
 		if ((elementType.flags & TypeFlagsString) != 0) {
-			return [c.anySignature];
+			return Core.vector1(c.anySignature);
 		}
 		if ((elementType.flags & TypeFlagsStringLiteral) != 0) {
 			final intrinsicType = c.getIntrinsicAttributesTypeFromStringLiteralType(elementType, caller);
@@ -889,7 +889,7 @@ class Jsx {
 				return null;
 			}
 			final fakeSignature = c.createSignatureForJSXIntrinsic(caller, intrinsicType);
-			return [fakeSignature];
+			return Core.vector1(fakeSignature);
 		}
 		final apparentElemType = c.getApparentType(elementType);
 		// Resolve the signatures, preferring constructor

@@ -2353,7 +2353,7 @@ class Checker {
 		return Ast.IsSpreadElement(parent) && Ast.IsCallOrNewExpression(parent.Parent);
 	}
 
-	static function someSignature(signatures:Array<Signature>, f:(s:Signature) -> Bool):Bool {
+	static function someSignature(signatures:haxe.ds.Vector<Signature>, f:(s:Signature) -> Bool):Bool {
 		if (signatures != null) {
 			for (sig in signatures) {
 				if (sig.composite != null && sig.composite.isUnion && Core.Some(sig.composite.signatures, f) || sig.composite == null && f(sig)) {
@@ -2794,7 +2794,24 @@ class Checker {
 		return true;
 	}
 
-	static function findIndexInfo(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
+	static extern inline overload function findIndexInfo(indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
+		return findIndexInfoV(indexInfos, keyType);
+	}
+
+	static function findIndexInfoV(indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
+		for (i in 0...Core.len(indexInfos)) {
+			if (indexInfos[i].keyType == keyType) {
+				return indexInfos[i];
+			}
+		}
+		return null;
+	}
+
+	static extern inline overload function findIndexInfo(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
+		return findIndexInfoA(indexInfos, keyType);
+	}
+
+	static function findIndexInfoA(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
 		if (indexInfos != null) {
 			for (info in indexInfos) {
 				if (info.keyType == keyType) {
@@ -2935,6 +2952,27 @@ class Checker {
 			return false;
 		}
 		return state;
+	}
+
+	// PORT: perf — instantiateList over a Vector: the same Vector when nothing changes, else a new exact-size one
+	static function instantiateVector<T>(c:Checker, values:haxe.ds.Vector<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):haxe.ds.Vector<T> {
+		final n = Core.len(values);
+		for (i in 0...n) {
+			final value = values[i];
+			final mapped = instantiator(c, value, m);
+			if (mapped != value) {
+				final result = new haxe.ds.Vector<T>(n);
+				for (k in 0...i) {
+					result[k] = values[k];
+				}
+				result[i] = mapped;
+				for (j in (i + 1)...n) {
+					result[j] = instantiator(c, values[j], m);
+				}
+				return result;
+			}
+		}
+		return values;
 	}
 
 	static function instantiateList<T>(c:Checker, values:Array<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):Array<T> {

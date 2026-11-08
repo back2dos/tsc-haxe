@@ -1232,7 +1232,7 @@ class CheckerPart4 {
 				if (indexInfos == null) indexInfos = [];
 				indexInfos.push(c.getObjectLiteralIndexInfo(isReadonly, propertiesArray.slice(offset), c.esSymbolType));
 			}
-			final result = c.newAnonymousType(node.Symbol(), propertiesTable, null, null, indexInfos);
+			final result = c.newAnonymousType(node.Symbol(), propertiesTable, null, null, VectorBuilder.freezeOrNull(indexInfos));
 			result.objectFlags |= objectFlags | ObjectFlagsObjectLiteral | ObjectFlagsContainsObjectOrArrayLiteral;
 			if (contextualType == null && Ast.IsInJSFile(node) && !Ast.IsInJsonFile(node)) {
 				result.objectFlags |= ObjectFlagsJSLiteral;
@@ -1484,11 +1484,11 @@ class CheckerPart4 {
 		}
 		final members = new SymbolTable();
 		final skippedPrivateMembers = new Set<std.String>();
-		var indexInfos:Array<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if (left == c.emptyObjectType) {
 			indexInfos = c.getIndexInfosOfType(right);
 		} else {
-			indexInfos = c.getUnionIndexInfos(haxe.ds.Vector.fromArrayCopy([left, right]));
+			indexInfos = c.getUnionIndexInfos(Core.vector2(left, right));
 		}
 		for (rightProp in rangeOf(c.getPropertiesOfType(right))) {
 			if ((Checker.getDeclarationModifierFlagsFromSymbol(rightProp) & (ModifierFlagsPrivate | ModifierFlagsProtected)) != 0) {
@@ -1553,9 +1553,9 @@ class CheckerPart4 {
 			|| (s.flags & TypeFlagsUnionOrIntersection) != 0 && Core.Every(s.Types(), t -> c.isValidSpreadType(t));
 	}
 
-	static function getUnionIndexInfos(c:Checker, types:haxe.ds.Vector<Type>):Array<IndexInfo> {
+	static function getUnionIndexInfos(c:Checker, types:haxe.ds.Vector<Type>):haxe.ds.Vector<IndexInfo> {
 		final sourceInfos = c.getIndexInfosOfType(types[0]);
-		var result:Array<IndexInfo> = null;
+		var result:VectorBuilder<IndexInfo> = null;
 		for (info in rangeOf(sourceInfos)) {
 			final indexType = info.keyType;
 			if (Core.Every(types, function(t:Type):Bool {
@@ -1568,12 +1568,12 @@ class CheckerPart4 {
 					return c.getIndexInfoOfType(t, indexType).isReadonly;
 				});
 				if (result == null) {
-					result = [];
+					result = new VectorBuilder<IndexInfo>();
 				}
 				result.push(c.newIndexInfo(indexType, valueType, isReadonly, null, null));
 			}
 		}
-		return result;
+		return result == null ? null : result.build();
 	}
 
 	static function isNonGenericObjectType(c:Checker, t:Type):Bool {

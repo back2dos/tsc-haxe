@@ -2819,7 +2819,7 @@ class CheckerPart2 {
 			return newIterationTypes(c.anyType, c.anyType, c.anyType);
 		}
 		// Both async and non-async iterators *must* have a `next` method.
-		var methodSignatures:Array<Signature> = null;
+		var methodSignatures:haxe.ds.Vector<Signature> = null;
 		if (methodType != null) {
 			methodSignatures = c.getSignaturesOfType(methodType, SignatureKindCall);
 		}

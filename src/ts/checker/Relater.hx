@@ -2240,7 +2240,7 @@ class Relater {
 		return signature.resolvedReturnType == null && c.findResolutionCycleStartIndex((cast signature : TypeSystemEntity) /* PORT: Signature does not declare TypeSystemEntity in the skeleton */, TypeSystemPropertyNameResolvedReturnType) >= 0;
 	}
 
-	static function findMatchingSignatures(c:Checker, signatureLists:Array<Array<Signature>>, signature:Signature, listIndex:Int):Array<Signature> {
+	static function findMatchingSignatures(c:Checker, signatureLists:Array<haxe.ds.Vector<Signature>>, signature:Signature, listIndex:Int):Array<Signature> {
 		if (Core.len(signature.typeParameters) != 0) {
 			// We require an exact match for generic signatures, so we only return signatures from the first
 			// signature list and only if they have exact matches in the other signature lists.
@@ -2275,7 +2275,25 @@ class Relater {
 		return result;
 	}
 
-	static function findMatchingSignature(c:Checker, signatureList:Array<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
+	static extern inline overload function findMatchingSignature(c:Checker, signatureList:Array<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
+		final compareTypes:(s:Type, t:Type) -> Ternary = partialMatch ? (s, t) -> c.compareTypesSubtypeOf(s, t) : (s, t) -> c.compareTypesIdentical(s, t);
+		var found:Signature = null;
+		if (signatureList != null) {
+			for (s in signatureList) {
+				if (c.compareSignaturesIdentical(s, signature, partialMatch, ignoreThisTypes, ignoreReturnTypes, compareTypes) != 0) {
+					found = s;
+					break;
+				}
+			}
+		}
+		return found;
+	}
+
+	static extern inline overload function findMatchingSignature(c:Checker, signatureList:haxe.ds.Vector<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
+		return c.findMatchingSignatureV(signatureList, signature, partialMatch, ignoreThisTypes, ignoreReturnTypes);
+	}
+
+	static function findMatchingSignatureV(c:Checker, signatureList:haxe.ds.Vector<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
 		final compareTypes:(s:Type, t:Type) -> Ternary = partialMatch ? (s, t) -> c.compareTypesSubtypeOf(s, t) : (s, t) -> c.compareTypesIdentical(s, t);
 		if (signatureList != null) {
 			for (s in signatureList) {

@@ -1158,9 +1158,9 @@ class ConstrainedType extends TypeBase {
 class StructuredType extends ConstrainedType {
 	var members:SymbolTable = null;
 	var properties:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (one exact-size object; null: Go nil, which a lazy type tests)
-	var signatures:Array<Signature> = null; // Signatures (call + construct)
+	var signatures:haxe.ds.Vector<Signature> = null; // Signatures (call + construct) // PORT: perf — Vectors (one exact-size object each)
 	var callSignatureCount:Int = 0; // Count of call signatures
-	var indexInfos:Array<IndexInfo> = null;
+	var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 	var objectTypeWithoutAbstractConstructSignatures(get, set):Type; // (in TypeExtra)
 
 	inline function get_objectTypeWithoutAbstractConstructSignatures():Type {
@@ -1184,19 +1184,19 @@ class StructuredType extends ConstrainedType {
 	}
 
 
-	public function CallSignatures():Array<Signature> {
-		// PORT: slices.Clip of a subslice → a copy; nil[:0] stays nil.
+	// PORT: slices.Clip of a subslice → a copy (the same Vector when it is all of it); nil[:0] stays nil.
+	public function CallSignatures():haxe.ds.Vector<Signature> {
 		if (signatures == null) {
 			return null;
 		}
-		return signatures.slice(0, callSignatureCount);
+		return Core.subVector(signatures, 0, callSignatureCount);
 	}
 
-	public function ConstructSignatures():Array<Signature> {
+	public function ConstructSignatures():haxe.ds.Vector<Signature> {
 		if (signatures == null) {
 			return null;
 		}
-		return signatures.slice(callSignatureCount);
+		return Core.subVector(signatures, callSignatureCount, signatures.length);
 	}
 
 	// PORT: from TypeScript main (microsoft/typescript-go#64915, lazy member resolution): the members of a class or
@@ -1356,9 +1356,9 @@ class InterfaceType extends TypeReference {
 	var resolvedBaseConstructorType:Type = null;
 	var resolvedBaseTypes:Array<Type> = null;
 	var declaredMembers:SymbolTable = null; // Declared members
-	var declaredCallSignatures:Array<Signature> = null; // Declared call signatures
-	var declaredConstructSignatures:Array<Signature> = null; // Declared construct signatures
-	var declaredIndexInfos:Array<IndexInfo> = null; // Declared index signatures
+	var declaredCallSignatures:haxe.ds.Vector<Signature> = null; // Declared call signatures
+	var declaredConstructSignatures:haxe.ds.Vector<Signature> = null; // Declared construct signatures
+	var declaredIndexInfos:haxe.ds.Vector<IndexInfo> = null; // Declared index signatures
 
 	public function new() {
 		super();
