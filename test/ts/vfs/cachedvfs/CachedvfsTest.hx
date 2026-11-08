@@ -10,7 +10,7 @@ import ts.vfs.VfsTestUtil.*;
 // Port of cachedvfs_test.go.
 class CachedvfsTest {
 	static function createMockFS():FSMock {
-		return Vfsmock.Wrap(Vfstest.FromMap(["/some/path/file.txt" => "hello world"], true));
+		return Vfsmock.Wrap(Vfstest.FromMap(["/some/path/file.txt" => "hello world"], CaseSensitive));
 	}
 
 	public static function run() {

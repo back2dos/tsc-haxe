@@ -52,7 +52,7 @@ class VfsmatchTest {
 			"/dev/js/ab.min.js" => "",
 			"/ext/ext.ts" => "",
 			"/ext/b/a..b.ts" => "",
-		], false);
+		], CaseInsensitive);
 	}
 
 	// caseSensitiveHost simulates a Unix-like case-sensitive file system
@@ -80,7 +80,7 @@ class VfsmatchTest {
 			"/dev/js/a.js" => "",
 			"/dev/js/b.js" => "",
 			"/dev/js/d.MIN.js" => "",
-		], true);
+		], CaseSensitive);
 	}
 
 	// commonFoldersHost includes node_modules, bower_components, jspm_packages
@@ -94,7 +94,7 @@ class VfsmatchTest {
 			"/dev/node_modules/a.ts" => "",
 			"/dev/bower_components/a.ts" => "",
 			"/dev/jspm_packages/a.ts" => "",
-		], false);
+		], CaseInsensitive);
 	}
 
 	// dottedFoldersHost includes files and folders starting with a dot
@@ -108,7 +108,7 @@ class VfsmatchTest {
 			"/dev/.z/c.ts" => "",
 			"/dev/w/.u/e.ts" => "",
 			"/dev/g.min.js/.g/g.ts" => "",
-		], false);
+		], CaseInsensitive);
 	}
 
 	// mixedExtensionHost has various file extensions
@@ -125,7 +125,7 @@ class VfsmatchTest {
 			"/dev/d.js" => "",
 			"/dev/e.jsx" => "",
 			"/dev/f.other" => "",
-		], false);
+		], CaseInsensitive);
 	}
 
 	// sameNamedDeclarationsHost has files with same names but different extensions
@@ -143,7 +143,7 @@ class VfsmatchTest {
 			"/dev/n.d.ts" => "",
 			"/dev/o.ts" => "",
 			"/dev/x.d.ts" => "",
-		], false);
+		], CaseInsensitive);
 	}
 
 	static function runReadDirectoryCase(tc:ReadDirTestCase) {
@@ -808,7 +808,7 @@ class VfsmatchTest {
 						"/dev/file^start.ts" => "",
 						"/dev/file|pipe.ts" => "",
 						"/dev/file#hash.ts" => "",
-					], false),
+					], CaseInsensitive),
 					extensions: [".ts"],
 					includes: ["file+test.ts"],
 					expect: (got) -> {
@@ -839,7 +839,7 @@ class VfsmatchTest {
 					host: () -> Vfstest.FromMap([
 						"/dev/File.ts" => "",
 						"/dev/FILE.ts" => "",
-					], true),
+					], CaseSensitive),
 					extensions: [".ts"],
 					includes: ["*.ts"],
 					expect: (got) -> {
@@ -879,7 +879,7 @@ class VfsmatchTest {
 					name: "empty includes slice behavior",
 					host: () -> Vfstest.FromMap([
 						"/root/a.ts" => "",
-					], true),
+					], CaseSensitive),
 					path: "/root",
 					currentDir: "/",
 					extensions: [".ts"],
@@ -910,7 +910,7 @@ class VfsmatchTest {
 							"/root/a/file.ts" => "",
 							"/root/a/b" => Vfstest.Symlink("/root/a"),
 						];
-						return Vfstest.FromMap(m, true);
+						return Vfstest.FromMap(m, CaseSensitive);
 					},
 					path: "/root",
 					currentDir: "/",
@@ -944,7 +944,7 @@ class VfsmatchTest {
 						"/dev/x/a.ts" => "",
 						"/dev/x/aa.ts" => "",
 						"/dev/x/b.ts" => "",
-					], false),
+					], CaseInsensitive),
 					extensions: [".ts", ".tsx", ".d.ts"],
 					includes: ["z/*.ts", "x/*.ts"],
 					expect: (got) -> {
@@ -963,7 +963,7 @@ class VfsmatchTest {
 						"/dev/.z/c.ts" => "",
 						"/dev/w/.u/e.ts" => "",
 						"/dev/g.min.js/.g/g.ts" => "",
-					], false),
+					], CaseInsensitive),
 					extensions: [".ts", ".tsx", ".d.ts"],
 					includes: ["**/.*/*"],
 					expect: (got) -> {
@@ -985,7 +985,7 @@ class VfsmatchTest {
 						"/dev/node_modules/a.ts" => "",
 						"/dev/bower_components/a.ts" => "",
 						"/dev/jspm_packages/a.ts" => "",
-					], false),
+					], CaseInsensitive),
 					extensions: [".ts", ".tsx", ".d.ts"],
 					includes: ["**/a.ts"],
 					expect: (got) -> {
@@ -999,7 +999,7 @@ class VfsmatchTest {
 						"/dev/js/b.js" => "",
 						"/dev/js/d.min.js" => "",
 						"/dev/js/ab.min.js" => "",
-					], false),
+					], CaseInsensitive),
 					extensions: [".js"],
 					includes: ["js/*"],
 					expect: (got) -> {
@@ -1013,7 +1013,7 @@ class VfsmatchTest {
 						"/dev/js/b.js" => "",
 						"/dev/js/d.min.js" => "",
 						"/dev/js/ab.min.js" => "",
-					], false),
+					], CaseInsensitive),
 					extensions: [".js"],
 					includes: ["js/*.min.js"],
 					expect: (got) -> {
@@ -1660,7 +1660,7 @@ class VfsmatchTest {
 			// When a literal include path goes through a package folder,
 			// the skipPackageFolders flag on literal components should not block it
 			// because literal components in includes don't have skipPackageFolders=true
-			final host = Vfstest.FromMap(["/dev/node_modules/pkg/index.ts" => ""], false);
+			final host = Vfstest.FromMap(["/dev/node_modules/pkg/index.ts" => ""], CaseInsensitive);
 
 			// Explicit literal path should work
 			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["node_modules/pkg/index.ts"], Vfsmatch.UnlimitedDepth, host));
@@ -1828,7 +1828,7 @@ class VfsmatchTest {
 			final host = Vfstest.FromMap([
 				"/dev/a.ts" => "",
 				"/dev/x/b.ts" => "",
-			], false);
+			], CaseInsensitive);
 
 			// The matchFilesNoRegex function normalizes paths, but we can test internal handling
 			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["**/*.ts"], Vfsmatch.UnlimitedDepth, host));
@@ -1843,7 +1843,7 @@ class VfsmatchTest {
 			final host = Vfstest.FromMap([
 				"/dev/a.ts" => "",
 				"/dev/node_modules/b.ts" => "",
-			], false);
+			], CaseInsensitive);
 
 			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["*/*.ts"], Vfsmatch.UnlimitedDepth, host));
 			T.isTrue(!Slices.Contains(got, "/dev/node_modules/b.ts"), "should skip node_modules with wildcard");
@@ -1851,7 +1851,7 @@ class VfsmatchTest {
 
 		T.run("TestGlobPatternLiteralWithPackageFolders/explicit literal includes package folder", () -> {
 			// Explicit literal paths should include package folders
-			final host = Vfstest.FromMap(["/dev/node_modules/b.ts" => ""], false);
+			final host = Vfstest.FromMap(["/dev/node_modules/b.ts" => ""], CaseInsensitive);
 
 			final got = fileNames(Vfsmatch.matchFileNames(rd("/dev"), [".ts"], null, ["node_modules/b.ts"], Vfsmatch.UnlimitedDepth, host));
 			T.isTrue(Slices.Contains(got, "/dev/node_modules/b.ts"), "should include explicit node_modules path");

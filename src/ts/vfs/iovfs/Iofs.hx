@@ -40,12 +40,12 @@ class IoFS implements FsWithSys {
 	final chtimes:(path:String, aTime:Time, mTime:Time) -> Null<Error>;
 	final fsys:go.Fs.FS;
 
-	public function new(common:Common, useCaseSensitiveFileNames:Bool, realpath:(path:String) -> ValueError<String>,
+	public function new(common:Common, caseSensitivity:ts.tspath.CaseSensitivity, realpath:(path:String) -> ValueError<String>,
 			writeFile:(path:String, content:String) -> Null<Error>, appendFile:(path:String, content:String) -> Null<Error>,
 			mkdirAll:(path:String) -> Null<Error>, remove:(path:String) -> Null<Error>, chtimes:(path:String, aTime:Time, mTime:Time) -> Null<Error>,
 			fsys:go.Fs.FS) {
 		this.common = common;
-		this.caseSensitivity = Tspath.caseSensitivityOf(useCaseSensitiveFileNames);
+		this.caseSensitivity = caseSensitivity;
 		this.realpath = realpath;
 		this.writeFile = writeFile;
 		this.appendFile = appendFile;

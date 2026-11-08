@@ -164,8 +164,8 @@ class Tsbaseline {
 			// Filter down to the errors in the file
 			final fileErrors = Core.Filter(diagnostics, function(e:ASTDiagnostic):Bool {
 				return e.File() != null
-					&& Tspath.ComparePaths_legacy(removeTestPathPrefixes(e.File().FileName(), false), removeTestPathPrefixes(inputFile.UnitName, false),
-						new ComparePathsOptions()) == 0;
+					&& Tspath.ComparePaths(removeTestPathPrefixes(e.File().FileName(), false), removeTestPathPrefixes(inputFile.UnitName, false),
+						CaseInsensitive) == 0;
 			});
 
 			// Header

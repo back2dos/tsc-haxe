@@ -44,32 +44,3 @@ abstract Path(String) from String to String {
 			&& (StringTools.fastCodeAt(p, p.length - 1) == '/'.code || StringTools.fastCodeAt(c, p.length) == '/'.code);
 	}
 }
-
-class ComparePathsOptions {
-	public var UseCaseSensitiveFileNames:Bool = false;
-	public var CurrentDirectory:String = "";
-
-	public function new(UseCaseSensitiveFileNames:Bool = false, CurrentDirectory:String = "") {
-		this.UseCaseSensitiveFileNames = UseCaseSensitiveFileNames;
-		this.CurrentDirectory = CurrentDirectory;
-	}
-
-	// Go struct value copy.
-	public function copy():ComparePathsOptions {
-		return new ComparePathsOptions(UseCaseSensitiveFileNames, CurrentDirectory);
-	}
-
-	// PORT: transitional (ComparePathsOptions is gone in main).
-	public inline function caseSensitivity():CaseSensitivity {
-		return Tspath.caseSensitivityOf(UseCaseSensitiveFileNames);
-	}
-
-	public function GetComparer():(a:String, b:String) -> Int {
-		return Stringutil.GetStringComparer(!this.UseCaseSensitiveFileNames);
-	}
-
-	@:allow(ts.tspath)
-	function getEqualityComparer():(a:String, b:String) -> Bool {
-		return Stringutil.GetStringEqualityComparer(!this.UseCaseSensitiveFileNames);
-	}
-}

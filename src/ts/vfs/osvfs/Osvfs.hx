@@ -36,7 +36,7 @@ class Osvfs {
 	// PORT: main's fileSystemCaseSensitivity var, computed on first use.
 	@:allow(ts.vfs.osvfs)
 	static inline function fileSystemCaseSensitivity():ts.tspath.CaseSensitivity {
-		return Tspath.caseSensitivityOf(isFileSystemCaseSensitive());
+		return isFileSystemCaseSensitive() ? CaseSensitive : CaseInsensitive;
 	}
 
 	@:allow(ts.vfs.osvfs)

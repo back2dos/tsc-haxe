@@ -9,7 +9,7 @@ import ts.vfs.vfstest.Vfstest;
 class VfsmockTest {
 	public static function run() {
 		T.run("TestWrap", () -> {
-			final wrapper = Vfsmock.Wrap(Vfstest.FromMap(new Map<String, String>(), true));
+			final wrapper = Vfsmock.Wrap(Vfstest.FromMap(new Map<String, String>(), CaseSensitive));
 
 			final names = ["AppendFileFunc", "CaseSensitivityFunc", "ChtimesFunc", "DirectoryExistsFunc", "FileExistsFunc", "GetAccessibleEntriesFunc", "ReadFileFunc",
 				"RealpathFunc", "RemoveFunc", "StatFunc", "WalkDirFunc", "WriteFileFunc"];

@@ -36,7 +36,7 @@ class Harnessutil {
 		}
 		compilerOptions.NoErrorTruncation = TSTrue;
 		final harnessOptions = new HarnessOptions();
-		harnessOptions.UseCaseSensitiveFileNames = true;
+		harnessOptions.CaseSensitivity = CaseSensitive;
 		harnessOptions.CurrentDirectory = currentDirectory;
 
 		// Parse harness and compiler options from the test configuration
@@ -152,7 +152,7 @@ class Harnessutil {
 			}
 		}
 
-		var fs = Vfstest.FromMap(testfs, harnessOptions.UseCaseSensitiveFileNames);
+		var fs = Vfstest.FromMap(testfs, harnessOptions.CaseSensitivity);
 		fs = Bundled.WrapFS(fs);
 		fs = NewOutputRecorderFS(fs);
 
@@ -177,7 +177,7 @@ class Harnessutil {
 			baseDirectory = tsconfig.BaseDirectory();
 		}
 		final config = Tsoptions.NewParsedCommandLine(compilerOptions, programFileNames, null, baseDirectory,
-			Tspath.caseSensitivityOf(harnessOptions.UseCaseSensitiveFileNames));
+			harnessOptions.CaseSensitivity);
 		config.ParsedConfig.ContentMappers = contentMappers;
 		config.ConfigFile = configFile;
 		config.Errors = errors;
@@ -323,7 +323,11 @@ class Harnessutil {
 	static function parseHarnessOption(t:T, key:String, value:Dynamic, harnessOptions:HarnessOptions):Void {
 		switch (key) {
 			case "useCaseSensitiveFileNames":
-				harnessOptions.UseCaseSensitiveFileNames = (value : Bool);
+				if ((value : Bool)) {
+					harnessOptions.CaseSensitivity = CaseSensitive;
+				} else {
+					harnessOptions.CaseSensitivity = CaseInsensitive;
+				}
 			case "baselineFile":
 				harnessOptions.BaselineFile = (value : String);
 			case "includeBuiltFile":
@@ -451,9 +455,11 @@ class Harnessutil {
 			+ (opts.ExternalModuleIndicatorOptions.Force ? "1" : "0") + "\x00" + (scriptKind : Int) + "\x00" + text;
 	}
 
-	public static function NewTracerForBaselining(opts:ComparePathsOptions, builder:go.Strings.Builder):TracerForBaselining {
+	public static function NewTracerForBaselining(currentDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity,
+			builder:go.Strings.Builder):TracerForBaselining {
 		final t = new TracerForBaselining();
-		t.opts = opts;
+		t.currentDirectory = currentDirectory;
+		t.caseSensitivity = caseSensitivity;
 		t.packageJsonCache = new StringMap();
 		t.builder = builder;
 		return t;
@@ -461,7 +467,7 @@ class Harnessutil {
 
 	static function createCompilerHost(fs:FS, defaultLibraryPath:RootedDirectoryPath, currentDirectory:String,
 			?contentMapperProject:ts.contentmapper.Host.Project):CachedCompilerHost {
-		final tracer = NewTracerForBaselining(new ComparePathsOptions(fs.CaseSensitivity().IsCaseSensitive(), currentDirectory), new go.Strings.Builder());
+		final tracer = NewTracerForBaselining(Tspath.RootedDirectoryPathFromAbsolute(currentDirectory), fs.CaseSensitivity(), new go.Strings.Builder());
 		final h = new CachedCompilerHost();
 		h.CompilerHost = Compiler.NewCompilerHost(Tspath.RootedDirectoryPathFromAbsolute(currentDirectory), fs, defaultLibraryPath, null, function(msg:Message, args:Array<Any>) {
 			tracer.Trace(msg, ...args);
@@ -1019,7 +1025,7 @@ class NamedTestConfiguration {
 }
 
 class HarnessOptions {
-	public var UseCaseSensitiveFileNames:Bool = false;
+	public var CaseSensitivity:CaseSensitivity = CaseInsensitive;
 	public var BaselineFile:String = "";
 	public var IncludeBuiltFile:String = "";
 	public var FileName:String = "";
@@ -1039,7 +1045,7 @@ class HarnessOptions {
 	// PORT: Go value struct; copy before mutating a copy (PORTING.md §3).
 	public function copy():HarnessOptions {
 		final r = new HarnessOptions();
-		r.UseCaseSensitiveFileNames = UseCaseSensitiveFileNames;
+		r.CaseSensitivity = CaseSensitivity;
 		r.BaselineFile = BaselineFile;
 		r.IncludeBuiltFile = IncludeBuiltFile;
 		r.FileName = FileName;
@@ -1121,7 +1127,8 @@ class CachedCompilerHost implements CompilerHost {
 
 @:allow(ts.testutil.harnessutil)
 class TracerForBaselining {
-	var opts:ComparePathsOptions = null;
+	var currentDirectory:RootedDirectoryPath = cast "";
+	var caseSensitivity:CaseSensitivity = CaseInsensitive;
 	var packageJsonCache:StringMap<Bool> = null;
 	var builder:go.Strings.Builder = null;
 
@@ -1147,7 +1154,7 @@ class TracerForBaselining {
 			final str = msg.substring(0, msg.length - "' does not exist according to earlier cached lookups.".length);
 			final file = Strings.TrimPrefix(str, "File '");
 			if (usePackageJsonCache) {
-				final filePath:String = Tspath.ToPath(file, this.opts.CurrentDirectory, this.opts.UseCaseSensitiveFileNames);
+				final filePath:String = this.caseSensitivity.PathKey(Tspath.ToRootedPath(file, this.currentDirectory));
 				if (this.packageJsonCache.exists(filePath)) {
 					return msg;
 				} else {
@@ -1160,7 +1167,7 @@ class TracerForBaselining {
 			final str = msg.substring(0, msg.length - "' exists according to earlier cached lookups.".length);
 			final file = Strings.TrimPrefix(str, "File '");
 			if (usePackageJsonCache) {
-				final filePath:String = Tspath.ToPath(file, this.opts.CurrentDirectory, this.opts.UseCaseSensitiveFileNames);
+				final filePath:String = this.caseSensitivity.PathKey(Tspath.ToRootedPath(file, this.currentDirectory));
 				if (this.packageJsonCache.exists(filePath)) {
 					return msg;
 				} else {
@@ -1173,7 +1180,7 @@ class TracerForBaselining {
 			if (StringTools.endsWith(msg, "' does not exist.")) {
 				final str = msg.substring(0, msg.length - "' does not exist.".length);
 				final file = Strings.TrimPrefix(str, "File '");
-				final filePath:String = Tspath.ToPath(file, this.opts.CurrentDirectory, this.opts.UseCaseSensitiveFileNames);
+				final filePath:String = this.caseSensitivity.PathKey(Tspath.ToRootedPath(file, this.currentDirectory));
 				if (!this.packageJsonCache.exists(filePath)) {
 					this.packageJsonCache.set(filePath, false);
 					return msg;
@@ -1184,7 +1191,7 @@ class TracerForBaselining {
 			if (StringTools.startsWith(msg, "Found 'package.json' at '")) {
 				final str = msg.substring("Found 'package.json' at '".length);
 				final file = Strings.TrimSuffix(str, "'.");
-				final filePath:String = Tspath.ToPath(file, this.opts.CurrentDirectory, this.opts.UseCaseSensitiveFileNames);
+				final filePath:String = this.caseSensitivity.PathKey(Tspath.ToRootedPath(file, this.currentDirectory));
 				if (!this.packageJsonCache.exists(filePath)) {
 					this.packageJsonCache.set(filePath, true);
 					return msg;

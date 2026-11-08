@@ -15,6 +15,7 @@ import go.Tuple;
 import haxe.ds.StringMap;
 import haxe.io.Bytes;
 import ts.tspath.Tspath;
+import ts.tspath.CaseSensitivity;
 import ts.vfs.Vfs;
 import ts.vfs.iovfs.Iofs;
 import ts.vfs.iovfs.Iovfs;
@@ -30,8 +31,8 @@ class Vfstest {
 	// The paths must be normalized absolute paths according to the tspath package,
 	// without trailing directory separators.
 	// The paths must be all POSIX-style or all Windows-style, but not both.
-	public static function FromMap<File>(m:Null<Map<String, File>>, useCaseSensitiveFileNames:Bool):FS {
-		return FromMapWithClock(m, useCaseSensitiveFileNames, new ClockImpl(Time.Now()));
+	public static function FromMap<File>(m:Null<Map<String, File>>, caseSensitivity:CaseSensitivity):FS {
+		return FromMapWithClock(m, caseSensitivity, new ClockImpl(Time.Now()));
 	}
 
 	// FromMapWithClock creates a new [vfs.FS] from a map of paths to file contents.
@@ -40,7 +41,7 @@ class Vfstest {
 	// The paths must be normalized absolute paths according to the tspath package,
 	// without trailing directory separators.
 	// The paths must be all POSIX-style or all Windows-style, but not both.
-	public static function FromMapWithClock<File>(m:Null<Map<String, File>>, useCaseSensitiveFileNames:Bool, clock:Clock):FS {
+	public static function FromMapWithClock<File>(m:Null<Map<String, File>>, caseSensitivity:CaseSensitivity, clock:Clock):FS {
 		var posix = false;
 		var windows = false;
 
@@ -101,7 +102,7 @@ class Vfstest {
 			throw "mixed posix and windows paths";
 		}
 
-		return Iovfs.From(convertMapFS(mfs, useCaseSensitiveFileNames, clock), useCaseSensitiveFileNames);
+		return Iovfs.From(convertMapFS(mfs, caseSensitivity, clock), caseSensitivity);
 	}
 
 	// PORT: Go's %T of the value, for the scalar types a caller can pass.
@@ -119,11 +120,11 @@ class Vfstest {
 	}
 
 	@:allow(ts.vfs.vfstest)
-	static function convertMapFS(input:go.Fstest.MapFS, useCaseSensitiveFileNames:Bool, clock:Null<Clock>):MapFS {
+	static function convertMapFS(input:go.Fstest.MapFS, caseSensitivity:CaseSensitivity, clock:Null<Clock>):MapFS {
 		if (clock == null) {
 			clock = new ClockImpl(Time.Now());
 		}
-		final m = new MapFS(new go.Fstest.MapFS(), useCaseSensitiveFileNames, clock);
+		final m = new MapFS(new go.Fstest.MapFS(), caseSensitivity, clock);
 
 		// Verify that the input is well-formed.
 		final canonicalPaths = new StringMap<String>();
@@ -268,22 +269,22 @@ class MapFS implements RealpathFS implements WritableFS {
 	@:allow(ts.vfs.vfstest)
 	final m:go.Fstest.MapFS;
 
-	final useCaseSensitiveFileNames:Bool;
+	final caseSensitivity:CaseSensitivity;
 
 	var symlinks:Null<StringMap<String>> = null;
 
 	final clock:Clock;
 
 	@:allow(ts.vfs.vfstest)
-	function new(m:go.Fstest.MapFS, useCaseSensitiveFileNames:Bool, clock:Clock) {
+	function new(m:go.Fstest.MapFS, caseSensitivity:CaseSensitivity, clock:Clock) {
 		this.m = m;
-		this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+		this.caseSensitivity = caseSensitivity;
 		this.clock = clock;
 	}
 
 	@:allow(ts.vfs.vfstest)
 	function getCanonicalPath(p:String):String {
-		return Tspath.GetCanonicalFileName(p, this.useCaseSensitiveFileNames);
+		return this.caseSensitivity.Canonicalize(p);
 	}
 
 	function open(p:String):ValueError<FsFile> {

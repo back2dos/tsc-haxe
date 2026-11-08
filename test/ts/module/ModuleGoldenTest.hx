@@ -99,7 +99,7 @@ class ModuleGoldenTest {
 				for (i in 0...links.Names.length)
 					files.set(links.Names[i], Vfstest.Symlink(links.Members[i].Str));
 			final cs = get(s, "caseSensitive");
-			final fs = Vfstest.FromMap(files, cs == null || cs.Kind == "t".code);
+			final fs = Vfstest.FromMap(files, cs == null || cs.Kind == "t".code ? CaseSensitive : CaseInsensitive);
 			final host = new ResolutionHostStub(fs, "/");
 
 			final ov = get(s, "options");

@@ -8,7 +8,7 @@ class ParsedcommandlineTest {
 				// PORT: Go's untyped constant "/dev" → RootedDirectoryPathFromNormalized.
 				final dev = Tspath.RootedDirectoryPathFromNormalized("/dev");
 				final noFiles = new Map<String, String>();
-				final noFilesFS = Vfstest.FromMap(noFiles, true);
+				final noFilesFS = Vfstest.FromMap(noFiles, CaseSensitive);
 
 				final files = [
 					"/dev/a.ts" => "",

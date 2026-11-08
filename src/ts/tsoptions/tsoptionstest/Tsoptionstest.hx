@@ -28,7 +28,7 @@ class Tsoptionstest {
 	}
 
 	public static function NewVFS(files:Map<String, String>, caseSensitivity:CaseSensitivity):FS {
-		return Vfstest.FromMap(files, caseSensitivity.IsCaseSensitive());
+		return Vfstest.FromMap(files, caseSensitivity);
 	}
 
 	// NewVFSWithSymlinks builds a VFS that contains the given symlinks (link path -> target path).
@@ -44,6 +44,6 @@ class Tsoptionstest {
 		for (link => target in symlinks) {
 			entries.set(Tspath.GetNormalizedAbsolutePath(link, currentDirectory), Vfstest.Symlink(Tspath.GetNormalizedAbsolutePath(target, currentDirectory)));
 		}
-		return Vfstest.FromMap(entries, caseSensitivity.IsCaseSensitive());
+		return Vfstest.FromMap(entries, caseSensitivity);
 	}
 }
