@@ -1142,7 +1142,7 @@ class CheckerPart4 {
 		});
 	}
 
-	static function getExactOptionalUnassignableProperties(c:Checker, source:Type, target:Type):Array<Symbol> {
+	static function getExactOptionalUnassignableProperties(c:Checker, source:Type, target:Type):haxe.ds.Vector<Symbol> {
 		if (Checker.isTupleType(source) && Checker.isTupleType(target)) {
 			return null;
 		}
@@ -1232,7 +1232,7 @@ class CheckerPart4 {
 				if (indexInfos == null) indexInfos = [];
 				indexInfos.push(c.getObjectLiteralIndexInfo(isReadonly, propertiesArray.slice(offset), c.esSymbolType));
 			}
-			final result = c.newAnonymousType(node.Symbol(), propertiesTable, null, null, indexInfos);
+			final result = c.newAnonymousType(node.Symbol(), propertiesTable, null, null, VectorBuilder.freezeOrNull(indexInfos));
 			result.objectFlags |= objectFlags | ObjectFlagsObjectLiteral | ObjectFlagsContainsObjectOrArrayLiteral;
 			if (contextualType == null && Ast.IsInJSFile(node) && !Ast.IsInJsonFile(node)) {
 				result.objectFlags |= ObjectFlagsJSLiteral;
@@ -1484,11 +1484,11 @@ class CheckerPart4 {
 		}
 		final members = new SymbolTable();
 		final skippedPrivateMembers = new Set<std.String>();
-		var indexInfos:Array<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if (left == c.emptyObjectType) {
 			indexInfos = c.getIndexInfosOfType(right);
 		} else {
-			indexInfos = c.getUnionIndexInfos(haxe.ds.Vector.fromArrayCopy([left, right]));
+			indexInfos = c.getUnionIndexInfos(Core.vector2(left, right));
 		}
 		for (rightProp in rangeOf(c.getPropertiesOfType(right))) {
 			if ((Checker.getDeclarationModifierFlagsFromSymbol(rightProp) & (ModifierFlagsPrivate | ModifierFlagsProtected)) != 0) {
@@ -1553,9 +1553,9 @@ class CheckerPart4 {
 			|| (s.flags & TypeFlagsUnionOrIntersection) != 0 && Core.Every(s.Types(), t -> c.isValidSpreadType(t));
 	}
 
-	static function getUnionIndexInfos(c:Checker, types:haxe.ds.Vector<Type>):Array<IndexInfo> {
+	static function getUnionIndexInfos(c:Checker, types:haxe.ds.Vector<Type>):haxe.ds.Vector<IndexInfo> {
 		final sourceInfos = c.getIndexInfosOfType(types[0]);
-		var result:Array<IndexInfo> = null;
+		var result:VectorBuilder<IndexInfo> = null;
 		for (info in rangeOf(sourceInfos)) {
 			final indexType = info.keyType;
 			if (Core.Every(types, function(t:Type):Bool {
@@ -1568,12 +1568,12 @@ class CheckerPart4 {
 					return c.getIndexInfoOfType(t, indexType).isReadonly;
 				});
 				if (result == null) {
-					result = [];
+					result = new VectorBuilder<IndexInfo>();
 				}
 				result.push(c.newIndexInfo(indexType, valueType, isReadonly, null, null));
 			}
 		}
-		return result;
+		return result == null ? null : result.build();
 	}
 
 	static function isNonGenericObjectType(c:Checker, t:Type):Bool {
@@ -4241,7 +4241,17 @@ class CheckerPart4 {
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
+		return function(yield_:(T) -> Bool):Void {
+			for (i in 0...Core.len(s)) {
+				if (!yield_(s[i])) {
+					return;
+				}
+			}
+		};
+	}
+
+	static extern inline overload function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			if (s != null) {
 				for (v in s) {

@@ -698,7 +698,7 @@ class CheckerPart7 {
 			final metaPropertySymbol = c.newSymbolEx(SymbolFlagsProperty, "meta", CheckFlagsReadonly);
 			metaPropertySymbol.Parent = symbol;
 			c.valueSymbolLinks.Get(metaPropertySymbol).resolvedType = importMetaType;
-			final members = Checker.createSymbolTable([metaPropertySymbol]);
+			final members = Checker.createSymbolTable(Core.vector1(metaPropertySymbol));
 			symbol.Members = members;
 			c.deferredGlobalImportMetaExpressionType = c.newAnonymousType(symbol, members, null, null, null);
 		}
@@ -752,7 +752,25 @@ class CheckerPart7 {
 		return c.createTupleTypeEx(elementTypes, elementInfos, false /*readonly*/);
 	}
 
-	static function createTupleTypeEx(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+		return c.createTupleTypeExV(elementTypes, elementInfos, readonly);
+	}
+
+	static function createTupleTypeExV(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+		final tupleTarget = c.getTupleTargetType(elementInfos, readonly);
+		if (tupleTarget == c.emptyGenericType) {
+			return c.emptyObjectType;
+		} else if (Core.len(elementTypes) != 0) {
+			return c.createNormalizedTypeReference(tupleTarget, elementTypes);
+		}
+		return tupleTarget;
+	}
+
+	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+		return c.createTupleTypeExA(elementTypes, elementInfos, readonly);
+	}
+
+	static function createTupleTypeExA(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
 		final tupleTarget = c.getTupleTargetType(elementInfos, readonly);
 		if (tupleTarget == c.emptyGenericType) {
 			return c.emptyObjectType;
@@ -843,7 +861,7 @@ class CheckerPart7 {
 			typeParameters = [];
 		}
 		typeParameters.push(d.thisType);
-		d.allTypeParameters = typeParameters;
+		d.allTypeParameters = VectorBuilder.freeze(typeParameters);
 		d.instantiations = new ts.core.HashKeyMap<Type>();
 		d.instantiations.set(Checker.getTypeListKey(d.TypeParameters()).Key(), t);
 		d.target = t;
@@ -1125,7 +1143,7 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function newAnonymousType(c:Checker, symbol:Symbol, members:SymbolTable, callSignatures:Array<Signature>, constructSignatures:Array<Signature>, indexInfos:Array<IndexInfo>):Type {
+	static function newAnonymousType(c:Checker, symbol:Symbol, members:SymbolTable, callSignatures:haxe.ds.Vector<Signature>, constructSignatures:haxe.ds.Vector<Signature>, indexInfos:haxe.ds.Vector<IndexInfo>):Type {
 		final t = c.newObjectType(ObjectFlagsAnonymous, symbol);
 		c.setStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
 		return t;
@@ -1138,17 +1156,45 @@ class CheckerPart7 {
 		return c.createTypeReference(target, typeArguments);
 	}
 
-	static function createTypeReference(c:Checker, target:Type, typeArguments:Array<Type>):Type {
-		return c.createTypeReferenceEx(target, typeArguments, ObjectFlagsNone);
+	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:Array<Type>):Type {
+		return c.createTypeReferenceExA(target, typeArguments, ObjectFlagsNone);
 	}
 
-	static function createTypeReferenceEx(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
+	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>):Type {
+		return c.createTypeReferenceExV(target, typeArguments, ObjectFlagsNone);
+	}
+
+	// PORT: perf — the type arguments of a new reference are a Vector: an Array (a fresh list) is copied once, on a miss
+	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
+		return c.createTypeReferenceExA(target, typeArguments, objectFlags);
+	}
+
+	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+		return c.createTypeReferenceExV(target, typeArguments, objectFlags);
+	}
+
+	static function createTypeReferenceExA(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
 		final id = Checker.getTypeListKey(typeArguments).Key();
 		final intf = target.AsInterfaceType();
 		final cached = intf.instantiations.get(id);
 		if (cached != null) {
 			return cached;
 		}
+		return c.newTypeReference(intf, id, VectorBuilder.freeze(typeArguments), objectFlags);
+	}
+
+	static function createTypeReferenceExV(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+		final id = Checker.getTypeListKey(typeArguments).Key();
+		final intf = target.AsInterfaceType();
+		final cached = intf.instantiations.get(id);
+		if (cached != null) {
+			return cached;
+		}
+		return c.newTypeReference(intf, id, typeArguments == null ? Core.emptyVector() : typeArguments, objectFlags);
+	}
+
+	static function newTypeReference(c:Checker, intf:InterfaceType, id:std.String, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+		final target:Type = intf;
 		final t = c.newObjectType(ObjectFlagsReference | objectFlags | c.getPropagatingFlagsOfTypes(typeArguments, TypeFlagsNone), target.symbol);
 		final d = t.AsTypeReference();
 		d.target = target;
@@ -1181,16 +1227,21 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function setStructuredTypeMembers(c:Checker, t:Type, members:SymbolTable, callSignatures:Array<Signature>, constructSignatures:Array<Signature>, indexInfos:Array<IndexInfo>):Void {
+	// PORT: perf — the lists are stored as Vectors: Arrays (fresh lists) are copied once, Vectors held as they are
+	static inline function setStructuredTypeMembersA(c:Checker, t:Type, members:SymbolTable, callSignatures:Array<Signature>, constructSignatures:Array<Signature>, indexInfos:Array<IndexInfo>):Void {
+		c.setStructuredTypeMembers(t, members, VectorBuilder.freezeOrNull(callSignatures), VectorBuilder.freezeOrNull(constructSignatures), VectorBuilder.freezeOrNull(indexInfos));
+	}
+
+	static function setStructuredTypeMembers(c:Checker, t:Type, members:SymbolTable, callSignatures:haxe.ds.Vector<Signature>, constructSignatures:haxe.ds.Vector<Signature>, indexInfos:haxe.ds.Vector<IndexInfo>):Void {
 		t.objectFlags |= ObjectFlagsMembersResolved;
 		final data = t.AsStructuredType();
 		data.members = members;
 		data.properties = c.getNamedMembers(members, t.symbol);
 		if (Core.len(callSignatures) != 0) {
 			if (Core.len(constructSignatures) != 0) {
-				data.signatures = Core.Concatenate(callSignatures, constructSignatures);
+				data.signatures = Core.concatVectors(callSignatures, constructSignatures);
 			} else {
-				// PORT: slices.Clip only limits capacity; Haxe arrays have none.
+				// PORT: slices.Clip only limits capacity; Vectors have none.
 				data.signatures = callSignatures;
 			}
 			data.callSignatureCount = callSignatures.length;
@@ -1239,7 +1290,7 @@ class CheckerPart7 {
 	}
 
 	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type
-		return c.newUnionTypeV(objectFlags, haxe.ds.Vector.fromArrayCopy(types)); // PORT: perf — a Vector (one copy per new type)
+		return c.newUnionTypeV(objectFlags, VectorBuilder.freeze(types)); // PORT: perf — a Vector (one copy per new type)
 
 	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:haxe.ds.Vector<Type>):Type
 		return c.newUnionTypeV(objectFlags, types);
@@ -1252,7 +1303,7 @@ class CheckerPart7 {
 
 	static function newIntersectionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type {
 		final data = new IntersectionType();
-		data.types = haxe.ds.Vector.fromArrayCopy(types); // PORT: perf — a Vector (one copy per new type)
+		data.types = VectorBuilder.freeze(types); // PORT: perf — a Vector (one copy per new type)
 		return c.newType(TypeFlagsIntersection, objectFlags, data);
 	}
 
@@ -1303,7 +1354,7 @@ class CheckerPart7 {
 		return c.newType(TypeFlagsSubstitution, ObjectFlagsNone, data);
 	}
 
-	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:Array<Type>, thisParameter:Symbol, parameters:Array<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
+	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:Array<Type>, thisParameter:Symbol, parameters:haxe.ds.Vector<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
 		c.SignatureCount++;
 		final sig = c.signatureArena.New();
 		sig.id = c.SignatureCount;
@@ -4289,7 +4340,7 @@ class CheckerPart7 {
 		final elementTypes = c.getTypeArguments(restType.AsType());
 		final elementInfos = restType.TargetTupleType().elementInfos;
 		final associatedNames = c.getUniqAssociatedNamesFromTupleType(restType, restSymbol);
-		final expanded:Array<Symbol> = signature.parameters.slice(0, restIndex);
+		final expanded:Array<Symbol> = [for (i in 0...restIndex) signature.parameters[i]];
 		for (i in 0...Core.len(elementTypes)) {
 			final t = elementTypes[i];
 			final flags = elementInfos[i].flags;
@@ -4699,7 +4750,17 @@ class CheckerPart7 {
 	static inline final MAX_INT:Int = 0x7FFFFFFF;
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
+		return function(yield_:(T) -> Bool):Void {
+			for (i in 0...Core.len(s)) {
+				if (!yield_(s[i])) {
+					return;
+				}
+			}
+		};
+	}
+
+	static extern inline overload function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			if (s != null) {
 				for (v in s) {

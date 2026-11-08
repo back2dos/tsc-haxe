@@ -39,7 +39,7 @@ class CheckerPart8 {
 		if (Core.len(typeParameters) == 0) {
 			instantiatedBase = bases[0];
 		} else {
-			instantiatedBase = c.instantiateType(bases[0], Checker.newTypeMapper(typeParameters, c.getTypeArguments(t).slice(0, typeParameters.length)));
+			instantiatedBase = c.instantiateType(bases[0], Checker.newTypeMapper(typeParameters, Core.subVector(c.getTypeArguments(t), 0, typeParameters.length)));
 		}
 		if (Core.len(c.getTypeArguments(t)) > Core.len(typeParameters)) {
 			instantiatedBase = c.getTypeWithThisArgument(instantiatedBase, Core.LastOrNil(c.getTypeArguments(t)), false);
@@ -840,7 +840,7 @@ class CheckerPart8 {
 		if (Checker.IsTypeAny(thenFunction)) {
 			return null;
 		}
-		var thenSignatures:Array<Signature> = null;
+		var thenSignatures:haxe.ds.Vector<Signature> = null;
 		if (thenFunction != null) {
 			thenSignatures = c.getSignaturesOfType(thenFunction, SignatureKindCall);
 		}
@@ -2390,7 +2390,7 @@ class CheckerPart8 {
 	// Creates a synthetic `Signature` corresponding to a call signature.
 	static function newCallSignature(c:Checker, typeParameters:Array<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Signature {
 		final decl = c.factory.NewFunctionTypeNode(null, null, c.factory.NewKeywordTypeNode(KindAnyKeyword));
-		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, parameters, returnType, null, Core.len(parameters));
+		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), returnType, null, Core.len(parameters));
 	}
 
 	static function newTypedPropertyDescriptorType(c:Checker, propertyType:Type):Type {
@@ -3962,7 +3962,7 @@ class CheckerPart8 {
 		return null;
 	}
 
-	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):Array<IndexInfo> {
+	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):haxe.ds.Vector<IndexInfo> {
 		return Core.Filter(c.getIndexInfosOfType(t), function(info:IndexInfo):Bool {
 			return c.isApplicableIndexType(keyType, info.keyType);
 		});

@@ -1405,11 +1405,11 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		final sym = container.Symbol();
 		final staticInfos = checker.getIndexInfosOfType(checker.getTypeOfSymbol(sym));
 		final instanceIndexSymbol = checker.getIndexSymbol(sym);
-		var instanceInfos:Array<IndexInfo> = null;
+		var instanceInfos:haxe.ds.Vector<IndexInfo> = null;
 		if (instanceIndexSymbol != null) {
 			final members = checker.getMembersOfSymbol(sym);
 			final siblingSymbols = members == null ? null : [for (v in members) v];
-			instanceInfos = checker.getIndexInfosOfIndexSymbol(instanceIndexSymbol, siblingSymbols);
+			instanceInfos = VectorBuilder.freezeOrNull(checker.getIndexInfosOfIndexSymbol(instanceIndexSymbol, siblingSymbols)); // (declaration emit)
 		}
 
 		final requestNodeBuilder = Checker.NewNodeBuilder(checker, emitContext); // TODO: cache per-context
@@ -1614,7 +1614,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		if (s == null) {
 			return [];
 		}
-		return checker.getPropertiesOfType(checker.getTypeOfSymbol(s));
+		return Core.vectorToArray(checker.getPropertiesOfType(checker.getTypeOfSymbol(s))); // PORT: perf — a copy (declaration emit errors)
 	}
 
 	function TryJSTypeNodeToTypeNode__locked(emitContext:EmitContext, typeNode:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Node {

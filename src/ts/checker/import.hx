@@ -36,6 +36,7 @@ import ts.collections.Set;
 import ts.core.Arena;
 import ts.core.Compileroptions;
 import ts.core.Core;
+import ts.core.VectorBuilder;
 import ts.core.Linkstore;
 import ts.core.Text;
 import ts.core.Tristate;

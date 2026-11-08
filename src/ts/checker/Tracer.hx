@@ -38,7 +38,7 @@ class TracedTypeAdapter implements TracedType {
 		if (t.alias == null) {
 			return null;
 		}
-		return Checker.wrapTypes(t.alias.TypeArguments());
+		return Checker.wrapTypes(Core.vectorToArray(t.alias.TypeArguments())); // PORT: perf — a copy (tracing)
 	}
 
 	public function IntrinsicName():std.String {
@@ -180,7 +180,7 @@ class TracedTypeAdapter implements TracedType {
 		if ((t.flags & TypeFlagsObject) == 0 || (t.objectFlags & ObjectFlagsReference) == 0) {
 			return null;
 		}
-		return Checker.wrapTypes(t.AsTypeReference().resolvedTypeArguments);
+		return Checker.wrapTypes(Core.vectorToArray(t.AsTypeReference().resolvedTypeArguments)); // PORT: perf — a copy (tracing)
 	}
 
 	public function ReferenceNode():Node {

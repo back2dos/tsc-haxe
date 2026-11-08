@@ -1336,7 +1336,7 @@ enum abstract IntersectionFlags(Int) from Int to Int {
 class ObjectLiteralDiscriminator implements Discriminator {
 	var c:Checker = null;
 	var props:Array<Node> = null;
-	var members:Array<Symbol> = null;
+	var members:haxe.ds.Vector<Symbol> = null;
 
 	public function new() {}
 
@@ -2350,7 +2350,7 @@ class Checker {
 		return Ast.IsSpreadElement(parent) && Ast.IsCallOrNewExpression(parent.Parent);
 	}
 
-	static function someSignature(signatures:Array<Signature>, f:(s:Signature) -> Bool):Bool {
+	static function someSignature(signatures:haxe.ds.Vector<Signature>, f:(s:Signature) -> Bool):Bool {
 		if (signatures != null) {
 			for (sig in signatures) {
 				if (sig.composite != null && sig.composite.isUnion && Core.Some(sig.composite.signatures, f) || sig.composite == null && f(sig)) {
@@ -2791,7 +2791,24 @@ class Checker {
 		return true;
 	}
 
-	static function findIndexInfo(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
+	static extern inline overload function findIndexInfo(indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
+		return findIndexInfoV(indexInfos, keyType);
+	}
+
+	static function findIndexInfoV(indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
+		for (i in 0...Core.len(indexInfos)) {
+			if (indexInfos[i].keyType == keyType) {
+				return indexInfos[i];
+			}
+		}
+		return null;
+	}
+
+	static extern inline overload function findIndexInfo(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
+		return findIndexInfoA(indexInfos, keyType);
+	}
+
+	static function findIndexInfoA(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
 		if (indexInfos != null) {
 			for (info in indexInfos) {
 				if (info.keyType == keyType) {
@@ -2932,6 +2949,27 @@ class Checker {
 			return false;
 		}
 		return state;
+	}
+
+	// PORT: perf — instantiateList over a Vector: the same Vector when nothing changes, else a new exact-size one
+	static function instantiateVector<T>(c:Checker, values:haxe.ds.Vector<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):haxe.ds.Vector<T> {
+		final n = Core.len(values);
+		for (i in 0...n) {
+			final value = values[i];
+			final mapped = instantiator(c, value, m);
+			if (mapped != value) {
+				final result = new haxe.ds.Vector<T>(n);
+				for (k in 0...i) {
+					result[k] = values[k];
+				}
+				result[i] = mapped;
+				for (j in (i + 1)...n) {
+					result[j] = instantiator(c, values[j], m);
+				}
+				return result;
+			}
+		}
+		return values;
 	}
 
 	static function instantiateList<T>(c:Checker, values:Array<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):Array<T> {
@@ -3715,7 +3753,25 @@ class Checker {
 
 	// --- mapper.go ---
 
-	static function newTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
+	// PORT: perf — an ArrayTypeMapper holds Vectors (one exact-size object each): Array arguments are copied (a
+	// builder the caller does not change afterwards), a Vector is held as it is
+	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+		return newTypeMapperV(sources, targets);
+	}
+
+	static extern inline overload function newTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
+		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), Core.toVector(targets));
+	}
+
+	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:Array<Type>):TypeMapper {
+		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(sources, Core.toVector(targets));
+	}
+
+	static extern inline overload function newTypeMapper(sources:Array<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), targets);
+	}
+
+	static function newTypeMapperV(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
 		if (Core.len(sources) == 1) {
 			return newSimpleTypeMapper(sources[0], targets[0]);
 		}
@@ -3771,16 +3827,16 @@ class Checker {
 		return m;
 	}
 
-	static function newArrayTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
+	static function newArrayTypeMapper(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
 		final m = new ArrayTypeMapper();
-		m.sources = sources;
-		m.targets = targets;
+		m.sources = sources == null ? Core.emptyVector() : sources;
+		m.targets = targets == null ? Core.emptyVector() : targets;
 		return m;
 	}
 
 	// PORT: perf — newTypeMapper(sources, append(typeArguments, thisArgument)) without the new slice
 	// (ThisArgumentTypeMapper); len(sources) == len(typeArguments) + 1
-	static function newThisArgumentTypeMapper(sources:Array<Type>, typeArguments:Array<Type>, thisArgument:Type):TypeMapper {
+	static function newThisArgumentTypeMapper(sources:haxe.ds.Vector<Type>, typeArguments:haxe.ds.Vector<Type>, thisArgument:Type):TypeMapper {
 		if (sources.length == 1) {
 			return newSimpleTypeMapper(sources[0], thisArgument);
 		}
@@ -4648,7 +4704,7 @@ class Checker {
 				var typeParams:Array<Type> = null;
 				if (Ast.IsFunctionLike(node)) {
 					final sig = b.ch.getSignatureFromDeclaration(node);
-					params = sig.parameters;
+					params = Core.vectorToArray(sig.parameters); // PORT: perf — a copy (printing)
 					typeParams = sig.typeParameters;
 				} else if (Ast.IsConditionalTypeNode(node)) { // !!! TODO: impossible in combination with the scope start check???
 					typeParams = b.ch.getInferTypeParameters(node);
@@ -4853,11 +4909,11 @@ class Checker {
 		return asRecursionId(t);
 	}
 
-	static function excludeProperties(properties:Array<Symbol>, excludedProperties:Set<std.String>):Array<Symbol> {
+	static function excludeProperties(properties:haxe.ds.Vector<Symbol>, excludedProperties:Set<std.String>):haxe.ds.Vector<Symbol> {
 		if (excludedProperties.Len() == 0 || Core.len(properties) == 0) {
 			return properties;
 		}
-		var reduced:Array<Symbol> = null;
+		var reduced:VectorBuilder<Symbol> = null;
 		var excluded = false;
 		for (i in 0...properties.length) {
 			final prop = properties[i];
@@ -4866,13 +4922,16 @@ class Checker {
 					reduced.push(prop);
 				}
 			} else if (!excluded) {
-				// PORT: slices.Clip(properties[:i]) — a fresh array, so appends never touch properties.
-				reduced = properties.slice(0, i);
+				// PORT: slices.Clip(properties[:i]) — a fresh list, so appends never touch properties.
+				reduced = new VectorBuilder<Symbol>();
+				for (k in 0...i) {
+					reduced.push(properties[k]);
+				}
 				excluded = true;
 			}
 		}
 		if (excluded) {
-			return reduced;
+			return reduced.build();
 		}
 		return properties;
 	}
@@ -5632,7 +5691,7 @@ class Checker {
 		return Ast.IsAssertionExpression(Ast.SkipParentheses(node));
 	}
 
-	static function createSymbolTable(symbols:Array<Symbol>):SymbolTable {
+	static function createSymbolTable(symbols:haxe.ds.Vector<Symbol>):SymbolTable {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}
@@ -5905,8 +5964,8 @@ class Checker {
 		final s2 = getTypeNameSymbol(t2);
 		if (s1 == s2) {
 			// PORT: Go's nil-safe alias.TypeArguments()
-			final a1:Array<Type> = t1.alias != null ? t1.alias.typeArguments : null;
-			final a2:Array<Type> = t2.alias != null ? t2.alias.typeArguments : null;
+			final a1:haxe.ds.Vector<Type> = t1.alias != null ? t1.alias.typeArguments : null;
+			final a2:haxe.ds.Vector<Type> = t2.alias != null ? t2.alias.typeArguments : null;
 			return compareTypeLists(a1, a2);
 		}
 		if (s1 == null) {

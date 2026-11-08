@@ -524,7 +524,7 @@ class NodeBuilderImpl {
 			return t.AsType();
 		}
 		final typeCopy = this.ch.newAnonymousType(t.symbol, t.getMembers(), t.CallSignatures(),
-			Core.IfElse(Core.len(constructSignatures) > 0, constructSignatures, ([] : Array<Signature>)), t.indexInfos);
+			Core.IfElse(Core.len(constructSignatures) > 0, constructSignatures, Core.emptyVector()), t.indexInfos);
 		t.objectTypeWithoutAbstractConstructSignatures = typeCopy;
 		typeCopy.AsStructuredType().objectTypeWithoutAbstractConstructSignatures = typeCopy;
 		return typeCopy;
@@ -1235,7 +1235,7 @@ class NodeBuilderImpl {
 		var properties:Array<Symbol> = [];
 		if (!isEmptyAttributesType) {
 			final props = this.ch.getPropertiesOfType(result.importAttributesType);
-			properties = props == null ? [] : props.copy();
+			properties = props == null ? [] : props.toArray();
 		}
 		properties.sort((a, b) -> go.Strings.Compare(a.Name, b.Name));
 		final attributes:Array<Node> = [];
@@ -1726,7 +1726,7 @@ class NodeBuilderImpl {
 		// If the expanded parameter list had a variadic in a non-trailing position, don't expand it
 		var parameters = Core.Map(Core.IfElse(Core.Some(expandedParams, (p:Symbol) -> {
 			return p != expandedParams[expandedParams.length - 1] && p.CheckFlags & CheckFlagsRestParameter != 0;
-		}), signature.parameters, expandedParams), (parameter:Symbol) -> {
+		}), Core.vectorToArray(signature.parameters), expandedParams), (parameter:Symbol) -> { // PORT: perf — a copy (printing)
 			return b.symbolToParameterDeclaration(parameter, kind == KindConstructor);
 		});
 		var thisParameter:Node = null;
@@ -2402,7 +2402,7 @@ class NodeBuilderImpl {
 
 					final setterParam = b.ch.newSymbol(SymbolFlagsFunctionScopedVariable, "arg");
 					b.ch.valueSymbolLinks.Get(setterParam).resolvedType = writeType;
-					final fakeSetterSignature = b.ch.newSignature(SignatureFlagsNone, null, null, null, [setterParam], b.ch.voidType, null, 0);
+					final fakeSetterSignature = b.ch.newSignature(SignatureFlagsNone, null, null, null, Core.vector1(setterParam), b.ch.voidType, null, 0);
 					final setterOpts = new SignatureToSignatureDeclarationOptions();
 					setterOpts.name = propertyName;
 					final fakeSetterDeclaration = b.signatureToSignatureDeclarationHelper(fakeSetterSignature, KindSetAccessor, setterOpts);
@@ -2856,7 +2856,7 @@ class NodeBuilderImpl {
 	}
 
 	function arrayOrTupleTypeToNode(t:Type):TypeNode {
-		var typeArguments:Array<Type> = this.ch.getTypeArguments(t);
+		var typeArguments:Array<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
 		if (t.Target() == this.ch.globalArrayType || t.Target() == this.ch.globalReadonlyArrayType) {
 			if (this.ctx.flags & FlagsWriteArrayAsGenericType != 0) {
 				final typeArgumentNode = this.typeToTypeNode(typeArguments[0]);
@@ -2926,7 +2926,7 @@ class NodeBuilderImpl {
 	}
 
 	function typeReferenceToTypeNode(t:Type):TypeNode {
-		var typeArguments:Array<Type> = this.ch.getTypeArguments(t);
+		var typeArguments:Array<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
 		if (this.ctx.flags & FlagsWriteClassExpressionAsTypeLiteral != 0 && t.symbol.ValueDeclaration != null && Ast.IsClassLike(t.symbol.ValueDeclaration)
 			&& !this.ch.IsValueSymbolAccessible(t.symbol, this.ctx.enclosingDeclaration)) {
 			return this.createAnonymousTypeNode(t);
@@ -3313,7 +3313,7 @@ class NodeBuilderImpl {
 				// If we should expand this type alias, skip the alias and fall through to expand the underlying type
 				if (!this.shouldExpandType(t, true /*isAlias*/)) {
 					final sym = t.alias.Symbol();
-					final typeArgumentNodes = this.mapToTypeNodes(t.alias.TypeArguments(), false /*isBareList*/);
+					final typeArgumentNodes = this.mapToTypeNodes(Core.vectorToArray(t.alias.TypeArguments()), false /*isBareList*/); // PORT: perf — a copy (printing)
 					if (Checker.isReservedMemberName(sym.Name) && sym.Flags & SymbolFlagsClass == 0) {
 						return this.f.NewTypeReferenceNode(this.f.NewIdentifier(""), typeArgumentNodes);
 					}
@@ -3689,7 +3689,7 @@ class Nodebuilderimpl {
 					}
 					return symbol;
 				});
-				return Core.Concatenate(sig.parameters.slice(0, restIndex), restParams);
+				return Core.Concatenate([for (i in 0...restIndex) sig.parameters[i]], restParams);
 			};
 
 			if (Checker.isTupleType(restType)) {
@@ -3700,11 +3700,11 @@ class Nodebuilderimpl {
 				});
 			}
 		}
-		return [sig.parameters];
+		return [Core.vectorToArray(sig.parameters)]; // PORT: perf — a copy (printing)
 	}
 
 	public static function ToTypeReferenceNode(t:TypeAlias, b:NodeBuilderImpl):Node {
-		return b.f.NewTypeReferenceNode(b.symbolToEntityNameNode(t.Symbol()), b.mapToTypeNodes(t.TypeArguments(), false /*isBareList*/));
+		return b.f.NewTypeReferenceNode(b.symbolToEntityNameNode(t.Symbol()), b.mapToTypeNodes(Core.vectorToArray(t.TypeArguments()), false /*isBareList*/)); // PORT: perf — a copy (printing)
 	}
 }
 

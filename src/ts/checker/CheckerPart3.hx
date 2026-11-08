@@ -694,7 +694,7 @@ class CheckerPart3 {
 		return c.resolveErrorCall(node);
 	}
 
-	static function getConstructorAccessibilityError(c:Checker, node:Node, signatures:Array<Signature>, modifiersMask:ModifierFlags):ConstructorAccessibilityError {
+	static function getConstructorAccessibilityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, modifiersMask:ModifierFlags):ConstructorAccessibilityError {
 		for (signature in signatures) {
 			if (signature.declaration == null) {
 				continue;
@@ -814,7 +814,7 @@ class CheckerPart3 {
 	// Sometimes, we have a decorator that could accept zero arguments,
 	// but is receiving too many arguments as part of the decorator invocation.
 	// In those cases, a user may have meant to *call* the expression before using it as a decorator.
-	static function isPotentiallyUncalledDecorator(c:Checker, decorator:Node, signatures:Array<Signature>):Bool {
+	static function isPotentiallyUncalledDecorator(c:Checker, decorator:Node, signatures:haxe.ds.Vector<Signature>):Bool {
 		return Core.len(signatures) != 0 && Core.Every(signatures, (sig:Signature) -> {
 			return sig.minArgumentCount == 0 && !Checker.signatureHasRestParameter(sig)
 				&& Core.len(sig.parameters) < c.getDecoratorArgumentCount(decorator, sig);
@@ -868,7 +868,7 @@ class CheckerPart3 {
 		return c.anySignature;
 	}
 
-	static function resolveCall(c:Checker, node:Node, signatures:Array<Signature>, candidatesOutArray:Array<Signature>, checkMode:CheckMode, callChainFlags:SignatureFlags, headMessage:Message):Signature {
+	static function resolveCall(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, candidatesOutArray:Array<Signature>, checkMode:CheckMode, callChainFlags:SignatureFlags, headMessage:Message):Signature {
 		final isTaggedTemplate = node.Kind == KindTaggedTemplateExpression;
 		final isDecorator = node.Kind == KindDecorator;
 		final isJsxOpeningOrSelfClosingElement = Ast.IsJsxOpeningLikeElement(node);
@@ -1002,7 +1002,7 @@ class CheckerPart3 {
 		return result;
 	}
 
-	static function reorderCandidates(c:Checker, signatures:Array<Signature>, callChainFlags:SignatureFlags):Array<Signature> {
+	static function reorderCandidates(c:Checker, signatures:haxe.ds.Vector<Signature>, callChainFlags:SignatureFlags):Array<Signature> {
 		var lastParent:Node = null;
 		var lastSymbol:Symbol = null;
 		var index = 0;
@@ -1690,7 +1690,7 @@ class CheckerPart3 {
 		if (Core.Some(candidates, Checker.signatureHasLiteralTypes)) {
 			flags |= SignatureFlagsHasLiteralTypes;
 		}
-		return c.newSignature(flags, candidates[0].declaration, null, thisParameter, parameters, c.getIntersectionType(Core.Map(candidates, c.getReturnTypeOfSignature)),
+		return c.newSignature(flags, candidates[0].declaration, null, thisParameter, VectorBuilder.freezeOrNull(parameters), c.getIntersectionType(Core.Map(candidates, c.getReturnTypeOfSignature)),
 			null, minArgumentCount);
 	}
 
@@ -1721,7 +1721,7 @@ class CheckerPart3 {
 		return c.getIndexTypeOfType(restType, c.numberType);
 	}
 
-	static function reportCallResolutionErrors(c:Checker, node:Node, s:CallState, signatures:Array<Signature>, headMessage:Message):Void {
+	static function reportCallResolutionErrors(c:Checker, node:Node, s:CallState, signatures:haxe.ds.Vector<Signature>, headMessage:Message):Void {
 		if (Core.len(s.candidatesForArgumentError) != 0) {
 			final last = s.candidatesForArgumentError[s.candidatesForArgumentError.length - 1];
 			final diags:Array<Diagnostic> = [];
@@ -1742,7 +1742,7 @@ class CheckerPart3 {
 				c.addDiagnostic(diagnostic);
 			}
 		} else if (s.candidateForArgumentArityError != null) {
-			c.addDiagnostic(c.getArgumentArityError(s.node, [s.candidateForArgumentArityError], s.args, headMessage));
+			c.addDiagnostic(c.getArgumentArityError(s.node, Core.vector1(s.candidateForArgumentArityError), s.args, headMessage));
 		} else if (s.candidateForTypeArgumentError != null) {
 			c.checkTypeArguments(s.candidateForTypeArgumentError, s.node.TypeArguments(), true /*reportErrors*/, headMessage);
 		} else if (!Ast.IsJsxOpeningFragment(node)) {
@@ -1789,7 +1789,7 @@ class CheckerPart3 {
 		}
 	}
 
-	static function getArgumentArityError(c:Checker, node:Node, signatures:Array<Signature>, args:Array<Node>, headMessage:Message):Diagnostic {
+	static function getArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, args:Array<Node>, headMessage:Message):Diagnostic {
 		final spreadIndex = c.getSpreadArgumentIndex(args);
 		if (spreadIndex > -1) {
 			return Checker.NewDiagnosticForNode(args[spreadIndex], Diagnostics.A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter);
@@ -1927,7 +1927,7 @@ class CheckerPart3 {
 		return constructorSymbol == globalPromiseSymbol;
 	}
 
-	static function getTypeArgumentArityError(c:Checker, node:Node, signatures:Array<Signature>, typeArguments:Array<Node>, headMessage:Message):Diagnostic {
+	static function getTypeArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, typeArguments:Array<Node>, headMessage:Message):Diagnostic {
 		var diagnostic:Diagnostic = null;
 		final argCount = Core.len(typeArguments);
 		final sourceFile = Ast.GetSourceFileOfNode(node);
@@ -2232,7 +2232,7 @@ class CheckerPart3 {
 					final returnType = c.getReturnTypeFromBody(node, checkMode);
 					final returnOnlySignature = c.newSignature(SignatureFlagsIsNonInferrable, null, null /*typeParameters*/, null /*thisParameter*/, null, returnType,
 						null /*resolvedTypePredicate*/, 0);
-					final returnOnlyType = c.newAnonymousType(node.Symbol(), null, [returnOnlySignature], null, null);
+					final returnOnlyType = c.newAnonymousType(node.Symbol(), null, Core.vector1(returnOnlySignature), null, null);
 					returnOnlyType.objectFlags |= ObjectFlagsNonInferrableType;
 					c.contextFreeTypes.set(node, returnOnlyType);
 					return returnOnlyType;
@@ -2433,7 +2433,7 @@ class CheckerPart3 {
 		return c.getIntersectedSignatures(applicableByArity);
 	}
 
-	static function getIntersectedSignatures(c:Checker, signatures:Array<Signature>):Signature {
+	static function getIntersectedSignatures(c:Checker, signatures:haxe.ds.Vector<Signature>):Signature {
 		if (!c.noImplicitAny) {
 			return null;
 		}
@@ -2808,7 +2808,7 @@ class CheckerPart3 {
 		}
 		var hasSomeApplicableSignature = false;
 		var nonApplicableType:Type = null;
-		final getInstantiatedSignatures = (signatures:Array<Signature>) -> {
+		final getInstantiatedSignatures = (signatures:haxe.ds.Vector<Signature>) -> {
 			final applicableSignatures = Core.Filter(signatures, (sig:Signature) -> {
 				return Core.len(sig.typeParameters) != 0 && c.hasCorrectTypeArgumentArity(sig, typeArguments.Nodes);
 			});

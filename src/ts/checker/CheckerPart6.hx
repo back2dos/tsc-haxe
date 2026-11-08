@@ -628,7 +628,7 @@ class CheckerPart6 {
 			final callSignatures = c.getSignaturesOfSymbol(symbolTableGet(members, Ast.InternalSymbolNameCall));
 			final constructSignatures = c.getSignaturesOfSymbol(symbolTableGet(members, Ast.InternalSymbolNameNew));
 			final indexInfos = c.getIndexInfosOfSymbol(symbol);
-			c.setStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
+			c.setStructuredTypeMembersA(t, members, callSignatures, constructSignatures, indexInfos);
 			return;
 		}
 		// Combinations of function, class, enum and module
@@ -671,13 +671,13 @@ class CheckerPart6 {
 				indexInfos = appendOne(indexInfos, c.enumNumberIndexInfo);
 			}
 		}
-		d.indexInfos = indexInfos;
+		d.indexInfos = VectorBuilder.freezeOrNull(indexInfos);
 		// We resolve the members before computing the signatures because a signature may use
 		// typeof with a qualified name expression that circularly references the type we are
 		// in the process of resolving (see issue #6072). The temporarily empty signature list
 		// will never be observed because a qualified name can't reference signatures.
 		if ((symbol.Flags & (SymbolFlagsFunction | SymbolFlagsMethod)) != 0) {
-			d.signatures = c.getSignaturesOfSymbol(symbol);
+			d.signatures = VectorBuilder.freezeOrNull(c.getSignaturesOfSymbol(symbol));
 			d.callSignatureCount = Core.len(d.signatures);
 		}
 		// And likewise for construct signatures for classes
@@ -687,11 +687,11 @@ class CheckerPart6 {
 			if (Core.len(constructSignatures) == 0) {
 				constructSignatures = c.getDefaultConstructSignatures(classType);
 			}
-			d.signatures = appendAll(d.signatures, constructSignatures);
+			d.signatures = Core.Concatenate(d.signatures, VectorBuilder.freezeOrNull(constructSignatures));
 		}
 	}
 
-	static function createInstantiatedSymbolTable(c:Checker, symbols:Array<Symbol>, m:TypeMapper):SymbolTable {
+	static function createInstantiatedSymbolTable(c:Checker, symbols:haxe.ds.Vector<Symbol>, m:TypeMapper):SymbolTable {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}
@@ -882,7 +882,7 @@ class CheckerPart6 {
 		} else {
 			Checker.forEachType(c.getLowerBoundOfKeyType(constraintType), addMemberForKeyType);
 		}
-		c.setStructuredTypeMembers(t, members, null, null, indexInfos);
+		c.setStructuredTypeMembers(t, members, null, null, VectorBuilder.freezeOrNull(indexInfos));
 	}
 
 	static function getTypeOfMappedSymbol(c:Checker, symbol:Symbol):Type {
@@ -954,23 +954,23 @@ class CheckerPart6 {
 	static function resolveUnionTypeMembers(c:Checker, t:Type):Void {
 		// The members and properties collections are empty for union types. To get all properties of a union
 		// type use getPropertiesOfType (only the language service uses this).
-		var callSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):Array<Signature> {
+		var callSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):haxe.ds.Vector<Signature> {
 			if (t == c.globalFunctionType) {
-				return [c.unknownSignature];
+				return Core.vector1(c.unknownSignature);
 			}
 			return c.getSignaturesOfType(t, SignatureKindCall);
 		}));
 		if (Core.len(callSignatures) == 0) {
 			callSignatures = c.getArrayMemberCallSignatures(t);
 		}
-		final constructSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):Array<Signature> {
+		final constructSignatures = c.getUnionSignatures(Core.Map(t.Types(), function(t:Type):haxe.ds.Vector<Signature> {
 			return c.getSignaturesOfType(t, SignatureKindConstruct);
 		}));
 		final indexInfos = c.getUnionIndexInfos(t.Types());
 		c.setStructuredTypeMembers(t, null, callSignatures, constructSignatures, indexInfos);
 	}
 
-	static function getArrayMemberCallSignatures(c:Checker, t:Type):Array<Signature> {
+	static function getArrayMemberCallSignatures(c:Checker, t:Type):haxe.ds.Vector<Signature> {
 		// Check if union is exclusively instantiations of a member of the global Array or ReadonlyArray type.
 		var memberName = "";
 		final types = t.Types();
@@ -1013,7 +1013,12 @@ class CheckerPart6 {
 	// Generic signatures must match exactly, but non-generic signatures are allowed to have extra optional
 	// parameters and may differ in return types. When signatures differ in return types, the resulting return
 	// type is the union of the constituent return types.
-	static function getUnionSignatures(c:Checker, signatureLists:Array<Array<Signature>>):Array<Signature> {
+	// PORT: perf — the constituents' lists are Vectors, the result is built as an Array and returned as a Vector
+	static function getUnionSignatures(c:Checker, signatureLists:Array<haxe.ds.Vector<Signature>>):haxe.ds.Vector<Signature> {
+		return VectorBuilder.freezeOrNull(c.getUnionSignaturesA(signatureLists));
+	}
+
+	static function getUnionSignaturesA(c:Checker, signatureLists:Array<haxe.ds.Vector<Signature>>):Array<Signature> {
 		var result:Array<Signature> = null;
 		var indexWithLengthOverOne = 0;
 		var countLengthOverOne = 0;
@@ -1063,7 +1068,7 @@ class CheckerPart6 {
 			// nature and having overloads in multiple constituents would necessitate making a power set of signatures from the type, whose
 			// ordering would be non-obvious)
 			final masterList = signatureLists[indexWithLengthOverOne];
-			var results:Array<Signature> = masterList.copy();
+			var results:Array<Signature> = masterList.toArray();
 			for (signatures in signatureLists) {
 				if (!Core.Same(signatures, masterList)) {
 					final signature = signatures[0];
@@ -1106,7 +1111,7 @@ class CheckerPart6 {
 		}
 		final thisParam = c.combineUnionOrIntersectionThisParam(left.thisParameter, right.thisParameter, paramMapper, isUnion);
 		final minArgCount = left.minArgumentCount > right.minArgumentCount ? left.minArgumentCount : right.minArgumentCount;
-		final result = c.newSignature(flags, declaration, typeParams, thisParam, params, null, null, minArgCount);
+		final result = c.newSignature(flags, declaration, typeParams, thisParam, VectorBuilder.freezeOrNull(params), null, null, minArgCount);
 		var leftSignatures:Array<Signature>;
 		if (left.composite != null && left.composite.isUnion) {
 			leftSignatures = left.composite.signatures;
@@ -1235,34 +1240,47 @@ class CheckerPart6 {
 			// '{ new(...args: any[]) => A } & { new(s: string) => B }' has a single construct signature
 			// 'new(s: string) => A & B'.
 			if (!mixinFlags[i]) {
-				var signatures = c.getSignaturesOfType(t, SignatureKindConstruct);
+				final signatures = c.getSignaturesOfType(t, SignatureKindConstruct);
 				if (Core.len(signatures) != 0 && mixinCount > 0) {
-					signatures = Core.Map(signatures, function(s:Signature):Signature {
+					constructSignatures = c.appendSignatures(constructSignatures, Core.Map(signatures, function(s:Signature):Signature {
 						final clone = c.cloneSignature(s);
 						clone.resolvedReturnType = c.includeMixinType(c.getReturnTypeOfSignature(s), types, mixinFlags, i);
 						return clone;
-					});
+					}));
+				} else {
+					constructSignatures = c.appendSignatures(constructSignatures, signatures);
 				}
-				constructSignatures = c.appendSignatures(constructSignatures, signatures);
 			}
 			callSignatures = c.appendSignatures(callSignatures, c.getSignaturesOfType(t, SignatureKindCall));
 			for (info in rangeOf(c.getIndexInfosOfType(t))) {
 				indexInfos = c.appendIndexInfo(indexInfos, info, false /*union*/);
 			}
 		}
-		c.setStructuredTypeMembers(t, null, callSignatures, constructSignatures, indexInfos);
+		c.setStructuredTypeMembersA(t, null, callSignatures, constructSignatures, indexInfos);
 	}
 
-	static function appendSignatures(c:Checker, signatures:Array<Signature>, newSignatures:Array<Signature>):Array<Signature> {
+	static extern inline overload function appendSignatures(c:Checker, signatures:Array<Signature>, newSignatures:Array<Signature>):Array<Signature> {
 		for (sig in rangeOf(newSignatures)) {
-			if (Core.len(signatures) == 0 || Core.Every(signatures, function(s:Signature):Bool {
-				return c.compareSignaturesIdentical(s, sig, false /*partialMatch*/, false /*ignoreThisTypes*/, false /*ignoreReturnTypes*/, c.compareTypesIdentical) == TernaryFalse;
-			})) {
-				if (signatures == null) {
-					signatures = [];
-				}
-				signatures.push(sig);
+			signatures = c.appendSignature(signatures, sig);
+		}
+		return signatures;
+	}
+
+	static extern inline overload function appendSignatures(c:Checker, signatures:Array<Signature>, newSignatures:haxe.ds.Vector<Signature>):Array<Signature> {
+		for (i in 0...Core.len(newSignatures)) {
+			signatures = c.appendSignature(signatures, newSignatures[i]);
+		}
+		return signatures;
+	}
+
+	static function appendSignature(c:Checker, signatures:Array<Signature>, sig:Signature):Array<Signature> {
+		if (Core.len(signatures) == 0 || Core.Every(signatures, function(s:Signature):Bool {
+			return c.compareSignaturesIdentical(s, sig, false /*partialMatch*/, false /*ignoreThisTypes*/, false /*ignoreReturnTypes*/, c.compareTypesIdentical) == TernaryFalse;
+		})) {
+			if (signatures == null) {
+				signatures = [];
 			}
+			signatures.push(sig);
 		}
 		return signatures;
 	}
@@ -1934,17 +1952,17 @@ class CheckerPart6 {
 	}
 
 	// PORT: perf — inline fast path (resolved already), the rest out of line
-	static inline function getTypeArguments(c:Checker, t:Type):Array<Type> {
+	static inline function getTypeArguments(c:Checker, t:Type):haxe.ds.Vector<Type> {
 		final a = t.AsTypeReference().resolvedTypeArguments;
 		return a != null ? a : c.getTypeArgumentsSlow(t);
 	}
 
-	static function getTypeArgumentsSlow(c:Checker, t:Type):Array<Type> {
+	static function getTypeArgumentsSlow(c:Checker, t:Type):haxe.ds.Vector<Type> {
 		final d = t.AsTypeReference();
 		if (d.resolvedTypeArguments == null) {
 			final n = d.target.AsInterfaceType();
 			if (!c.pushTypeResolution(t, TypeSystemPropertyNameResolvedTypeArguments)) {
-				return [for (_ in 0...Core.len(n.TypeParameters())) c.errorType];
+				return new haxe.ds.Vector<Type>(Core.len(n.TypeParameters()), c.errorType);
 			}
 			var typeArguments:Array<Type> = null;
 			final node = t.AsTypeReference().node;
@@ -1965,11 +1983,12 @@ class CheckerPart6 {
 			}
 			if (c.popTypeResolution()) {
 				if (d.resolvedTypeArguments == null) {
-					d.resolvedTypeArguments = c.instantiateTypes(typeArguments, d.mapper);
+					// PORT: perf — frozen into a Vector (Go nil stays null: not resolved)
+					d.resolvedTypeArguments = VectorBuilder.freezeOrNull(c.instantiateTypes(typeArguments, d.mapper));
 				}
 			} else {
 				if (d.resolvedTypeArguments == null) {
-					d.resolvedTypeArguments = [for (_ in 0...Core.len(n.TypeParameters())) c.errorType];
+					d.resolvedTypeArguments = new haxe.ds.Vector<Type>(Core.len(n.TypeParameters()), c.errorType);
 				}
 				final errorNode = node != null ? node : c.currentNode;
 				if (d.target.symbol != null) {
@@ -1989,7 +2008,21 @@ class CheckerPart6 {
 	}
 
 	// Gets the minimum number of type arguments needed to satisfy all non-optional type parameters.
-	static function getMinTypeArgumentCount(c:Checker, typeParameters:Array<Type>):Int {
+	static extern inline overload function getMinTypeArgumentCount(c:Checker, typeParameters:haxe.ds.Vector<Type>):Int {
+		var minTypeArgumentCount = 0;
+		for (i in 0...Core.len(typeParameters)) {
+			if (!c.hasTypeParameterDefault(typeParameters[i])) {
+				minTypeArgumentCount = i + 1;
+			}
+		}
+		return minTypeArgumentCount;
+	}
+
+	static extern inline overload function getMinTypeArgumentCount(c:Checker, typeParameters:Array<Type>):Int {
+		return c.getMinTypeArgumentCountA(typeParameters);
+	}
+
+	static function getMinTypeArgumentCountA(c:Checker, typeParameters:Array<Type>):Int {
 		var minTypeArgumentCount = 0;
 		for (i in 0...Core.len(typeParameters)) {
 			final typeParameter = typeParameters[i];
@@ -2006,7 +2039,16 @@ class CheckerPart6 {
 		});
 	}
 
-	static function fillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
+	static extern inline overload function fillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
+		return c.fillMissingTypeArgumentsA(typeArguments, typeParameters, minTypeArgumentCount, isJavaScriptImplicitAny);
+	}
+
+	// PORT: perf — Vector type arguments (an alias's): the same Vector or a new one
+	static extern inline overload function fillMissingTypeArguments(c:Checker, typeArguments:haxe.ds.Vector<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):haxe.ds.Vector<Type> {
+		return c.fillMissingTypeArgumentsV(typeArguments, typeParameters, minTypeArgumentCount, isJavaScriptImplicitAny);
+	}
+
+	static function fillMissingTypeArgumentsA(c:Checker, typeArguments:Array<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
 		final numTypeParameters = Core.len(typeParameters);
 		if (numTypeParameters == 0) {
 			return null;
@@ -2014,10 +2056,14 @@ class CheckerPart6 {
 		final numTypeArguments = Core.len(typeArguments);
 		if (isJavaScriptImplicitAny || numTypeArguments < numTypeParameters) {
 			// PORT: Go `make` + `copy` (copy stops at the shorter length).
-			final result:Array<Type> = [for (i in 0...numTypeParameters) i < numTypeArguments ? typeArguments[i] : null];
+			// PORT: perf — the mappers of the default types hold a Vector (mappers hold Vectors) that sees the later
+			// writes as Go's mapper sees them in `result`: written in step with `result`
+			final resultV = new haxe.ds.Vector<Type>(numTypeParameters);
+			var sources:haxe.ds.Vector<Type> = null;
+			final result:Array<Type> = [for (i in 0...numTypeParameters) resultV[i] = i < numTypeArguments ? typeArguments[i] : null];
 			// Map invalid forward references in default types to the error type
 			for (i in numTypeArguments...numTypeParameters) {
-				result[i] = c.errorType;
+				result[i] = resultV[i] = c.errorType;
 			}
 			final baseDefaultType = c.getDefaultTypeArgumentType(isJavaScriptImplicitAny);
 			for (i in numTypeArguments...numTypeParameters) {
@@ -2028,12 +2074,54 @@ class CheckerPart6 {
 				}
 
 				if (defaultType != null) {
-					result[i] = c.instantiateType(defaultType, Checker.newTypeMapper(typeParameters, result));
+					if (sources == null) {
+						sources = VectorBuilder.freeze(typeParameters);
+					}
+					result[i] = resultV[i] = c.instantiateType(defaultType, Checker.newTypeMapper(sources, resultV));
 				} else {
-					result[i] = baseDefaultType;
+					result[i] = resultV[i] = baseDefaultType;
 				}
 			}
 			return result;
+		}
+		return typeArguments;
+	}
+
+	static function fillMissingTypeArgumentsV(c:Checker, typeArguments:haxe.ds.Vector<Type>, typeParameters:Array<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):haxe.ds.Vector<Type> {
+		final numTypeParameters = Core.len(typeParameters);
+		if (numTypeParameters == 0) {
+			return null;
+		}
+		final numTypeArguments = Core.len(typeArguments);
+		if (isJavaScriptImplicitAny || numTypeArguments < numTypeParameters) {
+			// PORT: Go `make` + `copy` (copy stops at the shorter length).
+			final resultV = new haxe.ds.Vector<Type>(numTypeParameters);
+			var sources:haxe.ds.Vector<Type> = null;
+			for (i in 0...(numTypeArguments < numTypeParameters ? numTypeArguments : numTypeParameters)) {
+				resultV[i] = typeArguments[i];
+			}
+			// Map invalid forward references in default types to the error type
+			for (i in numTypeArguments...numTypeParameters) {
+				resultV[i] = c.errorType;
+			}
+			final baseDefaultType = c.getDefaultTypeArgumentType(isJavaScriptImplicitAny);
+			for (i in numTypeArguments...numTypeParameters) {
+				var defaultType = c.getDefaultFromTypeParameter(typeParameters[i]);
+
+				if (isJavaScriptImplicitAny && defaultType != null && (c.isTypeIdenticalTo(defaultType, c.unknownType) || c.isTypeIdenticalTo(defaultType, c.emptyObjectType))) {
+					defaultType = c.anyType;
+				}
+
+				if (defaultType != null) {
+					if (sources == null) {
+						sources = VectorBuilder.freeze(typeParameters);
+					}
+					resultV[i] = c.instantiateType(defaultType, Checker.newTypeMapper(sources, resultV));
+				} else {
+					resultV[i] = baseDefaultType;
+				}
+			}
+			return resultV;
 		}
 		return typeArguments;
 	}
@@ -2101,35 +2189,32 @@ class CheckerPart6 {
 		return result != null ? result : c.unknownType;
 	}
 
-	static function getNamedMembers(c:Checker, members:SymbolTable, container:Symbol):Array<Symbol> {
+	// PORT: perf — a Vector (exact size: the declared members and the others sorted apart, then copied in)
+	static function getNamedMembers(c:Checker, members:SymbolTable, container:Symbol):haxe.ds.Vector<Symbol> {
 		if (symbolTableLen(members) == 0) {
 			return null;
 		}
 		// For classes and interfaces, we store explicitly declared members ahead of inherited members. This ensures we process
 		// explicitly declared members first in type relations, which is beneficial because explicitly declared members are more
 		// likely to contain discriminating differences. See for example https://github.com/microsoft/typescript-go/issues/1968.
-		var result:Array<Symbol> = [];
-		var containedCount = 0;
+		final head = new VectorBuilder<Symbol>();
 		if (container != null && (container.Flags & (SymbolFlagsClass | SymbolFlagsInterface)) != 0) {
 			for (id => symbol in members) {
 				if (c.isNamedMember(symbol, id) && c.isDeclarationContainedBy(symbol, container)) {
-					result.push(symbol);
+					head.push(symbol);
 				}
 			}
-			containedCount = result.length;
 		}
+		final tail = new VectorBuilder<Symbol>();
 		for (id => symbol in members) {
 			if (c.isNamedMember(symbol, id) && (container == null || (container.Flags & (SymbolFlagsClass | SymbolFlagsInterface)) == 0 || !c.isDeclarationContainedBy(symbol, container))) {
-				result.push(symbol);
+				tail.push(symbol);
 			}
 		}
-		// PORT: Go sorts the two sub-slices in place (shared backing array); sort copies and join them.
-		final head = result.slice(0, containedCount);
-		final tail = result.slice(containedCount);
-		c.sortSymbols(head);
-		c.sortSymbols(tail);
-		result = head.concat(tail);
-		return result;
+		// PORT: Go sorts the two sub-slices in place (shared backing array): sorted apart, then copied together.
+		head.sortFunc(c.compareSymbols);
+		tail.sortFunc(c.compareSymbols);
+		return tail.buildAfter(head);
 	}
 
 	static function isDeclarationContainedBy(c:Checker, symbol:Symbol, container:Symbol):Bool {
@@ -2908,15 +2993,27 @@ class CheckerPart6 {
 		return values;
 	}
 
-	static function instantiateSymbols(c:Checker, symbols:Array<Symbol>, m:TypeMapper):Array<Symbol> {
+	static extern inline overload function instantiateSymbols(c:Checker, symbols:haxe.ds.Vector<Symbol>, m:TypeMapper):haxe.ds.Vector<Symbol> {
+		return Checker.instantiateVector(c, symbols, m, instantiateSymbolFn);
+	}
+
+	static extern inline overload function instantiateSymbols(c:Checker, symbols:Array<Symbol>, m:TypeMapper):Array<Symbol> {
 		return Checker.instantiateList(c, symbols, m, instantiateSymbolFn);
 	}
 
-	static function instantiateSignatures(c:Checker, signatures:Array<Signature>, m:TypeMapper):Array<Signature> {
+	static extern inline overload function instantiateSignatures(c:Checker, signatures:haxe.ds.Vector<Signature>, m:TypeMapper):haxe.ds.Vector<Signature> {
+		return Checker.instantiateVector(c, signatures, m, instantiateSignatureFn);
+	}
+
+	static extern inline overload function instantiateSignatures(c:Checker, signatures:Array<Signature>, m:TypeMapper):Array<Signature> {
 		return Checker.instantiateList(c, signatures, m, instantiateSignatureFn);
 	}
 
-	static function instantiateIndexInfos(c:Checker, indexInfos:Array<IndexInfo>, m:TypeMapper):Array<IndexInfo> {
+	static extern inline overload function instantiateIndexInfos(c:Checker, indexInfos:haxe.ds.Vector<IndexInfo>, m:TypeMapper):haxe.ds.Vector<IndexInfo> {
+		return Checker.instantiateVector(c, indexInfos, m, instantiateIndexInfoFn);
+	}
+
+	static extern inline overload function instantiateIndexInfos(c:Checker, indexInfos:Array<IndexInfo>, m:TypeMapper):Array<IndexInfo> {
 		return Checker.instantiateList(c, indexInfos, m, instantiateIndexInfoFn);
 	}
 
@@ -3449,11 +3546,37 @@ class CheckerPart6 {
 		return false;
 	}
 
-	static function createNormalizedTypeReference(c:Checker, target:Type, typeArguments:Array<Type>):Type {
+	static extern inline overload function createNormalizedTypeReference(c:Checker, target:Type, typeArguments:Array<Type>):Type {
+		return c.createNormalizedTypeReferenceA(target, typeArguments);
+	}
+
+	static extern inline overload function createNormalizedTypeReference(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>):Type {
+		return c.createNormalizedTypeReferenceV(target, typeArguments);
+	}
+
+	static function createNormalizedTypeReferenceA(c:Checker, target:Type, typeArguments:Array<Type>):Type {
 		if ((target.objectFlags & ObjectFlagsTuple) != 0) {
 			return c.createNormalizedTupleType(target, typeArguments);
 		}
 		return c.createTypeReference(target, typeArguments);
+	}
+
+	static function createNormalizedTypeReferenceV(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>):Type {
+		if ((target.objectFlags & ObjectFlagsTuple) != 0) {
+			return c.createNormalizedTupleTypeExV(target, typeArguments, ObjectFlagsNone);
+		}
+		return c.createTypeReference(target, typeArguments);
+	}
+
+	// PORT: perf — Vector element types (a reference's type arguments): stored as they are when there is nothing to
+	// normalize; else (optional, rest or variadic elements) normalized as the Array version does (it copies them too)
+	static function createNormalizedTupleTypeExV(c:Checker, target:Type, elementTypes:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+		final d = target.AsTupleType();
+		if ((d.combinedFlags & ElementFlagsNonRequired) == 0) {
+			// No need to normalize when we only have regular required elements
+			return c.createTypeReferenceEx(target, elementTypes, objectFlags);
+		}
+		return c.createNormalizedTupleTypeEx(target, Core.vectorToArray(elementTypes), objectFlags);
 	}
 
 	static function createNormalizedTupleTypeEx(c:Checker, target:Type, elementTypes:Array<Type>, objectFlags:ObjectFlags):Type {
@@ -3509,17 +3632,21 @@ class CheckerPart6 {
 		return tupleTarget;
 	}
 
-	static function createNormalizedTupleType(c:Checker, target:Type, elementTypes:Array<Type>):Type {
+	static extern inline overload function createNormalizedTupleType(c:Checker, target:Type, elementTypes:Array<Type>):Type {
 		return c.createNormalizedTupleTypeEx(target, elementTypes, ObjectFlagsNone);
 	}
 
-	static function getElementTypes(c:Checker, t:Type):Array<Type> {
+	static extern inline overload function createNormalizedTupleType(c:Checker, target:Type, elementTypes:haxe.ds.Vector<Type>):Type {
+		return c.createNormalizedTupleTypeExV(target, elementTypes, ObjectFlagsNone);
+	}
+
+	static function getElementTypes(c:Checker, t:Type):haxe.ds.Vector<Type> {
 		final typeArguments = c.getTypeArguments(t);
 		final arity = c.getTypeReferenceArity(t);
 		if (Core.len(typeArguments) == arity) {
 			return typeArguments;
 		}
-		return typeArguments.slice(0, arity);
+		return Core.subVector(typeArguments, 0, arity);
 	}
 
 	static function getTypeReferenceArity(c:Checker, t:Type):Int {
@@ -3616,7 +3743,7 @@ class CheckerPart6 {
 		if ((symbol.CheckFlags & CheckFlagsUnresolved) != 0) {
 			final alias = new TypeAlias();
 			alias.symbol = symbol;
-			alias.typeArguments = Core.Map(typeArguments, n -> c.getTypeFromTypeNode(n));
+			alias.typeArguments = VectorBuilder.freezeOrNull(Core.Map(typeArguments, n -> c.getTypeFromTypeNode(n)));
 			final key = Checker.getAliasKey(alias).Key();
 			var errorType = c.errorTypes.get(key);
 			if (errorType == null) {
@@ -3664,7 +3791,7 @@ class CheckerPart6 {
 			if (newAliasSymbol != null) {
 				newAlias = new TypeAlias();
 				newAlias.symbol = newAliasSymbol;
-				newAlias.typeArguments = aliasTypeArguments;
+				newAlias.typeArguments = VectorBuilder.freezeOrNull(aliasTypeArguments);
 			}
 			return c.getTypeAliasInstantiation(symbol, c.getTypeArgumentsFromNode(node), newAlias);
 		}
@@ -3730,7 +3857,7 @@ class CheckerPart6 {
 		if (symbol != null) {
 			final alias = new TypeAlias();
 			alias.symbol = symbol;
-			alias.typeArguments = c.getTypeArgumentsForAliasSymbol(symbol);
+			alias.typeArguments = VectorBuilder.freezeOrNull(c.getTypeArgumentsForAliasSymbol(symbol));
 			return alias;
 		}
 		return null;

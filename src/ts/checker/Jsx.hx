@@ -878,9 +878,9 @@ class Jsx {
 		return childTypes;
 	}
 
-	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):Array<Signature> {
+	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):haxe.ds.Vector<Signature> {
 		if ((elementType.flags & TypeFlagsString) != 0) {
-			return [c.anySignature];
+			return Core.vector1(c.anySignature);
 		}
 		if ((elementType.flags & TypeFlagsStringLiteral) != 0) {
 			final intrinsicType = c.getIntrinsicAttributesTypeFromStringLiteralType(elementType, caller);
@@ -889,7 +889,7 @@ class Jsx {
 				return null;
 			}
 			final fakeSignature = c.createSignatureForJSXIntrinsic(caller, intrinsicType);
-			return [fakeSignature];
+			return Core.vector1(fakeSignature);
 		}
 		final apparentElemType = c.getApparentType(elementType);
 		// Resolve the signatures, preferring constructor
@@ -1024,7 +1024,7 @@ class Jsx {
 			}
 		}
 		if ((declaredManagedType.objectFlags & ObjectFlagsClassOrInterface) != 0 && Core.len(declaredManagedType.AsInterfaceType().TypeParameters()) >= Core.len(typeArguments)) {
-			final args = c.fillMissingTypeArguments(typeArguments, declaredManagedType.AsInterfaceType().TypeParameters(), Core.len(typeArguments), inJavaScript);
+			final args = c.fillMissingTypeArguments(typeArguments, Core.vectorToArray(declaredManagedType.AsInterfaceType().TypeParameters()), Core.len(typeArguments), inJavaScript); // PORT: perf — a copy (JSX LibraryManagedAttributes of a class type)
 			return c.createTypeReference(declaredManagedType, args);
 		}
 		return null;
@@ -1164,7 +1164,7 @@ class Jsx {
 		// declaration := factory.createFunctionTypeNode(nil, []ParameterDeclaration{factory.createParameterDeclaration(nil, nil /*dotDotDotToken*/, "props", nil /*questionToken*/, c.nodeBuilder.typeToTypeNode(result, node))}, ifElse(returnNode != nil, factory.createTypeReferenceNode(returnNode, nil /*typeArguments*/), factory.createKeywordTypeNode(ast.KindAnyKeyword)))
 		final parameterSymbol = c.newSymbol(SymbolFlagsFunctionScopedVariable, "props");
 		c.valueSymbolLinks.Get(parameterSymbol).resolvedType = result;
-		return c.newSignature(SignatureFlagsNone, null, null, null, [parameterSymbol], elementType, null, 1);
+		return c.newSignature(SignatureFlagsNone, null, null, null, Core.vector1(parameterSymbol), elementType, null, 1);
 	}
 
 	// Get attributes type of the given intrinsic opening-like Jsx element by resolving the tag name.
@@ -1475,8 +1475,12 @@ class Jsx {
 	// --- private helpers (PORT) ---
 
 	// PORT: Go `range` over a possibly-nil slice.
-	static inline function rangeOf<T>(s:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(s:Null<Array<T>>):Array<T> {
 		return s != null ? s : [];
+	}
+
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go map lookup `table[name]` on a possibly-nil ast.SymbolTable (nil map reads as empty).

@@ -256,11 +256,11 @@ class Services {
 		return c.getElementTypeOfArrayType(t);
 	}
 
-	public static function GetCallSignatures(c:Checker, t:Type):Array<Signature> {
+	public static function GetCallSignatures(c:Checker, t:Type):haxe.ds.Vector<Signature> {
 		return c.getSignaturesOfType(t, SignatureKindCall);
 	}
 
-	public static function GetConstructSignatures(c:Checker, t:Type):Array<Signature> {
+	public static function GetConstructSignatures(c:Checker, t:Type):haxe.ds.Vector<Signature> {
 		return c.getSignaturesOfType(t, SignatureKindConstruct);
 	}
 
@@ -291,7 +291,7 @@ class Services {
 				}
 			}
 		}
-		return c.getNamedMembers(propsByName, null);
+		return Core.vectorToArray(c.getNamedMembers(propsByName, null)); // PORT: perf — a copy (services)
 	}
 
 	public static function TryGetMemberInModuleExportsAndProperties(c:Checker, memberName:std.String, moduleSymbol:Symbol):Symbol {
@@ -590,7 +590,7 @@ class Services {
 	}
 
 	// getUninstantiatedSignatures gets generic signatures from the function's/constructor's type.
-	static function getUninstantiatedSignatures(c:Checker, node:Node):Array<Signature> {
+	static function getUninstantiatedSignatures(c:Checker, node:Node):haxe.ds.Vector<Signature> {
 		switch (node.Kind) {
 			case KindCallExpression, KindDecorator:
 				return c.getSignaturesOfType(c.getTypeOfExpression(node.Expression()), SignatureKindCall);
@@ -610,7 +610,7 @@ class Services {
 		return null;
 	}
 
-	static function getTypeParameterConstraintForPositionAcrossSignatures(c:Checker, signatures:Array<Signature>, position:Int):Type {
+	static function getTypeParameterConstraintForPositionAcrossSignatures(c:Checker, signatures:haxe.ds.Vector<Signature>, position:Int):Type {
 		var relevantConstraints:Array<Type> = null;
 		if (signatures != null) {
 			for (signature in signatures) {
@@ -726,7 +726,7 @@ class Services {
 			if (c.shouldTreatPropertiesOfExternalModuleAsExports(t)) {
 				final props = c.getPropertiesOfType(t);
 				if (Core.len(props) > 0) {
-					exports = exports == null ? props.copy() : exports.concat(props);
+					exports = exports == null ? props.toArray() : exports.concat(props.toArray());
 				}
 			}
 		}
@@ -743,7 +743,7 @@ class Services {
 		if (intrinsics == null) {
 			return null;
 		}
-		return c.GetPropertiesOfType(intrinsics);
+		return Core.vectorToArray(c.GetPropertiesOfType(intrinsics)); // PORT: perf — a copy (services)
 	}
 
 	public static function GetContextualTypeForJsxAttribute(c:Checker, attribute:JsxAttributeLike):Type {

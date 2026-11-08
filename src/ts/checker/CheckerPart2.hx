@@ -2819,7 +2819,7 @@ class CheckerPart2 {
 			return newIterationTypes(c.anyType, c.anyType, c.anyType);
 		}
 		// Both async and non-async iterators *must* have a `next` method.
-		var methodSignatures:Array<Signature> = null;
+		var methodSignatures:haxe.ds.Vector<Signature> = null;
 		if (methodType != null) {
 			methodSignatures = c.getSignaturesOfType(methodType, SignatureKindCall);
 		}
@@ -4352,7 +4352,17 @@ class CheckerPart2 {
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
+		return function(yield_:(T) -> Bool):Void {
+			for (i in 0...Core.len(s)) {
+				if (!yield_(s[i])) {
+					return;
+				}
+			}
+		};
+	}
+
+	static extern inline overload function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			if (s != null) {
 				for (v in s) {

@@ -80,19 +80,17 @@ class SimpleTypeMapper extends TypeMapperBase {
 
 @:allow(ts.checker)
 class ArrayTypeMapper extends TypeMapperBase {
-	var sources:Array<Type> = null;
-	var targets:Array<Type> = null;
+	var sources:haxe.ds.Vector<Type> = null; // PORT: perf — Vectors (one exact-size object; never null)
+	var targets:haxe.ds.Vector<Type> = null;
 
 	public function new() {
 		super();
 	}
 
 	public override function Map(t:Type):Type {
-		if (sources != null) {
-			for (i in 0...sources.length) {
-				if (t == sources[i]) {
-					return targets[i];
-				}
+		for (i in 0...sources.length) {
+			if (t == sources[i]) {
+				return targets[i];
 			}
 		}
 		return t;

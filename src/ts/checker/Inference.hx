@@ -157,7 +157,7 @@ class Inference {
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sourceTypes = source.Types();
 			} else {
-				sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
+				sourceTypes = Core.vector1(source);
 			}
 			// First, infer between identically matching source and target constituents and remove the
 			// matching types.
@@ -192,7 +192,7 @@ class Inference {
 				if ((source.flags & TypeFlagsIntersection) != 0) {
 					sourceTypes = source.Types();
 				} else {
-					sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
+					sourceTypes = Core.vector1(source);
 				}
 				// Infer between identically matching source and target constituents and remove the matching types.
 				final matched = c.inferFromMatchingTypes(n, sourceTypes, target.Types(), fn_isTypeIdenticalTo, false /*sort*/);
@@ -366,7 +366,7 @@ class Inference {
 		c.inferFromTypeArguments(n, c.getTypeArguments(source), c.getTypeArguments(target), c.getVariances(source.AsTypeReference().target));
 	}
 
-	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:Array<Type>, targetTypes:Array<Type>, variances:Array<VarianceFlags>):Void {
+	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:haxe.ds.Vector<Type>, targetTypes:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>):Void {
 		final count = Std.int(std.Math.min(Core.len(sourceTypes), Core.len(targetTypes)));
 		for (i in 0...count) {
 			if (i < Core.len(variances) && (variances[i] & VarianceFlagsVarianceMask) == VarianceFlagsContravariant) {
@@ -542,7 +542,7 @@ class Inference {
 		return 0;
 	}
 
-	static function getTypeListDepth(types:Array<Type>, maxDepth:Int):Int {
+	static function getTypeListDepth(types:haxe.ds.Vector<Type>, maxDepth:Int):Int {
 		var depth = 0;
 		for (t in types) {
 			depth = Std.int(std.Math.max(depth, getTypeDepth(t, maxDepth)));
@@ -558,7 +558,7 @@ class Inference {
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sources = source.Types();
 			} else {
-				sources = haxe.ds.Vector.fromArrayCopy([source]);
+				sources = Core.vector1(source);
 			}
 			final matched = [for (_ in 0...sources.length) false];
 			var inferenceCircularity = false;
@@ -652,7 +652,7 @@ class Inference {
 			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(c.getTrueTypeFromConditionalType(source)), c.getTrueTypeFromConditionalType(target));
 			c.inferFromTypes(n, Checker.getNonDistributedTypeParameter(c.getFalseTypeFromConditionalType(source)), c.getFalseTypeFromConditionalType(target));
 		} else {
-			final targetTypes = haxe.ds.Vector.fromArrayCopy([c.getTrueTypeFromConditionalType(target), c.getFalseTypeFromConditionalType(target)]);
+			final targetTypes = Core.vector2(c.getTrueTypeFromConditionalType(target), c.getFalseTypeFromConditionalType(target));
 			c.inferToMultipleTypesWithPriority(n, source, targetTypes, target.flags, Core.IfElse(n.contravariant, InferencePriorityContravariantConditional, 0));
 		}
 	}
@@ -892,7 +892,7 @@ class Inference {
 									if (startIndex >= startLength) {
 										// PORT: Go reslices a possibly nil slice (empty tuple); keep nil instead of `null.slice`.
 										final sourceTypeArguments = c.getTypeArguments(source);
-										final trailingSlice = c.createTupleTypeEx(sourceTypeArguments != null ? sourceTypeArguments.slice(startIndex, endIndex) : null,
+										final trailingSlice = c.createTupleTypeEx(sourceTypeArguments != null ? Core.subVector(sourceTypeArguments, startIndex, endIndex) : null,
 											source.TargetTupleType().elementInfos != null ? source.TargetTupleType().elementInfos.slice(startIndex, endIndex) : null,
 											false /*readonly*/);
 										final restType = c.getElementTypeOfSliceOfTupleType(source, startLength, endLength + impliedArity, false, false);
@@ -1249,12 +1249,10 @@ class Inference {
 		final modifiers = Checker.getMappedTypeModifiers(r.mappedType);
 		final readonlyMask = (modifiers & MappedTypeModifiersIncludeReadonly) == 0;
 		final optionalMask:SymbolFlags = Core.IfElse((modifiers & MappedTypeModifiersIncludeOptional) != 0, 0, SymbolFlagsOptional);
-		var indexInfos:Array<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if (indexInfo != null) {
-			indexInfos = [
-				c.newIndexInfo(c.stringType, Core.OrElse(c.inferReverseMappedType(indexInfo.valueType, r.mappedType, r.constraintType), c.unknownType),
-					readonlyMask && indexInfo.isReadonly, null, null)
-			];
+			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, Core.OrElse(c.inferReverseMappedType(indexInfo.valueType, r.mappedType, r.constraintType), c.unknownType),
+				readonlyMask && indexInfo.isReadonly, null, null));
 		}
 		final members:SymbolTable = new StringMap<Symbol>();
 		final limitedConstraint = c.getLimitedConstraint(t);
@@ -1398,9 +1396,9 @@ class Inference {
 			}
 			members.set(name, literalProp);
 		}
-		var indexInfos:Array<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if ((t.flags & TypeFlagsString) != 0) {
-			indexInfos = [c.newIndexInfo(c.stringType, c.emptyObjectType, false /*isReadonly*/, null, null)];
+			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, c.emptyObjectType, false /*isReadonly*/, null, null));
 		}
 		return c.newAnonymousType(null, members, null, null, indexInfos);
 	}
