@@ -209,7 +209,7 @@ class UtilitiesTest {
 		T.isTrue(Ast.IsInfinityOrNaNString("NaN"));
 		T.isTrue(!Ast.IsInfinityOrNaNString("-NaN"));
 		T.isTrue(Ast.IsAmbientModuleSymbolName('"m"'));
-		T.isTrue(Ast.IsAmbientModuleSymbolName('"')); // prefix and suffix may overlap, as in Go
+		T.isTrue(!Ast.IsAmbientModuleSymbolName('"')); // PORT: main's s[1:len(s)-1] panics here; the port answers false
 		T.isTrue(!Ast.IsAmbientModuleSymbolName("m"));
 	}
 
@@ -445,7 +445,7 @@ class UtilitiesTest {
 	static function TestModuleInstanceState() {
 		final f = factory();
 		function ns(statements:Array<Node>):Node {
-			final m = f.NewModuleDeclaration(null, KindNamespaceKeyword, id(f, "N"), f.NewModuleBlock(f.NewNodeList(statements)));
+			final m = f.NewModuleDeclaration(null, KindNamespaceKeyword, id(f, "N"), null, f.NewModuleBlock(f.NewNodeList(statements)));
 			Ast.SetParentInChildren(m);
 			return m;
 		}
@@ -464,13 +464,13 @@ class UtilitiesTest {
 		T.eq(ModuleInstanceStateNonInstantiated, Ast.GetModuleInstanceState(ns([iface("I")])));
 		T.eq(ModuleInstanceStateConstEnumOnly, Ast.GetModuleInstanceState(ns([iface("I"), enm("E", true)])));
 		T.eq(ModuleInstanceStateInstantiated, Ast.GetModuleInstanceState(ns([enm("E", true), enm("F", false)])));
-		T.eq(ModuleInstanceStateInstantiated, Ast.GetModuleInstanceState(f.NewModuleDeclaration(null, KindNamespaceKeyword, id(f, "N"), null)));
+		T.eq(ModuleInstanceStateInstantiated, Ast.GetModuleInstanceState(f.NewModuleDeclaration(null, KindNamespaceKeyword, id(f, "N"), null, null)));
 		T.eq(ModuleInstanceStateNonInstantiated, Ast.GetModuleInstanceState(ns([iface("I"), exportNames(["I"])])));
 		T.eq(ModuleInstanceStateConstEnumOnly, Ast.GetModuleInstanceState(ns([enm("E", true), exportNames(["E"])])));
 		// Unknown name: could refer to a value.
 		T.eq(ModuleInstanceStateInstantiated, Ast.GetModuleInstanceState(ns([iface("I"), exportNames(["I", "Z"])])));
 		// Nested namespace with only types.
-		final inner = f.NewModuleDeclaration(null, KindNamespaceKeyword, id(f, "M"), f.NewModuleBlock(f.NewNodeList([iface("J")])));
+		final inner = f.NewModuleDeclaration(null, KindNamespaceKeyword, id(f, "M"), null, f.NewModuleBlock(f.NewNodeList([iface("J")])));
 		T.eq(ModuleInstanceStateNonInstantiated, Ast.GetModuleInstanceState(ns([inner])));
 		T.isTrue(Ast.IsInstantiatedModule(ns([enm("E", true)]), true));
 		T.isTrue(!Ast.IsInstantiatedModule(ns([enm("E", true)]), false));

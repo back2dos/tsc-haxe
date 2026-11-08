@@ -450,6 +450,39 @@ class NodeType extends SType {
 		return a == null ? [] : [for (x in a) SchemaAPI.s(x)];
 	}
 
+	// Port of generate-go-ast.ts (TypeScript main) goEmbeds/baseGoEmbeds: the structs Go embeds.
+	// A field-less base that only extends DeclarationBase is a marker: a node embeds the marker
+	// and DeclarationBase side by side; a base embeds nothing for it. Zero-size bases come first.
+	public var goEmbedKeys(get, never):Array<String>;
+
+	function get_goEmbedKeys():Array<String> {
+		if (def == null && api.getBase(name) != null)
+			return isInheritedDeclarationMarker() ? [] : goEmbeds(extendsKeys);
+		return goEmbeds(extendsKeys);
+	}
+
+	function isInheritedDeclarationMarker():Bool {
+		final ek = extendsKeys;
+		return fields.length == 0 && ek.length == 1 && ek[0] == "DeclarationBase";
+	}
+
+	function isZeroSizeBase(key:String):Bool {
+		final b = api.getBase(key);
+		return b != null && b.fields.length == 0 && (b.extendsKeys.length == 0 || b.isInheritedDeclarationMarker());
+	}
+
+	function goEmbeds(keys:Array<String>):Array<String> {
+		final expanded:Array<String> = [];
+		for (k in keys) {
+			final b = api.getBase(k);
+			final ks = b != null && b.isInheritedDeclarationMarker() ? [k].concat(b.extendsKeys) : [k];
+			for (x in ks)
+				if (expanded.indexOf(x) < 0)
+					expanded.push(x);
+		}
+		return [for (k in expanded) if (isZeroSizeBase(k)) k].concat([for (k in expanded) if (!isZeroSizeBase(k)) k]);
+	}
+
 	public var extendsTypes(get, never):Array<NodeType>;
 
 	function get_extendsTypes()

@@ -229,7 +229,7 @@ class CheckerPart2 {
 			}
 			c.checkSourceElements(clause.Statements());
 			if (c.compilerOptions.NoFallthroughCasesInSwitch.IsTrue()) {
-				final flowNode = clause.AsCaseOrDefaultClause().FallthroughFlowNode;
+				final flowNode = clause.CaseOrDefaultClauseData().FallthroughFlowNode;
 				if (flowNode != null && c.isReachableFlowNode(flowNode)) {
 					c.error(clause, Diagnostics.Fallthrough_case_in_switch);
 				}

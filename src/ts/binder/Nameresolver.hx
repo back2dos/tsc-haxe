@@ -99,13 +99,18 @@ class NameResolver {
 				lastLocation = location;
 				location = location.Parent;
 			}
+			final isModuleAttributes = Ast.IsModuleDeclaration(location)
+				&& location.AsModuleDeclaration().Attributes != null
+				&& lastLocation == location.AsModuleDeclaration().Attributes;
 			final locals = location.Locals();
 			// Locals of a source file are not in scope (because they get merged into the global symbol table)
 			if (locals != null && !Ast.IsGlobalSourceFile(location)) {
 				result = lookup(locals, name, meaning);
 				if (result != null) {
 					var useResult = true;
-					if (Ast.IsFunctionLike(location) && lastLocation != null && lastLocation != location.Body()) {
+					if (isModuleAttributes) {
+						useResult = false;
+					} else if (Ast.IsFunctionLike(location) && lastLocation != null && lastLocation != location.Body()) {
 						// symbol lookup restrictions for function-like declarations
 						// - Type parameters of a function are in scope in the entire function declaration, including the parameter
 						//   list and return type. However, local types are only in scope in the function body.
@@ -123,8 +128,8 @@ class NameResolver {
 									|| lastLocation.Kind == KindJSDocReturnTag
 									|| lastLocation.Kind == KindTypeParameter);
 						}
-						if (meaning & result.Flags & SymbolFlagsVariable != 0) {
-							// expression inside parameter will lookup as normal variable scope when targeting es2015+
+						if (meaning & result.Flags & (SymbolFlagsVariable | SymbolFlagsFunction) != 0) {
+							// Expressions inside parameters use the outer scope for declarations in the function body.
 							if (useOuterVariableScopeInParameter(result, location, lastLocation)) {
 								useResult = false;
 							} else if (result.Flags & SymbolFlagsFunctionScopedVariable != 0) {
@@ -152,7 +157,8 @@ class NameResolver {
 			switch (location.Kind) {
 				case KindSourceFile | KindModuleDeclaration:
 					// PORT: `case KindSourceFile: if !... { break }; fallthrough` → one case with a condition.
-					if (location.Kind == KindModuleDeclaration || Ast.IsExternalOrCommonJSModule(location.AsSourceFile())) {
+					// PORT: Go's `case KindModuleDeclaration: if isModuleAttributes { break }` (false for a SourceFile)
+					if ((location.Kind == KindModuleDeclaration && !isModuleAttributes) || (location.Kind == KindSourceFile && Ast.IsExternalOrCommonJSModule(location.AsSourceFile()))) {
 						final moduleSymbol = getSymbolOfDeclaration(location);
 						if (moduleSymbol != null) {
 							final moduleExports = moduleSymbol.Exports;

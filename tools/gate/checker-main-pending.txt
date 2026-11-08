@@ -2,7 +2,3 @@
 # that crash, hang or exhaust memory in the port until the main change they test is ported (they would end the gate
 # process that runs them). One base name per line, then the symptom.
 crossProductUnionIntersectionRepeatedPropDeclarationsNoOOM1.ts runaway memory
-unreachableFlowAfterThrowingForInOfHead1.ts                    hang
-unreachableFlowAfterThrowingForInOfHead2.ts                    hang
-unreachableFlowAfterThrowingForHead1.ts                        hang
-unreachableFlowAfterThrowingForHead2.ts                        segfault

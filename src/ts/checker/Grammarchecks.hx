@@ -1778,7 +1778,7 @@ class Grammarchecks {
 			case KindImportKeyword:
 				if (nameText != "meta") {
 					final isCallee = Ast.IsCallExpression(node.Parent) && node.Parent.Expression() == node.AsNode();
-					if (nameText == "defer") {
+					if (Ast.IsImportPhaseMetaProperty(node.AsNode())) {
 						if (!isCallee) {
 							return c.grammarErrorAtPos(node.AsNode(), node.AsNode().End(), 0, Diagnostics.X_0_expected, "(");
 						}
@@ -2050,7 +2050,10 @@ class Grammarchecks {
 				if (node.Name() != null) {
 					return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Default_imports_are_not_allowed_in_a_deferred_import);
 				}
-				if (node.NamedBindings != null && node.NamedBindings.Kind == KindNamedImports) {
+				if (node.NamedBindings == null) {
+					return c.grammarErrorOnNode(node.AsNode(), Diagnostics.A_deferred_import_must_specify_a_namespace_binding);
+				}
+				if (node.NamedBindings.Kind == KindNamedImports) {
 					return c.grammarErrorOnNode(node.AsNode(), Diagnostics.Named_imports_are_not_allowed_in_a_deferred_import);
 				}
 				if (c.moduleKind != ModuleKindESNext && c.moduleKind != ModuleKindPreserve) {

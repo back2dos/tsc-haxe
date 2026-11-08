@@ -3611,7 +3611,7 @@ class CheckerPart8 {
 				}
 				return null;
 			case KindImportKeyword:
-				if (Ast.IsMetaProperty(node.Parent) && node.Parent.Text() == "defer") {
+				if (Ast.IsImportPhaseMetaProperty(node.Parent)) {
 					return null;
 				}
 				return caseNewKeyword();

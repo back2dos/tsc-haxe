@@ -87,7 +87,7 @@ class Moduletransforms {
 					// NOTE: We don't need to care about global import collisions as this is a module.
 
 					final importSpecifiers = Core.Map(helperNames, function(name:std.String):ImportSpecifierNode {
-						if (Printer.IsFileLevelUniqueName(sourceFile, name, null /*hasGlobalName*/)) {
+						if (emitContext.IsFileLevelUniqueName(sourceFile, name, null /*hasGlobalName*/)) {
 							return emitContext.Factory.NewImportSpecifier(false /*isTypeOnly*/, null /*propertyName*/, emitContext.Factory.NewIdentifier(name));
 						} else {
 							return emitContext.Factory.NewImportSpecifier(false /*isTypeOnly*/, emitContext.Factory.NewIdentifier(name),
@@ -182,8 +182,7 @@ class Moduletransforms {
 		// Import default is needed if there's a default import or a default ref and no other refs (meaning an import star helper wasn't requested)
 		return !getImportNeedsImportStarHelper(node)
 			&& (Ast.IsDefaultImport(node.AsNode())
-				|| (node.ImportClause != null && Ast.IsNamedImports(node.ImportClause.AsImportClause().NamedBindings)
-					&& containsDefaultReference(node.ImportClause.AsImportClause().NamedBindings)));
+				|| (node.ImportClause != null && containsDefaultReference(node.ImportClause.AsImportClause().NamedBindings)));
 	}
 
 	// --- impliedmodule.go ---

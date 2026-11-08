@@ -62,7 +62,7 @@ interface CompositeBase {
 
 interface TypeSyntaxBase {}
 
-interface FunctionLikeBase extends DeclarationBase extends LocalsContainerBase {
+interface FunctionLikeBase extends LocalsContainerBase {
 	var TypeParameters(get, set):TypeParameterList;
 	var Parameters(get, set):ParameterList;
 	var Type(get, set):TypeNode;
@@ -77,7 +77,7 @@ interface BodyBase {
 
 interface FunctionLikeWithBodyBase extends FunctionLikeBase extends BodyBase {}
 
-interface ClassLikeBase extends DeclarationBase extends ExportableBase extends ModifiersBase extends LocalsContainerBase extends CompositeBase {
+interface ClassLikeBase extends ExportableBase extends ModifiersBase extends LocalsContainerBase extends CompositeBase {
 	var name(get, set):IdentifierNode;
 	var TypeParameters(get, set):TypeParameterList;
 	var HeritageClauses(get, set):HeritageClauseList;
@@ -89,27 +89,27 @@ interface LiteralLikeNodeBase {
 	var TokenFlags(get, set):TokenFlags;
 }
 
-interface LiteralExpressionBase extends LiteralLikeNodeBase extends PrimaryExpressionBase {}
+interface LiteralExpressionBase extends PrimaryExpressionBase extends LiteralLikeNodeBase {}
 
 interface TemplateLiteralLikeNodeBase extends LiteralLikeNodeBase {
 	var RawText(get, set):String;
 	var TemplateFlags(get, set):TokenFlags;
 }
 
-interface TypeElementBase {}
+interface TypeElementBase extends DeclarationBase {}
 
-interface ClassElementBase {}
+interface ClassElementBase extends DeclarationBase {}
 
-interface NamedMemberBase extends DeclarationBase extends ModifiersBase {
+interface NamedMemberBase extends ModifiersBase {
 	var name(get, set):PropertyName;
 	var PostfixToken(get, set):TokenNode;
 }
 
-interface ObjectLiteralElementBase {}
+interface ObjectLiteralElementBase extends DeclarationBase {}
 
-interface AccessorDeclarationBase extends NamedMemberBase extends FunctionLikeWithBodyBase extends FlowNodeBase extends TypeElementBase extends ClassElementBase extends ObjectLiteralElementBase extends CompositeBase {}
+interface AccessorDeclarationBase extends DeclarationBase extends NamedMemberBase extends FunctionLikeWithBodyBase extends FlowNodeBase extends TypeElementBase extends ClassElementBase extends ObjectLiteralElementBase extends CompositeBase {}
 
-interface FunctionOrConstructorTypeNodeBase extends TypeNodeBase extends ModifiersBase extends FunctionLikeBase {}
+interface FunctionOrConstructorTypeNodeBase extends TypeNodeBase extends DeclarationBase extends ModifiersBase extends FunctionLikeBase {}
 
 interface UnionOrIntersectionTypeNodeBase extends TypeNodeBase {
 	var Types(get, set):TypeList;
@@ -118,6 +118,11 @@ interface UnionOrIntersectionTypeNodeBase extends TypeNodeBase {
 interface JSDocTagBase {
 	var TagName(get, set):IdentifierNode;
 	var Comment(get, set):NodeList;
+}
+
+interface CaseOrDefaultClauseBase {
+	var Statements(get, set):StatementList;
+	var FallthroughFlowNode(get, set):FlowNode;
 }
 
 interface JSDocCommentBase {
@@ -146,7 +151,8 @@ typedef ReturnStatementNode = Node;
 typedef WithStatementNode = Node;
 typedef SwitchStatementNode = Node;
 typedef CaseBlockNode = Node;
-typedef CaseOrDefaultClauseNode = Node;
+typedef CaseClauseNode = Node;
+typedef DefaultClauseNode = Node;
 typedef ThrowStatementNode = Node;
 typedef TryStatementNode = Node;
 typedef CatchClauseNode = Node;
@@ -370,6 +376,7 @@ typedef HeritageClauseList = NodeList; // NodeList[*HeritageClause]
 typedef ClassElementList = NodeList; // NodeList[*ClassElement]
 typedef TypeElementList = NodeList; // NodeList[*TypeElement]
 typedef ExpressionWithTypeArgumentsList = NodeList; // NodeList[*ExpressionWithTypeArguments]
+typedef HeritageClauseElementList = NodeList; // NodeList[*HeritageClauseElement]
 typedef EnumMemberList = NodeList; // NodeList[*EnumMember]
 typedef ImportSpecifierList = NodeList; // NodeList[*ImportSpecifier]
 typedef ExportSpecifierList = NodeList; // NodeList[*ExportSpecifier]
@@ -391,10 +398,11 @@ typedef JsxAttributeList = NodeList; // NodeList[*JsxAttributeLike]
 typedef Expression = Node; // Node with ExpressionBase
 typedef Statement = Node; // Node with StatementBase
 typedef TypeNode = Node; // Node with TypeNodeBase
+typedef HeritageClauseElement = Node; // ExpressionWithTypeArguments | TypeReferenceNode
 typedef BlockOrExpression = Node; // Block | Expression
 typedef NodeBody = Node; // Block | Expression | ModuleBlock | ModuleDeclaration
 typedef AccessExpression = Node; // PropertyAccessExpression | ElementAccessExpression
-typedef DeclarationName = Node; // Identifier | PrivateIdentifier | StringLiteral | NumericLiteral | BigIntLiteral | NoSubstitutionTemplateLiteral | ComputedPropertyName | BindingPattern | ElementAccessExpression
+typedef DeclarationName = Node; // Identifier | PrivateIdentifier | StringLiteral | NumericLiteral | BigIntLiteral | NoSubstitutionTemplateLiteral | ComputedPropertyName | BindingPattern | PropertyAccessExpression | ElementAccessExpression
 typedef ModuleName = Node; // Identifier | StringLiteral
 typedef ModuleExportName = Node; // Identifier | StringLiteral
 typedef PropertyName = Node; // Identifier | StringLiteral | NoSubstitutionTemplateLiteral | NumericLiteral | ComputedPropertyName | PrivateIdentifier | BigIntLiteral
@@ -413,6 +421,7 @@ typedef JsxAttributeLike = Node; // JsxAttribute | JsxSpreadAttribute
 typedef JsxAttributeName = Node; // Identifier | JsxNamespacedName
 typedef JsxAttributeValue = Node; // StringLiteral | JsxExpression | JsxElement | JsxSelfClosingElement | JsxFragment
 typedef JsxTagNameExpression = Node; // Identifier | ThisExpression | JsxTagNamePropertyAccess | JsxNamespacedName
+typedef CaseOrDefaultClause = Node; // CaseClause | DefaultClause
 typedef ClassLikeDeclaration = Node; // ClassDeclaration | ClassExpression
 typedef AccessorDeclaration = Node; // GetAccessorDeclaration | SetAccessorDeclaration
 typedef LiteralLikeNode = Node; // StringLiteral | NumericLiteral | BigIntLiteral | RegularExpressionLiteral | TemplateLiteralLikeNode | JsxText
@@ -538,7 +547,7 @@ class QualifiedName extends NodeDefault implements FlowNodeBase implements Compo
 	@:isVar public var FlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var Left:EntityName = null;
-	public var Right:IdentifierNode = null;
+	public var Right:MemberName = null;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
 	inline function get_facts():Int return facts;
@@ -1178,14 +1187,18 @@ class CaseBlock extends NodeDefault implements LocalsContainerBase implements Co
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// CaseOrDefaultClause
+// CaseClause
 // ──────────────────────────────────────────────────────────────────────
 
-class CaseOrDefaultClause extends NodeDefault implements CompositeBase {
+class CaseClause extends NodeDefault implements CaseOrDefaultClauseBase implements CompositeBase {
+	@:isVar public var Statements(get, set):StatementList = null;
+	@:isVar public var FallthroughFlowNode(get, set):FlowNode = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var Expression:Expression = null;
-	public var Statements:StatementList = null;
-	public var FallthroughFlowNode:FlowNode = null;
+	inline function get_Statements():StatementList return Statements;
+	inline function set_Statements(v:StatementList):StatementList return Statements = v;
+	inline function get_FallthroughFlowNode():FlowNode return FallthroughFlowNode;
+	inline function set_FallthroughFlowNode(v:FlowNode):FlowNode return FallthroughFlowNode = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -1198,16 +1211,65 @@ class CaseOrDefaultClause extends NodeDefault implements CompositeBase {
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
-		return v.Factory.UpdateCaseOrDefaultClause(this, v.visitNode(this.Expression), v.visitNodes(this.Statements));
+		return v.Factory.UpdateCaseClause(this, v.visitNode(this.Expression), v.visitNodes(this.Statements));
 	}
 
 	override public function Clone(f:NodeFactoryCoercible):Node {
-		return Ast.cloneNode(f.AsNodeFactory().NewCaseOrDefaultClause(this.Kind, this.Expression, this.Statements), this.AsNode(), f.AsNodeFactory().hooks);
+		return Ast.cloneNode(f.AsNodeFactory().NewCaseClause(this.Expression, this.Statements), this.AsNode(), f.AsNodeFactory().hooks);
 	}
 
 	override public function computeSubtreeFacts():SubtreeFacts {
 		return Ast.propagateSubtreeFacts(this.Expression)
 			| Ast.propagateNodeListSubtreeFacts(this.Statements, Ast.propagateSubtreeFactsFunc);
+	}
+
+	override public function CaseOrDefaultClauseData():CaseOrDefaultClauseBase {
+		return Ast.CaseOrDefaultClauseBase_CaseOrDefaultClauseData(this);
+	}
+
+	override public function subtreeFactsWorker(self:Node):SubtreeFacts {
+		return Ast.CompositeBase_subtreeFactsWorker(this, self);
+	}
+
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// DefaultClause
+// ──────────────────────────────────────────────────────────────────────
+
+class DefaultClause extends NodeDefault implements CaseOrDefaultClauseBase implements CompositeBase {
+	@:isVar public var Statements(get, set):StatementList = null;
+	@:isVar public var FallthroughFlowNode(get, set):FlowNode = null;
+	@:isVar public var facts(get, set):Int = 0;
+	inline function get_Statements():StatementList return Statements;
+	inline function set_Statements(v:StatementList):StatementList return Statements = v;
+	inline function get_FallthroughFlowNode():FlowNode return FallthroughFlowNode;
+	inline function set_FallthroughFlowNode(v:FlowNode):FlowNode return FallthroughFlowNode = v;
+	inline function get_facts():Int return facts;
+	inline function set_facts(v:Int):Int return facts = v;
+
+	public function new() {
+		super();
+	}
+
+	override public function ForEachChild(v:Visitor):Bool {
+		return Ast.visitNodeList(v, this.Statements);
+	}
+
+	override public function VisitEachChild(v:NodeVisitor):Node {
+		return v.Factory.UpdateDefaultClause(this, v.visitNodes(this.Statements));
+	}
+
+	override public function Clone(f:NodeFactoryCoercible):Node {
+		return Ast.cloneNode(f.AsNodeFactory().NewDefaultClause(this.Statements), this.AsNode(), f.AsNodeFactory().hooks);
+	}
+
+	override public function computeSubtreeFacts():SubtreeFacts {
+		return Ast.propagateNodeListSubtreeFacts(this.Statements, Ast.propagateSubtreeFactsFunc);
+	}
+
+	override public function CaseOrDefaultClauseData():CaseOrDefaultClauseBase {
+		return Ast.CaseOrDefaultClauseBase_CaseOrDefaultClauseData(this);
 	}
 
 	override public function subtreeFactsWorker(self:Node):SubtreeFacts {
@@ -1893,10 +1955,9 @@ class MissingDeclaration extends NodeDefault implements StatementBase implements
 // FunctionDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@3, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
-class FunctionDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ExportableBase implements ModifiersBase implements FunctionLikeWithBodyBase implements CompositeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class FunctionDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements FunctionLikeWithBodyBase implements CompositeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
@@ -1911,10 +1972,10 @@ class FunctionDeclaration extends NodeDefault implements DeclarationBase impleme
 	@:isVar public var facts(get, set):Int = 0;
 	public var name:IdentifierNode = null;
 	public var ReturnFlowNode:FlowNode = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
 	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -2017,10 +2078,9 @@ class FunctionDeclaration extends NodeDefault implements DeclarationBase impleme
 // ClassDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@2, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
-class ClassDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ClassLikeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class ClassDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ClassLikeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
@@ -2030,10 +2090,10 @@ class ClassDeclaration extends NodeDefault implements DeclarationBase implements
 	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
 	@:isVar public var HeritageClauses(get, set):HeritageClauseList = null;
 	@:isVar public var Members(get, set):ClassElementList = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
 	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -2123,7 +2183,7 @@ class ClassDeclaration extends NodeDefault implements DeclarationBase implements
 // ClassExpression
 // ──────────────────────────────────────────────────────────────────────
 
-class ClassExpression extends NodeDefault implements PrimaryExpressionBase implements ClassLikeBase {
+class ClassExpression extends NodeDefault implements PrimaryExpressionBase implements DeclarationBase implements ClassLikeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -2224,7 +2284,7 @@ class ClassExpression extends NodeDefault implements PrimaryExpressionBase imple
 class HeritageClause extends NodeDefault implements CompositeBase {
 	@:isVar public var facts(get, set):Int = 0;
 	public var Token:Kind = 0;
-	public var Types:ExpressionWithTypeArgumentsList = null;
+	public var Types:HeritageClauseElementList = null;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -2258,19 +2318,19 @@ class HeritageClause extends NodeDefault implements CompositeBase {
 // InterfaceDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class InterfaceDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ExportableBase implements ModifiersBase implements TypeSyntaxBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class InterfaceDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements TypeSyntaxBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	public var name:IdentifierNode = null;
 	public var TypeParameters:TypeParameterList = null;
 	public var HeritageClauses:HeritageClauseList = null;
 	public var Members:TypeElementList = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
 	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -2334,9 +2394,9 @@ class InterfaceDeclaration extends NodeDefault implements DeclarationBase implem
 // TypeAliasDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class TypeAliasDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ExportableBase implements ModifiersBase implements LocalsContainerBase implements TypeSyntaxBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class TypeAliasDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements LocalsContainerBase implements TypeSyntaxBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
@@ -2344,10 +2404,10 @@ class TypeAliasDeclaration extends NodeDefault implements DeclarationBase implem
 	public var name:IdentifierNode = null;
 	public var TypeParameters:TypeParameterList = null;
 	public var Type:TypeNode = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
 	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -2425,7 +2485,7 @@ class TypeAliasDeclaration extends NodeDefault implements DeclarationBase implem
 // EnumMember
 // ──────────────────────────────────────────────────────────────────────
 
-class EnumMember extends NodeDefault implements NamedMemberBase implements CompositeBase {
+class EnumMember extends NodeDefault implements DeclarationBase implements NamedMemberBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
@@ -2464,7 +2524,7 @@ class EnumMember extends NodeDefault implements NamedMemberBase implements Compo
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function Modifiers():ModifierList {
@@ -2489,18 +2549,18 @@ class EnumMember extends NodeDefault implements NamedMemberBase implements Compo
 // EnumDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class EnumDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ExportableBase implements ModifiersBase implements CompositeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class EnumDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements CompositeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var name:IdentifierNode = null;
 	public var Members:EnumMemberList = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
 	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -2629,6 +2689,9 @@ class NotEmittedStatement extends NodeDefault implements StatementBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class NotEmittedTypeElement extends NodeDefault implements TypeElementBase {
+	@:isVar public var Symbol(get, set):Symbol = null;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 
 	public function new() {
 		super();
@@ -2636,6 +2699,10 @@ class NotEmittedTypeElement extends NodeDefault implements TypeElementBase {
 
 	override public function Clone(f:NodeFactoryCoercible):Node {
 		return Ast.cloneNode(f.AsNodeFactory().NewNotEmittedTypeElement(), this.AsNode(), f.AsNodeFactory().hooks);
+	}
+
+	override public function DeclarationData():DeclarationBase {
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 }
@@ -2832,18 +2899,18 @@ class NamedImports extends NodeDefault implements CompositeBase {
 // ExportAssignment
 // ──────────────────────────────────────────────────────────────────────
 
-class ExportAssignment extends NodeDefault implements DeclarationBase implements StatementBase implements ModifiersBase implements CompositeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class ExportAssignment extends NodeDefault implements StatementBase implements DeclarationBase implements ModifiersBase implements CompositeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var IsExportEquals:Bool = false;
 	public var Type:TypeNode = null;
 	public var Expression:Expression = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
 	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_facts():Int return facts;
@@ -2895,15 +2962,15 @@ class ExportAssignment extends NodeDefault implements DeclarationBase implements
 // NamespaceExportDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class NamespaceExportDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ModifiersBase implements TypeSyntaxBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class NamespaceExportDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ModifiersBase implements TypeSyntaxBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	public var name:IdentifierNode = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
 	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 
@@ -3089,7 +3156,6 @@ class ExportSpecifier extends NodeDefault implements DeclarationBase implements 
 // CallSignatureDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@2, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class CallSignatureDeclaration extends NodeDefault implements DeclarationBase implements FunctionLikeBase implements TypeElementBase implements TypeSyntaxBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
@@ -3155,7 +3221,6 @@ class CallSignatureDeclaration extends NodeDefault implements DeclarationBase im
 // ConstructSignatureDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@2, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class ConstructSignatureDeclaration extends NodeDefault implements DeclarationBase implements FunctionLikeBase implements TypeElementBase implements TypeSyntaxBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
@@ -3221,7 +3286,6 @@ class ConstructSignatureDeclaration extends NodeDefault implements DeclarationBa
 // ConstructorDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@3, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class ConstructorDeclaration extends NodeDefault implements DeclarationBase implements ModifiersBase implements FunctionLikeWithBodyBase implements ClassElementBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -3324,7 +3388,6 @@ class ConstructorDeclaration extends NodeDefault implements DeclarationBase impl
 // GetAccessorDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@3, DeclarationBase@4, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class GetAccessorDeclaration extends NodeDefault implements AccessorDeclarationBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -3403,7 +3466,7 @@ class GetAccessorDeclaration extends NodeDefault implements AccessorDeclarationB
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function FlowNodeData():FlowNodeBase {
@@ -3448,7 +3511,6 @@ class GetAccessorDeclaration extends NodeDefault implements AccessorDeclarationB
 // SetAccessorDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@3, DeclarationBase@4, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class SetAccessorDeclaration extends NodeDefault implements AccessorDeclarationBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -3527,7 +3589,7 @@ class SetAccessorDeclaration extends NodeDefault implements AccessorDeclarationB
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function FlowNodeData():FlowNodeBase {
@@ -3572,7 +3634,6 @@ class SetAccessorDeclaration extends NodeDefault implements AccessorDeclarationB
 // IndexSignatureDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@2, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class IndexSignatureDeclaration extends NodeDefault implements DeclarationBase implements ModifiersBase implements FunctionLikeBase implements TypeElementBase implements ClassElementBase implements TypeSyntaxBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -3649,8 +3710,7 @@ class IndexSignatureDeclaration extends NodeDefault implements DeclarationBase i
 // MethodSignatureDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@2, DeclarationBase@2, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
-class MethodSignatureDeclaration extends NodeDefault implements NamedMemberBase implements FunctionLikeBase implements TypeElementBase implements TypeSyntaxBase {
+class MethodSignatureDeclaration extends NodeDefault implements DeclarationBase implements NamedMemberBase implements FunctionLikeBase implements TypeElementBase implements TypeSyntaxBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
@@ -3708,7 +3768,7 @@ class MethodSignatureDeclaration extends NodeDefault implements NamedMemberBase 
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function FunctionLikeData():FunctionLikeBase {
@@ -3741,8 +3801,7 @@ class MethodSignatureDeclaration extends NodeDefault implements NamedMemberBase 
 // MethodDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@2, DeclarationBase@3, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
-class MethodDeclaration extends NodeDefault implements NamedMemberBase implements FunctionLikeWithBodyBase implements FlowNodeBase implements ClassElementBase implements ObjectLiteralElementBase implements CompositeBase {
+class MethodDeclaration extends NodeDefault implements DeclarationBase implements NamedMemberBase implements FunctionLikeWithBodyBase implements FlowNodeBase implements ClassElementBase implements ObjectLiteralElementBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
@@ -3822,7 +3881,7 @@ class MethodDeclaration extends NodeDefault implements NamedMemberBase implement
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function FlowNodeData():FlowNodeBase {
@@ -3863,7 +3922,7 @@ class MethodDeclaration extends NodeDefault implements NamedMemberBase implement
 // PropertySignatureDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class PropertySignatureDeclaration extends NodeDefault implements NamedMemberBase implements TypeElementBase implements TypeSyntaxBase {
+class PropertySignatureDeclaration extends NodeDefault implements DeclarationBase implements NamedMemberBase implements TypeElementBase implements TypeSyntaxBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
@@ -3904,7 +3963,7 @@ class PropertySignatureDeclaration extends NodeDefault implements NamedMemberBas
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function Modifiers():ModifierList {
@@ -3929,7 +3988,7 @@ class PropertySignatureDeclaration extends NodeDefault implements NamedMemberBas
 // PropertyDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class PropertyDeclaration extends NodeDefault implements NamedMemberBase implements ClassElementBase implements CompositeBase {
+class PropertyDeclaration extends NodeDefault implements DeclarationBase implements NamedMemberBase implements ClassElementBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
@@ -3973,7 +4032,7 @@ class PropertyDeclaration extends NodeDefault implements NamedMemberBase impleme
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function Modifiers():ModifierList {
@@ -4439,7 +4498,6 @@ class YieldExpression extends NodeDefault implements ExpressionBase {
 // ArrowFunction
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@3, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class ArrowFunction extends NodeDefault implements ExpressionBase implements DeclarationBase implements ModifiersBase implements FunctionLikeWithBodyBase implements FlowNodeBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -4550,7 +4608,6 @@ class ArrowFunction extends NodeDefault implements ExpressionBase implements Dec
 // FunctionExpression
 // ──────────────────────────────────────────────────────────────────────
 
-// PORT: Go embeds 2 copies of field Symbol (DeclarationBase@1, DeclarationBase@3, struct@depth); flattened to one field (upstream reads it only through DeclarationData() / Symbol()).
 class FunctionExpression extends NodeDefault implements PrimaryExpressionBase implements DeclarationBase implements ModifiersBase implements FunctionLikeWithBodyBase implements FlowNodeBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
@@ -5353,7 +5410,7 @@ class SpreadAssignment extends NodeDefault implements DeclarationBase implements
 // PropertyAssignment
 // ──────────────────────────────────────────────────────────────────────
 
-class PropertyAssignment extends NodeDefault implements NamedMemberBase implements ObjectLiteralElementBase implements CompositeBase {
+class PropertyAssignment extends NodeDefault implements DeclarationBase implements NamedMemberBase implements ObjectLiteralElementBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
@@ -5397,7 +5454,7 @@ class PropertyAssignment extends NodeDefault implements NamedMemberBase implemen
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function Modifiers():ModifierList {
@@ -5422,7 +5479,7 @@ class PropertyAssignment extends NodeDefault implements NamedMemberBase implemen
 // ShorthandPropertyAssignment
 // ──────────────────────────────────────────────────────────────────────
 
-class ShorthandPropertyAssignment extends NodeDefault implements NamedMemberBase implements ObjectLiteralElementBase implements CompositeBase {
+class ShorthandPropertyAssignment extends NodeDefault implements DeclarationBase implements NamedMemberBase implements ObjectLiteralElementBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var name(get, set):PropertyName = null;
@@ -5468,7 +5525,7 @@ class ShorthandPropertyAssignment extends NodeDefault implements NamedMemberBase
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.NamedMemberBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function Modifiers():ModifierList {
@@ -5667,7 +5724,7 @@ class KeywordTypeNode extends NodeDefault implements TypeNodeBase {
 // UnionTypeNode
 // ──────────────────────────────────────────────────────────────────────
 
-class UnionTypeNode extends NodeDefault implements TypeNodeBase implements UnionOrIntersectionTypeNodeBase {
+class UnionTypeNode extends NodeDefault implements UnionOrIntersectionTypeNodeBase {
 	@:isVar public var Types(get, set):TypeList = null;
 	inline function get_Types():TypeList return Types;
 	inline function set_Types(v:TypeList):TypeList return Types = v;
@@ -5702,7 +5759,7 @@ class UnionTypeNode extends NodeDefault implements TypeNodeBase implements Union
 // IntersectionTypeNode
 // ──────────────────────────────────────────────────────────────────────
 
-class IntersectionTypeNode extends NodeDefault implements TypeNodeBase implements UnionOrIntersectionTypeNodeBase {
+class IntersectionTypeNode extends NodeDefault implements UnionOrIntersectionTypeNodeBase {
 	@:isVar public var Types(get, set):TypeList = null;
 	inline function get_Types():TypeList return Types;
 	inline function set_Types(v:TypeList):TypeList return Types = v;
@@ -6483,19 +6540,19 @@ class ParenthesizedTypeNode extends NodeDefault implements TypeNodeBase {
 // FunctionTypeNode
 // ──────────────────────────────────────────────────────────────────────
 
-class FunctionTypeNode extends NodeDefault implements TypeNodeBase implements FunctionOrConstructorTypeNodeBase {
-	@:isVar public var modifiers(get, set):ModifierList = null;
+class FunctionTypeNode extends NodeDefault implements FunctionOrConstructorTypeNodeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
+	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
 	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
 	@:isVar public var FullSignature(get, set):TypeNode = null;
-	inline function get_modifiers():ModifierList return modifiers;
-	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
+	inline function get_modifiers():ModifierList return modifiers;
+	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_Locals():SymbolTable return Locals;
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
@@ -6526,7 +6583,7 @@ class FunctionTypeNode extends NodeDefault implements TypeNodeBase implements Fu
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.FunctionOrConstructorTypeNodeBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function FunctionLikeData():FunctionLikeBase {
@@ -6559,19 +6616,19 @@ class FunctionTypeNode extends NodeDefault implements TypeNodeBase implements Fu
 // ConstructorTypeNode
 // ──────────────────────────────────────────────────────────────────────
 
-class ConstructorTypeNode extends NodeDefault implements TypeNodeBase implements FunctionOrConstructorTypeNodeBase {
-	@:isVar public var modifiers(get, set):ModifierList = null;
+class ConstructorTypeNode extends NodeDefault implements FunctionOrConstructorTypeNodeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
+	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
 	@:isVar public var TypeParameters(get, set):TypeParameterList = null;
 	@:isVar public var Parameters(get, set):ParameterList = null;
 	@:isVar public var Type(get, set):TypeNode = null;
 	@:isVar public var FullSignature(get, set):TypeNode = null;
-	inline function get_modifiers():ModifierList return modifiers;
-	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
+	inline function get_modifiers():ModifierList return modifiers;
+	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_Locals():SymbolTable return Locals;
 	inline function set_Locals(v:SymbolTable):SymbolTable return Locals = v;
 	inline function get_NextContainer():Node return NextContainer;
@@ -6605,7 +6662,7 @@ class ConstructorTypeNode extends NodeDefault implements TypeNodeBase implements
 	}
 
 	override public function DeclarationData():DeclarationBase {
-		return Ast.FunctionOrConstructorTypeNodeBase_DeclarationData(this);
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function FunctionLikeData():FunctionLikeBase {
@@ -7207,7 +7264,10 @@ class JsxAttribute extends NodeDefault implements DeclarationBase implements Com
 // ──────────────────────────────────────────────────────────────────────
 
 class JsxSpreadAttribute extends NodeDefault implements ObjectLiteralElementBase {
+	@:isVar public var Symbol(get, set):Symbol = null;
 	public var Expression:Expression = null;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 
 	public function new() {
 		super();
@@ -7223,6 +7283,10 @@ class JsxSpreadAttribute extends NodeDefault implements ObjectLiteralElementBase
 
 	override public function Clone(f:NodeFactoryCoercible):Node {
 		return Ast.cloneNode(f.AsNodeFactory().NewJsxSpreadAttribute(this.Expression), this.AsNode(), f.AsNodeFactory().hooks);
+	}
+
+	override public function DeclarationData():DeclarationBase {
+		return Ast.DeclarationBase_DeclarationData(this);
 	}
 
 	override public function computeSubtreeFacts():SubtreeFacts {
@@ -8205,7 +8269,7 @@ class JSDocTypedefTag extends NodeDefault implements JSDocTagBase {
 // JSDocSignature
 // ──────────────────────────────────────────────────────────────────────
 
-class JSDocSignature extends NodeDefault implements JSDocTypeBase implements FunctionLikeBase {
+class JSDocSignature extends NodeDefault implements JSDocTypeBase implements DeclarationBase implements FunctionLikeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
 	@:isVar public var NextContainer(get, set):Node = null;
@@ -8307,9 +8371,9 @@ class JSDocNameReference extends NodeDefault implements TypeNodeBase {
 // ModuleDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class ModuleDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ExportableBase implements ModifiersBase implements LocalsContainerBase implements BodyBase implements CompositeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class ModuleDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements LocalsContainerBase implements BodyBase implements CompositeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var Locals(get, set):SymbolTable = null;
@@ -8320,10 +8384,11 @@ class ModuleDeclaration extends NodeDefault implements DeclarationBase implement
 	@:isVar public var facts(get, set):Int = 0;
 	public var Keyword:Kind = 0;
 	public var name:ModuleName = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
+	public var Attributes:TypeLiteralNodeNode = null;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
 	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -8346,15 +8411,18 @@ class ModuleDeclaration extends NodeDefault implements DeclarationBase implement
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visitModifiers(v, this.modifiers) || Ast.visit(v, this.name) || Ast.visit(v, this.Body);
+		return Ast.visitModifiers(v, this.modifiers)
+			|| Ast.visit(v, this.name)
+			|| Ast.visit(v, this.Attributes)
+			|| Ast.visit(v, this.Body);
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
-		return v.Factory.UpdateModuleDeclaration(this, v.visitModifiers(this.modifiers), this.Keyword, v.visitNode(this.name), v.visitNode(this.Body));
+		return v.Factory.UpdateModuleDeclaration(this, v.visitModifiers(this.modifiers), this.Keyword, v.visitNode(this.name), v.visitNode(this.Attributes), v.visitNode(this.Body));
 	}
 
 	override public function Clone(f:NodeFactoryCoercible):Node {
-		return Ast.cloneNode(f.AsNodeFactory().NewModuleDeclaration(this.Modifiers(), this.Keyword, this.name, this.Body), this.AsNode(), f.AsNodeFactory().hooks);
+		return Ast.cloneNode(f.AsNodeFactory().NewModuleDeclaration(this.Modifiers(), this.Keyword, this.name, this.Attributes, this.Body), this.AsNode(), f.AsNodeFactory().hooks);
 	}
 
 	override public function Name():DeclarationName {
@@ -8407,19 +8475,19 @@ class ModuleDeclaration extends NodeDefault implements DeclarationBase implement
 // ImportEqualsDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class ImportEqualsDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ExportableBase implements ModifiersBase implements CompositeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class ImportEqualsDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ExportableBase implements ModifiersBase implements CompositeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var LocalSymbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var IsTypeOnly:Bool = false;
 	public var name:IdentifierNode = null;
 	public var ModuleReference:ModuleReference = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_LocalSymbol():Symbol return LocalSymbol;
 	inline function set_LocalSymbol(v:Symbol):Symbol return LocalSymbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
@@ -8481,19 +8549,19 @@ class ImportEqualsDeclaration extends NodeDefault implements DeclarationBase imp
 // ExportDeclaration
 // ──────────────────────────────────────────────────────────────────────
 
-class ExportDeclaration extends NodeDefault implements DeclarationBase implements StatementBase implements ModifiersBase implements CompositeBase {
-	@:isVar public var Symbol(get, set):Symbol = null;
+class ExportDeclaration extends NodeDefault implements StatementBase implements DeclarationBase implements ModifiersBase implements CompositeBase {
 	@:isVar public var FlowNode(get, set):FlowNode = null;
+	@:isVar public var Symbol(get, set):Symbol = null;
 	@:isVar public var modifiers(get, set):ModifierList = null;
 	@:isVar public var facts(get, set):Int = 0;
 	public var IsTypeOnly:Bool = false;
 	public var ExportClause:NamedExportBindings = null;
 	public var ModuleSpecifier:Expression = null;
 	public var Attributes:ImportAttributesNode = null;
-	inline function get_Symbol():Symbol return Symbol;
-	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_FlowNode():FlowNode return FlowNode;
 	inline function set_FlowNode(v:FlowNode):FlowNode return FlowNode = v;
+	inline function get_Symbol():Symbol return Symbol;
+	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
 	inline function get_modifiers():ModifierList return modifiers;
 	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_facts():Int return facts;
