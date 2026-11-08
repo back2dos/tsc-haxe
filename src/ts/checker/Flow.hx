@@ -3049,7 +3049,7 @@ class Flow {
 
 	static function getFlowTypeInConstructor(c:Checker, symbol:Symbol, constructor:Node):Type {
 		var accessName:Node;
-		if (StringTools.startsWith(symbol.Name, Ast.InternalSymbolNamePrefix + "#")) {
+		if (StringTools.startsWith(symbol.Name, "\u{FFFE}#")) {
 			accessName = c.factory.NewPrivateIdentifier(symbol.Name.substring(symbol.Name.indexOf("@") + 1));
 		} else {
 			accessName = c.factory.NewIdentifier(symbol.Name);
@@ -3071,7 +3071,7 @@ class Flow {
 
 	static function getFlowTypeInStaticBlocks(c:Checker, symbol:Symbol, staticBlocks:Array<Node>):Type {
 		var accessName:Node;
-		if (StringTools.startsWith(symbol.Name, Ast.InternalSymbolNamePrefix + "#")) {
+		if (StringTools.startsWith(symbol.Name, "\u{FFFE}#")) {
 			accessName = c.factory.NewPrivateIdentifier(symbol.Name.substring(symbol.Name.indexOf("@") + 1));
 		} else {
 			accessName = c.factory.NewIdentifier(symbol.Name);

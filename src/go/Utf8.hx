@@ -41,6 +41,27 @@ class Utf8 {
 	}
 
 	// Go `string(b[pos:pos+len])`, decoded to UTF-16 (see PORT note above).
+	#if (target.name == "hxmc" && !hxmc.wasm_gc)
+	// b.getString(pos, len, UTF8) of ASCII bytes: a one-byte string, its bytes copied eight at a time (the
+	// runtime's decoder counts the units first, then decodes each byte again)
+	static function asciiBytesToString(b:Bytes, pos:Int, len:Int):String {
+		final s = hxmc.rt.Str.make1(len);
+		// addresses after the allocation (a GC point)
+		final dst = hxmc.rt.Str.unitsAddr(s);
+		final src = hxmc.unsafe.Mem.addr(b.getData());
+		var i = 0;
+		while (i + 8 <= len) {
+			hxmc.unsafe.Mem.setI64(dst, i, hxmc.unsafe.Mem.getI64(src, pos + i));
+			i += 8;
+		}
+		while (i < len) {
+			hxmc.unsafe.Mem.setI8(dst, i, hxmc.unsafe.Mem.getU8(src, pos + i));
+			i++;
+		}
+		return s;
+	}
+	#end
+
 	public static function BytesToString(b:Bytes, pos:Int, len:Int):String {
 		final end = pos + len;
 		var i = pos;
@@ -54,7 +75,7 @@ class Utf8 {
 				while (i < end && b.get(i) < 0x80)
 					i++;
 			if (i == end)
-				return b.getString(pos, len, UTF8);
+				return asciiBytesToString(b, pos, len);
 		}
 		#end
 		var valid = true;

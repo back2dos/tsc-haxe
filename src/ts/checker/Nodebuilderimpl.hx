@@ -2249,7 +2249,7 @@ class NodeBuilderImpl {
 		}
 
 		var name = symbol.Name;
-		final privateNamePrefix = Ast.InternalSymbolNamePrefix + "#";
+		final privateNamePrefix = "\u{FFFE}#"; // PORT: perf — InternalSymbolNamePrefix + "#" as a literal (Haxe does not fold it)
 		if (StringTools.startsWith(name, privateNamePrefix)) {
 			// symbol IDs are unstable - replace #nnn# with #private#
 			name = name.substring(privateNamePrefix.length);

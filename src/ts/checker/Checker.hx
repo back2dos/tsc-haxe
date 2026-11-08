@@ -6306,7 +6306,7 @@ class Checker {
 		if (symbol == null) {
 			return false;
 		}
-		return StringTools.startsWith(symbol.Name, Ast.InternalSymbolNamePrefix + "#");
+		return StringTools.startsWith(symbol.Name, "\u{FFFE}#");
 	}
 
 	static function isLateBoundName(name:std.String):Bool {

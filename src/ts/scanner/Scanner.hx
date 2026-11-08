@@ -180,6 +180,92 @@ class Scanner {
 		ok ? t : null;
 	}
 
+	// PORT: perf — identifier texts shared between the identifiers of the files this scanner scans (Go's
+	// substrings share the source text; a Haxe substring is a copy that the AST keeps and the minor GC
+	// copies again). A direct-mapped cache: a miss (or a collision) makes the substring and takes the slot.
+	// Each slot keeps the length and the first 11 units (ASCII, as the fast path scans them) packed in three
+	// Ints, and the last four in a fourth: up to 11 units the tags are the text, so a hit reads no string
+	// (the cached ones are old and cold); a longer one is compared with the cached string. Values only: the
+	// strings are equal either way.
+	static inline final ID_CACHE_BITS = 11;
+
+	var idStrings:haxe.ds.Vector<String> = null;
+	var idTags:haxe.ds.Vector<Int> = null;
+
+	// text[start:end], an ASCII identifier
+	function identifierText(start:Int, end:Int):String {
+		var strs = idStrings;
+		var tags = idTags;
+		if (strs == null) {
+			strs = idStrings = new haxe.ds.Vector<String>(1 << ID_CACHE_BITS);
+			tags = idTags = new haxe.ds.Vector<Int>(4 << ID_CACHE_BITS);
+		}
+		final t = text;
+		final n = end - start;
+		var a = 0, b = 0, c = 0, d = 0;
+		inline function tagUnits(unit:Int->Int) {
+			inline function u(i:Int):Int
+				return i < end ? unit(i) : 0;
+			a = n | (u(start) << 8) | (u(start + 1) << 16) | (u(start + 2) << 24);
+			if (n > 3) {
+				b = u(start + 3) | (u(start + 4) << 8) | (u(start + 5) << 16) | (u(start + 6) << 24);
+				if (n > 7) {
+					c = u(start + 7) | (u(start + 8) << 8) | (u(start + 9) << 16) | (u(start + 10) << 24);
+					if (n > 11)
+						d = unit(end - 1) | (unit(end - 2) << 8) | (unit(end - 3) << 16) | (unit(end - 4) << 24);
+				}
+			}
+		}
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+		if (hxmc.rt.Str.isOne(t)) {
+			final p = hxmc.rt.Str.unitsAddr(t);
+			tagUnits(i -> hxmc.unsafe.Mem.getU8(p, i));
+		} else
+		#end
+		tagUnits(i -> StringTools.fastCodeAt(t, i));
+		final h = ((a * 0x9E3779B1) ^ (b * 0x85EBCA77) ^ (c * 0xC2B2AE3D) ^ (d * 0x27D4EB2F)) >>> (32 - ID_CACHE_BITS);
+		final ti = h << 2;
+		if (tags[ti] == a && tags[ti + 1] == b && tags[ti + 2] == c && tags[ti + 3] == d) {
+			final k = strs[h];
+			if (n <= 11)
+				return k;
+			var i = 11;
+			while (i < n - 4 && StringTools.fastCodeAt(k, i) == StringTools.fastCodeAt(t, start + i))
+				i++;
+			if (i >= n - 4)
+				return k;
+		}
+		final s = t.substring(start, end);
+		strs[h] = s;
+		tags[ti] = a;
+		tags[ti + 1] = b;
+		tags[ti + 2] = c;
+		tags[ti + 3] = d;
+		return s;
+	}
+
+	// The index in kwTable of the keyword equal to text[start:end] (ASCII), or -1.
+	inline function keywordAt(start:Int, end:Int):Int {
+		final n = end - start;
+		final t = kwTable;
+		final c0 = StringTools.fastCodeAt(text, start);
+		var result = -1;
+		if (n >= 2 && n <= 12 && c0 >= 'a'.code && c0 <= 'z'.code && t != null) {
+			final key = c0 | (StringTools.fastCodeAt(text, start + 1) << 8) | ((StringTools.fastCodeAt(text, end - 1) & 0xFF) << 16) | (n << 24);
+			final h = (key * 0xae8526c7) >>> 24;
+			final k = t[h];
+			if (k != null && k.length == n) {
+				var i = 0;
+				while (i < n && StringTools.fastCodeAt(k, i) == StringTools.fastCodeAt(text, start + i))
+					i++;
+				if (i == n)
+					result = h;
+			}
+		}
+		return result;
+	}
+
 	static inline function kwHash(str:String):Int {
 		final key = StringTools.fastCodeAt(str, 0) | (StringTools.fastCodeAt(str, 1) << 8) | ((StringTools.fastCodeAt(str, str.length - 1) & 0xFF) << 16)
 			| (str.length << 24);
@@ -264,6 +350,8 @@ class Scanner {
 	// from the prefix once, when one asks for it).
 	var text:String = "";
 	var textLen:Int = 0;
+	// PORT: perf — GetIdentifierToken(tokenValue) as scanIdentifier's ASCII fast path found it (KindUnknown: not known)
+	var identifierToken:Kind = KindUnknown;
 	var textPrefix:String = null; // Text() when textLen < text.length (made on demand)
 	var end:Int = 0;
 	var languageVariant:LanguageVariant = LanguageVariantStandard;
@@ -472,22 +560,49 @@ class Scanner {
 	// PORT: Go reslices commentText after each '@'; here `start` is the offset of that slice, so
 	// no substring is made per '@' (hasJSDocTag takes the offset).
 	// PORT: perf — the comment is text[commentStart:commentEnd] (no substring)
+	// text.indexOf("*/", from)
+	static function indexOfCommentEnd(text:String, from:Int):Int {
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+		if (hxmc.rt.Str.isOne(text)) {
+			final p = hxmc.rt.Str.unitsAddr(text);
+			final n = text.length - 1;
+			var i = from;
+			while (i < n) {
+				if (hxmc.unsafe.Mem.getU8(p, i) == '*'.code && hxmc.unsafe.Mem.getU8(p, i + 1) == '/'.code)
+					return i;
+				i++;
+			}
+			return -1;
+		}
+		#end
+		return text.indexOf("*/", from);
+	}
+
 	function scanJSDocCommentForTags(commentStart:Int, commentEnd:Int):Void {
 		final text = this.text;
 		var start = commentStart;
 		while (true) {
 			var i = start;
+			#if (target.name == "hxmc" && !hxmc.wasm_gc)
+			// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+			if (hxmc.rt.Str.isOne(text)) {
+				final p = hxmc.rt.Str.unitsAddr(text);
+				while (i < commentEnd && hxmc.unsafe.Mem.getU8(p, i) != '@'.code)
+					i++;
+			} else
+			#end
 			while (i < commentEnd && StringTools.fastCodeAt(text, i) != '@'.code)
 				i++;
 			if (i >= commentEnd) {
 				return;
 			}
 			start = i + 1;
-			if ((tokenFlags & TokenFlagsPrecedingJSDocWithDeprecated) == 0 && hasJSDocTag(text, start, commentEnd, "deprecated")) {
+			if ((tokenFlags & TokenFlagsPrecedingJSDocWithDeprecated) == 0 && hasJSDocTag(text, start, commentEnd, jsdocDeprecatedTags)) {
 				tokenFlags |= TokenFlagsPrecedingJSDocWithDeprecated;
 			}
 			if ((tokenFlags & TokenFlagsPrecedingJSDocWithSeeOrLink) == 0
-				&& hasJSDocTag(text, start, commentEnd, "see", "link", "linkcode", "linkplain")) {
+				&& hasJSDocTag(text, start, commentEnd, jsdocSeeOrLinkTags)) {
 				tokenFlags |= TokenFlagsPrecedingJSDocWithSeeOrLink;
 			}
 			if ((tokenFlags & (TokenFlagsPrecedingJSDocWithDeprecated | TokenFlagsPrecedingJSDocWithSeeOrLink)) == (TokenFlagsPrecedingJSDocWithDeprecated | TokenFlagsPrecedingJSDocWithSeeOrLink)) {
@@ -499,7 +614,11 @@ class Scanner {
 	// hasJSDocTag reports whether text starts with one of the given tag names followed
 	// by a valid JSDoc tag terminator (whitespace, '}', '*', or end-of-string).
 	// PORT: `text` is Go's text[start:] (see scanJSDocCommentForTags), up to `end`.
-	static function hasJSDocTag(text:String, start:Int, end:Int, ...tags:String):Bool {
+	// PORT: perf — the tag lists of Go's variadic calls as arrays made once (a rest argument made one per '@')
+	static final jsdocDeprecatedTags = ["deprecated"];
+	static final jsdocSeeOrLinkTags = ["see", "link", "linkcode", "linkplain"];
+
+	static function hasJSDocTag(text:String, start:Int, end:Int, tags:Array<String>):Bool {
 		for (tag in tags) {
 			if (end - start < tag.length || !hasPrefixAt(text, start, tag)) {
 				continue;
@@ -622,6 +741,67 @@ class Scanner {
 		v;
 	}
 
+	// PORT: perf — scanASCIIWhile's predicates as classes of ASCII units (bits of asciiClass), for a loop that reads a
+	// one-byte text's bytes in place (hxmc: a raw address, so no function value in the loop)
+	static inline final classIdentifierPart = 1; // a-z, A-Z, 0-9, _ and $
+	static inline final classWhitespace = 2; // ' ', '\t' .. '\r'
+	static inline final classNotLineBreak = 4; // not '\n' or '\r'
+	static inline final classNotStarOrLineBreak = 8; // not '*', '\n' or '\r'
+	static inline final classTemplateText = 16; // not '`', '$', '\\' or '\r'
+	static inline final classDigit = 32; // 0-9
+
+	static final asciiClass:haxe.ds.Vector<Int> = {
+		final v = new haxe.ds.Vector<Int>(256); // units 128..255: no class (a one-byte text's units index it directly)
+		for (b in 0...256) {
+			var c = 0;
+			if (b >= 128) {
+				v[b] = 0;
+				continue;
+			}
+			if (asciiIdentifierPart[b])
+				c |= classIdentifierPart;
+			if (b == ' '.code || (b >= '\t'.code && b <= '\r'.code))
+				c |= classWhitespace;
+			if (b != '\n'.code && b != '\r'.code)
+				c |= classNotLineBreak;
+			if (b != '*'.code && b != '\n'.code && b != '\r'.code)
+				c |= classNotStarOrLineBreak;
+			if (b != '`'.code && b != '$'.code && b != '\\'.code && b != '\r'.code)
+				c |= classTemplateText;
+			if (b >= '0'.code && b <= '9'.code)
+				c |= classDigit;
+			v[b] = c;
+		}
+		v;
+	}
+
+	// scanASCIIWhile with the predicate "in class cls" (a constant)
+	inline function scanASCIIClass(cls:Int):Void {
+		final text = this.text;
+		final end = this.end;
+		final table = asciiClass;
+		var i = pos;
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (hxmc.rt.Str.isOne(text)) {
+			final p = hxmc.rt.Str.unitsAddr(text);
+			while (i < end) {
+				if (table[hxmc.unsafe.Mem.getU8(p, i)] & cls == 0) {
+					break;
+				}
+				i++;
+			}
+		} else
+		#end
+		while (i < end) {
+			final b = StringTools.fastCodeAt(text, i);
+			if (b >= Utf16.RuneSelf || table[b] & cls == 0) {
+				break;
+			}
+			i++;
+		}
+		pos = i;
+	}
+
 	inline function scanASCIIWhile(pred:Int->Bool):Void {
 		final text = this.text;
 		final end = this.end;
@@ -662,7 +842,7 @@ class Scanner {
 					tokenFlags |= TokenFlagsPrecedingLineBreak;
 					if (skipTrivia) {
 						pos++;
-						scanASCIIWhile(b -> b == ' '.code || (b >= '\t'.code && b <= '\r'.code));
+						scanASCIIClass(classWhitespace);
 						continue;
 					}
 					if (ch == '\r'.code && charAt(1) == '\n'.code) {
@@ -787,7 +967,7 @@ class Scanner {
 						pos += 2;
 
 						while (true) {
-							scanASCIIWhile(b -> b != '\n'.code && b != '\r'.code);
+							scanASCIIClass(classNotLineBreak);
 							final ch1 = charAndSize();
 							final size = charSize(ch1);
 							if (size == 0 || Stringutil.IsLineBreak(ch1)) {
@@ -812,7 +992,7 @@ class Scanner {
 						var commentClosed = false;
 						var lastLineStart = tokenStart;
 						while (true) {
-							scanASCIIWhile(b -> b != '*'.code && b != '\n'.code && b != '\r'.code);
+							scanASCIIClass(classNotStarOrLineBreak);
 							final ch1 = charAndSize();
 							final size = charSize(ch1);
 							if (size == 0) {
@@ -1089,8 +1269,9 @@ class Scanner {
 						token = KindEndOfFile;
 						return token;
 					}
+					identifierToken = KindUnknown;
 					if (scanIdentifier(0, identifierVariantStandard)) {
-						token = GetIdentifierToken(tokenValue);
+						token = identifierToken != KindUnknown ? identifierToken : GetIdentifierToken(tokenValue);
 						return token;
 					}
 					var ch = charAndSize();
@@ -1685,10 +1866,19 @@ class Scanner {
 		// Fast path for simple ASCII identifiers
 		if (variant != identifierVariantJSX && (Stringutil.IsASCIILetter(ch) || ch == '_'.code || ch == '$'.code)) {
 			pos++;
-			scanASCIIWhile(b -> asciiIdentifierPart[b]); // PORT: perf — (from tsrs) a table of Go's predicate
+			scanASCIIClass(classIdentifierPart); // PORT: perf — (from tsrs) a table of Go's predicate
 			ch = char();
 			if (ch < Utf16.RuneSelf && ch != '\\'.code) {
-				tokenValue = text.substring(start, pos);
+				// PORT: perf — a keyword's value is the keyword table's string (no substring: Go's slice of the
+				// text is free, a Haxe substring an allocation and a copy)
+				final kw = keywordAt(start, pos);
+				if (kw >= 0) {
+					tokenValue = kwTable[kw];
+					identifierToken = kwKinds[kw] != KindUnknown ? kwKinds[kw] : KindIdentifier;
+				} else {
+					tokenValue = identifierText(start, pos);
+					identifierToken = KindIdentifier;
+				}
 				return true;
 			}
 			pos = identifierStart;
@@ -1800,6 +1990,18 @@ class Scanner {
 				if (i < n)
 					c = quote;
 			} else {
+				#if (target.name == "hxmc" && !hxmc.wasm_gc)
+				// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass)
+				if (hxmc.rt.Str.isOne(text)) {
+					final p = hxmc.rt.Str.unitsAddr(text);
+					while (i < n) {
+						c = hxmc.unsafe.Mem.getU8(p, i);
+						if (c == quote || c == '\\'.code || c == '\n'.code || c == '\r'.code)
+							break;
+						i++;
+					}
+				} else
+				#end
 				while (i < n) {
 					c = StringTools.fastCodeAt(text, i);
 					if (c == quote || c == '\\'.code || c == '\n'.code || c == '\r'.code)
@@ -1852,7 +2054,7 @@ class Scanner {
 		final parts = new Array<String>();
 		var token:Kind = KindUnknown;
 		while (true) {
-			scanASCIIWhile(b -> b != '`'.code && b != '$'.code && b != '\\'.code && b != '\r'.code);
+			scanASCIIClass(classTemplateText);
 			final ch = char();
 			if (ch < 0 || ch == '`'.code) {
 				parts.push(text.substring(start, pos));
@@ -2299,7 +2501,7 @@ class Scanner {
 		final result = new StringBuf();
 		while (true) {
 			final before = pos;
-			scanASCIIWhile(b -> b >= '0'.code && b <= '9'.code);
+			scanASCIIClass(classDigit);
 			if (pos > before) {
 				allowSeparator = true;
 				isPreviousTokenSeparator = false;
@@ -3201,6 +3403,22 @@ class Scanner {
 						final startPos = pos;
 						pos += 2;
 						if (nextChar == '/'.code) {
+							#if (target.name == "hxmc" && !hxmc.wasm_gc)
+							// PORT: perf — a one-byte text's bytes read in place (see scanASCIIClass): its only line
+							// breaks are '\n' and '\r', each unit one rune
+							if (hxmc.rt.Str.isOne(text)) {
+								final p = hxmc.rt.Str.unitsAddr(text);
+								final n = text.length;
+								while (pos < n) {
+									final c = hxmc.unsafe.Mem.getU8(p, pos);
+									if (c == '\n'.code || c == '\r'.code) {
+										hasTrailingNewLine = true;
+										break;
+									}
+									pos++;
+								}
+							} else
+							#end
 							while (pos < text.length) {
 								final c = Utf16.DecodeRuneInString(text, pos);
 								if (Stringutil.IsLineBreak(c)) {
@@ -3210,7 +3428,7 @@ class Scanner {
 								pos += Utf16.RuneLen(c);
 							}
 						} else {
-							final i = text.indexOf("*/", pos);
+							final i = indexOfCommentEnd(text, pos);
 							if (i >= 0) {
 								pos = i + 2;
 							} else {
