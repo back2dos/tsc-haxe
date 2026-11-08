@@ -2919,7 +2919,7 @@ class CheckerPart5 {
 		final lazyState = new LazyState();
 		lazyState.layout = layout;
 		lazyState.mapper = mapper;
-		lazyState.baseTypes = instantiatedBaseTypes;
+		lazyState.baseTypes = instantiatedBaseTypes == null ? null : haxe.ds.Vector.fromArrayCopy(instantiatedBaseTypes);
 		t.AsTypeReference().lazy = lazyState;
 		c.propagateResolvedDeclaredMembers();
 		c.resolvingObjectTypeStack.pop();

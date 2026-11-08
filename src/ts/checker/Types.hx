@@ -1269,7 +1269,7 @@ class TypeReference extends ObjectType {
 class LazyState {
 	var layout:MemberLayout = null;
 	var mapper:TypeMapper = null;
-	var baseTypes:Array<Type> = null;
+	var baseTypes:haxe.ds.Vector<Type> = null; // PORT: perf — a Vector (one object, exact size: 0.6M on t3code-server)
 	var propertiesResolved:Bool = false;
 
 	public function new() {}
