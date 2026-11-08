@@ -864,9 +864,9 @@ class Tspath {
 		return scanRelativePathSegment(p, false);
 	}
 
-	// hasRelativePathSegment(p[from:]) without the slice.
-	static function scanRelativePathSegmentFrom(p:String, from:Int):Bool {
-		return from == 0 ? scanRelativePathSegment(p, false) : scanRelativePathSegment(p.substring(from), false);
+	// hasRelativePathSegment(p[from:]) (or a '\\' in it) without the slice.
+	static inline function scanRelativePathSegmentFrom(p:String, from:Int, backslash:Bool = false):Bool {
+		return scanRelativePathSegmentAt(p, backslash, from);
 	}
 
 	// hasRelativePathSegment, or (backslash) a '\\' in p
@@ -874,9 +874,13 @@ class Tspath {
 	// p == "." or "..") in one pass with less work per unit: a relative segment is a segment "." or ".." anywhere
 	// or an empty one after a separator; units are only compared within a segment's first three and with '/'
 	// (and '\\'). Checked equal to the Go logic on every string of up to 8 units over "/.a\\".
-	static function scanRelativePathSegment(p:String, backslash:Bool):Bool {
+	static inline function scanRelativePathSegment(p:String, backslash:Bool):Bool {
+		return scanRelativePathSegmentAt(p, backslash, 0);
+	}
+
+	static function scanRelativePathSegmentAt(p:String, backslash:Bool, from:Int):Bool {
 		final n = p.length;
-		var start = 0;
+		var start = from;
 		while (true) {
 			// a segment "." or ".."
 			var j = start;
@@ -1816,24 +1820,36 @@ class Tspath {
 	// TryRootedPathFromNormalized validates a path that is already rooted and
 	// normalized without changing it.
 	// PORT: (RootedPath, bool) -> null when !ok.
+	// PORT: perf — the root length once (hasRootedURLSuffix needs a URL root: a negative one); the '\\' search
+	// after the root as part of the relative segment scan (no substring of the path)
 	public static function TryRootedPathFromNormalized(path:String):Null<RootedPath> {
-		if (hasRootedURLSuffix(path)) {
-			return null;
-		}
 		var rootLength = GetEncodedRootLength(path);
 		if (rootLength < 0) {
+			if (hasRootedURLSuffix(path)) {
+				return null;
+			}
 			rootLength = ~rootLength;
 		}
 		if (path == ""
 			|| rootLength == 0
-			|| path.indexOf("\\") >= 0
+			|| hasBackslashBefore(path, rootLength)
 			|| rootLength < path.length && StringTools.fastCodeAt(path, rootLength) == '/'.code
-			|| scanRelativePathSegmentFrom(path, rootLength)
+			|| scanRelativePathSegmentFrom(path, rootLength, true)
 			|| path.length == rootLength && !HasTrailingDirectorySeparator(path)
 			|| path.length > rootLength && HasTrailingDirectorySeparator(path)) {
 			return null;
 		}
 		return new RootedPath(path);
+	}
+
+	static function hasBackslashBefore(path:String, end:Int):Bool {
+		var i = 0;
+		while (i < end && i < path.length) {
+			if (StringTools.fastCodeAt(path, i) == '\\'.code)
+				return true;
+			i++;
+		}
+		return false;
 	}
 
 	static function hasRootedURLSuffix(path:String):Bool {
