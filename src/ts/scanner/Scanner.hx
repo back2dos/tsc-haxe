@@ -471,18 +471,23 @@ class Scanner {
 	// setting the appropriate token flags. Called during scanning when a JSDoc comment is detected.
 	// PORT: Go reslices commentText after each '@'; here `start` is the offset of that slice, so
 	// no substring is made per '@' (hasJSDocTag takes the offset).
-	function scanJSDocCommentForTags(commentText:String):Void {
-		var start = 0;
+	// PORT: perf — the comment is text[commentStart:commentEnd] (no substring)
+	function scanJSDocCommentForTags(commentStart:Int, commentEnd:Int):Void {
+		final text = this.text;
+		var start = commentStart;
 		while (true) {
-			final i = commentText.indexOf("@", start);
-			if (i < 0) {
+			var i = start;
+			while (i < commentEnd && StringTools.fastCodeAt(text, i) != '@'.code)
+				i++;
+			if (i >= commentEnd) {
 				return;
 			}
 			start = i + 1;
-			if ((tokenFlags & TokenFlagsPrecedingJSDocWithDeprecated) == 0 && hasJSDocTag(commentText, start, "deprecated")) {
+			if ((tokenFlags & TokenFlagsPrecedingJSDocWithDeprecated) == 0 && hasJSDocTag(text, start, commentEnd, "deprecated")) {
 				tokenFlags |= TokenFlagsPrecedingJSDocWithDeprecated;
 			}
-			if ((tokenFlags & TokenFlagsPrecedingJSDocWithSeeOrLink) == 0 && hasJSDocTag(commentText, start, "see", "link", "linkcode", "linkplain")) {
+			if ((tokenFlags & TokenFlagsPrecedingJSDocWithSeeOrLink) == 0
+				&& hasJSDocTag(text, start, commentEnd, "see", "link", "linkcode", "linkplain")) {
 				tokenFlags |= TokenFlagsPrecedingJSDocWithSeeOrLink;
 			}
 			if ((tokenFlags & (TokenFlagsPrecedingJSDocWithDeprecated | TokenFlagsPrecedingJSDocWithSeeOrLink)) == (TokenFlagsPrecedingJSDocWithDeprecated | TokenFlagsPrecedingJSDocWithSeeOrLink)) {
@@ -493,13 +498,13 @@ class Scanner {
 
 	// hasJSDocTag reports whether text starts with one of the given tag names followed
 	// by a valid JSDoc tag terminator (whitespace, '}', '*', or end-of-string).
-	// PORT: `text` is Go's text[start:] (see scanJSDocCommentForTags).
-	static function hasJSDocTag(text:String, start:Int, ...tags:String):Bool {
+	// PORT: `text` is Go's text[start:] (see scanJSDocCommentForTags), up to `end`.
+	static function hasJSDocTag(text:String, start:Int, end:Int, ...tags:String):Bool {
 		for (tag in tags) {
-			if (!hasPrefixAt(text, start, tag)) {
+			if (end - start < tag.length || !hasPrefixAt(text, start, tag)) {
 				continue;
 			}
-			if (text.length - start == tag.length) {
+			if (end - start == tag.length) {
 				return true;
 			}
 			final ch = StringTools.fastCodeAt(text, start + tag.length);
@@ -830,7 +835,7 @@ class Scanner {
 
 						if (isJSDoc) {
 							tokenFlags |= TokenFlagsPrecedingJSDocComment;
-							scanJSDocCommentForTags(text.substring(tokenStart, pos));
+							scanJSDocCommentForTags(tokenStart, pos);
 						}
 
 						processCommentDirective(lastLineStart, pos, true);
@@ -1781,22 +1786,30 @@ class Scanner {
 		}
 		pos++;
 		// Fast path for simple strings without escape sequences.
-		// PORT: strings.IndexByte(s.text[s.pos:], byte(quote)) without the slice.
-		var strLen = text.indexOf(quote == "'".code ? "'" : '"', pos);
-		if (strLen >= textLen) {
-			strLen = -1; // (past len(s.text))
-		}
-		if (strLen >= 0) {
-			strLen -= pos;
-		}
-		if (strLen == 0) {
-			pos++;
-			return "";
-		}
-		if (strLen > 0) {
-			final str = text.substring(pos, pos + strLen);
-			if (jsxAttributeString || str.indexOf("\\") < 0 && str.indexOf("\r") < 0 && str.indexOf("\n") < 0) {
-				pos += strLen + 1;
+		// PORT: perf — Go's strings.IndexByte for the quote, then a check of text[pos:quote] for '\\', '\r' and
+		// '\n' (unless jsxAttributeString), as one unit loop that stops at the first of them: the fast path
+		// is taken when the quote comes first. (Go's IndexByte searches all of s.text, past s.end too.)
+		{
+			final text = this.text;
+			final n = textLen;
+			var i = pos;
+			var c = -1;
+			if (jsxAttributeString) {
+				while (i < n && StringTools.fastCodeAt(text, i) != quote)
+					i++;
+				if (i < n)
+					c = quote;
+			} else {
+				while (i < n) {
+					c = StringTools.fastCodeAt(text, i);
+					if (c == quote || c == '\\'.code || c == '\n'.code || c == '\r'.code)
+						break;
+					i++;
+				}
+			}
+			if (i < n && c == quote) {
+				final str = i == pos ? "" : text.substring(pos, i);
+				pos = i + 1;
 				return str;
 			}
 		}

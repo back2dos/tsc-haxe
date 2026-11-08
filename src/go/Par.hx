@@ -2,7 +2,7 @@ package go;
 
 #if tshx_parallel
 import haxe.atomic.AtomicInt;
-import sys.thread.Deque;
+import sys.thread.Condition;
 import sys.thread.Mutex;
 import sys.thread.Thread;
 
@@ -18,7 +18,7 @@ class Par {
 	// the lazily computed fields of shared objects (Go's sync.Onces of the program)
 	public static final onceMutex = new Mutex();
 
-	static final tasks = new Deque<() -> Void>();
+	static final tasks = new TaskQueue();
 	static final startMutex = new Mutex();
 	static final started = new AtomicInt(0);
 	static var count = 0;
@@ -61,6 +61,48 @@ class Par {
 			started.store(1);
 		}
 		startMutex.release();
+	}
+}
+
+// PORT: perf — the pool's FIFO queue: sys.thread.Deque's pop is Array.shift (a copy of the whole queue
+// under its lock; t3code-server queues ~220k parse tasks); here the front is an index, and the array is
+// compacted when the consumed part is at least half of it.
+private class TaskQueue {
+	final cond = new Condition();
+	var items:Array<() -> Void> = [];
+	var head = 0;
+
+	public function new() {}
+
+	public function add(fn:() -> Void):Void {
+		cond.acquire();
+		items.push(fn);
+		cond.signal();
+		cond.release();
+	}
+
+	// the front function, or (block false) null when there is none
+	public function pop(block:Bool):Null<() -> Void> {
+		cond.acquire();
+		while (head == items.length) {
+			if (!block) {
+				cond.release();
+				return null;
+			}
+			cond.wait();
+		}
+		final fn = items[head];
+		items[head] = null;
+		head++;
+		if (head == items.length) {
+			items.resize(0);
+			head = 0;
+		} else if (head >= 1024 && head * 2 >= items.length) {
+			items = items.slice(head);
+			head = 0;
+		}
+		cond.release();
+		return fn;
 	}
 }
 #end
