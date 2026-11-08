@@ -422,6 +422,8 @@ class Grammarchecks {
 					case KindDeclareKeyword:
 						if ((flags & ModifierFlagsAmbient) != 0) {
 							return c.grammarErrorOnNode(modifier, Diagnostics.X_0_modifier_already_seen, "declare");
+						} else if ((flags & ModifierFlagsAbstract) != 0 && (modifier.Flags & NodeFlagsReparsed) == 0) {
+							return c.grammarErrorOnNode(modifier, Diagnostics.X_0_modifier_must_precede_1_modifier, "declare", "abstract");
 						} else if ((flags & ModifierFlagsAsync) != 0) {
 							return c.grammarErrorOnNode(modifier, Diagnostics.X_0_modifier_cannot_be_used_in_an_ambient_context, "async");
 						} else if ((flags & ModifierFlagsOverride) != 0) {
@@ -793,9 +795,6 @@ class Grammarchecks {
 		}
 		if (!Checker.everyType(t, t -> c.isValidIndexKeyType(t))) {
 			return c.grammarErrorOnNode(parameter.Name(), Diagnostics.An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type);
-		}
-		if (node.Type == null) {
-			return c.grammarErrorOnNode(node.AsNode(), Diagnostics.An_index_signature_must_have_a_type_annotation);
 		}
 		return false;
 	}
