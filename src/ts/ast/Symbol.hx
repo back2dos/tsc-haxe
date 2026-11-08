@@ -18,14 +18,60 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	public var Name:String = "";
 	public var Declarations:Array<Node> = null;
 	public var ValueDeclaration:Node = null;
-	public var Members:SymbolTable = null;
-	public var Exports:SymbolTable = null;
 	public var id:Int = 0; // PORT: atomic.Uint64 → Int (single-threaded; ids fit in 32 bits)
 	public var Parent:Symbol = null;
-	public var ExportSymbol:Symbol = null;
+	// PORT: perf — from TypeScript main (microsoft/typescript-go#64799, symbolExtra): the optional symbol tables
+	// and the export symbol in a side record, allocated when one is set to a non-nil value (most symbols,
+	// the checker's transient ones, have none); the properties keep Go 7.0's field syntax.
+	var extra:SymbolExtra = null;
+	public var Members(get, set):SymbolTable;
+	public var Exports(get, set):SymbolTable;
+	public var ExportSymbol(get, set):Symbol;
 
 	public function new() {
 		super();
+	}
+
+	inline function get_Members():SymbolTable {
+		return extra == null ? null : extra.members;
+	}
+
+	inline function get_Exports():SymbolTable {
+		return extra == null ? null : extra.exports;
+	}
+
+	inline function get_ExportSymbol():Symbol {
+		return extra == null ? null : extra.exportSymbol;
+	}
+
+	function set_Members(v:SymbolTable):SymbolTable {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new SymbolExtra();
+		}
+		return extra.members = v;
+	}
+
+	function set_Exports(v:SymbolTable):SymbolTable {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new SymbolExtra();
+		}
+		return extra.exports = v;
+	}
+
+	function set_ExportSymbol(v:Symbol):Symbol {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new SymbolExtra();
+		}
+		return extra.exportSymbol = v;
 	}
 
 	public function IsExternalModule():Bool {
@@ -47,6 +93,14 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 		}
 		return Flags;
 	}
+}
+
+class SymbolExtra {
+	public var members:SymbolTable = null;
+	public var exports:SymbolTable = null;
+	public var exportSymbol:Symbol = null;
+
+	public function new() {}
 }
 
 // SymbolTable
