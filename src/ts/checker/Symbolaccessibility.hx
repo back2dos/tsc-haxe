@@ -29,9 +29,27 @@ enum abstract SymbolTableID(Int) from Int to Int {
 	var stKindGlobals = 3;
 	var stKindResolvedExports = 4; // resolved/derived exports from getExportsOfSymbol, distinct from raw sym.Exports
 	// stKindMask extracts the kind bits from a symbolTableID.
-	// PORT: Go's value is `(iota - 1) << stKindShift` = 4 << 61, i.e. only the top kind bit (an upstream quirk:
-	// `tableId & stKindMask` is non-zero only for stKindResolvedExports). 4 reproduces exactly that here.
-	var stKindMask = 4;
+	// PORT: Go's value is `^symbolTableID(1<<stKindShift - 1)` (the top 3 bits); here the low 3 bits.
+	var stKindMask = 7;
+}
+
+@:allow(ts.checker)
+class ExternalModuleContainerIndex {
+	var complete:Bool = false;
+	var containersByTarget:IdentityMap<Symbol, Array<Symbol>> = new IdentityMap<Symbol, Array<Symbol>>();
+	var moduleOrder:IdentityMap<Symbol, Int> = new IdentityMap<Symbol, Int>();
+
+	public function new() {}
+
+	function add(target:Symbol, container:Symbol):Void {
+		// Modules are indexed one at a time, so a repeat of this container is always the last entry.
+		final existing = containersByTarget.get(target);
+		if (existing == null || existing.length == 0) {
+			containersByTarget.set(target, [container]);
+		} else if (existing[existing.length - 1] != container) {
+			existing.push(container);
+		}
+	}
 }
 
 // Methods of symbolaccessibility.go on receivers declared in other files: static extension (PORTING.md §2).
@@ -261,25 +279,79 @@ class Symbolaccessibility {
 		if (links.extendedContainers != null) {
 			return links.extendedContainers;
 		}
-		// No results from files already being imported by this file - expand search (expensive, but not location-specific, so cached)
-		final otherFiles = c.program.SourceFiles();
-		for (file in otherFiles) {
-			if (!Ast.IsExternalModule(file)) {
-				continue;
-			}
-			final sym = c.getSymbolOfDeclaration(file.AsNode());
-			final ref = c.getAliasForSymbolInContainer(sym, symbol);
-			if (ref == null) {
-				continue;
-			}
-			if (results == null) {
-				results = [];
-			}
-			results.push(sym);
-		}
+		// No results from files already being imported by this file - expand search (not location-specific, so cached)
+		results = c.getExternalModuleContainers(symbol);
 		// PORT: pointer. Go stores `&results`, so a nil result is cached too; a non-null empty array stands for it here.
 		links.extendedContainers = results == null ? [] : results;
 		return results;
+	}
+
+	static function getExternalModuleContainers(c:Checker, symbol:Symbol):Array<Symbol> {
+		if (c.externalModuleContainers == null) {
+			c.buildExternalModuleContainerIndex();
+		}
+		final index = c.externalModuleContainers;
+		if (!index.complete) {
+			// Re-entered from an alias resolved while building the index; answer this query without it.
+			return c.scanExternalModuleContainers(symbol);
+		}
+		final containers = index.containersByTarget.get(c.getResolvedTarget(symbol));
+		final parent = c.getParentOfSymbol(symbol);
+		final parentOrder:Null<Int> = parent == null ? null : index.moduleOrder.get(parent);
+		if (parentOrder == null) {
+			return containers;
+		}
+		// The parent module contains the symbol even when the symbol is absent from its exports.
+		final r = Slices.BinarySearchFunc(containers, (parentOrder : Int), (container:Symbol, order:Int) -> {
+			final o:Int = index.moduleOrder.get(container);
+			return o < order ? -1 : (o > order ? 1 : 0);
+		});
+		if (!r.ok) {
+			final result = containers == null ? [] : containers.copy();
+			result.insert(r.value, parent);
+			return result;
+		}
+		return containers;
+	}
+
+	static function buildExternalModuleContainerIndex(c:Checker):Void {
+		final index = new ExternalModuleContainerIndex();
+		c.externalModuleContainers = index;
+		for (file in c.program.SourceFiles()) {
+			if (!Ast.IsExternalModule(file)) {
+				continue;
+			}
+			final container = c.getSymbolOfDeclaration(file.AsNode());
+			index.moduleOrder.set(container, index.moduleOrder.size());
+			final exports = c.getExportsOfSymbol(container);
+			if (exports != null) {
+				for (exported in exports) {
+					index.add(c.getResolvedTarget(exported), container);
+				}
+			}
+			final exportEquals = symbolTableGet(container.Exports, Ast.InternalSymbolNameExportEquals);
+			if (exportEquals != null) {
+				index.add(c.getResolvedTarget(exportEquals), container);
+			}
+		}
+		index.complete = true;
+	}
+
+	static function scanExternalModuleContainers(c:Checker, symbol:Symbol):Array<Symbol> {
+		var containers:Array<Symbol> = null;
+		for (file in c.program.SourceFiles()) {
+			if (!Ast.IsExternalModule(file)) {
+				continue;
+			}
+			final container = c.getSymbolOfDeclaration(file.AsNode());
+			if (c.getAliasForSymbolInContainer(container, symbol) != null) {
+				if (containers == null) {
+					containers = [];
+				}
+				containers.push(container);
+			}
+		}
+		return containers;
 	}
 
 	static function getVariableDeclarationOfObjectLiteral(c:Checker, symbol:Symbol, meaning:SymbolFlags):Symbol {
@@ -675,6 +747,17 @@ class Symbolaccessibility {
 		}
 		if (symbol == c.getMergedSymbol(symbolFromSymbolTable)) {
 			likeSymbols = true;
+		}
+		if (!likeSymbols && resolvedAliasSymbol != null && (resolvedAliasSymbol.Flags & SymbolFlagsAlias) != 0) {
+			final seenAliases = new Set<Symbol>();
+			while ((resolvedAliasSymbol.Flags & SymbolFlagsAlias) != 0 && !seenAliases.Has(resolvedAliasSymbol)) {
+				seenAliases.Add(resolvedAliasSymbol);
+				resolvedAliasSymbol = c.getMergedSymbol(c.resolveAlias(resolvedAliasSymbol));
+				if (symbol == resolvedAliasSymbol) {
+					likeSymbols = true;
+					break;
+				}
+			}
 		}
 		if (!likeSymbols) {
 			return false;

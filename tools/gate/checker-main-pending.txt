@@ -3,9 +3,7 @@
 # process that runs them). One base name per line, then the symptom.
 templateLiteralTypeExcessiveLength.ts                          segfault (stack overflow)
 computedEnumMemberKeyNoCrash1.ts                               segfault
-forOfSelfReferentialDottedName.ts                              segfault
 crossProductUnionIntersectionRepeatedPropDeclarationsNoOOM1.ts runaway memory
-inferFromTypeArgumentsNoInfiniteRecursion.ts                   hang
 unreachableFlowAfterThrowingForInOfHead1.ts                    hang
 unreachableFlowAfterThrowingForInOfHead2.ts                    hang
 unreachableFlowAfterThrowingForHead1.ts                        hang

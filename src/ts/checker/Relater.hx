@@ -70,9 +70,8 @@ enum abstract RelationComparisonResult(Int) from Int to Int {
 	var RelationComparisonResultReportsUnmeasurable = 1 << 3;
 	var RelationComparisonResultReportsUnreliable = 1 << 4;
 	var RelationComparisonResultComplexityOverflow = 1 << 5;
-	var RelationComparisonResultStackDepthOverflow = 1 << 6;
 	var RelationComparisonResultReportsMask = 24;
-	var RelationComparisonResultOverflow = 96;
+	var RelationComparisonResultOverflow = 32; // RelationComparisonResultComplexityOverflow
 }
 
 @:allow(ts.checker)
@@ -528,7 +527,7 @@ class Relater {
 		if (r.overflow) {
 			// Record this relation as having failed such that we don't attempt the overflowing operation again.
 			final id = Checker.getRelationKey(source, target, IntersectionStateNone, relation == c.identityRelation, false /*ignoreConstraints*/);
-			relation.set(id, RelationComparisonResultFailed | (r.relationCount <= 0 ? RelationComparisonResultComplexityOverflow : RelationComparisonResultStackDepthOverflow));
+			relation.set(id, RelationComparisonResultFailed | RelationComparisonResultComplexityOverflow);
 			final tr = c.tracer;
 			if (tr != null) {
 				final args = new StringMap<Any>();
@@ -538,11 +537,11 @@ class Relater {
 				args.set("targetDepth", Core.len(r.targetStack));
 				tr.Instant(PhaseCheckTypes, "checkTypeRelatedTo_DepthLimit", args);
 			}
-			final message = r.relationCount <= 0 ? Diagnostics.Excessive_complexity_comparing_types_0_and_1 : Diagnostics.Excessive_stack_depth_comparing_types_0_and_1;
 			if (errorNode == null) {
 				errorNode = c.currentNode;
 			}
-			c.reportDiagnostic(Checker.NewDiagnosticForNode(errorNode, message, c.TypeToString(source), c.TypeToString(target)), diagnosticOutput);
+			c.reportDiagnostic(Checker.NewDiagnosticForNode(errorNode, Diagnostics.Excessive_complexity_comparing_types_0_and_1, c.TypeToString(source),
+				c.TypeToString(target)), diagnosticOutput);
 		} else if (r.errorChain != null) {
 			// Check if we should issue an extra diagnostic to produce a quickfix for a slightly incorrect import statement
 			if (headMessage != null && errorNode != null && result == TernaryFalse && source.symbol != null && c.exportTypeLinks.Has(source.symbol)) {
@@ -919,67 +918,33 @@ class Relater {
 	// structurally equal to at least maxDepth levels, but unequal at some level beyond that.
 	static function isDeeplyNestedType(c:Checker, t:Type, stack:Array<Type>, maxDepth:Int):Bool {
 		if (Core.len(stack) >= maxDepth) {
-			if (t.objectFlags & ObjectFlagsInstantiatedMapped == ObjectFlagsInstantiatedMapped) {
-				t = c.getMappedTargetWithSymbol(t);
-			}
-			if (t.flags & TypeFlagsIntersection != 0) {
-				for (t in t.Types()) {
+			final target = Checker.getRecursionIdentityTarget(t);
+			if (target.flags & TypeFlagsIntersection != 0) {
+				for (t in target.Types()) {
 					if (c.isDeeplyNestedType(t, stack, maxDepth)) {
 						return true;
 					}
 				}
-			}
-			final identity = Checker.getRecursionIdentity(t);
-			var count = 0;
-			var lastTypeId:TypeId = 0;
-			for (t in stack) {
-				if (c.hasMatchingRecursionIdentity(t, identity)) {
-					// We only count occurrences with a higher type id than the previous occurrence, since higher
-					// type ids are an indicator of newer instantiations caused by recursion.
-					if (t.id >= lastTypeId) {
-						count++;
-						if (count >= maxDepth) {
-							return true;
+			} else {
+				final identity = Checker.getRecursionIdentityFromTarget(target);
+				var count = 0;
+				var lastTypeId:TypeId = 0;
+				for (t in stack) {
+					if (Checker.hasMatchingRecursionIdentity(t, identity)) {
+						// We only count occurrences with a higher type id than the previous occurrence, since higher
+						// type ids are an indicator of newer instantiations caused by recursion.
+						if (t.id >= lastTypeId) {
+							count++;
+							if (count >= maxDepth) {
+								return true;
+							}
 						}
+						lastTypeId = t.id;
 					}
-					lastTypeId = t.id;
 				}
 			}
 		}
 		return false;
-	}
-
-	// Unwrap nested homomorphic mapped types and return the deepest target type that has a symbol. This better
-	// preserves unique type identities for mapped types applied to explicitly written object literals. For example
-	// in `Mapped<{ x: Mapped<{ x: Mapped<{ x: string }>}>}>`, each of the mapped type applications will have a
-	// unique recursion identity (that of their target object type literal) and thus avoid appearing deeply nested.
-	static function getMappedTargetWithSymbol(c:Checker, t:Type):Type {
-		while (true) {
-			if (t.objectFlags & ObjectFlagsInstantiatedMapped == ObjectFlagsInstantiatedMapped) {
-				final target = c.getModifiersTypeFromMappedType(t);
-				if (target != null && (target.symbol != null || target.flags & TypeFlagsIntersection != 0 && Core.Some(target.Types(), t -> t.symbol != null))) {
-					t = target;
-					continue;
-				}
-			}
-			return t;
-		}
-	}
-
-	static function hasMatchingRecursionIdentity(c:Checker, t:Type, identity:RecursionId):Bool {
-		if (t.objectFlags & ObjectFlagsInstantiatedMapped == ObjectFlagsInstantiatedMapped) {
-			t = c.getMappedTargetWithSymbol(t);
-		}
-		if (t.flags & TypeFlagsIntersection != 0) {
-			for (t in t.Types()) {
-				if (c.hasMatchingRecursionIdentity(t, identity)) {
-					return true;
-				}
-			}
-			return false;
-		}
-		// PORT: Go `==` on RecursionId compares the contained `any` values
-		return RecursionId.same(Checker.getRecursionIdentity(t), identity);
 	}
 
 	static function getBestMatchingType(c:Checker, source:Type, target:Type, isRelatedTo:(source:Type, target:Type) -> Ternary):Type {
@@ -1437,64 +1402,109 @@ class Relater {
 					popFn();
 				};
 			}
-			final oldVarianceComputation = c.inVarianceComputation;
-			final saveResolutionStart = c.resolutionStart;
-			if (!c.inVarianceComputation) {
-				c.inVarianceComputation = true;
-				c.resolutionStart = c.typeResolutionCount;
-			}
-			links.variances = [];
-			final variances:Array<VarianceFlags> = [for (_ in 0...Core.len(typeParameters)) VarianceFlagsInvariant];
-			for (i in 0...Core.len(typeParameters)) {
-				final tp = typeParameters[i];
-				final modifiers = c.getTypeParameterModifiers(tp);
-				var variance:VarianceFlags = 0;
-				if (modifiers & ModifierFlagsOut != 0) {
-					if (modifiers & ModifierFlagsIn != 0) {
-						variance = VarianceFlagsInvariant;
-					} else {
-						variance = VarianceFlagsCovariant;
-					}
-				} else if (modifiers & ModifierFlagsIn != 0) {
-					variance = VarianceFlagsContravariant;
-				} else {
-					final saveReliabilityFlags = c.reliabilityFlags;
-					c.reliabilityFlags = 0;
-					// We first compare instantiations where the type parameter is replaced with
-					// marker types that have a known subtype relationship. From this we can infer
-					// invariance, covariance, contravariance or bivariance.
-					final typeWithSuper = c.createMarkerType(symbol, tp, c.markerSuperType);
-					final typeWithSub = c.createMarkerType(symbol, tp, c.markerSubType);
-					final co:VarianceFlags = c.isTypeAssignableTo(typeWithSub, typeWithSuper) ? VarianceFlagsCovariant : 0;
-					final contra:VarianceFlags = c.isTypeAssignableTo(typeWithSuper, typeWithSub) ? VarianceFlagsContravariant : 0;
-					variance = co | contra;
-					// If the instantiations appear to be related bivariantly it may be because the
-					// type parameter is independent (i.e. it isn't witnessed anywhere in the generic
-					// type). To determine this we compare instantiations where the type parameter is
-					// replaced with marker types that are known to be unrelated.
-					if (variance == VarianceFlagsBivariant && c.isTypeAssignableTo(c.createMarkerType(symbol, tp, c.markerOtherType), typeWithSuper)) {
-						variance = VarianceFlagsIndependent;
-					}
-					if (c.reliabilityFlags & RelationComparisonResultReportsUnmeasurable != 0) {
-						variance |= VarianceFlagsUnmeasurable;
-					}
-					if (c.reliabilityFlags & RelationComparisonResultReportsUnreliable != 0) {
-						variance |= VarianceFlagsUnreliable;
-					}
-					c.reliabilityFlags = saveReliabilityFlags;
+			final stackIndex = c.getVarianceStackIndex(symbol);
+			if (stackIndex < 0) {
+				final saveResolutionStart = c.resolutionStart;
+				if (Core.len(c.varianceStack) == 0) {
+					c.resolutionStart = c.typeResolutionCount;
 				}
-				variances[i] = variance;
+				if (c.varianceStack == null) {
+					c.varianceStack = [];
+				}
+				c.varianceStack.push(new VarianceStackEntry(symbol, typeParameters));
+				final variances:Array<VarianceFlags> = [for (_ in 0...Core.len(typeParameters)) VarianceFlagsInvariant];
+				for (i in 0...Core.len(typeParameters)) {
+					final tp = typeParameters[i];
+					final modifiers = c.getTypeParameterModifiers(tp);
+					var variance:VarianceFlags = 0;
+					if (modifiers & ModifierFlagsOut != 0) {
+						if (modifiers & ModifierFlagsIn != 0) {
+							variance = VarianceFlagsInvariant;
+						} else {
+							variance = VarianceFlagsCovariant;
+						}
+					} else if (modifiers & ModifierFlagsIn != 0) {
+						variance = VarianceFlagsContravariant;
+					} else {
+						final saveReliabilityFlags = c.reliabilityFlags;
+						c.reliabilityFlags = 0;
+						// We first compare instantiations where the type parameter is replaced with
+						// marker types that have a known subtype relationship. From this we can infer
+						// invariance, covariance, contravariance or bivariance.
+						final typeWithSuper = c.createMarkerType(symbol, tp, c.markerSuperType);
+						final typeWithSub = c.createMarkerType(symbol, tp, c.markerSubType);
+						final co:VarianceFlags = c.isTypeAssignableTo(typeWithSub, typeWithSuper) ? VarianceFlagsCovariant : 0;
+						final contra:VarianceFlags = c.isTypeAssignableTo(typeWithSuper, typeWithSub) ? VarianceFlagsContravariant : 0;
+						variance = co | contra;
+						// If the instantiations appear to be related bivariantly it may be because the
+						// type parameter is independent (i.e. it isn't witnessed anywhere in the generic
+						// type). To determine this we compare instantiations where the type parameter is
+						// replaced with marker types that are known to be unrelated.
+						if (variance == VarianceFlagsBivariant && c.isTypeAssignableTo(c.createMarkerType(symbol, tp, c.markerOtherType), typeWithSuper)) {
+							variance = VarianceFlagsIndependent;
+						}
+						if (c.reliabilityFlags & RelationComparisonResultReportsUnmeasurable != 0) {
+							variance |= VarianceFlagsUnmeasurable;
+						}
+						if (c.reliabilityFlags & RelationComparisonResultReportsUnreliable != 0) {
+							variance |= VarianceFlagsUnreliable;
+						}
+						c.reliabilityFlags = saveReliabilityFlags;
+					}
+					// If variance computation was restarted due to a circularity we may have already
+					// computed variances for this generic type. If so, we exit early.
+					if (Core.len(links.variances) != 0) {
+						break;
+					}
+					variances[i] = variance;
+				}
+				// Store the results unless a restarted computation has already stored them.
+				if (Core.len(links.variances) == 0) {
+					links.variances = variances;
+				}
+				c.varianceStack.resize(c.varianceStack.length - 1);
+				if (c.varianceStack.length == 0) {
+					c.resolutionStart = saveResolutionStart;
+				}
+			} else {
+				// We've detected a circularity. Since we may compute different variances depending on where
+				// we enter a circularity, we find the generic type with the "smallest" symbol in the circular
+				// region of the variance stack and restart the computation from there if necessary. This
+				// ensures stable results for circular generic types.
+				var minIndex = stackIndex;
+				for (i in stackIndex + 1...c.varianceStack.length) {
+					if (c.compareSymbolsWorker(c.varianceStack[i].symbol, c.varianceStack[minIndex].symbol) < 0) {
+						minIndex = i;
+					}
+				}
+				if (minIndex > stackIndex) {
+					final saveVarianceStack = c.varianceStack;
+					c.varianceStack = null;
+					c.getVariancesWorker(saveVarianceStack[minIndex].symbol, saveVarianceStack[minIndex].typeParameters);
+					c.varianceStack = saveVarianceStack;
+				}
+				// Store an empty slice to mark that we can't compute variances for this type. We treat type
+				// parameters as co-variant in this case.
+				if (Core.len(links.variances) == 0) {
+					links.variances = [];
+				}
 			}
-			if (!oldVarianceComputation) {
-				c.inVarianceComputation = false;
-				c.resolutionStart = saveResolutionStart;
-			}
-			links.variances = variances;
 			if (deferred != null) {
 				deferred();
 			}
 		}
 		return links.variances;
+	}
+
+	static function getVarianceStackIndex(c:Checker, symbol:Symbol):Int {
+		if (c.varianceStack != null) {
+			for (i in 0...c.varianceStack.length) {
+				if (c.varianceStack[i].symbol == symbol) {
+					return i;
+				}
+			}
+		}
+		return -1;
 	}
 
 	static function createMarkerType(c:Checker, symbol:Symbol, source:Type, target:Type):Type {
@@ -2446,7 +2456,7 @@ class Relater {
 	}
 
 	static function isTypeMatchedByTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType, compareTypes:TypeComparer):Bool {
-		final inferences = c.inferTypesFromTemplateLiteralType(source, target);
+		final inferences = c.inferTypesFromTemplateLiteralType(source, target, compareTypes);
 		if (inferences != null) {
 			for (i in 0...inferences.length) {
 				if (!c.isValidTypeForTemplateLiteralPlaceholder(inferences[i], target.types[i], compareTypes)) {
@@ -2458,13 +2468,13 @@ class Relater {
 		return false;
 	}
 
-	static function inferTypesFromTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType):Array<Type> {
+	static function inferTypesFromTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType, compareTypes:TypeComparer):Array<Type> {
 		if (source.flags & TypeFlagsStringLiteral != 0) {
 			return c.inferFromLiteralPartsToTemplateLiteral([Checker.getStringLiteralValue(source)], null, target);
 		} else if (source.flags & TypeFlagsTemplateLiteral != 0) {
 			if (Slices.Equal(source.AsTemplateLiteralType().texts, target.texts)) {
 				return Core.MapIndex(source.AsTemplateLiteralType().types, (s, i) -> {
-					if (c.isTypeAssignableTo(c.getBaseConstraintOrType(s), c.getBaseConstraintOrType(target.types[i]))) {
+					if (compareTypes(c.getBaseConstraintOrType(s), c.getBaseConstraintOrType(target.types[i]), false /*partialMatch*/) != TernaryFalse) {
 						return s;
 					}
 					return c.getStringLikeTypeForType(s);
@@ -3222,8 +3232,7 @@ class Relater {
 			} else {
 				c.reliabilityFlags |= entry & (RelationComparisonResultReportsUnmeasurable | RelationComparisonResultReportsUnreliable);
 				if (reportErrors && entry & RelationComparisonResultOverflow != 0) {
-					final message = entry & RelationComparisonResultComplexityOverflow != 0 ? Diagnostics.Excessive_complexity_comparing_types_0_and_1 : Diagnostics.Excessive_stack_depth_comparing_types_0_and_1;
-					reportError(message, c.TypeToString(source), c.TypeToString(target));
+					reportError(Diagnostics.Excessive_complexity_comparing_types_0_and_1, c.TypeToString(source), c.TypeToString(target));
 				}
 				if (entry & RelationComparisonResultSucceeded != 0) {
 					return TernaryTrue;
@@ -3249,8 +3258,10 @@ class Relater {
 			}
 		}
 		if (Core.len(sourceStack) == 100 || Core.len(targetStack) == 100) {
-			overflow = true;
-			return TernaryFalse;
+			// We stop relating if we reach 100 levels of nesting. This is a backstop to catch infinite recursion
+			// that wasn't caught by isDeeplyNestedType. It will also stop relating types that truly are over 100
+			// levels deep, but those are exceedingly rare.
+			return TernaryMaybe;
 		}
 		if (maybeKeys == null) {
 			maybeKeys = [];
@@ -4124,8 +4135,8 @@ class Relater {
 						related = c.compareTypesIdentical(s, t);
 					}
 				} else {
-					// Propagate unreliable variance flag
-					if (c.inVarianceComputation && varianceFlags & VarianceFlagsUnreliable != 0) {
+					// Propagate unreliable variance flag in variance computations
+					if (Core.len(c.varianceStack) != 0 && varianceFlags & VarianceFlagsUnreliable != 0) {
 						c.instantiateType(s, c.reportUnreliableMapper);
 					}
 					if (variance == VarianceFlagsCovariant) {
@@ -4327,7 +4338,8 @@ class Relater {
 				} else {
 					sourceRest = true;
 				}
-				final targetHasRestElement = target.TargetTupleType().combinedFlags & ElementFlagsVariable != 0;
+				final targetHasRestElement = target.TargetTupleType().combinedFlags & ElementFlagsRest != 0;
+				final targetHasVariableElement = target.TargetTupleType().combinedFlags & ElementFlagsVariable != 0;
 				var sourceMinLength:Int;
 				if (Checker.isTupleType(source)) {
 					sourceMinLength = source.TargetTupleType().minLength;
@@ -4341,13 +4353,13 @@ class Relater {
 					}
 					return TernaryFalse;
 				}
-				if (!targetHasRestElement && targetArity < sourceMinLength) {
+				if (!targetHasVariableElement && targetArity < sourceMinLength) {
 					if (reportErrors) {
 						reportError(Diagnostics.Source_has_0_element_s_but_target_allows_only_1, sourceMinLength, targetArity);
 					}
 					return TernaryFalse;
 				}
-				if (!targetHasRestElement && (sourceRest || targetArity < sourceArity)) {
+				if (!targetHasVariableElement && (sourceRest || targetArity < sourceArity)) {
 					if (reportErrors) {
 						if (sourceMinLength < targetMinLength) {
 							reportError(Diagnostics.Target_requires_0_element_s_but_source_may_have_fewer, targetMinLength);
@@ -4374,6 +4386,12 @@ class Relater {
 					if (targetHasRestElement && sourcePosition >= targetStartCount) {
 						targetPosition = targetArity - 1 - (sourcePositionFromEnd < targetEndCount ? sourcePositionFromEnd : targetEndCount);
 					} else {
+						if (sourcePosition >= targetArity) {
+							if (reportErrors) {
+								reportError(Diagnostics.Target_allows_only_0_element_s_but_source_may_have_more, targetArity);
+							}
+							return TernaryFalse;
+						}
 						targetPosition = sourcePosition;
 					}
 					var targetFlags = ElementFlagsNone;
@@ -5044,7 +5062,7 @@ class Relater {
 			|| chainMessage == Diagnostics.Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2) {
 			// Suppress if next message is an excess property error
 			return;
-		} else if (chainMessage == Diagnostics.Excessive_complexity_comparing_types_0_and_1 || chainMessage == Diagnostics.Excessive_stack_depth_comparing_types_0_and_1
+		} else if (chainMessage == Diagnostics.Excessive_complexity_comparing_types_0_and_1
 			|| chainMessage == Diagnostics.The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1) {
 			// Suppress if next message is an excessive complexity/stack depth message for source and target or a readonly
 			// vs. mutable error for source and target

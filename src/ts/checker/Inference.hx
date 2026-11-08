@@ -9,18 +9,22 @@ package ts.checker;
 
 @:allow(ts.checker)
 class InferenceKey {
-	var s:TypeId = 0;
-	var t:TypeId = 0;
+	var source:TypeId = 0;
+	var target:TypeId = 0;
+	var priority:InferencePriority = 0;
+	var contravariant:Bool = false;
+	var bivariant:Bool = false;
 
 	public function new() {}
 
 	// PORT: struct map key (map[InferenceKey]…), same convention as the key types in Checker.hx.
-	public static inline function keyOf(s:TypeId, t:TypeId):std.String {
-		return go.MapKey.i2(s, t);
+	// priority, contravariant and bivariant packed into one Int as main's CacheHashKey.Hi does.
+	public static inline function keyOf(source:TypeId, target:TypeId, priority:InferencePriority, contravariant:Bool, bivariant:Bool):std.String {
+		return go.MapKey.i3(source, target, ((priority : Int) << 2) | (contravariant ? 2 : 0) | (bivariant ? 1 : 0));
 	}
 
 	public function Key():std.String {
-		return keyOf(s, t);
+		return keyOf(source, target, priority, contravariant, bivariant);
 	}
 }
 
@@ -39,7 +43,6 @@ class InferenceState {
 	var sourceStack:Array<Type> = null;
 	var targetStack:Array<Type> = null;
 	var next:InferenceState = null;
-	var depth:Int = 0;
 
 	public function new() {}
 }
@@ -55,6 +58,10 @@ class Inference {
 	static final fn_inferToConditionalType:(c:Checker, n:InferenceState, source:Type, target:Type) -> Void = (c, n, s, t) -> c.inferToConditionalType(n, s, t);
 	static final fn_inferFromGenericMappedTypes:(c:Checker, n:InferenceState, source:Type, target:Type) -> Void = (c, n, s, t) -> c.inferFromGenericMappedTypes(n, s,
 		t);
+	static final fn_inferFromAliasTypeArguments:(c:Checker, n:InferenceState, source:Type, target:Type) -> Void = (c, n, s, t) -> c.inferFromAliasTypeArguments(n, s,
+		t);
+	static final fn_inferFromReferenceTypeArguments:(c:Checker, n:InferenceState, source:Type, target:Type) -> Void = (c, n, s, t) -> c.inferFromReferenceTypeArguments(n,
+		s, t);
 	static final fn_inferFromObjectTypes:(c:Checker, n:InferenceState, source:Type, target:Type) -> Void = (c, n, s, t) -> c.inferFromObjectTypes(n, s, t);
 
 	// Go builtin min on InferencePriority (a signed Int; InferencePriorityCircularity is -1).
@@ -99,7 +106,6 @@ class Inference {
 		n.sourceStack = sourceStack;
 		n.targetStack = targetStack;
 		n.next = c.freeinferenceState;
-		n.depth = 0;
 		c.freeinferenceState = n;
 	}
 
@@ -131,14 +137,7 @@ class Inference {
 		}
 		if (source.alias != null && target.alias != null && source.alias.symbol == target.alias.symbol) {
 			if (Core.len(source.alias.typeArguments) != 0 || Core.len(target.alias.typeArguments) != 0) {
-				// Source and target are types originating in the same generic type alias declaration.
-				// Simply infer from source type arguments to target type arguments, with defaults applied.
-				final params = c.typeAliasLinks.Get(source.alias.symbol).typeParameters;
-				final minParams = c.getMinTypeArgumentCount(params);
-				final nodeIsInJsFile = Ast.IsInJSFile(source.alias.symbol.ValueDeclaration);
-				final sourceTypes = c.fillMissingTypeArguments(source.alias.typeArguments, params, minParams, nodeIsInJsFile);
-				final targetTypes = c.fillMissingTypeArguments(target.alias.typeArguments, params, minParams, nodeIsInJsFile);
-				c.inferFromTypeArguments(n, sourceTypes, targetTypes, c.getAliasVariances(source.alias.symbol));
+				c.invokeOnce(n, source, target, fn_inferFromAliasTypeArguments);
 			}
 			// And if there weren't any type arguments, there's no reason to run inference as the types must be the same.
 			return;
@@ -160,11 +159,11 @@ class Inference {
 			}
 			// First, infer between identically matching source and target constituents and remove the
 			// matching types.
-			final temp = c.inferFromMatchingTypes(n, sourceTypes, target.Distributed(), fn_isTypeOrBaseIdenticalTo);
+			final temp = c.inferFromMatchingTypes(n, sourceTypes, target.Types(), fn_isTypeOrBaseIdenticalTo, false /*sort*/);
 			// Next, infer between closely matching source and target constituents and remove
 			// the matching types. Types closely match when they are instantiations of the same
 			// object type or instantiations of the same type alias.
-			final matched = c.inferFromMatchingTypes(n, temp.a, temp.b, fn_isTypeCloselyMatchedBy);
+			final matched = c.inferFromMatchingTypes(n, temp.a, temp.b, fn_isTypeCloselyMatchedBy, true /*sort*/);
 			final sources = matched.a;
 			final targets = matched.b;
 			if (Core.len(targets) == 0) {
@@ -194,7 +193,7 @@ class Inference {
 					sourceTypes = haxe.ds.Vector.fromArrayCopy([source]);
 				}
 				// Infer between identically matching source and target constituents and remove the matching types.
-				final matched = c.inferFromMatchingTypes(n, sourceTypes, target.Types(), fn_isTypeIdenticalTo);
+				final matched = c.inferFromMatchingTypes(n, sourceTypes, target.Types(), fn_isTypeIdenticalTo, false /*sort*/);
 				final sources = matched.a;
 				final targets = matched.b;
 				if (Core.len(sources) == 0 || Core.len(targets) == 0) {
@@ -244,7 +243,6 @@ class Inference {
 					}
 					if ((n.priority : Int) < (inference.priority : Int)) {
 						inference.candidates = null;
-						inference.candidateDepths = null;
 						inference.contraCandidates = null;
 						inference.topLevel = true;
 						inference.priority = n.priority;
@@ -260,34 +258,12 @@ class Inference {
 								inference.contraCandidates.push(candidate);
 								Checker.clearCachedInferences(n.inferences);
 							}
-						} else {
-							var index = Slices.Index(inference.candidates, candidate);
-							if (index < 0 || inference.candidateDepths[index] < n.depth) {
-								// Candidate isn't present or is present with lower depth
-								if (index >= 0) {
-									// Remove candidate with lower depth
-									inference.candidates.splice(index, 1);
-									inference.candidateDepths.splice(index, 1);
-								}
-								index = 0;
-								while (index < Core.len(inference.candidateDepths)) {
-									if (inference.candidateDepths[index] < n.depth) {
-										break;
-									}
-									index++;
-								}
-								// Insert candidate at end or immediately before first candidate with lower depth.
-								// This ensures candidates with the highest depth are stored first.
-								if (inference.candidates == null) {
-									inference.candidates = [];
-								}
-								if (inference.candidateDepths == null) {
-									inference.candidateDepths = [];
-								}
-								inference.candidates.insert(index, candidate);
-								inference.candidateDepths.insert(index, n.depth);
-								Checker.clearCachedInferences(n.inferences);
+						} else if (!Slices.Contains(inference.candidates, candidate)) {
+							if (inference.candidates == null) {
+								inference.candidates = [];
 							}
+							inference.candidates.push(candidate);
+							Checker.clearCachedInferences(n.inferences);
 						}
 					}
 					if ((n.priority & InferencePriorityReturnType) == 0 && (target.flags & TypeFlagsTypeParameter) != 0 && inference.topLevel
@@ -320,7 +296,7 @@ class Inference {
 			&& (source.AsTypeReference().target == target.AsTypeReference().target || c.isArrayType(source) && c.isArrayType(target))
 			&& !(source.AsTypeReference().node != null && target.AsTypeReference().node != null)) {
 			// If source and target are references to the same generic type, infer from type arguments
-			c.inferFromTypeArguments(n, c.getTypeArguments(source), c.getTypeArguments(target), c.getVariances(source.AsTypeReference().target));
+			c.invokeOnce(n, source, target, fn_inferFromReferenceTypeArguments);
 		} else if ((source.flags & TypeFlagsIndex) != 0 && (target.flags & TypeFlagsIndex) != 0) {
 			c.inferFromContravariantTypes(n, source.AsIndexType().target, target.AsIndexType().target);
 		} else if ((Checker.isLiteralType(source) || (source.flags & TypeFlagsString) != 0) && (target.flags & TypeFlagsIndex) != 0) {
@@ -370,8 +346,22 @@ class Inference {
 		}
 	}
 
+	static function inferFromAliasTypeArguments(c:Checker, n:InferenceState, source:Type, target:Type):Void {
+		// Source and target are types originating in the same generic type alias declaration.
+		// Simply infer from source type arguments to target type arguments, with defaults applied.
+		final params = c.typeAliasLinks.Get(source.alias.symbol).typeParameters;
+		final minParams = c.getMinTypeArgumentCount(params);
+		final nodeIsInJsFile = Ast.IsInJSFile(source.alias.symbol.ValueDeclaration);
+		final sourceTypes = c.fillMissingTypeArguments(source.alias.typeArguments, params, minParams, nodeIsInJsFile);
+		final targetTypes = c.fillMissingTypeArguments(target.alias.typeArguments, params, minParams, nodeIsInJsFile);
+		c.inferFromTypeArguments(n, sourceTypes, targetTypes, c.getAliasVariances(source.alias.symbol));
+	}
+
+	static function inferFromReferenceTypeArguments(c:Checker, n:InferenceState, source:Type, target:Type):Void {
+		c.inferFromTypeArguments(n, c.getTypeArguments(source), c.getTypeArguments(target), c.getVariances(source.AsTypeReference().target));
+	}
+
 	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:Array<Type>, targetTypes:Array<Type>, variances:Array<VarianceFlags>):Void {
-		n.depth++;
 		final count = Std.int(std.Math.min(Core.len(sourceTypes), Core.len(targetTypes)));
 		for (i in 0...count) {
 			if (i < Core.len(variances) && (variances[i] & VarianceFlagsVarianceMask) == VarianceFlagsContravariant) {
@@ -380,7 +370,6 @@ class Inference {
 				c.inferFromTypes(n, sourceTypes[i], targetTypes[i]);
 			}
 		}
-		n.depth--;
 	}
 
 	static function inferWithPriority(c:Checker, n:InferenceState, source:Type, target:Type, newPriority:InferencePriority):Void {
@@ -425,7 +414,7 @@ class Inference {
 	// such that we would go on inferring forever, even though we would never infer
 	// between the same pair of types.
 	static function invokeOnce(c:Checker, n:InferenceState, source:Type, target:Type, action:(c:Checker, n:InferenceState, source:Type, target:Type) -> Void):Void {
-		final key = InferenceKey.keyOf(source.id, target.id);
+		final key = InferenceKey.keyOf(source.id, target.id, n.priority, n.contravariant, n.bivariant);
 		if (n.visited != null && n.visited.exists(key)) {
 			final status = n.visited.get(key);
 			n.inferencePriority = minPriority(n.inferencePriority, status);
@@ -467,7 +456,7 @@ class Inference {
 	}
 
 	static function inferFromMatchingTypes(c:Checker, n:InferenceState, sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>,
-			matches:(c:Checker, s:Type, t:Type) -> Bool):Pair<haxe.ds.Vector<Type>, haxe.ds.Vector<Type>> {
+			matches:(c:Checker, s:Type, t:Type) -> Bool, sort:Bool):Pair<haxe.ds.Vector<Type>, haxe.ds.Vector<Type>> {
 		var matchedSources:Array<Type> = null;
 		var matchedTargets:Array<Type> = null;
 		if (targets != null) {
@@ -475,9 +464,29 @@ class Inference {
 				if (sources != null) {
 					for (s in sources) {
 						if (matches(c, s, t)) {
-							c.inferFromTypes(n, s, t);
+							if (!sort) {
+								c.inferFromTypes(n, s, t);
+							}
 							matchedSources = Core.AppendIfUnique(matchedSources, s);
 							matchedTargets = Core.AppendIfUnique(matchedTargets, t);
+						}
+					}
+				}
+			}
+		}
+		if (sort) {
+			// Sort target types by decreasing depth of generic instantiations. Intuitively, a successful
+			// inference from a type argument with deeper nesting is of higher quality because we've stripped
+			// away more layers of type instantiations that otherwise might skew the results. For example,
+			// when inferring from string[] | string[][] to T[] | T[][], the inference of string we make from
+			// relating string[][] to T[][] is of higher quality than the inference of string[] we make relating
+			// string[][] to T[].
+			Slices.SortFunc(matchedTargets, compareTypesAndDepth);
+			if (matchedTargets != null) {
+				for (t in matchedTargets) {
+					for (s in matchedSources) {
+						if (matches(c, s, t)) {
+							c.inferFromTypes(n, s, t);
 						}
 					}
 				}
@@ -490,6 +499,50 @@ class Inference {
 			targets = Core.Filter(targets, t -> !Slices.Contains(matchedTargets, t));
 		}
 		return new Pair(sources, targets);
+	}
+
+	// Compare two types first by depth and then by the regular type ordering.
+	static function compareTypesAndDepth(t1:Type, t2:Type):Int {
+		final d1 = getTypeDepth(t1, 3);
+		final d2 = getTypeDepth(t2, 3);
+		if (d1 != d2) {
+			return d2 - d1; // Largest depth sorts first
+		}
+		return Checker.CompareTypes(t1, t2);
+	}
+
+	// Return the depth of the given type up to the given maximum depth. For generic aliased types
+	// and type references, the depth is one plus the largest type argument depth. For union and
+	// intersection types, the depth is the largest constituent type depth. For all other types,
+	// the depth is zero. The maximum depth limits infinite recursion of circular types.
+	static function getTypeDepth(t:Type, maxDepth:Int):Int {
+		if (maxDepth != 0) {
+			if (t.alias != null && Core.len(t.alias.typeArguments) != 0) {
+				return getTypeListDepth(t.alias.typeArguments, maxDepth - 1) + 1;
+			}
+			if ((t.objectFlags & ObjectFlagsReference) != 0) {
+				final typeArguments = t.checker.getTypeArguments(t);
+				if (Core.len(typeArguments) != 0) {
+					return getTypeListDepth(typeArguments, maxDepth - 1) + 1;
+				}
+			}
+			if ((t.flags & TypeFlagsUnionOrIntersection) != 0) {
+				var depth = 0;
+				for (t in t.Types()) {
+					depth = Std.int(std.Math.max(depth, getTypeDepth(t, maxDepth)));
+				}
+				return depth;
+			}
+		}
+		return 0;
+	}
+
+	static function getTypeListDepth(types:Array<Type>, maxDepth:Int):Int {
+		var depth = 0;
+		for (t in types) {
+			depth = Std.int(std.Math.max(depth, getTypeDepth(t, maxDepth)));
+		}
+		return depth;
 	}
 
 	static function inferToMultipleTypes(c:Checker, n:InferenceState, source:Type, targets:haxe.ds.Vector<Type>, targetFlags:TypeFlags):Void {
@@ -600,7 +653,7 @@ class Inference {
 	}
 
 	static function inferToTemplateLiteralType(c:Checker, n:InferenceState, source:Type, target:TemplateLiteralType):Void {
-		final matches = c.inferTypesFromTemplateLiteralType(source, target);
+		final matches = c.inferTypesFromTemplateLiteralType(source, target, c.compareTypesAssignable);
 		final types = target.types;
 		// When the target template literal contains only placeholders (meaning that inference is intended to extract
 		// single characters and remainder strings) and inference fails to produce matches, we want to infer 'never' for
@@ -741,7 +794,7 @@ class Inference {
 		if ((source.objectFlags & ObjectFlagsReference) != 0 && (target.objectFlags & ObjectFlagsReference) != 0
 			&& (source.Target() == target.Target() || c.isArrayType(source) && c.isArrayType(target))) {
 			// If source and target are references to the same generic type, infer from type arguments
-			c.inferFromTypeArguments(n, c.getTypeArguments(source), c.getTypeArguments(target), c.getVariances(source.Target()));
+			c.inferFromReferenceTypeArguments(n, source, target);
 			return;
 		}
 		if (c.isGenericMappedType(source) && c.isGenericMappedType(target)) {
@@ -1203,6 +1256,11 @@ class Inference {
 		final props = c.getPropertiesOfType(r.source);
 		if (props != null) {
 			for (prop in props) {
+				// Private and protected properties are never produced by keyof, so they have no counterpart in a
+				// reverse mapped type. Copying them would surface them as public properties of the inferred type.
+				if ((Checker.getDeclarationModifierFlagsFromSymbol(prop) & ModifierFlagsNonPublicAccessibilityModifier) != 0) {
+					continue;
+				}
 				// In case of a reverse mapped type with an intersection constraint, if we were able to
 				// extract the filtering type literals we skip those properties that are not assignable to them,
 				// because the extra properties wouldn't get through the application of the mapped type anyway
@@ -1480,7 +1538,8 @@ class Inference {
 			final constraint = c.getConstraintOfTypeParameter(inference.typeParameter);
 			if (constraint != null) {
 				final instantiatedConstraint = c.instantiateType(constraint, n.nonFixingMapper);
-				if (inferredType != null) {
+				// A pure return type inference is still filtered in a recursive call resolution, whose result can become the type of the enclosing declaration.
+				if (inferredType != null && ((n.flags & InferenceFlagsNoConstraintChecks) == 0 || inference.priority == InferencePriorityReturnType)) {
 					final constraintWithThis = c.getTypeWithThisArgument(instantiatedConstraint, inferredType, false);
 					if (n.compareTypes(inferredType, constraintWithThis, false) == TernaryFalse) {
 						var filteredByConstraint:Type = null;
