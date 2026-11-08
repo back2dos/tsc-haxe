@@ -216,9 +216,24 @@ class Module {
 	// in `.` are actually normalized to `./` before proceeding with the resolution algorithm.
 	static function normalizePathForCJSResolution(containingDirectory:String, moduleName:String):String {
 		final combined = Tspath.CombinePaths(containingDirectory, moduleName);
-		final parts = Tspath.GetPathComponents(combined, "");
-		final lastPart = parts[parts.length - 1];
-		if (lastPart == "." || lastPart == "..") {
+		// PORT: perf — the last of GetPathComponents(combined, "") without splitting the path (combined has
+		// normalized slashes, so GetPathComponents' CombinePaths returns it as is)
+		final rootLength = Tspath.GetRootLength(combined);
+		var end = combined.length;
+		if (end > rootLength && StringTools.fastCodeAt(combined, end - 1) == '/'.code) {
+			end--; // pathComponents drops one trailing empty component
+		}
+		final lastPartIsDots = if (combined.length == rootLength) {
+			false; // the last part is the root
+		} else {
+			var start = end;
+			while (start > rootLength && StringTools.fastCodeAt(combined, start - 1) != '/'.code)
+				start--;
+			final n = end - start;
+			(n == 1 || n == 2) && StringTools.fastCodeAt(combined, start) == '.'.code
+				&& (n == 1 || StringTools.fastCodeAt(combined, start + 1) == '.'.code);
+		}
+		if (lastPartIsDots) {
 			return Tspath.EnsureTrailingDirectorySeparator(Tspath.NormalizePath(combined));
 		}
 		return Tspath.NormalizePath(combined);
