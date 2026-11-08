@@ -165,14 +165,83 @@ class CachedTypeKey {
 
 	public function new() {}
 
-	public static inline function keyOf(kind:CachedTypeKind, typeId:TypeId):std.String {
+	public static inline function keyOf(kind:CachedTypeKind, typeId:TypeId):CachedTypeKeyValue {
+		#if (target.name == "hxmc")
+		return new CachedTypeKeyValue(kind, typeId);
+		#else
 		return go.MapKey.i2((kind : Int), typeId);
+		#end
 	}
 
-	public function Key():std.String {
+	public function Key():CachedTypeKeyValue {
 		return keyOf(kind, typeId);
 	}
 }
+
+#if (target.name == "hxmc")
+// PORT: perf — a CachedTypeKey as a value: the type id and the kind packed in 64 bits (Go's struct key; the map key
+// string of the other targets is an allocation, its hash and a comparison of its units per lookup)
+abstract CachedTypeKeyValue(hxmc.I64) {
+	public inline function new(kind:CachedTypeKind, typeId:TypeId) {
+		this = ((typeId : hxmc.I64) << 5) | ((kind : Int) : hxmc.I64);
+	}
+
+	public var kind(get, never):Int;
+
+	inline function get_kind():Int
+		return (this & 31).toInt();
+
+	public var typeId(get, never):Int;
+
+	inline function get_typeId():Int
+		return (this >>> 5).toInt();
+
+	// the key as an Int when it fits in 31 bits (type ids below 2^26), else -1
+	public inline function small():Int
+		return this < ((1 : hxmc.I64) << 31) ? this.toInt() : -1;
+}
+
+// PORT: perf — Go's map[CachedTypeKey]*Type: an IntMap by the packed key (id << 5 | kind) for ids below 2^26, a
+// StringMap keyed as on the other targets for the rest (made when first needed: no checker comes near). Nothing
+// iterates it.
+class CachedTypesMap {
+	final small = new haxe.ds.IntMap<Type>();
+	var big:StringMap<Type> = null;
+
+	public function new() {}
+
+	public inline function get(k:CachedTypeKeyValue):Type {
+		final i = k.small();
+		return i >= 0 ? small.get(i) : getBig(k);
+	}
+
+	public inline function exists(k:CachedTypeKeyValue):Bool {
+		final i = k.small();
+		return i >= 0 ? small.exists(i) : big != null && big.exists(go.MapKey.i2(k.kind, k.typeId));
+	}
+
+	public inline function set(k:CachedTypeKeyValue, v:Type):Void {
+		final i = k.small();
+		if (i >= 0)
+			small.set(i, v);
+		else
+			setBig(k, v);
+	}
+
+	function getBig(k:CachedTypeKeyValue):Type {
+		return big == null ? null : big.get(go.MapKey.i2(k.kind, k.typeId));
+	}
+
+	function setBig(k:CachedTypeKeyValue, v:Type):Void {
+		if (big == null)
+			big = new StringMap<Type>();
+		big.set(go.MapKey.i2(k.kind, k.typeId), v);
+	}
+}
+#else
+typedef CachedTypeKeyValue = std.String;
+typedef CachedTypesMap = StringMap<Type>;
+#end
 
 @:allow(ts.checker)
 class NarrowedTypeKey {
@@ -1432,7 +1501,7 @@ class Checker {
 	var thisExpandoKinds:IdentityMap<Symbol, ThisAssignmentDeclarationKind> = null;
 	var thisExpandoLocations:IdentityMap<Symbol, Node> = null;
 	var subtypeReductionCache:ts.core.HashKeyMap<Array<Type>> /* key: checker.CacheHashKey */ = null;
-	var cachedTypes:StringMap<Type> /* key: checker.CachedTypeKey */ = null;
+	var cachedTypes:CachedTypesMap /* key: checker.CachedTypeKey */ = null;
 	var cachedSignatures:StringMap<Signature> /* key: checker.CachedSignatureKey */ = null;
 	var undefinedProperties:IdentityMap<Symbol, Symbol> = null;
 	var narrowedTypes:StringMap<Type> /* key: checker.NarrowedTypeKey */ = null;
@@ -1905,7 +1974,7 @@ class Checker {
 		c.thisExpandoKinds = new IdentityMap<Symbol, ThisAssignmentDeclarationKind>();
 		c.thisExpandoLocations = new IdentityMap<Symbol, Node>();
 		c.subtypeReductionCache = new ts.core.HashKeyMap<Array<Type>>();
-		c.cachedTypes = new StringMap<Type>();
+		c.cachedTypes = new CachedTypesMap();
 		c.cachedSignatures = new StringMap<Signature>();
 		c.undefinedProperties = new IdentityMap<Symbol, Symbol>();
 		c.narrowedTypes = new StringMap<Type>();
