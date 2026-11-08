@@ -1753,6 +1753,8 @@ enum abstract SignatureFlags(Int) from Int to Int {
 
 @:allow(ts.checker)
 class SignatureExtra {
+	var typeParameters:haxe.ds.Vector<Type> = null;
+	var thisParameter:Symbol = null;
 	var isolatedSignatureType:Type = null;
 	var composite:CompositeSignature = null;
 
@@ -1766,19 +1768,48 @@ class Signature implements TypeSystemEntity {
 	var minArgumentCount:Int = 0;
 	var resolvedMinArgumentCount:Int = 0;
 	var declaration:Node = null;
-	var typeParameters:haxe.ds.Vector<Type> = null; // PORT: perf — a Vector (one exact-size object; a mapper holds it as it is)
 	var parameters:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (one exact-size object)
-	var thisParameter:Symbol = null;
 	var resolvedReturnType:Type = null;
 	var resolvedTypePredicate:TypePredicate = null;
 	var target:Signature = null;
 	var mapper:TypeMapper = null;
-	// PORT: perf — the rarely set fields in a side record (allocated when one is set to a non-nil value)
+	// PORT: perf — the rarely set fields in a side record (allocated when one is set to a non-nil value): the type
+	// parameters and this parameter too (t3code-server: 5% and 4% of the signatures have them)
 	var extra:SignatureExtra = null;
+	var typeParameters(get, set):haxe.ds.Vector<Type>; // PORT: perf — a Vector (one exact-size object; a mapper holds it as it is)
+	var thisParameter(get, set):Symbol;
 	var isolatedSignatureType(get, set):Type;
 	var composite(get, set):CompositeSignature;
 
 	public function new() {}
+
+	inline function get_typeParameters():haxe.ds.Vector<Type> {
+		return extra == null ? null : extra.typeParameters;
+	}
+
+	function set_typeParameters(v:haxe.ds.Vector<Type>):haxe.ds.Vector<Type> {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new SignatureExtra();
+		}
+		return extra.typeParameters = v;
+	}
+
+	inline function get_thisParameter():Symbol {
+		return extra == null ? null : extra.thisParameter;
+	}
+
+	function set_thisParameter(v:Symbol):Symbol {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new SignatureExtra();
+		}
+		return extra.thisParameter = v;
+	}
 
 	inline function get_isolatedSignatureType():Type {
 		return extra == null ? null : extra.isolatedSignatureType;
