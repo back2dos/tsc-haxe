@@ -160,6 +160,10 @@ class CheckerGate {
 						} else if (sub.failed) {
 							status = "fail";
 							detail = firstDiff(configuredName, kind, sub);
+						} else if (kind == "contentmapper" && !hasCompare(configuredName, kind)) {
+							// no content-mapped files: DoContentMapperBaseline writes no baseline
+							status = "skip";
+							detail = "no baseline";
 						} else {
 							status = "pass";
 						}
@@ -178,10 +182,10 @@ class CheckerGate {
 		sys.io.File.saveContent(out + "/results.txt", results.toString());
 		final secs = Std.int(haxe.Timer.stamp() - t0);
 		Sys.println('test files: $fileCount, cases (configurations): $configCount, ${secs}s');
-		Sys.println(pad("kind", 10) + pad("cases", 7) + pad("pass", 7) + pad("fail", 7) + pad("crash", 7) + pad("skip", 7));
+		Sys.println(pad("kind", 14) + pad("cases", 7) + pad("pass", 7) + pad("fail", 7) + pad("crash", 7) + pad("skip", 7));
 		for (k in kinds) {
 			final c = counts.get(k);
-			Sys.println(pad(k, 10) + pad("" + configCount, 7) + pad("" + c.get("pass"), 7) + pad("" + c.get("fail"), 7) + pad("" + c.get("crash"), 7)
+			Sys.println(pad(k, 14) + pad("" + configCount, 7) + pad("" + c.get("pass"), 7) + pad("" + c.get("fail"), 7) + pad("" + c.get("crash"), 7)
 				+ pad("" + c.get("skip"), 7));
 		}
 	}
@@ -224,6 +228,20 @@ class CheckerGate {
 			}
 		}
 		return firstLine(sub.messages);
+	}
+
+	static function hasCompare(configuredName:String, kind:String):Bool {
+		var stem = configuredName;
+		if (StringTools.endsWith(stem, ".tsx"))
+			stem = stem.substring(0, stem.length - 4);
+		else if (StringTools.endsWith(stem, ".ts"))
+			stem = stem.substring(0, stem.length - 3);
+		final suffix = "/" + stem + extOfKind[kind];
+		for (c in compareLog) {
+			if (StringTools.endsWith(c.reference, suffix))
+				return true;
+		}
+		return false;
 	}
 
 	static function firstLine(msgs:Array<String>):String {
