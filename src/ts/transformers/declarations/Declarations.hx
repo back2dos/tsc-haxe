@@ -407,7 +407,7 @@ class Declarations {
 					);
 				}
 
-			case KindFunctionDeclaration, KindFunctionType:
+			case KindFunctionDeclaration, KindFunctionType, KindArrowFunction, KindFunctionExpression:
 				return selectDiagnosticBasedOnModuleName(
 					symbolAccessibilityResult,
 					Diagnostics.Parameter_0_of_exported_function_has_or_is_using_name_1_from_external_module_2_but_cannot_be_named,
@@ -851,20 +851,16 @@ class Declarations {
 		if (node == null) {
 			return false;
 		}
-		final heritage = node.ClassLikeData().HeritageClauses;
-		if (heritage == null) {
+		final extendsClause = Ast.GetHeritageClause(node, KindExtendsKeyword);
+		if (extendsClause == null) {
 			return false;
 		}
-		if (Core.len(heritage.Nodes) > 1 || Core.len(heritage.Nodes) == 0) {
+		final types = extendsClause.AsHeritageClause().Types;
+		if (types == null || Core.len(types.Nodes) != 1) {
 			return false;
 		}
-		for (expA in heritage.Nodes[0].AsHeritageClause().Types.Nodes) {
-			final expr = expA.AsExpressionWithTypeArguments().Expression;
-			if (expr != null && expr.Kind == KindNullKeyword) {
-				return true;
-			}
-		}
-		return false;
+		final expr = types.Nodes[0].AsExpressionWithTypeArguments().Expression;
+		return expr != null && expr.Kind == KindNullKeyword;
 	}
 
 	static function isNotDeclareModifier(mod:Modifier):Bool {
@@ -1032,19 +1028,6 @@ class Declarations {
 		return !Core.Every(input.Symbol.Declarations, function(decl:Node):Bool {
 			return !Ast.IsFunctionDeclaration(decl) || decl.AsFunctionDeclaration().Body == null;
 		});
-	}
-
-	static function getEffectiveBaseTypeNode(node:Node):Node {
-		final baseType = Ast.GetClassExtendsHeritageElement(node);
-		// !!! TODO: JSDoc support
-		// if (baseType && isInJSFile(node)) {
-		//     // Prefer an @augments tag because it may have type parameters.
-		//     const tag = getJSDocAugmentsTag(node);
-		//     if (tag) {
-		//         return tag.class;
-		//     }
-		// }
-		return baseType;
 	}
 
 	static function isScopeMarker(node:Node):Bool {

@@ -1,10 +1,8 @@
 # Test files of TypeScript main's corpus that the gate skips under the main oracle (tools/gate/checker.sh): cases
 # that crash, hang or exhaust memory in the port until the main change they test is ported (they would end the gate
 # process that runs them). One base name per line, then the symptom.
-forOfSelfReferentialDottedName.ts                              segfault
 crossProductUnionIntersectionRepeatedPropDeclarationsNoOOM1.ts runaway memory
-inferFromTypeArgumentsNoInfiniteRecursion.ts                   hang
 unreachableFlowAfterThrowingForInOfHead1.ts                    hang
 unreachableFlowAfterThrowingForInOfHead2.ts                    hang
-unreachableFlowAfterThrowingForHead1.ts                        hang (at 907c8c4)
-unreachableFlowAfterThrowingForHead2.ts                        segfault (at 907c8c4)
+unreachableFlowAfterThrowingForHead1.ts                        hang
+unreachableFlowAfterThrowingForHead2.ts                        segfault

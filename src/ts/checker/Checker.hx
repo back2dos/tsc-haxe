@@ -57,6 +57,17 @@ class TypeResolution {
 }
 
 @:allow(ts.checker)
+class VarianceStackEntry {
+	var symbol:Symbol = null;
+	var typeParameters:Array<Type> = null;
+
+	public function new(symbol:Symbol, typeParameters:Array<Type>) {
+		this.symbol = symbol;
+		this.typeParameters = typeParameters;
+	}
+}
+
+@:allow(ts.checker)
 class ContextualInfo {
 	var node:Node = null;
 	var t:Type = null;
@@ -1435,6 +1446,7 @@ class Checker {
 	var memberLayoutCount:Int = 0;
 	var resolvingObjectTypeStack:Array<ResolvingObjectType> = [];
 	var markerTypes:Set<Type> = new Set<Type>();
+	var resolvingExplicitTypeOfSymbol:Set<Symbol> = new Set<Symbol>();
 	var undefinedSymbol:Symbol = null;
 	var argumentsSymbol:Symbol = null;
 	var requireSymbol:Symbol = null;
@@ -1503,6 +1515,7 @@ class Checker {
 	public var ReverseMappedSymbolLinks:LinkStore<Symbol, ReverseMappedSymbolLinks> = new LinkStore<Symbol, ReverseMappedSymbolLinks>(() -> new ReverseMappedSymbolLinks());
 	var markedAssignmentSymbolLinks:LinkStore<Symbol, MarkedAssignmentSymbolLinks> = new LinkStore<Symbol, MarkedAssignmentSymbolLinks>(() -> new MarkedAssignmentSymbolLinks());
 	var symbolContainerLinks:LinkStore<Symbol, ContainingSymbolLinks> = new LinkStore<Symbol, ContainingSymbolLinks>(() -> new ContainingSymbolLinks());
+	var externalModuleContainers:ExternalModuleContainerIndex = null;
 	var sourceFileLinks:LinkStore<SourceFile, SourceFileLinks> = new LinkStore<SourceFile, SourceFileLinks>(() -> new SourceFileLinks());
 	var regExpScanner:Scanner = null;
 	var patternForType:IdentityMap<Type, Node> = null;
@@ -1600,7 +1613,7 @@ class Checker {
 	var typeResolutionCount = 0; // PORT: perf (the stack's depth; its entries are reused)
 	var resolutionStart:Int = 0;
 	var callResolutionStack:Array<Node> = [];
-	var inVarianceComputation:Bool = false;
+	var varianceStack:Array<VarianceStackEntry> = null;
 	var apparentArgumentCount:Null<Int> /* PORT: pointer */ = null;
 	var lastGetCombinedNodeFlagsNode:Node = null;
 	var lastGetCombinedNodeFlagsResult:NodeFlags = 0;
@@ -4017,7 +4030,15 @@ class Checker {
 	}
 
 	static function hasTypeAnnotation(declaration:Declaration):Bool {
-		return declaration != null && declaration.Type() != null;
+		if (declaration == null || declaration.Type() == null) {
+			return false;
+		}
+		// Type alias declarations have a .Type() that is their type definition, not a type annotation on a value.
+		// Exclude them so callers don't mistake them for annotated value declarations.
+		if (Ast.IsTypeAliasDeclaration(declaration) || Ast.IsJSTypeAliasDeclaration(declaration)) {
+			return false;
+		}
+		return true;
 	}
 
 	public static inline final MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH:Int = 3;
@@ -4713,13 +4734,50 @@ class Checker {
 			|| t.flags & TypeFlagsIntersection != 0 && Core.Every(t.Types(), fn_isExcessPropertyCheckTarget);
 	}
 
+	static function hasMatchingRecursionIdentity(t:Type, identity:RecursionId):Bool {
+		final target = getRecursionIdentityTarget(t);
+		if (target.flags & TypeFlagsIntersection != 0) {
+			for (t in target.Types()) {
+				if (hasMatchingRecursionIdentity(t, identity)) {
+					return true;
+				}
+			}
+			return false;
+		}
+		// PORT: Go `==` on RecursionId compares the contained `any` values
+		return RecursionId.same(getRecursionIdentityFromTarget(target), identity);
+	}
+
+	static function getRecursionIdentity(t:Type):RecursionId {
+		return getRecursionIdentityFromTarget(getRecursionIdentityTarget(t));
+	}
+
+	// Get the recursion identity target type from a type. Recursively (a) obtain the target object type of an
+	// indexed access (i.e. the T in T[K]), and (b) unwrap nested homomorphic mapped types and return the deepest
+	// target type that has a symbol. The unwrapping better preserves unique type identities for mapped types applied
+	// to explicitly written object literals. For example in `Mapped<{ x: Mapped<{ x: Mapped<{ x: string }>}>}>`,
+	// each of the mapped type applications will have a unique recursion identity (that of their target object type
+	// literal) and thus avoid appearing deeply nested.
+	static function getRecursionIdentityTarget(t:Type):Type {
+		if (t.flags & TypeFlagsIndexedAccess != 0) {
+			return getRecursionIdentityTarget(t.AsIndexedAccessType().objectType);
+		}
+		if (t.objectFlags & ObjectFlagsInstantiatedMapped == ObjectFlagsInstantiatedMapped) {
+			final target = t.checker.getModifiersTypeFromMappedType(t);
+			if (target != null && (target.symbol != null || target.flags & TypeFlagsIntersection != 0 && Core.Some(target.Types(), t -> t.symbol != null))) {
+				return getRecursionIdentityTarget(target);
+			}
+		}
+		return t;
+	}
+
 	// The recursion identity of a type is an object identity that is shared among multiple instantiations of the type.
 	// We track recursion identities in order to identify deeply nested and possibly infinite type instantiations with
 	// the same origin. For example, when type parameters are in scope in an object type such as { x: T }, all
 	// instantiations of that type have the same recursion identity. The default recursion identity is the object
 	// identity of the type, meaning that every type is unique. Generally, types with constituents that could circularly
 	// reference the type have a recursion identity that differs from the object identity.
-	static function getRecursionIdentity(t:Type):RecursionId {
+	static function getRecursionIdentityFromTarget(t:Type):RecursionId {
 		// Object and array literals are known not to contain recursive references and don't need a recursion identity.
 		if (t.flags & TypeFlagsObject != 0 && !isObjectOrArrayLiteralType(t)) {
 			if (t.objectFlags & ObjectFlagsReference != 0 && t.AsTypeReference().node != null) {
@@ -4744,14 +4802,6 @@ class Checker {
 			// We use the symbol of the type parameter such that all "fresh" instantiations of that type parameter
 			// have the same recursion identity.
 			return asRecursionId(t.symbol);
-		}
-		if (t.flags & TypeFlagsIndexedAccess != 0) {
-			// Identity is the leftmost object type in a chain of indexed accesses, eg, in A[P1][P2][P3] it is A.
-			t = t.AsIndexedAccessType().objectType;
-			while (t.flags & TypeFlagsIndexedAccess != 0) {
-				t = t.AsIndexedAccessType().objectType;
-			}
-			return asRecursionId(t);
 		}
 		if (t.flags & TypeFlagsConditional != 0) {
 			// The root object represents the origin of the conditional type
