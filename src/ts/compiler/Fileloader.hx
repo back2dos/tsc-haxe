@@ -49,6 +49,7 @@ class FileLoader {
 	var comparePathsOptions:ComparePathsOptions = new ComparePathsOptions();
 	var supportedExtensions:Array<Array<std.String>> = null;
 	var supportedExtensionsWithJsonIfResolveJsonModule:Array<Array<std.String>> = null;
+	var contentMapperExtensions:Array<std.String> = null;
 
 	var filesParser:FilesParser = null;
 	var rootTasks:Array<ParseTask> = null;
@@ -69,6 +70,15 @@ class FileLoader {
 
 	var pathForLibFileCache:StringMap<LibFile> = new StringMap(); // PORT: SyncMap[string, *LibFile] → StringMap
 	var pathForLibFileResolutions:StringMap<LibResolution> = new StringMap(); // PORT: SyncMap[tspath.Path, *libResolution] → StringMap
+
+	// contentMapperMu guards the content-mapper bookkeeping below. PORT: the in-process content mapper host is
+	// not thread-safe either, so with -D tshx-parallel the whole content-mapped parse runs under the lock.
+	#if tshx_parallel
+	final contentMapperMutex = new sys.thread.Mutex();
+	#end
+	var contentMapperFailures:go.IdentityMap<Mapper, Int> = null;
+	var contentMapperInitFailed:go.IdentityMap<Mapper, Bool> = new go.IdentityMap();
+	var contentMapperDiagnostics:Array<Diagnostic> = null;
 
 	public function new() {}
 
@@ -290,7 +300,23 @@ class FileLoader {
 		opts.FileName = t.normalizedFilePath;
 		opts.Path = path;
 		opts.ExternalModuleIndicatorOptions = Ast.GetExternalModuleIndicatorOptions(t.normalizedFilePath, options, t.metadata);
-		final sourceFile = try this.opts.Host.GetSourceFile(opts) catch (e:Dynamic) {
+		final sourceFile = try {
+			if (Tspath.FileExtensionIsOneOf(t.normalizedFilePath, this.contentMapperExtensions)) {
+				#if tshx_parallel
+				this.contentMapperMutex.acquire();
+				final f = try this.parseContentMappedFile(opts) catch (e:Dynamic) {
+					this.contentMapperMutex.release();
+					throw e;
+				}
+				this.contentMapperMutex.release();
+				f;
+				#else
+				this.parseContentMappedFile(opts);
+				#end
+			} else {
+				this.opts.Host.GetSourceFile(opts);
+			}
+		} catch (e:Dynamic) {
 			if (done != null)
 				done();
 			throw e;
@@ -298,6 +324,116 @@ class FileLoader {
 		if (done != null)
 			done();
 		return sourceFile;
+	}
+
+	// parseContentMappedFile produces a content-mapped virtual source file via the host's content
+	// mapper, preserving the original file name and retaining the untransformed text on the
+	// source file. Content mapper extensions only reach the parser when content mappers are configured.
+	//
+	// When initialization fails, one program diagnostic is reported and the mapper is not attempted for
+	// subsequent files. Other failures produce per-file diagnostics and count toward a failure budget; after
+	// maxContentMapperFailures, one program diagnostic reports that the mapper was disabled and subsequent
+	// files are silently substituted with empty files. It returns nil only if the file cannot be read.
+	function parseContentMappedFile(opts:SourceFileParseOptions):SourceFile {
+		final mapper = this.opts.Config.GetContentMapperForFileName(opts.FileName);
+		final label = mapper.DiagnosticName();
+		final transformIdentity = this.getContentMapperTransformIdentity(mapper);
+		if (this.contentMapperUnavailable(mapper)) {
+			// The mapper failed initialization or exceeded its failure budget; add the file empty without re-reporting.
+			return this.emptyContentMappedFile(opts, mapper.Identity(), transformIdentity);
+		}
+		final r = this.opts.Host.GetContentMappedSourceFiles(opts, mapper);
+		final err = r.err;
+		if (err != null) {
+			final sourceFile = this.emptyContentMappedFile(opts, mapper.Identity(), transformIdentity);
+			final transformError = Std.downcast(err, ts.contentmapper.Host.TransformError);
+			if (transformError != null && transformError.Kind == TransformErrorKindInitialize) {
+				this.recordContentMapperInitializationFailure(mapper, label, transformError);
+				return sourceFile;
+			}
+			if (this.recordContentMapperFailure(mapper, label)) {
+				var diagnostic:Diagnostic;
+				final problem = Errors.AsType(err, ts.spanmap.Spanmap.MappingError);
+				if (problem != null) {
+					diagnostic = Compiler.contentMapperMappingDiagnostic(sourceFile, label, problem);
+				} else {
+					diagnostic = Compiler.contentMapperTransformDiagnostic(sourceFile, label, err);
+				}
+				final diags = sourceFile.Diagnostics() == null ? [] : sourceFile.Diagnostics().copy();
+				diags.push(diagnostic);
+				sourceFile.SetDiagnostics(diags);
+			}
+			return sourceFile;
+		}
+		return r.value.Canonical;
+	}
+
+	function getContentMapperTransformIdentity(mapper:Mapper):std.String {
+		final project = this.opts.Host.ContentMapperProject();
+		if (project != null) {
+			final identity = project.Identity(mapper);
+			if (identity.err == null) {
+				return identity.value;
+			}
+		}
+		return mapper.TransformIdentity(this.opts.Config.CompilerOptions());
+	}
+
+	// emptyContentMappedFile produces an empty TypeScript source file for a content-mapped file whose
+	// transform could not be used, retaining the original content for diagnostics.
+	function emptyContentMappedFile(opts:SourceFileParseOptions, mapperIdentity:std.String, transformIdentity:std.String):SourceFile {
+		final content = this.opts.Host.FS().ReadFile(opts.FileName).value;
+		final sourceFile = Parser.ParseSourceFile(opts, "", ScriptKindTS);
+		final info = new ContentMapperSourceFileInfo();
+		info.ContentMapper = mapperIdentity;
+		info.TransformIdentity = transformIdentity;
+		info.ParseOptions = opts;
+		info.VirtualFileName = opts.FileName + Tspath.ExtensionTs;
+		info.OriginalText = content == null ? "" : content;
+		sourceFile.SetContentMapperInfo(info);
+		return sourceFile;
+	}
+
+	// contentMapperUnavailable reports whether mapper failed initialization or exceeded its failure budget.
+	function contentMapperUnavailable(mapper:Mapper):Bool {
+		if (mapper == null) {
+			return false;
+		}
+		final failures = this.contentMapperFailures == null ? null : this.contentMapperFailures.get(mapper);
+		return this.contentMapperInitFailed.exists(mapper) || (failures != null && failures >= Compiler.maxContentMapperFailures);
+	}
+
+	function recordContentMapperInitializationFailure(mapper:Mapper, label:std.String, err:go.Errors.Error):Void {
+		if (this.contentMapperInitFailed.exists(mapper)) {
+			return;
+		}
+		this.contentMapperInitFailed.set(mapper, true);
+		if (this.contentMapperDiagnostics == null)
+			this.contentMapperDiagnostics = [];
+		this.contentMapperDiagnostics.push(Compiler.ContentMapperInitializationDiagnostic(label, err));
+	}
+
+	// recordContentMapperFailure counts a transform failure for mapper. It returns whether the failure
+	// should be reported for this file (false once the mapper is already disabled).
+	function recordContentMapperFailure(mapper:Mapper, label:std.String):Bool {
+		if (this.contentMapperFailures == null) {
+			this.contentMapperFailures = new go.IdentityMap();
+		}
+		var failures = this.contentMapperFailures.get(mapper);
+		if (failures == null)
+			failures = 0;
+		if (failures >= Compiler.maxContentMapperFailures) {
+			return false;
+		}
+		failures++;
+		this.contentMapperFailures.set(mapper, failures);
+		if (failures >= Compiler.maxContentMapperFailures) {
+			if (this.contentMapperDiagnostics == null)
+				this.contentMapperDiagnostics = [];
+			this.contentMapperDiagnostics.push(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_0_failed_1_times_and_will_not_be_used, label,
+				Compiler.maxContentMapperFailures));
+		}
+		return true;
 	}
 
 	function isSupportedExtension(canonicalFileName:std.String):Bool {
@@ -749,6 +885,8 @@ class ProcessedFiles {
 	var redirectTargetsMap:StringMap<Array<std.String>> = null;
 	// filesByPath for redirect files
 	var redirectFilesByPath:StringMap<RedirectsFile> = null;
+	// Program-level diagnostics reported when a content mapper fails fatally (reported once per mapper).
+	var contentMapperDiagnostics:Array<Diagnostic> = null;
 	var finishedProcessing:Bool = false;
 
 	public function new() {}

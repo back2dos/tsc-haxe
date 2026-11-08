@@ -471,6 +471,10 @@ class Module {
 			return Diagnostics.Module_0_was_resolved_to_1_but_allowArbitraryExtensions_is_not_set;
 		};
 
+		if (resolvedModule.ResolvedUsingExtraExtensions) {
+			return null;
+		}
+
 		switch (resolvedModule.Extension) {
 			case Tspath.ExtensionTs | Tspath.ExtensionDts | Tspath.ExtensionMts | Tspath.ExtensionDmts | Tspath.ExtensionCts | Tspath.ExtensionDcts:
 				// These are always allowed.

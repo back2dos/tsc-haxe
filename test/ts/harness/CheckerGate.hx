@@ -18,19 +18,19 @@ import ts.testutil.harnessutil.Harnessutil;
 //   --shard I/N     only every N-th test file, starting at I (0-based), for parallel runs
 //   --tolerate-emit-crash  an exception in Program.Emit does not fail the case (empty emit result)
 //
-// Output (stdout): per kind (errors/types/symbols/js/map/sourcemap/trace) the number of cases (= test configurations) and
+// Output (stdout): per kind (errors/types/symbols/js/map/sourcemap/trace/contentmapper) the number of cases (= test configurations) and
 // passed/failed/crashed/skipped. DIR/results.txt has one line per case and kind:
 //   <kind> <status> <suite>/<configured name> <detail>
 // where detail is the first differing line (fail) or the first line of the panic (crash).
 class CheckerGate {
-	static final kinds = ["errors", "types", "symbols", "js", "map", "sourcemap", "trace"];
+	static final kinds = ["errors", "types", "symbols", "js", "map", "sourcemap", "trace", "contentmapper"];
 	static final subtestOfKind = [
 		"errors" => "error", "types" => "type", "symbols" => "symbol", "js" => "output", "map" => "sourcemap", "sourcemap" => "sourcemap record",
-		"trace" => "module resolution"
+		"trace" => "module resolution", "contentmapper" => "content mapper"
 	];
 	static final extOfKind = [
 		"errors" => ".errors.txt", "types" => ".types", "symbols" => ".symbols", "js" => ".js", "map" => ".js.map", "sourcemap" => ".sourcemap.txt",
-		"trace" => ".trace.json"
+		"trace" => ".trace.json", "contentmapper" => ".contentmapper"
 	];
 
 	static var compareLog:Array<{reference:String, local:String, actual:String, matched:Bool}> = [];
@@ -160,6 +160,10 @@ class CheckerGate {
 						} else if (sub.failed) {
 							status = "fail";
 							detail = firstDiff(configuredName, kind, sub);
+						} else if (kind == "contentmapper" && !hasCompare(configuredName, kind)) {
+							// no content-mapped files: DoContentMapperBaseline writes no baseline
+							status = "skip";
+							detail = "no baseline";
 						} else {
 							status = "pass";
 						}
@@ -178,10 +182,10 @@ class CheckerGate {
 		sys.io.File.saveContent(out + "/results.txt", results.toString());
 		final secs = Std.int(haxe.Timer.stamp() - t0);
 		Sys.println('test files: $fileCount, cases (configurations): $configCount, ${secs}s');
-		Sys.println(pad("kind", 10) + pad("cases", 7) + pad("pass", 7) + pad("fail", 7) + pad("crash", 7) + pad("skip", 7));
+		Sys.println(pad("kind", 14) + pad("cases", 7) + pad("pass", 7) + pad("fail", 7) + pad("crash", 7) + pad("skip", 7));
 		for (k in kinds) {
 			final c = counts.get(k);
-			Sys.println(pad(k, 10) + pad("" + configCount, 7) + pad("" + c.get("pass"), 7) + pad("" + c.get("fail"), 7) + pad("" + c.get("crash"), 7)
+			Sys.println(pad(k, 14) + pad("" + configCount, 7) + pad("" + c.get("pass"), 7) + pad("" + c.get("fail"), 7) + pad("" + c.get("crash"), 7)
 				+ pad("" + c.get("skip"), 7));
 		}
 	}
@@ -224,6 +228,20 @@ class CheckerGate {
 			}
 		}
 		return firstLine(sub.messages);
+	}
+
+	static function hasCompare(configuredName:String, kind:String):Bool {
+		var stem = configuredName;
+		if (StringTools.endsWith(stem, ".tsx"))
+			stem = stem.substring(0, stem.length - 4);
+		else if (StringTools.endsWith(stem, ".ts"))
+			stem = stem.substring(0, stem.length - 3);
+		final suffix = "/" + stem + extOfKind[kind];
+		for (c in compareLog) {
+			if (StringTools.endsWith(c.reference, suffix))
+				return true;
+		}
+		return false;
 	}
 
 	static function firstLine(msgs:Array<String>):String {

@@ -1011,13 +1011,31 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 	}
 
 	// Allocates a new Call expression to the `__rewriteRelativeImportExtension` helper.
-	public function NewRewriteRelativeImportExtensionsHelper(firstArgument:Node, preserveJsx:Bool):Expression {
+	// PORT: caseSensitivity → ignoreCase
+	public function NewRewriteRelativeImportExtensionsHelper(firstArgument:Node, preserveJsx:Bool,
+			?extraExtensions:Array<ts.tspath.Tspath.ExtensionRewrite>, ignoreCase:Bool = false):Expression {
+		if (extraExtensions == null || extraExtensions.length == 0) {
+			emitContext.RequestEmitHelper(Printer.rewriteRelativeImportExtensionsHelper);
+			var arguments:Array<Expression>;
+			if (preserveJsx) {
+				arguments = [firstArgument, NewToken(KindTrueKeyword)];
+			} else {
+				arguments = [firstArgument];
+			}
+			return NewCallExpression(NewUnscopedHelperName("__rewriteRelativeImportExtension"), null, /*questionDotToken*/ null, /*typeArguments*/
+				NewNodeList(arguments), NodeFlagsNone);
+		}
 		emitContext.RequestEmitHelper(Printer.rewriteRelativeImportExtensionsHelper);
-		var arguments:Array<Expression>;
-		if (preserveJsx) {
-			arguments = [firstArgument, NewToken(KindTrueKeyword)];
-		} else {
-			arguments = [firstArgument];
+		final arguments:Array<Expression> = [firstArgument];
+		arguments.push(NewToken(preserveJsx ? KindTrueKeyword : KindFalseKeyword));
+		final properties:Array<Node> = [];
+		for (extension in extraExtensions) {
+			properties.push(NewPropertyAssignment(null, NewStringLiteral(extension.Source, TokenFlagsNone), null, null,
+				NewStringLiteral(extension.Target, TokenFlagsNone)));
+		}
+		arguments.push(NewObjectLiteralExpression(NewNodeList(properties), false));
+		if (ignoreCase) {
+			arguments.push(NewToken(KindTrueKeyword));
 		}
 		return NewCallExpression(NewUnscopedHelperName("__rewriteRelativeImportExtension"), null, /*questionDotToken*/ null, /*typeArguments*/
 			NewNodeList(arguments), NodeFlagsNone);

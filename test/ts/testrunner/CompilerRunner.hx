@@ -78,6 +78,7 @@ class CompilerBaselineRunner implements Runner {
 			Harnessutil.SkipUnsupportedCompilerOptions(t, compilerTest.options);
 
 			compilerTest.verifyDiagnostics(t, this.testSuitName, this.isSubmodule);
+			compilerTest.verifyContentMapper(t, this.testSuitName, this.isSubmodule);
 			compilerTest.verifyJavaScriptOutput(t, this.testSuitName, this.isSubmodule);
 			compilerTest.verifySourceMapOutput(t, this.testSuitName, this.isSubmodule);
 			compilerTest.verifySourceMapRecord(t, this.testSuitName, this.isSubmodule);
@@ -119,7 +120,19 @@ class CompilerTest {
 	function verifyDiagnostics(t:T, suiteName:String, isSubmodule:Bool):Void {
 		t.Run("error", function(t:T) {
 			try {
-				final files = Core.Concatenate(this.tsConfigFiles, Core.Concatenate(this.toBeCompiled, this.otherFiles));
+				var files = Core.Concatenate(this.tsConfigFiles, Core.Concatenate(this.toBeCompiled, this.otherFiles));
+				var diagnostics = this.result.Diagnostics;
+				// Content-mapped files' diagnostics are baselined separately (see verifyContentMapper), where they can
+				// be rendered against the correct text; the squiggle renderer here assumes a single coordinate space.
+				final contentMapped = this.contentMappedFileNames();
+				if (contentMapped != null) {
+					files = Core.Filter(files, function(f:TestFile):Bool {
+						return !contentMapped.exists(f.UnitName);
+					});
+					diagnostics = Core.Filter(diagnostics, function(d:Diagnostic):Bool {
+						return d.File() == null || !contentMapped.exists(d.File().FileName());
+					});
+				}
 				final opts = new Options(suiteName, isSubmodule);
 				opts.DiffFixupOld = function(old:String):String {
 					final sb = new StringBuf();
@@ -138,11 +151,36 @@ class CompilerTest {
 					final s = sb.toString();
 					return s.substring(0, s.length - 1);
 				};
-				Tsbaseline.DoErrorBaseline(t, this.configuredName, files == null ? [] : files, this.result.Diagnostics, this.result.Options.Pretty.IsTrue(), opts);
+				Tsbaseline.DoErrorBaseline(t, this.configuredName, files == null ? [] : files, diagnostics, this.result.Options.Pretty.IsTrue(), opts);
 			} catch (e:haxe.Exception) {
 				Testutil.RecoverAndFail(t, "Panic on creating error baseline for test " + this.filename, e);
 			}
 		});
+	}
+
+	function verifyContentMapper(t:T, suiteName:String, isSubmodule:Bool):Void {
+		t.Run("content mapper", function(t:T) {
+			try {
+				Tsbaseline.DoContentMapperBaseline(t, this.configuredName, this.result.Program, this.result.Diagnostics, new Options(suiteName, isSubmodule));
+			} catch (e:haxe.Exception) {
+				Testutil.RecoverAndFail(t, "Panic on creating content mapper baseline for test " + this.filename, e);
+			}
+		});
+	}
+
+	// contentMappedFileNames returns the set of absolute file names that were produced by a content mapper.
+	function contentMappedFileNames():Null<haxe.ds.StringMap<Bool>> {
+		final program = this.result.Program.Program();
+		var mapped:haxe.ds.StringMap<Bool> = null;
+		for (file in this.result.Program.GetSourceFiles()) {
+			if (program.GetContentMapper(file) != null) {
+				if (mapped == null) {
+					mapped = new haxe.ds.StringMap();
+				}
+				mapped.set(file.FileName(), true);
+			}
+		}
+		return mapped;
 	}
 
 	function testHeader(isSubmodule:Bool):String {

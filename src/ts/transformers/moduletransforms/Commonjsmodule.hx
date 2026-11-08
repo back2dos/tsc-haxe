@@ -12,6 +12,8 @@ class CommonJSModuleTransformer {
 	var compilerOptions:CompilerOptions = null;
 	var resolver:ReferenceResolver = null;
 	var getEmitModuleFormatOfFile:(file:HasFileName) -> ModuleKind = null;
+	var contentMapperExtensionRewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>> = null;
+	var ignoreCase:Bool = false; // PORT: tspath.CaseSensitivity
 	var moduleKind:ModuleKind = 0;
 	var languageVersion:ScriptTarget = 0;
 	var currentSourceFile:SourceFile = null;
@@ -667,7 +669,7 @@ class CommonJSModuleTransformer {
 		var args:Array<Expression> = null;
 		final moduleName = Moduletransforms.getExternalModuleNameLiteral(Factory(), node, currentSourceFile, null /*host*/, null /*resolver*/, compilerOptions);
 		if (moduleName != null) {
-			args = [Moduletransforms.rewriteModuleSpecifier(EmitContext(), moduleName, compilerOptions)];
+			args = [Moduletransforms.rewriteModuleSpecifier(EmitContext(), moduleName, compilerOptions, contentMapperExtensionRewrites, ignoreCase)];
 		}
 		return Factory().NewCallExpression(Factory().NewIdentifier("require"), null, /*questionDotToken*/
 			null, /*typeArguments*/
@@ -1656,9 +1658,9 @@ class CommonJSModuleTransformer {
 			argument = externalModuleName;
 		} else if (firstArgument != null && rewriteOrShim) {
 			if (Ast.IsStringLiteralLike(firstArgument)) {
-				argument = Moduletransforms.rewriteModuleSpecifier(EmitContext(), firstArgument, compilerOptions);
+				argument = Moduletransforms.rewriteModuleSpecifier(EmitContext(), firstArgument, compilerOptions, contentMapperExtensionRewrites, ignoreCase);
 			} else {
-				argument = Factory().NewRewriteRelativeImportExtensionsHelper(firstArgument, compilerOptions.Jsx == JsxEmitPreserve);
+				argument = Factory().NewRewriteRelativeImportExtensionsHelper(firstArgument, compilerOptions.Jsx == JsxEmitPreserve, contentMapperExtensionRewrites, ignoreCase);
 			}
 		} else {
 			argument = firstArgument;
@@ -1736,11 +1738,11 @@ class CommonJSModuleTransformer {
 			var firstArgument = Visitor().VisitNode(node.Arguments.Nodes[0]);
 			var firstArgumentChanged = false;
 			if (Ast.IsStringLiteralLike(firstArgument)) {
-				final rewritten = Moduletransforms.rewriteModuleSpecifier(EmitContext(), firstArgument, compilerOptions);
+				final rewritten = Moduletransforms.rewriteModuleSpecifier(EmitContext(), firstArgument, compilerOptions, contentMapperExtensionRewrites, ignoreCase);
 				firstArgumentChanged = rewritten != firstArgument;
 				firstArgument = rewritten;
 			} else {
-				firstArgument = Factory().NewRewriteRelativeImportExtensionsHelper(firstArgument, compilerOptions.Jsx == JsxEmitPreserve);
+				firstArgument = Factory().NewRewriteRelativeImportExtensionsHelper(firstArgument, compilerOptions.Jsx == JsxEmitPreserve, contentMapperExtensionRewrites, ignoreCase);
 				firstArgumentChanged = true;
 			}
 

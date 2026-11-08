@@ -15,6 +15,7 @@ interface EmitHost extends ts.printer.Emithost.EmitHost extends ts.transformers.
 	function GetCurrentDirectory():std.String;
 	function CommonSourceDirectory():std.String;
 	function IsEmitBlocked(file:std.String):Bool;
+	function SourceFileMayBeEmitted(file:SourceFile, forceDtsEmit:Bool):Bool;
 }
 
 // NOTE: emitHost operations must be thread-safe
@@ -106,6 +107,18 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 
 	public function UseCaseSensitiveFileNames():Bool {
 		return this.program.UseCaseSensitiveFileNames();
+	}
+
+	public function ContentMapperExtensions():Array<std.String> {
+		return this.program.ContentMapperExtensions();
+	}
+
+	public function ContentMapperExtensionRewrites():Array<ExtensionRewrite> {
+		return this.program.ContentMapperExtensionRewrites();
+	}
+
+	public function SourceFileMayBeEmitted(file:SourceFile, forceDtsEmit:Bool):Bool {
+		return Compiler.sourceFileMayBeEmitted(file, this, forceDtsEmit);
 	}
 
 	public function IsEmitBlocked(file:std.String):Bool {

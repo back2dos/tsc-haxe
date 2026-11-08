@@ -15,6 +15,7 @@ enum abstract FileIncludeKind(Int) from Int to Int {
 	var fileIncludeKindRootFile = 4;
 	var fileIncludeKindLibFile = 5;
 	var fileIncludeKindAutomaticTypeDirectiveFile = 6;
+	var fileIncludeKindContentMapperSupplemental = 7;
 }
 
 @:allow(ts.compiler)
@@ -189,6 +190,10 @@ class FileIncludeReason {
 				} else {
 					return Ast.NewCompilerDiagnostic(Diagnostics.Default_library);
 				}
+			case fileIncludeKindContentMapperSupplemental:
+				final canonical = program.GetSourceFileByPath((this.data : Path));
+				return Ast.NewCompilerDiagnostic(Diagnostics.Supplemental_virtual_file_produced_by_the_content_mapper_for_file_0,
+					toFileName(canonical.FileName()));
 			default:
 				throw Fmt.Sprintf("unknown reason: %v", [(this.kind : Int)]);
 		}
@@ -303,6 +308,8 @@ class FileIncludeReason {
 						}
 					}
 				}
+			case fileIncludeKindContentMapperSupplemental:
+				return null;
 			default:
 				throw Fmt.Sprintf("unknown reason: %v", [(this.kind : Int)]);
 		}

@@ -73,7 +73,7 @@ class Diagnosticwriter {
 		}
 
 		writeWithStyleAndReset(output, diagnostic.Category().Name(), getCategoryFormat(diagnostic.Category()));
-		Fmt.Fprintf(output, "%s TS%d: %s", [foregroundColorEscapeGrey, diagnostic.Code(), resetEscapeSequence]);
+		Fmt.Fprintf(output, "%s %s%d: %s", [foregroundColorEscapeGrey, diagnosticPrefix(diagnostic), diagnostic.Code(), resetEscapeSequence]);
 		WriteFlattenedDiagnosticMessage(output, diagnostic, formatOpts.NewLine, formatOpts.Locale);
 
 		if (diagnostic.File() != null && diagnostic.Code() != Diagnostics.File_appears_to_be_binary.Code()) {
@@ -235,6 +235,16 @@ class Diagnosticwriter {
 				flattenDiagnosticMessageChain(writer, child, newLine, locale, level + 1);
 			}
 		}
+	}
+
+	// diagnosticPrefix returns the prefix shown before a diagnostic's code, e.g. "TS" for compiler
+	// diagnostics or a content mapper's custom source for its diagnostics.
+	static function diagnosticPrefix(diagnostic:Diagnostic):String {
+		final source = diagnostic.Source();
+		if (source != "") {
+			return source;
+		}
+		return "TS";
 	}
 
 	static function getCategoryFormat(category:Category):String {
@@ -434,7 +444,7 @@ class Diagnosticwriter {
 			Fmt.Fprintf(output, "%s(%d,%d): ", [relativeFileName, line + 1, character + 1]);
 		}
 
-		Fmt.Fprintf(output, "%s TS%d: ", [diagnostic.Category().Name(), diagnostic.Code()]);
+		Fmt.Fprintf(output, "%s %s%d: ", [diagnostic.Category().Name(), diagnosticPrefix(diagnostic), diagnostic.Code()]);
 		WriteFlattenedDiagnosticMessage(output, diagnostic, formatOpts.NewLine, formatOpts.Locale);
 		Fmt.Fprint(output, [formatOpts.NewLine]);
 	}
@@ -490,6 +500,9 @@ interface Diagnostic {
 	function Len():Int;
 	function Code():Int;
 	function Category():Category;
+	// Source is a custom prefix shown before the code instead of "TS" (empty means "TS"). A non-empty
+	// value marks the diagnostic as coming from an external source (e.g. a content mapper).
+	function Source():String;
 	function Localize(locale:Locale):String;
 	function MessageChain():Array<Diagnostic>;
 	function RelatedInformation():Array<Diagnostic>;
@@ -515,10 +528,47 @@ class ASTDiagnostic implements Diagnostic {
 
 	public function File():FileLike {
 		final file = Diagnostic.File();
-		if (file != null) {
-			return FileLikeOfSourceFile.of(file);
+		if (file == null) {
+			return null;
 		}
-		return null;
+		var fileName = file.FileName();
+		final canonical = file.CanonicalSourceFile();
+		if (canonical != null) {
+			fileName = canonical.FileName();
+		}
+		if (this.resolve().useOriginal) {
+			// The mapper's own diagnostics (Source != "") already carry original ranges; compiler
+			// diagnostics have their transformed ranges mapped back. Both render against the original,
+			// untransformed text. Diagnostics in synthesized code (see resolve) keep the virtual text.
+			return new OriginalTextFile(file, fileName);
+		}
+		if (fileName != file.FileName()) {
+			return new RenamedFile(file, fileName);
+		}
+		return FileLikeOfSourceFile.of(file);
+	}
+
+	public function Source():String {
+		return Diagnostic.Source();
+	}
+
+	// resolve determines where and against which text a diagnostic should be reported.
+	function resolve():ResolvedLocation {
+		final loc = Diagnostic.Loc();
+		final file = Diagnostic.File();
+		if (file == null) {
+			return new ResolvedLocation(loc, false, false);
+		} else if (Diagnostic.Source() != "") {
+			return new ResolvedLocation(loc, true, false);
+		} else if (file.SpanMap() != null) {
+			final r = ts.spanmap.Spanmap.VirtualToOriginalSpan(file.SpanMap(), loc);
+			if (r.b == ts.spanmap.Spanmap.Fidelity.FidelityNone) {
+				return new ResolvedLocation(loc, false, true);
+			}
+			return new ResolvedLocation(r.a, true, false);
+		} else {
+			return new ResolvedLocation(loc, false, false);
+		}
 	}
 
 	public function MessageChain():Array<Diagnostic> {
@@ -527,19 +577,26 @@ class ASTDiagnostic implements Diagnostic {
 		if (chain != null) for (c in chain) {
 			result.push(new ASTDiagnostic(c));
 		}
+		if (this.resolve().synthesized) {
+			// The diagnostic points into synthesized virtual code; make clear the shown location is not in the
+			// original file, and which content mapper produced it.
+			final note = Ast.NewCompilerDiagnostic(Diagnostics.This_location_is_in_virtual_code_produced_by_the_content_mapper_0_and_has_no_corresponding_location_in_the_original_file,
+				Diagnostic.File().ContentMapper());
+			result.push(Diagnosticwriter.WrapASTDiagnostic(note));
+		}
 		return result;
 	}
 
 	public function Pos():Int {
-		return Diagnostic.Pos();
+		return this.resolve().loc.Pos();
 	}
 
 	public function End():Int {
-		return Diagnostic.End();
+		return this.resolve().loc.End();
 	}
 
 	public function Len():Int {
-		return Diagnostic.Len();
+		return this.resolve().loc.Len();
 	}
 
 	public function Code():Int {
@@ -589,6 +646,66 @@ class FileLikeOfSourceFile implements FileLike {
 
 	public function ECMALineMap():Array<TextPos> {
 		return SourceFile.ECMALineMap();
+	}
+}
+
+// resolvedLocation describes how a diagnostic on a content-mapped file should be reported.
+private class ResolvedLocation {
+	public final loc:TextRange;
+	public final useOriginal:Bool; // render against the file's original, untransformed text
+	public final synthesized:Bool; // the range is in virtual code with no corresponding original location
+
+	public function new(loc:TextRange, useOriginal:Bool, synthesized:Bool) {
+		this.loc = loc;
+		this.useOriginal = useOriginal;
+		this.synthesized = synthesized;
+	}
+}
+
+// originalTextFile presents a source file's original (untransformed) text as a FileLike.
+private class OriginalTextFile implements FileLike {
+	final fileName:String;
+	final text:String;
+	final lineMap:Array<TextPos>;
+
+	public function new(file:SourceFile, fileName:String) {
+		this.text = file.OriginalText();
+		this.fileName = fileName;
+		this.lineMap = Core.ComputeECMALineStarts(this.text);
+	}
+
+	public function FileName():String {
+		return fileName;
+	}
+
+	public function Text():String {
+		return text;
+	}
+
+	public function ECMALineMap():Array<TextPos> {
+		return lineMap;
+	}
+}
+
+private class RenamedFile implements FileLike {
+	final file:SourceFile;
+	final fileName:String;
+
+	public function new(file:SourceFile, fileName:String) {
+		this.file = file;
+		this.fileName = fileName;
+	}
+
+	public function FileName():String {
+		return fileName;
+	}
+
+	public function Text():String {
+		return file.Text();
+	}
+
+	public function ECMALineMap():Array<TextPos> {
+		return file.ECMALineMap();
 	}
 }
 

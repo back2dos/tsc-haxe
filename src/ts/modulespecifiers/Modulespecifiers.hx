@@ -1600,10 +1600,7 @@ class Modulespecifiers {
 		// We check all js, `node` and `json` extensions in addition to TS, since node module resolution would also choose those over the directory
 		final allowJsOptions = new CompilerOptions();
 		allowJsOptions.AllowJs = TSTrue;
-		final extGroups = Tsoptions.GetSupportedExtensions(allowJsOptions, [
-			new FileExtensionInfo("node", false, ScriptKindExternal),
-			new FileExtensionInfo("json", false, ScriptKindJSON)
-		]);
+		final extGroups = Tsoptions.GetSupportedExtensions(allowJsOptions, [".node", ".json"]);
 		for (exts in extGroups) {
 			for (e in exts) {
 				final fullPath = path + e;

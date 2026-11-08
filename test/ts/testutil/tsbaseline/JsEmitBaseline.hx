@@ -10,7 +10,7 @@ class DeclarationCompilationContext {
 	var harnessSettings:HarnessOptions = null;
 	var options:CompilerOptions = null;
 	var currentDirectory:String = "";
-	var configFile:TsConfigSourceFile = null;
+	var config:ts.tsoptions.Parsedcommandline.ParsedCommandLine = null;
 
 	public function new() {}
 }

@@ -301,9 +301,12 @@ class Nodecopy {
 	}
 
 	static function rewriteModuleSpecifier(b:NodeBuilderImpl, parent:Node, lit:Node):Node {
-		final newName = b.getModuleSpecifierOverride(parent, lit);
+		var newName = b.getModuleSpecifierOverride(parent, lit);
 		if (newName.length == 0) {
-			return lit;
+			newName = b.rewriteContentMappedModuleSpecifier(lit.Text());
+			if (newName == lit.Text()) {
+				return lit;
+			}
 		}
 		final res = b.f.NewStringLiteral(newName, TokenFlagsNone);
 		b.e.SetOriginal(res, lit);

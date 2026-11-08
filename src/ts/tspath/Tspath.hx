@@ -98,6 +98,18 @@ class Tspath {
 		return "";
 	}
 
+	public static function RemoveAnyFileExtension(path:String):String {
+		final withoutExtension = RemoveFileExtension(path);
+		if (withoutExtension != path) {
+			return withoutExtension;
+		}
+		final extension = GetAnyExtensionFromPath(path, null, false);
+		if (extension != "") {
+			return RemoveExtension(path, extension);
+		}
+		return path;
+	}
+
 	public static function RemoveExtension(path:String, extension:String):String {
 		return path.substring(0, path.length - extension.length);
 	}
@@ -1149,6 +1161,23 @@ class Tspath {
 		return "";
 	}
 
+	public static function GetLongestExtensionFromPath(path:String, extensions:Null<Array<String>>, ignoreCase:Bool):String {
+		path = RemoveTrailingDirectorySeparator(path);
+		final comparer = Stringutil.GetStringEqualityComparer(ignoreCase);
+		var longest = "";
+		if (extensions != null) {
+			for (extension in extensions) {
+				if (extension.length > longest.length) {
+					final matched = tryGetExtensionFromPath(path, extension, comparer);
+					if (matched != "") {
+						longest = matched;
+					}
+				}
+			}
+		}
+		return longest;
+	}
+
 	static function getAnyExtensionFromPathWorker(path:String, extensions:Array<String>, stringEqualityComparer:(a:String, b:String) -> Bool):String {
 		for (extension in extensions) {
 			final result = tryGetExtensionFromPath(path, extension, stringEqualityComparer);
@@ -1472,5 +1501,76 @@ class Tspath {
 
 	public static function CompareNumberOfDirectorySeparators(path1:String, path2:String):Int {
 		return Cmp.Compare(Strings.Count(path1, "/"), Strings.Count(path2, "/"));
+	}
+}
+
+// --- extensionrewrite.go (TypeScript main: content mapper output extensions, #64581) ---
+// PORT: the typed path wrappers (RootedFilePath, ModuleSpecifier) are plain strings; their methods are
+// statics of class ExtensionRewrites.
+class ExtensionRewrite {
+	public var Source:String = "";
+	public var Target:String = "";
+
+	public function new(source:String = "", target:String = "") {
+		this.Source = source;
+		this.Target = target;
+	}
+
+	public function isIdentity(ignoreCase:Bool):Bool {
+		return Stringutil.GetStringEqualityComparer(ignoreCase)(Source, Target);
+	}
+}
+
+class ExtensionRewrites {
+	static function getExtensionRewrite(path:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<ExtensionRewrite> {
+		var best = new ExtensionRewrite();
+		final equal = Stringutil.GetStringEqualityComparer(ignoreCase);
+		if (rewrites != null) {
+			for (rewrite in rewrites) {
+				if (rewrite.Source.length <= best.Source.length || path.length <= rewrite.Source.length) {
+					continue;
+				}
+				if (equal(path.substring(path.length - rewrite.Source.length), rewrite.Source)) {
+					best = rewrite;
+				}
+			}
+		}
+		return new go.Tuple.ValueOk(best, best.Source != "");
+	}
+
+	// RootedFilePath.GetExtensionRewrite
+	public static function GetExtensionRewrite(f:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<ExtensionRewrite> {
+		return getExtensionRewrite(f, rewrites, ignoreCase);
+	}
+
+	// RootedFilePath.RewriteExtension
+	public static function RewriteFileExtension(f:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<String> {
+		final r = GetExtensionRewrite(f, rewrites, ignoreCase);
+		if (!r.ok || r.value.isIdentity(ignoreCase)) {
+			return new go.Tuple.ValueOk(f, false);
+		}
+		final suffix = f.substring(f.length - r.value.Source.length);
+		return new go.Tuple.ValueOk(Tspath.RemoveExtension(f, suffix) + r.value.Target, true);
+	}
+
+	// ModuleSpecifier.RewriteExtension
+	public static function RewriteSpecifierExtension(s:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<String> {
+		final r = getExtensionRewrite(s, rewrites, ignoreCase);
+		if (!r.ok || r.value.isIdentity(ignoreCase)) {
+			return new go.Tuple.ValueOk(s, false);
+		}
+		return new go.Tuple.ValueOk(s.substring(0, s.length - r.value.Source.length) + r.value.Target, true);
+	}
+
+	// ModuleSpecifier.ShouldRewriteExtension
+	public static function ShouldRewriteExtension(s:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):Bool {
+		if (!Tspath.PathIsRelative(s) || Tspath.IsDeclarationFileName(s)) {
+			return false;
+		}
+		final r = getExtensionRewrite(s, rewrites, ignoreCase);
+		if (r.ok) {
+			return !r.value.isIdentity(ignoreCase);
+		}
+		return Tspath.HasTSFileExtension(s);
 	}
 }

@@ -141,6 +141,7 @@ class Tsoptions {
 			add("plugins", "plugin", CommandLineOptionTypeObject);
 			// For tsconfig root options
 			add("references", "references", CommandLineOptionTypeObject);
+			add("contentMappers", "contentMappers", CommandLineOptionTypeObject);
 			add("files", "files", CommandLineOptionTypeString);
 			add("include", "include", CommandLineOptionTypeString);
 			add("exclude", "exclude", CommandLineOptionTypeString);
@@ -778,6 +779,16 @@ class Tsoptions {
 					o.Description = Diagnostics.Set_the_number_of_checkers_per_project;
 					o.DefaultValueDescription = Diagnostics.X_4_unless_singleThreaded_is_passed;
 					o.minValue = 1;
+					o;
+				},
+				{
+					final o = new CommandLineOption();
+					o.Name = "runExternalCode";
+					o.Kind = CommandLineOptionTypeBoolean;
+					o.Category = Diagnostics.Command_line_Options;
+					o.IsCommandLineOnly = true;
+					o.Description = Diagnostics.Allow_loading_external_content_mapper_plugins_that_execute_code_during_compilation;
+					o.DefaultValueDescription = false;
 					o;
 				},
 			];
@@ -2901,6 +2912,284 @@ class Tsoptions {
 		return null;
 	}
 
+	// TypeScript main (content mappers).
+	static function parseContentMapper(value:Dynamic):Pair<Null<Mapper>, Null<Array<Diagnostic>>> {
+		if (!isOrderedMap(value)) {
+			return new Pair(null, null);
+		}
+		final v:OrderedMap<std.String, Dynamic> = value;
+		var errors:Null<Array<Diagnostic>> = null;
+		final mapper = new Mapper();
+		final pkg = v.Get("package");
+		if (pkg.ok) {
+			final p:Dynamic = pkg.value;
+			if (isString(p) && (p : std.String) != "") {
+				mapper.Definition.Package = p;
+			} else {
+				errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "contentMapper.package", "string"));
+			}
+		} else {
+			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "contentMapper.package", "string"));
+		}
+		final extensions = v.Get("extensions");
+		if (extensions.ok) {
+			final strs = parseStringArrayStrict(extensions.value);
+			if (strs.ok) {
+				mapper.Definition.Extensions = strs.value;
+			} else {
+				errors = appendDiag(errors,
+					Ast.NewCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "contentMapper.extensions", "string[]"));
+			}
+		} else {
+			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "contentMapper.extensions", "string[]"));
+		}
+		final outputExtensions = v.Get("outputExtensions");
+		if (outputExtensions.ok && outputExtensions.value != null) {
+			final values = parseStringStringMapStrict(outputExtensions.value);
+			if (values.ok) {
+				mapper.Definition.OutputExtensions = values.value;
+			} else {
+				errors = appendDiag(errors,
+					Ast.NewCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "contentMapper.outputExtensions", "object or null"));
+			}
+		}
+		final options = v.Get("options");
+		if (options.ok) {
+			if (!isOrderedMap(options.value)) {
+				errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "contentMapper.options", "object"));
+			} else {
+				mapper.Definition.Options = Json.MarshalOrdered(options.value);
+			}
+		}
+		if (Core.len(errors) != 0) {
+			return new Pair(null, errors);
+		}
+		return new Pair(mapper, errors);
+	}
+
+	static function parseStringStringMapStrict(value:Dynamic):ValueOk<StringMap<std.String>> {
+		if (!isOrderedMap(value)) {
+			return new ValueOk(null, false);
+		}
+		final object:OrderedMap<std.String, Dynamic> = value;
+		final result = new StringMap<std.String>();
+		for (key => v in object.Entries()) {
+			if (!isString(v)) {
+				return new ValueOk(null, false);
+			}
+			result.set(key, v);
+		}
+		return new ValueOk(result, true);
+	}
+
+	// parseStringArrayStrict returns the string slice and true only if value is an array whose
+	// elements are all strings. A missing element or wrong element type yields false.
+	static function parseStringArrayStrict(value:Dynamic):ValueOk<Array<std.String>> {
+		if (!isAnySlice(value)) {
+			return new ValueOk(null, false);
+		}
+		final arr = asAnySlice(value);
+		final result:Array<std.String> = [];
+		if (arr != null) {
+			for (v in arr) {
+				if (!isString(v)) {
+					return new ValueOk(null, false);
+				}
+				result.push(v);
+			}
+		}
+		return new ValueOk(result, true);
+	}
+
+	// --- contentmappers.go ---
+
+	// resolveContentMapperManifest locates packageName as a directory path relative to containingFile or in
+	// node_modules (walking up via node module resolution) and reads its package.json to produce the mapper's manifest
+	// and package directory. It never executes the package.
+	// PORT: ParseConfigHost.IsContentMapperPackageAllowed (an LSP workspace restriction) is not ported: always allowed.
+	static function resolveContentMapperManifest(host:ParseConfigHost, containingFile:std.String,
+			packageName:std.String):Triple<Manifest, std.String, Null<Diagnostic>> {
+		final fs = host.FS();
+		final resolverOptions = new CompilerOptions();
+		resolverOptions.ModuleResolution = ModuleResolutionKindBundler;
+		final resolver = ts.module.Module.NewResolver(new ResolverHost(new ContentMapperResolutionHost(fs, Tspath.GetDirectoryPath(containingFile))),
+			resolverOptions, "", "");
+		final resolved = resolver.ResolvePackageDirectory(packageName, containingFile, ts.core.Core.ResolutionModeNone, null);
+		if (resolved == null || resolved.ResolvedFileName == "") {
+			return new Triple(new Manifest(), "", Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_package_0_could_not_be_resolved, packageName));
+		}
+		final packageDirectory = resolved.ResolvedFileName;
+
+		final packageJsonPath = Tspath.CombinePaths(packageDirectory, "package.json");
+		final contents = fs.ReadFile(packageJsonPath);
+		if (!contents.ok) {
+			return new Triple(new Manifest(), packageDirectory,
+				Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_package_0_could_not_be_resolved, packageName));
+		}
+		final parsed = ts.packagejson.Packagejson.Parse(contents.value);
+		if (parsed.err != null) {
+			return new Triple(new Manifest(), packageDirectory,
+				Ast.NewCompilerDiagnostic(Diagnostics.The_package_json_of_the_content_mapper_package_0_could_not_be_parsed, packageName));
+		}
+		final fields = parsed.value;
+		final name = fields.HeaderFields.Name.GetValue().value;
+		if (name == "" || name == null) {
+			return new Triple(new Manifest(), packageDirectory,
+				Ast.NewCompilerDiagnostic(Diagnostics.The_package_json_of_the_content_mapper_package_0_does_not_specify_a_name, packageName));
+		}
+		final version = fields.HeaderFields.Version.GetValue().value;
+
+		// A content mapper package must declare how to run it: a "typescript.contentMapper" object with a non-empty
+		// "exec" array of strings.
+		final cm = fields.ContentMapper.GetValue();
+		if (!cm.ok) {
+			return new Triple(new Manifest(), packageDirectory,
+				Ast.NewCompilerDiagnostic(Diagnostics.The_package_json_of_the_content_mapper_package_0_does_not_declare_a_typescript_contentMapper_object,
+					packageName));
+		}
+		final exec = cm.value.Exec.GetValue();
+		if (!exec.ok || Core.len(exec.value) == 0) {
+			return new Triple(new Manifest(), packageDirectory,
+				Ast.NewCompilerDiagnostic(Diagnostics.The_typescript_contentMapper_exec_of_the_content_mapper_package_0_must_be_a_non_empty_array_of_strings,
+					packageName));
+		}
+		final compilerOptions = cm.value.CompilerOptions.GetValue().value;
+		final dynamicConfig = cm.value.DynamicConfig.GetValue().value;
+		final outputExtensionsR = cm.value.OutputExtensions.GetValue();
+		final outputExtensions = outputExtensionsR.value;
+		if (cm.value.OutputExtensions.IsPresent() && !outputExtensionsR.ok) {
+			return new Triple(new Manifest(), packageDirectory,
+				Ast.NewCompilerDiagnostic(Diagnostics.The_typescript_contentMapper_outputExtensions_of_the_content_mapper_package_0_must_be_an_object_with_string_values,
+					packageName));
+		}
+		if (outputExtensions != null) {
+			final sources = [for (k in outputExtensions.keys()) k];
+			Slices.SortStrings(sources);
+			for (source in sources) {
+				final output = outputExtensions.get(source);
+				for (extension in [source, output]) {
+					if (Contentmapper.containsPathSeparator(extension)) {
+						return new Triple(new Manifest(), packageDirectory,
+							Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_extension_0_must_not_contain_path_separators, extension));
+					}
+				}
+				if (!Contentmapper.IsValidExtension(source) || !Contentmapper.IsValidExtension(output)) {
+					return new Triple(new Manifest(), packageDirectory,
+						Ast.NewCompilerDiagnostic(Diagnostics.The_typescript_contentMapper_outputExtensions_of_the_content_mapper_package_0_contains_an_invalid_mapping_from_1_to_2_Extensions_must_be_non_empty_and_begin_with_a,
+							packageName, source, output));
+				}
+			}
+		}
+		final manifest = new Manifest();
+		manifest.Name = name;
+		manifest.Version = version == null ? "" : version;
+		manifest.Exec = exec.value;
+		manifest.CompilerOptions = compilerOptions;
+		manifest.DynamicConfig = dynamicConfig;
+		manifest.DefaultOutputExtensions = outputExtensions;
+		return new Triple(manifest, packageDirectory, null);
+	}
+
+	// getContentMapperSyntax returns the tsconfig JSON node to attribute a diagnostic about the content
+	// mapper at index to: the value of subKey within that mapper's object (when subKey is non-empty),
+	// falling back to the mapper element, then to the "contentMappers" array.
+	static function getContentMapperSyntax(sourceFile:Null<SourceFile>, index:Int, subKey:std.String):Null<Node> {
+		if (sourceFile == null) {
+			return null;
+		}
+		return ForEachTsConfigPropArray(sourceFile, "contentMappers", function(property:PropertyAssignment):Null<Node> {
+			if (!Ast.IsArrayLiteralExpression(property.Initializer)) {
+				return property.Initializer;
+			}
+			final elements = property.Initializer.Elements();
+			if (index < 0 || index >= Core.len(elements)) {
+				return property.Initializer;
+			}
+			final element = elements[index];
+			if (subKey != "" && Ast.IsObjectLiteralExpression(element)) {
+				final node = ForEachPropertyAssignment(element.AsObjectLiteralExpression(), subKey, function(property:PropertyAssignment):Null<Node> {
+					return property.Initializer;
+				});
+				if (node != null) {
+					return node;
+				}
+			}
+			return element;
+		});
+	}
+
+	public static function GetContentMapperOptionDiagnosticLocation(config:Null<ParsedCommandLine>, mapper:Mapper,
+			path:Array<ts.contentmapper.Host.OptionPathSegment>):Pair<Null<SourceFile>, TextRange> {
+		if (config == null || config.ConfigFile == null) {
+			return new Pair(null, Core.UndefinedTextRange());
+		}
+		final index = config.ContentMappers() == null ? -1 : config.ContentMappers().indexOf(mapper);
+		final mapperNode = getContentMapperSyntax(config.ConfigFile.SourceFile, index, "");
+		var node = getContentMapperSyntax(config.ConfigFile.SourceFile, index, "options");
+		if (node == null) {
+			node = mapperNode;
+		}
+		if (path != null) {
+			for (segment in path) {
+				var next:Node = null;
+				if (segment.IsIndex && Ast.IsArrayLiteralExpression(node)) {
+					final elements = node.Elements();
+					if (segment.Index < Core.len(elements)) {
+						next = elements[segment.Index];
+					}
+				} else if (!segment.IsIndex && Ast.IsObjectLiteralExpression(node)) {
+					next = ForEachPropertyAssignment(node.AsObjectLiteralExpression(), segment.Property, function(property:PropertyAssignment):Null<Node> {
+						return property.Initializer;
+					});
+				}
+				if (next == null) {
+					break;
+				}
+				node = next;
+			}
+		}
+		if (node == null) {
+			return new Pair(null, Core.UndefinedTextRange());
+		}
+		final file = config.ConfigFile.SourceFile;
+		return new Pair(file, Core.NewTextRange(ts.scanner.Scanner.SkipTrivia(file.Text(), node.Pos()), node.End()));
+	}
+
+	// getContentMappersKeySyntax returns the "contentMappers" property key node.
+	static function getContentMappersKeySyntax(sourceFile:Null<SourceFile>):Null<Node> {
+		if (sourceFile == null) {
+			return null;
+		}
+		return ForEachTsConfigPropArray(sourceFile, "contentMappers", function(property:PropertyAssignment):Null<Node> {
+			return property.Name();
+		});
+	}
+
+	// getContentMapperExtensionSyntax returns the node for a specific extension string within the content
+	// mapper at index, falling back to the "extensions" array or the mapper element.
+	static function getContentMapperExtensionSyntax(sourceFile:Null<SourceFile>, index:Int, ext:std.String):Null<Node> {
+		final node = getContentMapperSyntax(sourceFile, index, "extensions");
+		if (node != null && Ast.IsArrayLiteralExpression(node)) {
+			final element = Core.Find(node.Elements(), function(element:Node):Bool {
+				return Ast.IsStringLiteral(element) && element.Text() == ext;
+			});
+			if (element != null) {
+				return element;
+			}
+		}
+		return node;
+	}
+
+	// setContentMapperDiagnosticLocation attaches a source location to a content mapper diagnostic when a
+	// tsconfig source file and node are available.
+	static function setContentMapperDiagnosticLocation(diagnostic:Diagnostic, sourceFile:Null<SourceFile>, node:Null<Node>):Diagnostic {
+		if (sourceFile != null && node != null) {
+			diagnostic.SetFile(sourceFile);
+			diagnostic.SetLocation(Core.NewTextRange(ts.scanner.Scanner.SkipTrivia(sourceFile.Text(), node.Pos()), node.End()));
+		}
+		return diagnostic;
+	}
+
 	static function parseJsonToStringKey(json:Dynamic):OrderedMap<std.String, Dynamic> {
 		final result:OrderedMap<std.String, Dynamic> = Collections.NewOrderedMapWithSizeHint(6, (null : Dynamic));
 		if (isOrderedMap(json)) {
@@ -2920,6 +3209,10 @@ class Tsoptions {
 			r = m.Get("references");
 			if (r.ok) {
 				result.Set("references", r.value);
+			}
+			r = m.Get("contentMappers");
+			if (r.ok) {
+				result.Set("contentMappers", r.value);
 			}
 			r = m.Get("extends");
 			if (r.ok) {
@@ -3232,6 +3525,8 @@ class Tsoptions {
 				allOptions.Quiet = ParseTristate(value);
 			case "checkers":
 				allOptions.Checkers = parseNumber(value);
+			case "runExternalCode":
+				allOptions.RunExternalCode = ParseTristate(value);
 			default:
 				// different than any key above
 				return false;
@@ -3845,6 +4140,9 @@ class Tsoptions {
 			references.Name = "references";
 			references.Kind = CommandLineOptionTypeList; // should be a list of projectReference
 			// Category: diagnostics.Projects,
+			final contentMappers = new CommandLineOption();
+			contentMappers.Name = "contentMappers";
+			contentMappers.Kind = CommandLineOptionTypeList; // list of content mapper objects
 			final files = new CommandLineOption();
 			files.Name = "files";
 			files.Kind = CommandLineOptionTypeList;
@@ -3865,6 +4163,7 @@ class Tsoptions {
 				typeAcquisitionDeclaration,
 				extendsOptionDeclaration,
 				references,
+				contentMappers,
 				files,
 				include,
 				exclude,
@@ -3958,6 +4257,7 @@ class Tsoptions {
 		// watchOptions:    watchOptions,
 		parsed.typeAcquisition = typeAcquisition;
 		parsed.extendedConfigPath = extendedConfigPath;
+		parsed.contentMappersConfigFile = contentMappersConfigFileOf(configFileName, basePath);
 		return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(parsed, errors);
 	}
 
@@ -4620,7 +4920,17 @@ class Tsoptions {
 		parsedConfig.options = options;
 		parsedConfig.typeAcquisition = typeAcquisition;
 		parsedConfig.extendedConfigPath = stringSliceToAny(extendedConfigPath);
+		parsedConfig.contentMappersConfigFile = contentMappersConfigFileOf(configFileName, basePath);
 		return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(parsedConfig, errors);
+	}
+
+	// PORT: Go's configFileName is an absolute RootedFilePath; the port's may be relative to basePath
+	// (extended configs are parsed with their base name).
+	static function contentMappersConfigFileOf(configFileName:std.String, basePath:std.String):std.String {
+		if (configFileName == "") {
+			return "";
+		}
+		return Tspath.GetNormalizedAbsolutePath(configFileName, basePath);
 	}
 
 	static function readJsonConfigFile(fileName:std.String, path:Path,
@@ -4797,6 +5107,11 @@ class Tsoptions {
 				setPropertyValue("include");
 				setPropertyValue("exclude");
 				setPropertyValue("files");
+				if (isOrderedMap(extendsRaw) && (extendsRaw : OrderedMap<std.String, Dynamic>).Has("contentMappers")) {
+					final v = (extendsRaw : OrderedMap<std.String, Dynamic>).GetOrZero("contentMappers");
+					result.contentMappers = isAnySlice(v) ? asAnySlice(v) : null;
+					result.contentMappersConfigFile = extendedConfig.contentMappersConfigFile;
+				}
 				if (isOrderedMap(extendsRaw) && (extendsRaw : OrderedMap<std.String, Dynamic>).Has("compileOnSave")) {
 					final compileOnSave = (extendsRaw : OrderedMap<std.String, Dynamic>).GetOrZero("compileOnSave");
 					if (isBool(compileOnSave)) {
@@ -4831,6 +5146,10 @@ class Tsoptions {
 			}
 			if (result.files != null) {
 				(ownConfig.raw : OrderedMap<std.String, Dynamic>).Set("files", result.files);
+			}
+			if (result.contentMappers != null && !(ownConfig.raw : OrderedMap<std.String, Dynamic>).Has("contentMappers")) {
+				(ownConfig.raw : OrderedMap<std.String, Dynamic>).Set("contentMappers", result.contentMappers);
+				ownConfig.contentMappersConfigFile = result.contentMappersConfigFile;
 			}
 			if (result.compileOnSave && !(ownConfig.raw : OrderedMap<std.String, Dynamic>).Has("compileOnSave")) {
 				(ownConfig.raw : OrderedMap<std.String, Dynamic>).Set("compileOnSave", result.compileOnSave);
@@ -5011,9 +5330,160 @@ class Tsoptions {
 			sourceFile.configFileSpecs = configFileSpecs;
 		}
 
+		final contentMapperSourceFile:Null<SourceFile> = sourceFile != null ? sourceFile.SourceFile : null;
+		var contentMappers:Null<Array<Mapper>> = null;
+		var contentMapperIndices:Array<Int> = [];
+		final contentMappersOfRaw = getPropFromRaw("contentMappers", function(element:Dynamic):Bool {
+			return isOrderedMap(element);
+		}, "object");
+		if (contentMappersOfRaw.sliceValue != null) {
+			for (i in 0...contentMappersOfRaw.sliceValue.length) {
+				final element:Dynamic = contentMappersOfRaw.sliceValue[i];
+				final r = parseContentMapper(element);
+				final mapper = r.a;
+				if (r.b != null) {
+					for (mapperError in r.b) {
+						errors = appendDiag(errors,
+							setContentMapperDiagnosticLocation(mapperError, contentMapperSourceFile, getContentMapperSyntax(contentMapperSourceFile, i, "")));
+					}
+				}
+				if (mapper != null) {
+					if (contentMappers == null)
+						contentMappers = [];
+					contentMappers.push(mapper);
+					contentMapperIndices.push(i);
+				}
+			}
+		}
+		final seenContentMapperExtensions = new StringMap<Bool>();
+		var contentMapperExtensions:Null<Array<std.String>> = [];
+		final caseInsensitive = !host.FS().UseCaseSensitiveFileNames();
+		final canonicalExtension = function(extension:std.String):std.String {
+			return caseInsensitive ? extension.toLowerCase() : extension;
+		};
+		if (contentMappers != null) {
+			for (j in 0...contentMappers.length) {
+				final mapper = contentMappers[j];
+				final validExtensions:Array<std.String> = [];
+				for (ext in (mapper.Definition.Extensions == null ? [] : mapper.Definition.Extensions)) {
+					final extNode = getContentMapperExtensionSyntax(contentMapperSourceFile, contentMapperIndices[j], ext);
+					final canonicalExt = canonicalExtension(ext);
+					if (!StringTools.startsWith(ext, ".")) {
+						errors = appendDiag(errors,
+							setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_file_extension_0_must_begin_with_a, ext),
+								contentMapperSourceFile, extNode));
+					} else if (Contentmapper.containsPathSeparator(ext)) {
+						errors = appendDiag(errors,
+							setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_extension_0_must_not_contain_path_separators,
+								ext), contentMapperSourceFile, extNode));
+					} else if (Contentmapper.HasReservedSourceExtension(ext)) {
+						errors = appendDiag(errors,
+							setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_file_extension_0_cannot_be_registered_because_it_ends_in_a_built_in_extension,
+								ext), contentMapperSourceFile, extNode));
+					} else {
+						if (seenContentMapperExtensions.exists(canonicalExt)) {
+							errors = appendDiag(errors,
+								setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_file_extension_0_is_registered_by_more_than_one_content_mapper,
+									ext), contentMapperSourceFile, extNode));
+						} else {
+							seenContentMapperExtensions.set(canonicalExt, true);
+							contentMapperExtensions.push(ext);
+							validExtensions.push(ext);
+						}
+					}
+				}
+				mapper.Definition.Extensions = validExtensions;
+				if (mapper.Definition.OutputExtensions != null) {
+					final sourceExtensions = [for (k in mapper.Definition.OutputExtensions.keys()) k];
+					Slices.SortStrings(sourceExtensions);
+					for (sourceExtension in sourceExtensions) {
+						final outputExtension = mapper.Definition.OutputExtensions.get(sourceExtension);
+						final outputExtensionsNode = getContentMapperSyntax(contentMapperSourceFile, contentMapperIndices[j], "outputExtensions");
+						if (Contentmapper.containsPathSeparator(sourceExtension)) {
+							errors = appendDiag(errors,
+								setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_extension_0_must_not_contain_path_separators,
+									sourceExtension), contentMapperSourceFile, outputExtensionsNode));
+						} else if (!Contentmapper.IsValidExtension(sourceExtension)) {
+							errors = appendDiag(errors,
+								setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_output_extension_0_must_be_non_empty_and_begin_with_a,
+									sourceExtension), contentMapperSourceFile, outputExtensionsNode));
+						}
+						if (Contentmapper.containsPathSeparator(outputExtension)) {
+							errors = appendDiag(errors,
+								setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_extension_0_must_not_contain_path_separators,
+									outputExtension), contentMapperSourceFile, outputExtensionsNode));
+						} else if (!Contentmapper.IsValidExtension(outputExtension)) {
+							errors = appendDiag(errors,
+								setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_output_extension_0_must_be_non_empty_and_begin_with_a,
+									outputExtension), contentMapperSourceFile, outputExtensionsNode));
+						}
+						if (!Lambda.exists(validExtensions, extension -> canonicalExtension(extension) == canonicalExtension(sourceExtension))) {
+							errors = appendDiag(errors,
+								setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_output_extension_mapping_source_0_is_not_registered_by_this_content_mapper,
+									sourceExtension), contentMapperSourceFile, outputExtensionsNode));
+						}
+					}
+				}
+			}
+		}
+		if (contentMappers != null && !(parsedConfig.options != null && parsedConfig.options.RunExternalCode.IsTrue())) {
+			errors = appendDiag(errors,
+				setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mappers_require_the_runExternalCode_command_line_flag_to_be_enabled),
+					contentMapperSourceFile, getContentMappersKeySyntax(contentMapperSourceFile)));
+			// Without the flag the mappers are not trusted to run, so drop them entirely: their extensions are
+			// not registered and their files are not intercepted (they are treated as unknown foreign files).
+			contentMappers = null;
+			contentMapperExtensions = null;
+		} else if (contentMappers != null) {
+			// Resolve each mapper's package.json now so its name, version, and run command are available to
+			// everything downstream (diagnostics, build-info staleness) without executing anything.
+			var containingFile = parsedConfig.contentMappersConfigFile;
+			if (containingFile == "") {
+				containingFile = configFileName != "" ? Tspath.GetNormalizedAbsolutePath(configFileName, basePath) : "";
+				if (containingFile == "") {
+					containingFile = Tspath.CombinePaths(basePathForFileNames, "tsconfig.json");
+				}
+			}
+			final resolvedContentMappers:Array<Mapper> = [];
+			for (j in 0...contentMappers.length) {
+				final mapper = contentMappers[j];
+				final r = resolveContentMapperManifest(host, containingFile, mapper.Definition.Package);
+				final manifest = r.a;
+				mapper.PackageDirectory = r.b;
+				final diagnostic = r.c;
+				if (diagnostic != null) {
+					errors = appendDiag(errors,
+						setContentMapperDiagnosticLocation(diagnostic, contentMapperSourceFile,
+							getContentMapperSyntax(contentMapperSourceFile, contentMapperIndices[j], "package")));
+					continue;
+				}
+				mapper.Manifest = manifest;
+				final rawMapper:OrderedMap<std.String, Dynamic> = contentMappersOfRaw.sliceValue[contentMapperIndices[j]];
+				if (!rawMapper.Get("outputExtensions").ok) {
+					mapper.Definition.OutputExtensions = manifest.DefaultOutputExtensions == null ? null : manifest.DefaultOutputExtensions.copy();
+				}
+				for (sourceExtension in mapper.Definition.Extensions) {
+					final o = ParsedCommandLine.getContentMapperOutputExtension(mapper.Definition.OutputExtensions, sourceExtension, caseInsensitive);
+					final outputExtension = o.value;
+					final identity = sourceExtension == outputExtension || caseInsensitive && Strings.EqualFold(sourceExtension, outputExtension);
+					if (o.ok && !identity && !parsedConfig.options.RewriteRelativeImportExtensions.IsTrue()) {
+						errors = appendDiag(errors,
+							setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_output_extension_mapping_from_0_to_1_requires_rewriteRelativeImportExtensions_to_be_enabled,
+								sourceExtension, outputExtension),
+								contentMapperSourceFile, getContentMapperSyntax(contentMapperSourceFile, contentMapperIndices[j], "")));
+					}
+				}
+				resolvedContentMappers.push(mapper);
+			}
+			contentMappers = resolvedContentMappers;
+			contentMapperExtensions = Core.FlatMap(contentMappers, function(mapper:Mapper):Array<std.String> {
+				return mapper.Definition.Extensions;
+			});
+		}
+
 		final getFileNames = function(basePath:std.String):Pair<Array<std.String>, Int> {
 			final parsedConfigOptions = parsedConfig.options;
-			final r = getFileNamesFromConfigSpecs(configFileSpecs, basePath, parsedConfigOptions, host.FS(), extraFileExtensions);
+			final r = getFileNamesFromConfigSpecs(configFileSpecs, basePath, parsedConfigOptions, host.FS(), contentMapperExtensions);
 			final fileNames = r.a;
 			final literalFileNamesLen = r.b;
 			if (shouldReportNoInputFiles(fileNames, canJsonReportNoInputFiles(rawConfig), resolutionStack)) {
@@ -5081,12 +5551,12 @@ class Tsoptions {
 		// WatchOptions:      nil,
 		parsedOptions.FileNames = fileNames;
 		parsedOptions.ProjectReferences = getProjectReferences(basePathForFileNames);
+		parsedOptions.ContentMappers = contentMappers;
 		result.ParsedConfig = parsedOptions;
 		result.ConfigFile = sourceFile;
 		result.Raw = parsedConfig.raw;
 		result.Errors = errors;
 
-		result.extraFileExtensions = extraFileExtensions;
 		result.comparePathsOptions = new ComparePathsOptions(host.FS().UseCaseSensitiveFileNames(), basePathForFileNames);
 		result.literalFileNamesLen = literalFileNamesLen;
 		return result;
@@ -5431,8 +5901,7 @@ class Tsoptions {
 	// host is the host used to resolve files and directories.
 	// extraFileExtensions optionally file extra file extension information from host
 	static function getFileNamesFromConfigSpecs(configFileSpecs:ConfigFileSpecs, basePath:std.String, // considering this is the current directory
-			options:CompilerOptions, host:FS, extraFileExtensions:Null<Array<FileExtensionInfo>>):Pair<Array<std.String>, Int> {
-		extraFileExtensions = [];
+			options:CompilerOptions, host:FS, extraExtensions:Null<Array<std.String>>):Pair<Array<std.String>, Int> {
 		basePath = Tspath.NormalizePath(basePath);
 		final keyMappper = function(value:std.String):std.String {
 			return Tspath.GetCanonicalFileName(value, host.UseCaseSensitiveFileNames());
@@ -5454,7 +5923,7 @@ class Tsoptions {
 		final validatedExcludeSpecs = configFileSpecs.validatedExcludeSpecs;
 		// Rather than re-query this for each file and filespec, we query the supported extensions
 		// once and store it on the expansion context.
-		final supportedExtensions = GetSupportedExtensions(options, extraFileExtensions);
+		final supportedExtensions = GetSupportedExtensions(options, extraExtensions);
 		final supportedExtensionsWithJsonIfResolveJsonModule = GetSupportedExtensionsWithJsonIfResolveJsonModule(options, supportedExtensions);
 		// Literal files are always included verbatim. An "include" or "exclude" specification cannot
 		// remove a literal file.
@@ -5527,33 +5996,30 @@ class Tsoptions {
 		return new Pair<Array<std.String>, Int>(files, literalFileMap.Size());
 	}
 
-	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraFileExtensions:Null<Array<FileExtensionInfo>>):Array<Array<std.String>> {
+	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraExtensions:Null<Array<std.String>>):Array<Array<std.String>> {
 		final needJSExtensions = compilerOptions.GetAllowJS();
-		if (Core.len(extraFileExtensions) == 0) {
-			if (needJSExtensions) {
-				return Tspath.AllSupportedExtensions;
-			} else {
-				return Tspath.SupportedTSExtensions;
-			}
-		}
 		var builtins:Array<Array<std.String>>;
 		if (needJSExtensions) {
 			builtins = Tspath.AllSupportedExtensions;
 		} else {
 			builtins = Tspath.SupportedTSExtensions;
 		}
+		if (Core.len(extraExtensions) == 0) {
+			return builtins;
+		}
 		final flatBuiltins = Core.Flatten(builtins);
 		var result:Null<Array<Array<std.String>>> = null;
-		for (x in extraFileExtensions) {
-			if (x.ScriptKind == ScriptKindDeferred
-				|| (needJSExtensions && (x.ScriptKind == ScriptKindJS || x.ScriptKind == ScriptKindJSX)) && !Slices.Contains(flatBuiltins, x.Extension)) {
+		for (ext in extraExtensions) {
+			if (!Slices.Contains(flatBuiltins, ext)) {
 				if (result == null)
 					result = [];
-				result.push([x.Extension]);
+				result.push([ext]);
 			}
 		}
-		final extensions = Slices.Concat(builtins, result);
-		return extensions;
+		if (Core.len(result) == 0) {
+			return builtins;
+		}
+		return Slices.Concat(builtins, result);
 	}
 
 	public static function GetSupportedExtensionsWithJsonIfResolveJsonModule(compilerOptions:Null<CompilerOptions>,
@@ -5865,6 +6331,7 @@ class Tsoptions {
 			new CompilerOptionsField("Build", "build", FieldTristate),
 			new CompilerOptionsField("Help", "help", FieldTristate),
 			new CompilerOptionsField("All", "all", FieldTristate),
+			new CompilerOptionsField("RunExternalCode", "runExternalCode", FieldTristate),
 			new CompilerOptionsField("PprofDir", "pprofDir", FieldString),
 			new CompilerOptionsField("SingleThreaded", "singleThreaded", FieldTristate),
 			new CompilerOptionsField("Quiet", "quiet", FieldTristate),

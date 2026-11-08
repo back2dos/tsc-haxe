@@ -8,6 +8,7 @@ import go.Errors.Error;
 interface EmitHost {
 	function Options():CompilerOptions;
 	function SourceFiles():Array<SourceFile>;
+	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
 	function UseCaseSensitiveFileNames():Bool;
 	function GetCurrentDirectory():std.String;
 	function CommonSourceDirectory():std.String;

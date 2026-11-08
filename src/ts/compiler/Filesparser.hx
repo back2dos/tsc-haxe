@@ -13,6 +13,7 @@ class ParseTask implements HasFileName {
 	var loaded:Bool = false;
 	var startedSubTasks:Bool = false;
 	var isForAutomaticTypeDirective:Bool = false;
+	var isContentMapperSupplemental:Bool = false;
 	var failedLookup:Bool = false;
 	var includeReason:FileIncludeReason = null;
 	var packageId:PackageId = new PackageId();
@@ -79,7 +80,7 @@ class ParseTask implements HasFileName {
 			return;
 		}
 
-		if (Tspath.HasExtension(this.normalizedFilePath)) {
+		if (!this.isContentMapperSupplemental && Tspath.HasExtension(this.normalizedFilePath)) {
 			final compilerOptions = loader.opts.Config.CompilerOptions();
 			final allowNonTsExtensions = compilerOptions.AllowNonTsExtensions.IsTrue();
 			if (!allowNonTsExtensions) {
@@ -124,12 +125,20 @@ class ParseTask implements HasFileName {
 			this.metadata = loader.loadSourceFileMetaData(this.normalizedFilePath);
 		}
 
-		final file = loader.parseSourceFile(this);
+		var file = this.file;
+		if (file == null) {
+			file = loader.parseSourceFile(this);
+		}
 		if (file == null) {
 			return;
 		}
 
 		this.file = file;
+		final virtualFileName = file.VirtualFileName();
+		if (virtualFileName != "") {
+			this.metadata = this.metadata.copy(); // PORT: Go value struct
+			this.metadata.ImpliedNodeFormat = Ast.GetImpliedNodeFormatForFile(virtualFileName, this.metadata.PackageJsonType);
+		}
 		this.subTasks = [];
 
 		final compilerOptions = loader.opts.Config.CompilerOptions();
@@ -174,6 +183,17 @@ class ParseTask implements HasFileName {
 		}
 
 		loader.resolveImportsAndModuleAugmentations(this);
+		final supplementalFiles = file.SupplementalSourceFiles();
+		if (supplementalFiles != null) {
+			for (supplemental in supplementalFiles) {
+				final t = new ParseTask();
+				t.normalizedFilePath = supplemental.FileName();
+				t.file = supplemental;
+				t.isContentMapperSupplemental = true;
+				t.includeReason = new FileIncludeReason(fileIncludeKindContentMapperSupplemental, this.path);
+				this.subTasks.push(t);
+			}
+		}
 	}
 
 	function redirect(loader:FileLoader, fileName:std.String):Void {
@@ -640,6 +660,7 @@ class FilesParser {
 		r.outputFileToProjectReferenceSource = outputFileToProjectReferenceSource;
 		r.redirectTargetsMap = redirectTargetsMap;
 		r.redirectFilesByPath = redirectFilesByPath;
+		r.contentMapperDiagnostics = loader.contentMapperDiagnostics;
 		return r;
 	}
 

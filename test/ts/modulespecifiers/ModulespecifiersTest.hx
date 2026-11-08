@@ -47,6 +47,14 @@ class MockModuleSpecifierGenerationHost implements ModuleSpecifierGenerationHost
 		return this.currentDir;
 	}
 
+	public function ContentMapperExtensions():Null<Array<String>> {
+		return null;
+	}
+
+	public function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>> {
+		return null;
+	}
+
 	public function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference {
 		return null;
 	}

@@ -9,6 +9,8 @@ class ESModuleTransformer {
 	var compilerOptions:CompilerOptions = null;
 	var resolver:ReferenceResolver = null;
 	var getEmitModuleFormatOfFile:(file:HasFileName) -> ModuleKind = null;
+	var contentMapperExtensionRewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>> = null;
+	var ignoreCase:Bool = false; // PORT: tspath.CaseSensitivity
 	var currentSourceFile:SourceFile = null;
 	var importRequireStatements:ImportRequireStatements = null;
 	var helperNameSubstitutions:StringMap<IdentifierNode> = null;
@@ -110,7 +112,7 @@ class ESModuleTransformer {
 		if (!compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
 			return node.AsNode();
 		}
-		final updatedModuleSpecifier = Moduletransforms.rewriteModuleSpecifier(EmitContext(), node.ModuleSpecifier, compilerOptions);
+		final updatedModuleSpecifier = Moduletransforms.rewriteModuleSpecifier(EmitContext(), node.ModuleSpecifier, compilerOptions, contentMapperExtensionRewrites, ignoreCase);
 		return Factory().UpdateImportDeclaration(node, null /*modifiers*/, Visitor().VisitNode(node.ImportClause), updatedModuleSpecifier,
 			Visitor().VisitNode(node.Attributes));
 	}
@@ -171,7 +173,7 @@ class ESModuleTransformer {
 			return node.AsNode();
 		}
 
-		final updatedModuleSpecifier = Moduletransforms.rewriteModuleSpecifier(EmitContext(), node.ModuleSpecifier, compilerOptions);
+		final updatedModuleSpecifier = Moduletransforms.rewriteModuleSpecifier(EmitContext(), node.ModuleSpecifier, compilerOptions, contentMapperExtensionRewrites, ignoreCase);
 		if (compilerOptions.Module > ModuleKindES2015 || node.ExportClause == null || !Ast.IsNamespaceExport(node.ExportClause)) {
 			// Either ill-formed or don't need to be transformed.
 			return Factory().UpdateExportDeclaration(node, null /*modifiers*/, false /*isTypeOnly*/, node.ExportClause, updatedModuleSpecifier,
@@ -218,9 +220,9 @@ class ESModuleTransformer {
 
 		var argument:Expression = null;
 		if (Ast.IsStringLiteralLike(node.Arguments.Nodes[0])) {
-			argument = Moduletransforms.rewriteModuleSpecifier(EmitContext(), node.Arguments.Nodes[0], compilerOptions);
+			argument = Moduletransforms.rewriteModuleSpecifier(EmitContext(), node.Arguments.Nodes[0], compilerOptions, contentMapperExtensionRewrites, ignoreCase);
 		} else {
-			argument = Factory().NewRewriteRelativeImportExtensionsHelper(node.Arguments.Nodes[0], compilerOptions.Jsx == JsxEmitPreserve);
+			argument = Factory().NewRewriteRelativeImportExtensionsHelper(node.Arguments.Nodes[0], compilerOptions.Jsx == JsxEmitPreserve, contentMapperExtensionRewrites, ignoreCase);
 		}
 
 		final arguments:Array<Expression> = [];
@@ -242,7 +244,7 @@ class ESModuleTransformer {
 
 		var args:Array<Expression> = null;
 		if (moduleName != null) {
-			args = [Moduletransforms.rewriteModuleSpecifier(EmitContext(), moduleName, compilerOptions)];
+			args = [Moduletransforms.rewriteModuleSpecifier(EmitContext(), moduleName, compilerOptions, contentMapperExtensionRewrites, ignoreCase)];
 		}
 
 		if (compilerOptions.GetEmitModuleKind() == ModuleKindPreserve) {

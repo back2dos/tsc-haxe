@@ -19,6 +19,7 @@ interface OutputPaths {
 // Used to be passed in the TransformationContext, which is now just an EmitContext
 interface DeclarationEmitHost {
 	function CommonSourceDirectory():std.String;
+	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
 	function FileExists(path:std.String):Bool;
 	function GetCurrentDirectory():std.String;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;
@@ -1499,6 +1500,21 @@ class DeclarationTransformer {
 			return null;
 		}
 		resultHasExternalModuleIndicator = resultHasExternalModuleIndicator || (parent.Kind != KindModuleDeclaration && parent.Kind != KindImportType);
+		if (Ast.IsStringLiteral(input) && compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
+			final specifier = input.Text();
+			final rewrites = host.ContentMapperExtensionRewrites();
+			final ignoreCase = !host.UseCaseSensitiveFileNames();
+			if (!ts.tspath.Tspath.ExtensionRewrites.ShouldRewriteExtension(specifier, rewrites, ignoreCase)) {
+				return input;
+			}
+			final rewritten = ts.tspath.Tspath.ExtensionRewrites.RewriteSpecifierExtension(specifier, rewrites, ignoreCase);
+			if (rewritten.ok) {
+				final result = Factory().NewStringLiteral(rewritten.value, input.AsStringLiteral().TokenFlags);
+				EmitContext().SetOriginal(result, input);
+				EmitContext().AssignCommentAndSourceMapRanges(result, input);
+				return result;
+			}
+		}
 		return input;
 	}
 

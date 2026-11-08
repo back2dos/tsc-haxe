@@ -10,6 +10,8 @@ class ExtendsResult {
 	var include:Null<Array<Dynamic>> = null;
 	var exclude:Null<Array<Dynamic>> = null;
 	var files:Null<Array<Dynamic>> = null;
+	var contentMappers:Null<Array<Dynamic>> = null;
+	var contentMappersConfigFile:std.String = "";
 	var compileOnSave:Bool = false;
 	var extendedSourceFiles:Set<std.String> = new Set<std.String>();
 
@@ -137,6 +139,7 @@ class ParsedTsconfig {
 	var typeAcquisition:Null<TypeAcquisition> = null;
 	// Note that the case of the config path has not yet been normalized, as no files have been imported into the project yet
 	var extendedConfigPath:Dynamic = null;
+	var contentMappersConfigFile:std.String = "";
 
 	public function new() {}
 }
@@ -236,5 +239,24 @@ class PropOfRaw {
 	public function new(sliceValue:Null<Array<Dynamic>>, wrongValue:std.String = "") {
 		this.sliceValue = sliceValue;
 		this.wrongValue = wrongValue;
+	}
+}
+
+// --- contentmappers.go ---
+class ContentMapperResolutionHost implements ParseConfigHost {
+	final fs:FS;
+	final currentDirectory:std.String;
+
+	public function new(fs:FS, currentDirectory:std.String) {
+		this.fs = fs;
+		this.currentDirectory = currentDirectory;
+	}
+
+	public function FS():FS {
+		return fs;
+	}
+
+	public function GetCurrentDirectory():std.String {
+		return currentDirectory;
 	}
 }

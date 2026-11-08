@@ -30,4 +30,23 @@ class Tsoptionstest {
 	public static function NewVFSParseConfigHost(files:Map<String, String>, currentDirectory:String, useCaseSensitiveFileNames:Bool):VfsParseConfigHost {
 		return new VfsParseConfigHost(Vfstest.FromMap(files, useCaseSensitiveFileNames), currentDirectory);
 	}
+
+	// --- vfs.go (TypeScript main) ---
+
+	// PORT: NewVFSWithSymlinks wrapped in a VfsParseConfigHost (the port's parse config host carries the
+	// current directory).
+	public static function NewVFSParseConfigHostWithSymlinks(files:Map<String, String>, symlinks:Null<haxe.ds.StringMap<String>>, currentDirectory:String,
+			useCaseSensitiveFileNames:Bool):VfsParseConfigHost {
+		if (symlinks == null || !symlinks.keys().hasNext()) {
+			return NewVFSParseConfigHost(files, currentDirectory, useCaseSensitiveFileNames);
+		}
+		final entries = new Map<String, Dynamic>();
+		for (name => content in files) {
+			entries.set(name, content);
+		}
+		for (link => target in symlinks) {
+			entries.set(Tspath.GetNormalizedAbsolutePath(link, currentDirectory), Vfstest.Symlink(Tspath.GetNormalizedAbsolutePath(target, currentDirectory)));
+		}
+		return new VfsParseConfigHost(Vfstest.FromMap(entries, useCaseSensitiveFileNames), currentDirectory);
+	}
 }

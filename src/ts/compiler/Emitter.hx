@@ -78,9 +78,16 @@ class Emitter {
 		this.prints.push(print);
 	}
 
-	function getDeclarationTransformers(emitContext:EmitContext, declarationFilePath:std.String, declarationMapPath:std.String):Array<DeclarationTransformer> {
-		final transform = Declarations.NewDeclarationTransformer(this.host, emitContext, this.host.Options(), declarationFilePath, declarationMapPath);
-		return [transform];
+	// PORT: Go's declarationTransformer interface; the DeclarationTransformer is wrapped (nominal interfaces).
+	function getDeclarationTransformers(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:std.String,
+			declarationMapPath:std.String):Array<DeclarationTransformerLike> {
+		final forceDtsEmit = this.emitOnly == EmitOnlyForcedDts;
+		return [
+			new DeclarationTransformerAdapter(Declarations.NewDeclarationTransformer(this.host, emitContext, this.host.Options(), declarationFilePath,
+				declarationMapPath)),
+			ts.transformers.declarations.Supplementalreferences.NewSupplementalReferencesTransformer(this.host, sourceFile, declarationFilePath,
+				forceDtsEmit)
+		];
 	}
 
 	function runScriptTransformers(emitContext:EmitContext, sourceFile:SourceFile):SourceFile {
@@ -115,8 +122,8 @@ class Emitter {
 		}
 		var diags:Array<Diagnostic> = null;
 		try {
-			for (transformer in this.getDeclarationTransformers(emitContext, declarationFilePath, declarationMapPath)) {
-				sourceFile = transformer.Transformer.TransformSourceFile(sourceFile);
+			for (transformer in this.getDeclarationTransformers(emitContext, sourceFile, declarationFilePath, declarationMapPath)) {
+				sourceFile = transformer.TransformSourceFile(sourceFile);
 				final d = transformer.GetDiagnostics();
 				if (d != null && d.length > 0) {
 					if (diags == null)
@@ -244,7 +251,9 @@ class Emitter {
 		// Module: 			   options.Module, // NYI
 		// ModuleResolution:   options.ModuleResolution, // NYI
 		printerOptions.Target = options.GetEmitScriptTarget();
-		printerOptions.SourceMap = this.emitOnly != EmitOnlyForcedDts && options.DeclarationMap.IsTrue();
+		final emitDeclarationMap = this.emitOnly != EmitOnlyForcedDts && options.DeclarationMap.IsTrue();
+		final contentMappedSource = sourceFile;
+		printerOptions.SourceMap = emitDeclarationMap;
 		printerOptions.InlineSourceMap = options.InlineSourceMap.IsTrue();
 		// InlineSources:       options.InlineSources.IsTrue(), // ignored, per strada
 		// ExtendedDiagnostics: options.ExtendedDiagnostics.IsTrue(), // NYI
@@ -252,10 +261,25 @@ class Emitter {
 		printerOptions.OmitBraceSourceMapPositions = true;
 
 		// create a printer to print the nodes
-		final printer = Printer.NewPrinter(printerOptions, new PrintHandlers(/* !!! */), emitContext);
+		final printHandlers = new PrintHandlers();
+		final spanMap = contentMappedSource.SpanMap();
+		if (emitDeclarationMap && spanMap != null) {
+			final originalSource = new DeclarationMapSource(contentMappedSource);
+			printHandlers.MapSourcePosition = function(source:ts.sourcemap.Source.Source, pos:Int):Null<ts.printer.Printer.MappedSourcePosition> {
+				if (source.FileName() != contentMappedSource.FileName()) {
+					return new ts.printer.Printer.MappedSourcePosition(source, pos);
+				}
+				final mapped = ts.spanmap.Spanmap.VirtualToOriginalPositionExact(spanMap, pos);
+				if (!mapped.ok) {
+					return null;
+				}
+				return new ts.printer.Printer.MappedSourcePosition(originalSource, mapped.value);
+			};
+		}
+		final printer = Printer.NewPrinter(printerOptions, printHandlers, emitContext);
 
 		final declarationMapOptions = new CompilerOptions();
-		declarationMapOptions.SourceMap = Core.IfElse(this.emitOnly != EmitOnlyForcedDts && options.DeclarationMap.IsTrue(), TSTrue, TSFalse);
+		declarationMapOptions.SourceMap = Core.IfElse(emitDeclarationMap, TSTrue, TSFalse);
 		declarationMapOptions.SourceRoot = options.SourceRoot;
 		declarationMapOptions.MapRoot = options.MapRoot;
 		// Explicitly do not pass through either inline option.
@@ -404,4 +428,51 @@ interface SourceFileMayBeEmittedHost {
 	function GetCurrentDirectory():std.String;
 	function UseCaseSensitiveFileNames():Bool;
 	function SourceFiles():Array<SourceFile>;
+}
+
+// PORT: Go's declarationTransformer interface (TransformSourceFile, GetDiagnostics).
+interface DeclarationTransformerLike {
+	function TransformSourceFile(sourceFile:SourceFile):SourceFile;
+	function GetDiagnostics():Array<Diagnostic>;
+}
+
+private class DeclarationTransformerAdapter implements DeclarationTransformerLike {
+	final tx:DeclarationTransformer;
+
+	public function new(tx:DeclarationTransformer) {
+		this.tx = tx;
+	}
+
+	public function TransformSourceFile(sourceFile:SourceFile):SourceFile {
+		return tx.Transformer.TransformSourceFile(sourceFile);
+	}
+
+	public function GetDiagnostics():Array<Diagnostic> {
+		return tx.GetDiagnostics();
+	}
+}
+
+// declarationMapSource: the original text of a content-mapped file as a source map source.
+class DeclarationMapSource implements ts.sourcemap.Source.Source {
+	final fileName:std.String;
+	final text:std.String;
+	final lineMap:Array<TextPos>;
+
+	public function new(sourceFile:SourceFile) {
+		this.text = sourceFile.OriginalText();
+		this.fileName = sourceFile.OriginalFileName();
+		this.lineMap = Core.ComputeECMALineStarts(this.text);
+	}
+
+	public function FileName():std.String {
+		return fileName;
+	}
+
+	public function Text():std.String {
+		return text;
+	}
+
+	public function ECMALineMap():Array<TextPos> {
+		return lineMap;
+	}
 }

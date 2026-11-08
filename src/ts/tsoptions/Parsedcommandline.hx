@@ -20,7 +20,8 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	var wildcardDirectories:Null<StringMap<Bool>> = null;
 	var includeGlobsOnce:Bool = false;
 	var includeGlobs:Null<Array<Glob>> = null;
-	var extraFileExtensions:Null<Array<FileExtensionInfo>> = null;
+	var contentMapperExtensionRewrites:Null<Array<ExtensionRewrite>> = null;
+	var contentMapperExtensionRewritesOnce:Bool = false;
 
 	var sourceAndOutputMapsOnce:Bool = false;
 	var sourceToProjectReference:Null<StringMap<SourceOutputAndProjectReference>> = null;
@@ -40,6 +41,22 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	var localeOnce:Bool = false;
 
 	public function new() {}
+
+	// fileGlobPatterns returns the include file glob patterns for this command line, augmenting the
+	// built-in patterns with the extensions registered by its content mappers so that created
+	// content-mapped files are recognized as possible root files.
+	function fileGlobPatterns():Pair<std.String, std.String> {
+		final mapperExtensions = this.ContentMapperExtensions();
+		if (Core.len(mapperExtensions) == 0) {
+			return new Pair(Tsoptions.fileGlobPattern, Tsoptions.recursiveFileGlobPattern);
+		}
+		final extensions = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "json"];
+		for (extension in mapperExtensions) {
+			extensions.push(StringTools.startsWith(extension, ".") ? extension.substring(1) : extension);
+		}
+		final fileGlob = "*.{" + extensions.join(",") + "}";
+		return new Pair(fileGlob, "**/" + fileGlob);
+	}
 
 	public function ConfigName():std.String {
 		if (this == null || this.ConfigFile == null) {
@@ -159,7 +176,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 						if (!yield_(dtsFileName)) {
 							return;
 						}
-						if (this.CompilerOptions().GetAreDeclarationMapsEnabled()) {
+						if (this.GetContentMapperForFileName(fileName) == null && this.CompilerOptions().GetAreDeclarationMapsEnabled()) {
 							final declarationMap = dtsFileName + ".map";
 							if (!yield_(declarationMap)) {
 								return;
@@ -202,9 +219,10 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		if (!this.includeGlobsOnce) {
 			this.includeGlobsOnce = true;
 			if (this.includeGlobs == null) {
+				final patterns = this.fileGlobPatterns();
 				final globs:Array<Glob> = [];
 				for (dir => recursive in wildcardDirectories) {
-					final parsed = Glob.Parse(Tspath.NormalizePath(dir) + "/" + Core.IfElse(recursive, Tsoptions.recursiveFileGlobPattern, Tsoptions.fileGlobPattern));
+					final parsed = Glob.Parse(Tspath.NormalizePath(dir) + "/" + Core.IfElse(recursive, patterns.b, patterns.a));
 					if (parsed.err == null) {
 						globs.push(parsed.value);
 					}
@@ -270,6 +288,97 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return this.ParsedConfig.ProjectReferences;
 	}
 
+	public function ContentMappers():Null<Array<Mapper>> {
+		if (this == null || this.ParsedConfig == null) {
+			return null;
+		}
+		return this.ParsedConfig.ContentMappers;
+	}
+
+	// ContentMapperExtensions returns the flattened list of file extensions registered by the
+	// config's content mappers.
+	public function ContentMapperExtensions():Null<Array<std.String>> {
+		return Core.FlatMap(this.ContentMappers(), function(m:Mapper):Array<std.String> {
+			return m.Definition.Extensions;
+		});
+	}
+
+	public function ContentMapperExtensionRewrites():Null<Array<ExtensionRewrite>> {
+		if (!this.contentMapperExtensionRewritesOnce) {
+			this.contentMapperExtensionRewritesOnce = true;
+			this.contentMapperExtensionRewrites = this.computeContentMapperExtensionRewrites();
+		}
+		return this.contentMapperExtensionRewrites;
+	}
+
+	function computeContentMapperExtensionRewrites():Null<Array<ExtensionRewrite>> {
+		final result:Array<ExtensionRewrite> = [];
+		var hasNonIdentityMapping = false;
+		final ignoreCase = !this.UseCaseSensitiveFileNames();
+		final mappers = this.ContentMappers();
+		if (mappers != null) {
+			for (mapper in mappers) {
+				final outputExtensions = mapper.Definition.OutputExtensions;
+				for (source in (mapper.Definition.Extensions == null ? [] : mapper.Definition.Extensions)) {
+					final o = getContentMapperOutputExtension(outputExtensions, source, ignoreCase);
+					var target = o.value;
+					if (!o.ok || target == source || ignoreCase && Strings.EqualFold(target, source)) {
+						target = source;
+					} else {
+						hasNonIdentityMapping = true;
+					}
+					result.push(new ExtensionRewrite(source, target));
+				}
+			}
+		}
+		if (!hasNonIdentityMapping) {
+			return null;
+		}
+		// Identity entries prevent shorter mappings from claiming a longer registered extension.
+		// The runtime helper uses the first match, so emit the longest extensions first.
+		haxe.ds.ArraySort.sort(result, (a, b) -> b.Source.length - a.Source.length); // PORT: slices.SortStableFunc
+		return result;
+	}
+
+	public static function getContentMapperOutputExtension(outputExtensions:Null<StringMap<std.String>>, sourceExtension:std.String,
+			ignoreCase:Bool):ValueOk<std.String> {
+		if (outputExtensions == null) {
+			return new ValueOk("", false);
+		}
+		if (outputExtensions.exists(sourceExtension)) {
+			return new ValueOk(outputExtensions.get(sourceExtension), true);
+		}
+		if (ignoreCase) {
+			// PORT: Go iterates the map in random order; iterate the sorted keys.
+			final keys = [for (k in outputExtensions.keys()) k];
+			Slices.SortStrings(keys);
+			for (source in keys) {
+				if (Strings.EqualFold(source, sourceExtension)) {
+					return new ValueOk(outputExtensions.get(source), true);
+				}
+			}
+		}
+		return new ValueOk("", false);
+	}
+
+	// GetContentMapperForFileName returns the configured content mapper whose extensions include fileName,
+	// or nil if no content mapper is registered for the file's extension.
+	public function GetContentMapperForFileName(fileName:std.String):Null<Mapper> {
+		final ignoreCase = !this.UseCaseSensitiveFileNames();
+		final extension = Tspath.GetLongestExtensionFromPath(fileName, this.ContentMapperExtensions(), ignoreCase);
+		final mappers = this.ContentMappers();
+		if (mappers != null) {
+			for (mapper in mappers) {
+				if (mapper.Definition.Extensions != null && Lambda.exists(mapper.Definition.Extensions, function(mapperExtension:std.String):Bool {
+					return extension == mapperExtension || ignoreCase && Strings.EqualFold(extension, mapperExtension);
+				})) {
+					return mapper;
+				}
+			}
+		}
+		return null;
+	}
+
 	public function ResolvedProjectReferencePaths():Null<Array<std.String>> {
 		if (!this.resolvedProjectReferencePathsOnce) {
 			this.resolvedProjectReferencePathsOnce = true;
@@ -309,6 +418,12 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 						return true;
 					}
 				}
+			}
+		}
+		if (this.GetContentMapperForFileName(fileName) != null) {
+			final directoryPath = Tspath.GetDirectoryPath(path);
+			if (this.PossiblyMatchesDirectoryName(directoryPath)) {
+				return true;
 			}
 		}
 		final wildcardDirectoryGlobs = this.WildcardDirectoryGlobs();
@@ -366,8 +481,9 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		parsedConfig.TypeAcquisition = this.ParsedConfig.TypeAcquisition;
 		parsedConfig.FileNames = this.ParsedConfig.FileNames;
 		parsedConfig.ProjectReferences = this.ParsedConfig.ProjectReferences;
+		parsedConfig.ContentMappers = this.ParsedConfig.ContentMappers;
 		final r = Tsoptions.getFileNamesFromConfigSpecs(this.ConfigFile.configFileSpecs, this.GetCurrentDirectory(), this.CompilerOptions(), fs,
-			this.extraFileExtensions);
+			this.ContentMapperExtensions());
 		final fileNames = r.a;
 		final literalFileNamesLen = r.b;
 		parsedConfig.FileNames = fileNames;
@@ -380,7 +496,6 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		parsedCommandLine.comparePathsOptions = this.comparePathsOptions;
 		parsedCommandLine.wildcardDirectories = this.wildcardDirectories;
 		parsedCommandLine.includeGlobs = this.includeGlobs;
-		parsedCommandLine.extraFileExtensions = this.extraFileExtensions;
 		parsedCommandLine.literalFileNamesLen = literalFileNamesLen;
 		return parsedCommandLine;
 	}

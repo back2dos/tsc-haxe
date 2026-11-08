@@ -46,6 +46,15 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 		throw "build.Orchestrator.host does not support tracing, use a different host for tracing";
 	}
 
+	public function GetContentMappedSourceFiles(parseOptions:SourceFileParseOptions,
+			mapper:ts.contentmapper.Contentmapper.Mapper):go.Tuple.ValueError<ts.contentmapper.Transform.SourceFiles> {
+		return new go.Tuple.ValueError(new ts.contentmapper.Transform.SourceFiles(), ts.contentmapper.Contentmapper.ErrProjectUnavailable);
+	}
+
+	public function ContentMapperProject():ts.contentmapper.Host.Project {
+		throw "build.Orchestrator.host does not support content mapper project; use an individual project's compiler host instead";
+	}
+
 	public function GetSourceFile(opts:SourceFileParseOptions):SourceFile {
 		if (Tspath.IsDeclarationFileName(opts.FileName) || Tspath.FileExtensionIs(opts.FileName, Tspath.ExtensionJson)) {
 			// Cache dts and json files as they will be reused

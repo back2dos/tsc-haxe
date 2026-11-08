@@ -28,6 +28,7 @@ class Printer {
 	// A hook used by the Printer when generating unique names to avoid collisions with
 	// globally defined names that exist outside of the current source file.
 	public var HasGlobalName:(name:std.String) -> Bool = null;
+	public var MapSourcePosition:(source:Source, pos:Int) -> Null<MappedSourcePosition> = null;
 	public var OnBeforeEmitNode:(nodeOpt:Node) -> Void = null;
 	public var OnAfterEmitNode:(nodeOpt:Node) -> Void = null;
 	public var OnBeforeEmitNodeList:(nodesOpt:NodeList) -> Void = null;
@@ -76,6 +77,7 @@ class Printer {
 	public static function NewPrinter(options:PrinterOptions, handlers:PrintHandlers, emitContext:EmitContext):Printer {
 		final printer = new Printer();
 		printer.HasGlobalName = handlers.HasGlobalName;
+		printer.MapSourcePosition = handlers.MapSourcePosition;
 		printer.OnBeforeEmitNode = handlers.OnBeforeEmitNode;
 		printer.OnAfterEmitNode = handlers.OnAfterEmitNode;
 		printer.OnBeforeEmitNodeList = handlers.OnBeforeEmitNodeList;
@@ -5644,9 +5646,37 @@ class Printer {
 			return;
 		}
 
-		final line = sourceMapLineCharCache.getLineAndCharacter(pos);
-		final character = sourceMapLineCharCache.lastCharacter; // PORT: perf (second result of getLineAndCharacter)
-		final err = sourceMapGenerator.AddSourceMapping(writer.GetLine(), writer.GetColumn(), sourceMapSourceIndex, line, character);
+		final source = sourceMapSource;
+		var sourceIndex = sourceMapSourceIndex;
+		var lineCharCache = sourceMapLineCharCache;
+		if (MapSourcePosition != null) {
+			final mapped = MapSourcePosition(source, pos);
+			if (mapped == null) {
+				final err = sourceMapGenerator.AddGeneratedMapping(writer.GetLine(), writer.GetColumn());
+				if (err != null) {
+					throw err;
+				}
+				return;
+			}
+			pos = mapped.Pos;
+			if (mapped.Source != source) {
+				final savedSource = sourceMapSource;
+				final savedSourceIndex = sourceMapSourceIndex;
+				final savedSourceIsJson = sourceMapSourceIsJson;
+				final savedLineCharCache = sourceMapLineCharCache;
+				setSourceMapSource(mapped.Source);
+				sourceIndex = sourceMapSourceIndex;
+				lineCharCache = sourceMapLineCharCache;
+				sourceMapSource = savedSource;
+				sourceMapSourceIndex = savedSourceIndex;
+				sourceMapSourceIsJson = savedSourceIsJson;
+				sourceMapLineCharCache = savedLineCharCache;
+			}
+		}
+
+		final line = lineCharCache.getLineAndCharacter(pos);
+		final character = lineCharCache.lastCharacter; // PORT: perf (second result of getLineAndCharacter)
+		final err = sourceMapGenerator.AddSourceMapping(writer.GetLine(), writer.GetColumn(), sourceIndex, line, character);
 		if (err != null) {
 			throw err;
 		}
@@ -7716,6 +7746,10 @@ class PrintHandlers {
 	// A hook used by the Printer when generating unique names to avoid collisions with
 	// globally defined names that exist outside of the current source file.
 	public var HasGlobalName:(name:std.String) -> Bool = null;
+	// MapSourcePosition composes source-map positions before they reach the generator.
+	// Returning ok=false emits a generated-only mapping.
+	// PORT: (mappedSource, mappedPos, ok) → MappedSourcePosition (null: ok=false)
+	public var MapSourcePosition:(source:Source, pos:Int) -> Null<MappedSourcePosition> = null;
 
 	// !!! OnEmitNode, IsEmitNotificationEnabled, SubstituteNode, OnEmitSourceMapOf* (see printer.go)
 
@@ -7951,5 +7985,16 @@ class SourceFileSource implements Source {
 
 	public function ECMALineMap():Array<TextPos> {
 		return file.ECMALineMap();
+	}
+}
+
+// PORT: the (mappedSource, mappedPos) results of PrintHandlers.MapSourcePosition.
+class MappedSourcePosition {
+	public final Source:Source;
+	public final Pos:Int;
+
+	public function new(source:Source, pos:Int) {
+		this.Source = source;
+		this.Pos = pos;
 	}
 }

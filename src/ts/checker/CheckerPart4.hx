@@ -3303,6 +3303,12 @@ class CheckerPart4 {
 			}
 
 			if (errorNode != null) {
+				final rewrites = c.program.ContentMapperExtensionRewrites();
+				final ignoreCase = !c.program.UseCaseSensitiveFileNames();
+				final specifier = moduleReference;
+				final mappedSpecifier = ts.tspath.Tspath.ExtensionRewrites.RewriteSpecifierExtension(specifier, rewrites, ignoreCase).ok;
+				final checkDeclarationRewrite = c.compilerOptions.GetEmitDeclarations() && mappedSpecifier && Tspath.PathIsRelative(moduleReference)
+					&& !importingSourceFile.IsDeclarationFile;
 				if (resolvedModule.ResolvedUsingTsExtension && Tspath.IsDeclarationFileName(moduleReference)) {
 					if (Ast.FindAncestor(location, Ast.IsEmittableImport) != null) {
 						final tsExtension = Tspath.TryExtractTSExtension(moduleReference);
@@ -3333,23 +3339,32 @@ class CheckerPart4 {
 						c.error(errorNode, Diagnostics.An_import_path_can_only_end_with_a_0_extension_when_allowImportingTsExtensions_is_enabled, tsExtension);
 					}
 				} else if (c.compilerOptions.RewriteRelativeImportExtensions.IsTrue()
-					&& (location.Flags & NodeFlagsAmbient) == 0
+					&& ((location.Flags & NodeFlagsAmbient) == 0 || checkDeclarationRewrite)
 					&& !Tspath.IsDeclarationFileName(moduleReference)
-					&& !Ast.IsLiteralImportTypeNode(location)
-					&& !Ast.IsPartOfTypeOnlyImportOrExportDeclaration(location)) {
-					final shouldRewrite = Core.ShouldRewriteModuleSpecifier(moduleReference, c.compilerOptions);
-					if (!resolvedModule.ResolvedUsingTsExtension && shouldRewrite) {
+					&& (!Ast.IsLiteralImportTypeNode(location) && !Ast.IsPartOfTypeOnlyImportOrExportDeclaration(location) || checkDeclarationRewrite)) {
+					final shouldRewrite = ts.tspath.Tspath.ExtensionRewrites.ShouldRewriteExtension(specifier, rewrites, ignoreCase);
+					var mappedSource = false;
+					if (sourceFile.ContentMapper() != "") {
+						mappedSource = ts.tspath.Tspath.ExtensionRewrites.RewriteFileExtension(sourceFile.FileName(), rewrites, ignoreCase).ok;
+					}
+					final resolvedUsingRewritableExtension = resolvedModule.ResolvedUsingTsExtension
+						|| resolvedModule.ResolvedUsingExtraExtensions && sourceFile.ContentMapper() != "" && mappedSource;
+					if (!resolvedUsingRewritableExtension && shouldRewrite) {
 						final relativeToSourceFile = Tspath.GetRelativePathFromFile(Tspath.GetNormalizedAbsolutePath(importingSourceFile.FileName(),
 							c.program.GetCurrentDirectory()),
 							resolvedModule.ResolvedFileName, new ComparePathsOptions(c.program.UseCaseSensitiveFileNames(), c.program.GetCurrentDirectory()));
 						c.error(errorNode,
 							Diagnostics.This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
 							relativeToSourceFile);
-					} else if (resolvedModule.ResolvedUsingTsExtension && !shouldRewrite && c.program.SourceFileMayBeEmitted(sourceFile, false)) {
+					} else if (resolvedUsingRewritableExtension && !shouldRewrite && (mappedSource || c.program.SourceFileMayBeEmitted(sourceFile, false))) {
+						var extension = Tspath.GetAnyExtensionFromPath(moduleReference, null, false);
+						if (mappedSource) {
+							extension = ts.tspath.Tspath.ExtensionRewrites.GetExtensionRewrite(sourceFile.FileName(), rewrites, ignoreCase).value.Source;
+						}
 						c.error(errorNode,
 							Diagnostics.This_import_uses_a_0_extension_to_resolve_to_an_input_TypeScript_file_but_will_not_be_rewritten_during_emit_because_it_is_not_a_relative_path,
-							Tspath.GetAnyExtensionFromPath(moduleReference, null, false));
-					} else if (resolvedModule.ResolvedUsingTsExtension && shouldRewrite) {
+							extension);
+					} else if (resolvedUsingRewritableExtension && shouldRewrite) {
 						final redirect = c.program.GetRedirectForResolution(hasFileName(sourceFile));
 						if (redirect != null) {
 							final ownRootDir = c.program.CommonSourceDirectory();

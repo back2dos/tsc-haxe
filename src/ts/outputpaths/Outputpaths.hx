@@ -100,7 +100,10 @@ class Outputpaths {
 			&& Tspath.ComparePaths(sourceFile.FileName(), ownOutputFilePath,
 				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) == 0;
 		final paths = new OutputPaths();
-		if (options.EmitDeclarationOnly != TSTrue && !isJsonEmittedToSameLocation) {
+		if (sourceFile.ContentMapper() != "") {
+			paths.externalOutputFilePath = GetExternalOutputFileName(sourceFile.FileName(), options, host);
+		}
+		if (sourceFile.ContentMapper() == "" && options.EmitDeclarationOnly != TSTrue && !isJsonEmittedToSameLocation) {
 			paths.jsFilePath = ownOutputFilePath;
 			if (!Ast.IsJsonSourceFile(sourceFile)) {
 				paths.sourceMapFilePath = GetSourceMapFilePath(paths.jsFilePath, options);
@@ -115,11 +118,26 @@ class Outputpaths {
 		return paths;
 	}
 
+	// PORT: externalOutputSourceFiles (TypeScript main, #64581) is an optional parameter before forceDtsEmit.
 	public static function ForEachEmittedFile(host:OutputPathsHost, options:CompilerOptions, action:(emitFileNames:OutputPaths, sourceFile:SourceFile) -> Bool,
-			sourceFiles:Array<SourceFile>, forceDtsEmit:Bool):Bool {
+			sourceFiles:Array<SourceFile>, externalOutputSourceFiles:Null<Array<SourceFile>>, forceDtsEmit:Bool):Bool {
+		final seen = new go.IdentityMap<SourceFile, Bool>();
 		if (sourceFiles != null) {
 			for (sourceFile in sourceFiles) {
+				seen.set(sourceFile, true);
 				if (action(GetOutputPathsFor(sourceFile, options, host, forceDtsEmit), sourceFile)) {
+					return true;
+				}
+			}
+		}
+		if (externalOutputSourceFiles != null) {
+			for (sourceFile in externalOutputSourceFiles) {
+				if (seen.exists(sourceFile)) {
+					continue;
+				}
+				final paths = new OutputPaths();
+				paths.externalOutputFilePath = GetExternalOutputFileName(sourceFile.FileName(), options, host);
+				if (action(paths, sourceFile)) {
 					return true;
 				}
 			}
@@ -128,7 +146,7 @@ class Outputpaths {
 	}
 
 	public static function GetOutputJSFileName(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
-		if (options.EmitDeclarationOnly.IsTrue()) {
+		if (options.EmitDeclarationOnly.IsTrue() || isContentMappedFileName(inputFileName, host)) {
 			return "";
 		}
 		final outputFileName = GetOutputJSFileNameWorker(inputFileName, options, host);
@@ -138,6 +156,10 @@ class Outputpaths {
 			return outputFileName;
 		}
 		return "";
+	}
+
+	static function isContentMappedFileName(fileName:String, host:OutputPathsHost):Bool {
+		return Tspath.GetLongestExtensionFromPath(fileName, host.ContentMapperExtensions(), !host.UseCaseSensitiveFileNames()) != "";
 	}
 
 	public static function GetOutputJSFileNameWorker(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
@@ -150,8 +172,17 @@ class Outputpaths {
 		if (dir.length == 0) {
 			dir = options.OutDir;
 		}
-		return Tspath.ChangeExtension(getOutputPathWithoutChangingExtension(inputFileName, dir, host),
-			Tspath.GetDeclarationEmitExtensionForPath(inputFileName));
+		return ChangeToDeclarationExtension(getOutputPathWithoutChangingExtension(inputFileName, dir, host), host);
+	}
+
+	public static function GetExternalOutputFileName(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
+		final outputPath = getOutputPathWithoutChangingExtension(inputFileName, options.OutDir, host);
+		final rewritten = ts.tspath.Tspath.ExtensionRewrites.RewriteFileExtension(outputPath, host.ContentMapperExtensionRewrites(),
+			!host.UseCaseSensitiveFileNames());
+		if (!rewritten.ok) {
+			return "";
+		}
+		return rewritten.value;
 	}
 
 	public static function GetOutputExtension(fileName:String, jsx:JsxEmit):String {
@@ -183,8 +214,31 @@ class Outputpaths {
 		} else {
 			path = file;
 		}
-		final declarationExtension = Tspath.GetDeclarationEmitExtensionForPath(path);
-		return Tspath.RemoveFileExtension(path) + declarationExtension;
+		return ChangeToDeclarationExtension(path, host);
+	}
+
+	public static function ChangeToDeclarationExtension(path:String, host:OutputPathsHost):String {
+		final rewritten = ts.tspath.Tspath.ExtensionRewrites.RewriteFileExtension(path, host.ContentMapperExtensionRewrites(),
+			!host.UseCaseSensitiveFileNames());
+		if (rewritten.ok) {
+			return changeToDeclarationExtension(rewritten.value);
+		}
+		final extension = Tspath.GetLongestExtensionFromPath(path, host.ContentMapperExtensions(), false);
+		if (extension != "") {
+			return Tspath.RemoveExtension(path, extension) + ".d" + extension + ".ts";
+		}
+		return changeToDeclarationExtension(path);
+	}
+
+	static function changeToDeclarationExtension(path:String):String {
+		var pathWithoutExtension = Tspath.RemoveFileExtension(path);
+		if (pathWithoutExtension == path) {
+			final extension = Tspath.GetAnyExtensionFromPath(path, null, false);
+			if (extension != "") {
+				pathWithoutExtension = Tspath.RemoveExtension(path, extension);
+			}
+		}
+		return pathWithoutExtension + Tspath.GetDeclarationEmitExtensionForPath(path);
 	}
 
 	public static function GetSourceFilePathInNewDir(fileName:String, newDirPath:String, currentDirectory:String, commonSourceDirectory:String,
@@ -257,6 +311,8 @@ class Outputpaths {
 
 interface OutputPathsHost {
 	function CommonSourceDirectory():String;
+	function ContentMapperExtensions():Null<Array<String>>;
+	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
 	function GetCurrentDirectory():String;
 	function UseCaseSensitiveFileNames():Bool;
 }
@@ -267,8 +323,13 @@ class OutputPaths {
 	var sourceMapFilePath:String = "";
 	var declarationFilePath:String = "";
 	var declarationMapPath:String = "";
+	var externalOutputFilePath:String = "";
 
 	public function new() {}
+
+	public function ExternalOutputFilePath():String {
+		return externalOutputFilePath;
+	}
 
 	// DeclarationFilePath implements declarations.OutputPaths.
 	public function DeclarationFilePath():String {

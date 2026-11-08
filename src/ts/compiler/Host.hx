@@ -12,6 +12,13 @@ interface CompilerHost extends ResolutionHost {
 	function GetCurrentDirectory():std.String;
 	function Trace(msg:Message, ...args:Any):Void;
 	function GetSourceFile(opts:SourceFileParseOptions):SourceFile;
+	// GetContentMappedSourceFiles produces the source file for a content-mapped (foreign) file by running
+	// the given mapper's transform on the file's content. The caller resolves the mapper (and owns the
+	// failure accounting), so implementations must use it as-is.
+	function GetContentMappedSourceFiles(parseOptions:SourceFileParseOptions, mapper:ts.contentmapper.Contentmapper.Mapper):ValueError<ts.contentmapper.Transform.SourceFiles>;
+	// ContentMapperProject returns the project-scoped content mapper used by this host, or nil when the
+	// command line has no content mappers.
+	function ContentMapperProject():ts.contentmapper.Host.Project;
 	function GetResolvedProjectReference(fileName:std.String, path:Path):ParsedCommandLine;
 }
 
@@ -26,6 +33,7 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 	var defaultLibraryPath:std.String = "";
 	var extendedConfigCache:ExtendedConfigCache = null;
 	var trace:TraceFunc = null;
+	var contentMapperProject:ts.contentmapper.Host.Project = null;
 
 	public function new() {}
 
@@ -52,6 +60,26 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 			return null;
 		}
 		return Parser.ParseSourceFile(opts, text, Core.EnsureScriptKindFromFileName(opts.FileName));
+	}
+
+	public function GetContentMappedSourceFiles(parseOptions:SourceFileParseOptions,
+			mapper:ts.contentmapper.Contentmapper.Mapper):ValueError<ts.contentmapper.Transform.SourceFiles> {
+		if (this.contentMapperProject == null) {
+			return new ValueError(new ts.contentmapper.Transform.SourceFiles(), ts.contentmapper.Contentmapper.ErrProjectUnavailable);
+		}
+		final r = this.FS().ReadFile(parseOptions.FileName);
+		if (!r.ok) {
+			return new ValueError(new ts.contentmapper.Transform.SourceFiles(), null);
+		}
+		final files = ts.contentmapper.Transform.TransformAndParse(parseOptions, r.value, mapper, this.contentMapperProject);
+		if (files.err == null) {
+			return new ValueError(files.value, ts.contentmapper.Transform.CheckSupplementalFileNameCollisions(files.value, this.FS().FileExists));
+		}
+		return files;
+	}
+
+	public function ContentMapperProject():ts.contentmapper.Host.Project {
+		return this.contentMapperProject;
 	}
 
 	public function GetResolvedProjectReference(fileName:std.String, path:Path):ParsedCommandLine {

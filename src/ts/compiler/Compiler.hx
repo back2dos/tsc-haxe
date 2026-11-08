@@ -89,6 +89,8 @@ class Compiler {
 		opts.Resolver = referenceResolver;
 		opts.EmitResolver = emitResolver;
 		opts.GetEmitModuleFormatOfFile = host.GetEmitModuleFormatOfFile;
+		opts.ContentMapperExtensionRewrites = host.ContentMapperExtensionRewrites();
+		opts.IgnoreCase = !host.UseCaseSensitiveFileNames();
 
 		// transform TypeScript syntax
 		{
@@ -162,6 +164,12 @@ class Compiler {
 			return false;
 		}
 
+		// Runtime output for content-mapped files is owned by the external content mapper or build tool. Only
+		// include them in the emit set when their transformed TypeScript can produce declarations.
+		if (sourceFile.ContentMapper() != "" && !forceDtsEmit && !options.GetEmitDeclarations()) {
+			return false;
+		}
+
 		// Source file from node_modules are not emitted
 		if (host.IsSourceFileFromExternalLibrary(sourceFile)) {
 			return false;
@@ -232,10 +240,190 @@ class Compiler {
 
 	// --- fileloader.go ---
 
+	// maxContentMapperFailures is the number of transform failures a single content mapper may accumulate
+	// before it is disabled for the rest of the program.
+	static inline final maxContentMapperFailures = 5;
+
+	static function contentMapperTransformDiagnostic(file:SourceFile, label:std.String, err:go.Errors.Error):Diagnostic {
+		final collision = Errors.AsType(err, ts.contentmapper.Host.SupplementalFileCollisionError);
+		if (collision != null) {
+			return contentMapperTransformDiagnosticChain(file, label, Diagnostics.Content_mapper_supplemental_output_file_0_conflicts_with_an_existing_file,
+				collision.FileName);
+		}
+		final transformError = Errors.AsType(err, ts.contentmapper.Host.TransformError);
+		if (transformError != null) {
+			switch (transformError.Kind) {
+				case TransformErrorKindInitialize:
+					final initializeError = Errors.AsType(transformError, ts.contentmapper.Host.InitializeError);
+					if (initializeError != null) {
+						switch (initializeError.Kind) {
+							case InitializeErrorKindPositionEncoding:
+								return contentMapperTransformDiagnosticChain(file, label, Diagnostics.The_content_mapper_selected_unsupported_position_encoding_0,
+									initializeError.PositionEncoding);
+							case InitializeErrorKindEmptyDiagnosticSource:
+								return contentMapperTransformDiagnosticChain(file, label, Diagnostics.The_content_mapper_diagnostic_source_must_not_be_empty);
+							case InitializeErrorKindReservedDiagnosticSource:
+								return contentMapperTransformDiagnosticChain(file, label, Diagnostics.The_content_mapper_diagnostic_source_0_is_reserved_by_TypeScript,
+									initializeError.DiagnosticSource);
+							default:
+						}
+					}
+					return contentMapperTransformDiagnosticChain(file, label, Diagnostics.The_content_mapper_process_could_not_be_started_or_initialized);
+				case TransformErrorKindProject:
+					return contentMapperTransformDiagnosticChain(file, label, ContentMapperProjectErrorDiagnostic(transformError));
+				case TransformErrorKindRequest:
+					return contentMapperTransformDiagnosticChain(file, label, Diagnostics.The_content_mapper_process_failed_while_handling_the_transform_request);
+				case TransformErrorKindResponse:
+					final extensionError = Errors.AsType(transformError, ts.contentmapper.Host.InvalidVirtualExtensionError);
+					if (extensionError != null) {
+						return contentMapperTransformDiagnosticChain(file, label, Diagnostics.The_content_mapper_returned_an_output_with_unsupported_virtual_extension_0,
+							extensionError.Extension);
+					}
+					final directiveError = Errors.AsType(transformError, ts.contentmapper.Host.DiagnosticDirectiveError);
+					if (directiveError != null) {
+						var detail:Diagnostic = null;
+						switch (directiveError.Kind) {
+							case DiagnosticDirectiveErrorKindInvalidRange:
+								detail = Ast.NewCompilerDiagnostic(Diagnostics.Diagnostic_directive_0_returned_by_the_content_mapper_has_an_invalid_range,
+									directiveError.Index);
+							case DiagnosticDirectiveErrorKindInvalidPolicy:
+								detail = Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_returned_a_diagnostic_directive_with_invalid_policy_0,
+									directiveError.Policy);
+							case DiagnosticDirectiveErrorKindExpectMissingUnusedDiagnostic:
+								detail = Ast.NewCompilerDiagnostic(Diagnostics.Diagnostic_directive_0_returned_by_the_content_mapper_must_specify_unusedExpectDirectiveIndex_when_there_is_not_exactly_one_unusedExpectDirectiveDiagnostics_entry,
+									directiveError.Index);
+							case DiagnosticDirectiveErrorKindInvalidUnusedDiagnosticIndex:
+								detail = Ast.NewCompilerDiagnostic(Diagnostics.Diagnostic_directive_0_returned_by_the_content_mapper_has_an_invalid_unusedExpectDirectiveIndex,
+									directiveError.Index);
+							case DiagnosticDirectiveErrorKindOverlap:
+								detail = Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_returned_diagnostic_directives_with_overlapping_virtual_ranges);
+							default:
+						}
+						if (detail != null) {
+							if (directiveError.SupplementalIndex >= 0) {
+								detail = Ast.NewDiagnosticChain(detail,
+									Diagnostics.The_invalid_diagnostic_directive_is_in_supplemental_output_0_returned_by_the_content_mapper,
+									directiveError.SupplementalIndex);
+							}
+							return contentMapperTransformDiagnosticWithDetail(file, label, detail);
+						}
+					}
+					return contentMapperTransformDiagnosticChain(file, label, Diagnostics.The_content_mapper_returned_an_invalid_transform_response);
+				case TransformErrorKindMappings:
+					return Ast.NewDiagnostic(file, Core.NewTextRange(0, 0), Diagnostics.The_content_mapper_0_did_not_provide_the_required_position_mappings, label);
+				default:
+			}
+		}
+		return Ast.NewDiagnostic(file, Core.NewTextRange(0, 0), Diagnostics.The_content_mapper_0_failed_to_transform_this_file, label);
+	}
+
+	// ContentMapperProjectErrorDiagnostic returns the localized diagnostic message for a project setup error.
+	public static function ContentMapperProjectErrorDiagnostic(err:go.Errors.Error):Message {
+		final projectError = Errors.AsType(err, ts.contentmapper.Host.ProjectError);
+		if (projectError != null) {
+			switch (projectError.Kind) {
+				case ProjectErrorKindMalformedResponse:
+					return Diagnostics.The_content_mapper_returned_a_project_response_that_could_not_be_decoded;
+				case ProjectErrorKindMissingConfigIdentity:
+					return Diagnostics.The_content_mapper_did_not_return_configIdentity_which_is_required_when_the_content_mapper_has_dynamicConfig_Colon_true_in_its_package_json;
+				case ProjectErrorKindNonAbsoluteWatchedFile:
+					return Diagnostics.The_content_mapper_returned_a_non_absolute_path_in_watchedFiles;
+				case ProjectErrorKindUnexpectedConfigIdentity:
+					return Diagnostics.The_content_mapper_returned_configIdentity_which_is_only_allowed_when_it_declares_dynamicConfig_Colon_true_in_its_package_json;
+				case ProjectErrorKindUnexpectedWatchedFiles:
+					return Diagnostics.The_content_mapper_returned_watchedFiles_which_is_only_allowed_when_it_declares_dynamicConfig_Colon_true_in_its_package_json;
+				default:
+			}
+		}
+		return Diagnostics.The_content_mapper_process_failed_while_handling_the_project_request;
+	}
+
+	static function contentMapperTransformDiagnosticChain(file:SourceFile, label:std.String, message:Message, ...args:Any):Diagnostic {
+		return contentMapperTransformDiagnosticWithDetail(file, label, Ast.NewCompilerDiagnostic(message, ...args));
+	}
+
+	static function contentMapperTransformDiagnosticWithDetail(file:SourceFile, label:std.String, detail:Diagnostic):Diagnostic {
+		return Ast.NewDiagnostic(file, Core.NewTextRange(0, 0), Diagnostics.The_content_mapper_0_failed_to_transform_this_file, label)
+			.AddMessageChain(detail);
+	}
+
+	// contentMapperMappingDiagnostic builds the diagnostic reported against a mapper that produced an
+	// invalid span map, including the offsets involved so the mapper's author can locate the problem.
+	static function contentMapperMappingDiagnostic(file:SourceFile, label:std.String, problem:ts.spanmap.Spanmap.MappingError):Diagnostic {
+		final loc = Core.NewTextRange(0, 0);
+		switch (problem.Kind) {
+			case MappingErrorKindOverlap:
+				return Ast.NewDiagnostic(file, loc, Diagnostics.The_content_mapper_0_produced_overlapping_or_out_of_order_position_mappings_near_virtual_offset_1,
+					label, problem.VirtualPos);
+			case MappingErrorKindOutOfBounds:
+				return Ast.NewDiagnostic(file, loc,
+					Diagnostics.The_content_mapper_0_produced_a_position_mapping_that_points_outside_the_original_content_original_offset_1, label,
+					problem.OriginalPos);
+			case MappingErrorKindVerbatimMismatch:
+				return Ast.NewDiagnostic(file, loc,
+					Diagnostics.The_content_mapper_0_produced_a_verbatim_mapping_that_does_not_match_the_original_content_virtual_offset_1_original_offset_2,
+					label, problem.VirtualPos, problem.OriginalPos);
+			case MappingErrorKindKind:
+				return Ast.NewDiagnostic(file, loc, Diagnostics.The_content_mapper_0_produced_a_position_mapping_with_an_invalid_kind_near_virtual_offset_1,
+					label, problem.VirtualPos);
+			case MappingErrorKindFeature:
+				return Ast.NewDiagnostic(file, loc, Diagnostics.The_content_mapper_0_produced_invalid_mapping_features_near_original_offset_1, label,
+					problem.OriginalPos);
+			default:
+				return Ast.NewDiagnostic(file, loc, Diagnostics.The_content_mapper_0_did_not_provide_the_required_position_mappings, label);
+		}
+	}
+
+	// ContentMapperInitializationDiagnostic returns a fileless diagnostic for a mapper initialization failure.
+	public static function ContentMapperInitializationDiagnostic(label:std.String, err:go.Errors.Error):Diagnostic {
+		final initializeError = Errors.AsType(err, ts.contentmapper.Host.InitializeError);
+		if (initializeError != null && label == "") {
+			label = initializeError.MapperName;
+		}
+		final diagnostic = Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_0_could_not_be_initialized, label);
+		if (initializeError != null) {
+			switch (initializeError.Kind) {
+				case InitializeErrorKindProcessStart:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_command_0_could_not_be_started_Colon_1,
+						initializeError.Command, initializeError.Detail));
+				case InitializeErrorKindProcessExit:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_process_exited_before_responding_to_the_initialize_request_exit_code_0,
+						initializeError.ExitCode));
+				case InitializeErrorKindNoResponse:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_did_not_respond_to_the_initialize_request_within_0_seconds,
+						initializeError.TimeoutSeconds));
+				case InitializeErrorKindInvalidResponse:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_returned_an_initialize_response_that_could_not_be_decoded_Colon_0,
+						initializeError.Detail));
+				case InitializeErrorKindRequest:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_s_initialize_request_failed_Colon_0,
+						initializeError.Detail));
+				case InitializeErrorKindPositionEncoding:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_selected_unsupported_position_encoding_0,
+						initializeError.PositionEncoding));
+				case InitializeErrorKindEmptyDiagnosticSource:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_diagnostic_source_must_not_be_empty));
+				case InitializeErrorKindReservedDiagnosticSource:
+					return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_diagnostic_source_0_is_reserved_by_TypeScript,
+						initializeError.DiagnosticSource));
+				default:
+			}
+		}
+		return diagnostic.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_process_could_not_be_started_or_initialized));
+	}
+
+	// ContentMapperProjectDiagnostic returns a fileless diagnostic for project setup or mapper initialization.
+	public static function ContentMapperProjectDiagnostic(err:go.Errors.Error):Diagnostic {
+		if (Errors.AsType(err, ts.contentmapper.Host.InitializeError) != null) {
+			return ContentMapperInitializationDiagnostic("", err);
+		}
+		return Ast.NewCompilerDiagnostic(ContentMapperProjectErrorDiagnostic(err));
+	}
+
 	static function processAllProgramFiles(opts:ProgramOptions, singleThreaded:Bool):ProcessedFiles {
 		final compilerOptions = opts.Config.CompilerOptions();
 		final rootFiles = opts.Config.FileNames();
-		final supportedExtensions = Tsoptions.GetSupportedExtensions(compilerOptions, null /*extraFileExtensions*/);
+		final supportedExtensions = Tsoptions.GetSupportedExtensions(compilerOptions, opts.Config.ContentMapperExtensions());
 		final supportedExtensionsWithJsonIfResolveJsonModule = Tsoptions.GetSupportedExtensionsWithJsonIfResolveJsonModule(compilerOptions,
 			supportedExtensions);
 		var maxNodeModuleJsDepth = 0;
@@ -258,8 +446,10 @@ class Compiler {
 		loader.rootTasks = [];
 		loader.supportedExtensions = supportedExtensions;
 		loader.supportedExtensionsWithJsonIfResolveJsonModule = supportedExtensionsWithJsonIfResolveJsonModule;
+		loader.contentMapperExtensions = opts.Config.ContentMapperExtensions();
 		loader.addProjectReferenceTasks(singleThreaded);
 		loader.resolver = Module.NewResolver(loader.projectReferenceFileMapper.host, compilerOptions, opts.TypingsLocation, opts.ProjectName);
+		loader.resolver.extraExtensions = opts.Config.ContentMapperExtensions();
 		var done:() -> Void = null;
 		if (opts.Tracing != null) {
 			final args = new StringMap<Any>();
@@ -481,6 +671,7 @@ class Compiler {
 			p.processedFiles = processAllProgramFiles(p.opts, p.SingleThreaded());
 			p.initCheckerPool();
 			p.verifyCompilerOptions();
+			p.collectContentMapperOptionDiagnostics();
 		} catch (e:Dynamic) {
 			if (done != null)
 				done();
@@ -722,7 +913,13 @@ class Compiler {
 		var allDiagnostics = Slices.Clone(program.GetConfigFileParsingDiagnostics());
 		final configFileParsingDiagnosticsLength = Core.len(allDiagnostics);
 
-		allDiagnostics = appendAll(allDiagnostics, program.GetSyntacticDiagnostics(ctx, file));
+		final syntacticDiagnostics = program.GetSyntacticDiagnostics(ctx, file);
+		if (Core.len(syntacticDiagnostics) > 0) {
+			// Per-file content mapper failures are syntactic diagnostics, but the locationless diagnostic
+			// that disables a repeatedly failing mapper must still be reported.
+			allDiagnostics = appendAll(allDiagnostics, program.Program().processedFiles.contentMapperDiagnostics);
+		}
+		allDiagnostics = appendAll(allDiagnostics, syntacticDiagnostics);
 
 		// If we didn't have any syntactic errors, then also try getting the program (options),
 		// global and semantic errors.
@@ -912,13 +1109,14 @@ class Compiler {
 
 	// --- host.go ---
 
+	// PORT: contentMapperProject (TypeScript main) is an optional trailing parameter.
 	public static function NewCachedFSCompilerHost(currentDirectory:std.String, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
-			trace:TraceFunc):CompilerHost {
-		return NewCompilerHost(currentDirectory, Cachedvfs.From(fs), defaultLibraryPath, extendedConfigCache, trace);
+			trace:TraceFunc, ?contentMapperProject:ts.contentmapper.Host.Project):CompilerHost {
+		return NewCompilerHost(currentDirectory, Cachedvfs.From(fs), defaultLibraryPath, extendedConfigCache, trace, contentMapperProject);
 	}
 
 	public static function NewCompilerHost(currentDirectory:std.String, fs:FS, defaultLibraryPath:std.String, extendedConfigCache:ExtendedConfigCache,
-			trace:TraceFunc):CompilerHost {
+			trace:TraceFunc, ?contentMapperProject:ts.contentmapper.Host.Project):CompilerHost {
 		if (trace == null) {
 			trace = function(msg:Message, args:Array<Any>) {};
 		}
@@ -929,6 +1127,7 @@ class Compiler {
 			h.defaultLibraryPath = defaultLibraryPath;
 			h.extendedConfigCache = extendedConfigCache;
 			h.trace = trace;
+			h.contentMapperProject = contentMapperProject;
 		}
 		return h;
 	}

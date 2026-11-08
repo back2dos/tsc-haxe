@@ -2435,6 +2435,22 @@ class Ast {
 		return NewDiagnostic(null, Core.UndefinedTextRange(), message, ...args);
 	}
 
+	// NewExternalDiagnostic creates a diagnostic reported by an external source such as a content mapper.
+	// The message text is already localized (the external source owns localization) and the code is shown
+	// with the given source prefix (e.g. "vue") instead of "TS". The location refers to the file's original,
+	// untransformed content.
+	public static function NewExternalDiagnostic(file:SourceFile, loc:TextRange, source:String, category:Category, code:Int,
+			messageText:String):Diagnostic {
+		final d = new Diagnostic();
+		d.file = file;
+		d.loc = loc;
+		d.code = code;
+		d.category = category;
+		d.source = source;
+		d.messageText = messageText;
+		return d;
+	}
+
 	static function getDiagnosticPath(d:Diagnostic):String {
 		if (d.File() != null) {
 			return d.File().FileName();
@@ -2456,8 +2472,21 @@ class Ast {
 		return getDiagnosticPath(d1) == getDiagnosticPath(d2)
 			&& d1.Loc().Equals(d2.Loc())
 			&& d1.Code() == d2.Code()
+			&& d1.Category() == d2.Category()
+			&& d1.Source() == d2.Source()
+			&& getDiagnosticMessageIdentity(d1) == getDiagnosticMessageIdentity(d2)
 			&& Slices.Equal(d1.MessageArgs(), d2.MessageArgs())
 			&& Slices.EqualFunc(d1.MessageChain(), d2.MessageChain(), equalMessageChain);
+	}
+
+	static function getDiagnosticMessageIdentity(diagnostic:Diagnostic):String {
+		if (diagnostic.MessageText() != "") {
+			return diagnostic.MessageText();
+		}
+		if (diagnostic.message != null && diagnostic.Code() == -1) {
+			return diagnostic.message.toString();
+		}
+		return diagnostic.MessageKey();
 	}
 
 	static function equalMessageChain(c1:Diagnostic, c2:Diagnostic):Bool {
@@ -2530,6 +2559,18 @@ class Ast {
 			return c;
 		}
 		c = d1.Code() - d2.Code();
+		if (c != 0) {
+			return c;
+		}
+		c = (cast d1.Category() : Int) - (cast d2.Category() : Int);
+		if (c != 0) {
+			return c;
+		}
+		c = Strings.Compare(d1.Source(), d2.Source());
+		if (c != 0) {
+			return c;
+		}
+		c = Strings.Compare(getDiagnosticMessageIdentity(d1), getDiagnosticMessageIdentity(d2));
 		if (c != 0) {
 			return c;
 		}
@@ -12587,6 +12628,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	var fileName:String = ""; // For debugging convenience
 	var parseOptions:SourceFileParseOptions = new SourceFileParseOptions();
 	var text:String = "";
+	var contentMapperInfo:ContentMapperSourceFileInfo = null;
 
 	public var Statements:NodeList = null; // NodeList[*Statement]
 	public var EndOfFileToken:TokenNode = null; // TokenNode[*EndOfFileToken]
@@ -12678,6 +12720,105 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 
 	public function FileName():String {
 		return parseOptions.FileName;
+	}
+
+	// OriginalText returns the untransformed source text for content-mapped files, or Text() otherwise.
+	public function OriginalText():String {
+		if (ContentMapper() != "") {
+			return contentMapperInfo.OriginalText;
+		}
+		return text;
+	}
+
+	// OriginalFileName returns the canonical filename associated with a supplemental source file, or FileName() otherwise.
+	public function OriginalFileName():String {
+		final canonical = CanonicalSourceFile();
+		if (canonical != null) {
+			return canonical.FileName();
+		}
+		return FileName();
+	}
+
+	// SpanMap returns the span map that maps positions in this file's transformed Text() back to its
+	// original, untransformed content, or nil if the file is not content-mapped (or is a failure stub).
+	public function SpanMap():ts.spanmap.Spanmap {
+		if (contentMapperInfo == null) {
+			return null;
+		}
+		return contentMapperInfo.SpanMap;
+	}
+
+	// ContentMapper returns the identity of the content mapper that produced this file, or "" if the file
+	// was not produced by a content mapper (or the mapper did not identify itself).
+	public function ContentMapper():String {
+		if (contentMapperInfo == null) {
+			return "";
+		}
+		return contentMapperInfo.ContentMapper;
+	}
+
+	// IsContentMapperFailureStub reports whether this file is the empty placeholder produced when a content
+	// mapper's transform failed.
+	public function IsContentMapperFailureStub():Bool {
+		return ContentMapper() != "" && SpanMap() == null;
+	}
+
+	public function ContentMapperTransformIdentity():String {
+		if (contentMapperInfo == null) {
+			return "";
+		}
+		return contentMapperInfo.TransformIdentity;
+	}
+
+	public function VirtualFileName():String {
+		if (contentMapperInfo == null) {
+			return "";
+		}
+		return contentMapperInfo.VirtualFileName;
+	}
+
+	// ContentMapperParseOptions returns the parse options used to acquire this file from the mapped parse cache.
+	public function ContentMapperParseOptions():SourceFileParseOptions {
+		if (contentMapperInfo == null) {
+			return new SourceFileParseOptions();
+		}
+		return contentMapperInfo.ParseOptions;
+	}
+
+	// SetContentMapperInfo initializes all content-mapper metadata before the source file is published.
+	public function SetContentMapperInfo(info:ContentMapperSourceFileInfo):Void {
+		if (contentMapperInfo != null) {
+			throw "content mapper source file info already set";
+		}
+		contentMapperInfo = info.copy();
+	}
+
+	public function DiagnosticDirectives():Array<MappedDiagnosticDirective> {
+		if (contentMapperInfo == null) {
+			return null;
+		}
+		return contentMapperInfo.DiagnosticDirectives;
+	}
+
+	// SupplementalSourceFiles returns the additional outputs produced from this canonical source file.
+	public function SupplementalSourceFiles():Array<SourceFile> {
+		if (contentMapperInfo == null) {
+			return null;
+		}
+		return contentMapperInfo.SupplementalSourceFiles;
+	}
+
+	// CanonicalSourceFile returns the canonical output associated with this supplemental source file.
+	public function CanonicalSourceFile():SourceFile {
+		if (contentMapperInfo == null) {
+			return null;
+		}
+		return contentMapperInfo.CanonicalSourceFile;
+	}
+
+	// IsContentMapperSupplemental reports whether this is an unnamed supplemental mapper output.
+	public function IsContentMapperSupplemental():Bool {
+		return CanonicalSourceFile() != null;
 	}
 
 	public function Path():Path {
@@ -12799,6 +12940,9 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 
 	function copyFrom(other:SourceFile):Void {
 		// Do not copy fields set by NewSourceFile (Text, FileName, Path, or Statements)
+		if (other.contentMapperInfo != null) {
+			SetContentMapperInfo(other.contentMapperInfo);
+		}
 		LanguageVariant = other.LanguageVariant;
 		ScriptKind = other.ScriptKind;
 		IsDeclarationFile = other.IsDeclarationFile;
@@ -13211,5 +13355,52 @@ class PragmaSpecification {
 
 	public function IsTripleSlash():Bool {
 		return (Kind & Ast.PragmaKindTripleSlashXML) > 0;
+	}
+}
+
+// --- ast.go (TypeScript main: content mappers) ---
+
+enum abstract MappedDiagnosticDirectivePolicy(Int) to Int {
+	var MappedDiagnosticDirectivePolicyIgnore = 0;
+	var MappedDiagnosticDirectivePolicyExpect = 1;
+}
+
+class MappedDiagnosticDirective {
+	public var OriginalRange:TextRange = new TextRange(0, 0);
+	public var VirtualRange:TextRange = new TextRange(0, 0);
+	public var Policy:MappedDiagnosticDirectivePolicy = MappedDiagnosticDirectivePolicyIgnore;
+	public var UnusedCode:Int = 0;
+	public var UnusedMessageText:String = "";
+	public var Source:String = "";
+
+	public function new() {}
+}
+
+class ContentMapperSourceFileInfo {
+	public var ContentMapper:String = "";
+	public var TransformIdentity:String = "";
+	public var ParseOptions:SourceFileParseOptions = new SourceFileParseOptions();
+	public var VirtualFileName:String = "";
+	public var OriginalText:String = "";
+	public var SpanMap:ts.spanmap.Spanmap = null;
+	public var DiagnosticDirectives:Array<MappedDiagnosticDirective> = null;
+	public var SupplementalSourceFiles:Array<SourceFile> = null;
+	public var CanonicalSourceFile:SourceFile = null;
+
+	public function new() {}
+
+	// PORT: Go value struct
+	public function copy():ContentMapperSourceFileInfo {
+		final r = new ContentMapperSourceFileInfo();
+		r.ContentMapper = ContentMapper;
+		r.TransformIdentity = TransformIdentity;
+		r.ParseOptions = ParseOptions;
+		r.VirtualFileName = VirtualFileName;
+		r.OriginalText = OriginalText;
+		r.SpanMap = SpanMap;
+		r.DiagnosticDirectives = DiagnosticDirectives;
+		r.SupplementalSourceFiles = SupplementalSourceFiles;
+		r.CanonicalSourceFile = CanonicalSourceFile;
+		return r;
 	}
 }

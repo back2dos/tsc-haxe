@@ -156,6 +156,82 @@ class Packagejson {
 		return new ValueError<Fields>(f, null);
 	}
 
+	// TypeScript main (content mappers): Go `TypeScript Expected[typeScriptFields] json:"typescript"` and
+	// `ContentMapper Expected[ContentMapperFields] json:"contentMapper"`, decoded by hand from the JSON value.
+	static function unmarshalTypeScriptFields(v:Value, f:Fields):Null<Error> {
+		if (v.Kind != "{".code) {
+			// an invalid Expected[typeScriptFields]: typeScript.ContentMapper is the zero value
+			f.ContentMapper = new ExpectedContentMapper();
+			return null;
+		}
+		final contentMapper = new ExpectedContentMapper();
+		for (i in 0...v.Names.length) {
+			if (v.Names[i] != "contentMapper")
+				continue;
+			final m = v.Members[i];
+			final e = new ExpectedContentMapper();
+			e.present = true;
+			if (m.Kind == "{".code) {
+				e.Valid = true;
+				for (j in 0...m.Names.length) {
+					final member = m.Members[j];
+					switch (m.Names[j]) {
+						case "exec":
+							e.Value.Exec = expectedStrings(member);
+						case "compilerOptions":
+							e.Value.CompilerOptions = expectedStrings(member);
+						case "dynamicConfig":
+							final b = new ExpectedOf<Bool>(false);
+							b.present = true;
+							if (member.Kind == "t".code || member.Kind == "f".code) {
+								b.Valid = true;
+								b.Value = member.Kind == "t".code;
+							}
+							e.Value.DynamicConfig = b;
+						case "outputExtensions":
+							final o = new ExpectedOf<haxe.ds.StringMap<String>>(null);
+							o.present = true;
+							if (member.Kind == "{".code) {
+								final sm = new haxe.ds.StringMap<String>();
+								var ok = true;
+								for (k in 0...member.Names.length) {
+									if (member.Members[k].Kind != '"'.code) {
+										ok = false;
+										break;
+									}
+									sm.set(member.Names[k], member.Members[k].Str);
+								}
+								if (ok) {
+									o.Valid = true;
+									o.Value = sm;
+								}
+							}
+							e.Value.OutputExtensions = o;
+						default:
+					}
+				}
+			}
+			f.ContentMapper = e;
+		}
+		return null;
+	}
+
+	static function expectedStrings(member:Value):ExpectedOf<Array<String>> {
+		final r = new ExpectedOf<Array<String>>(null);
+		r.present = true;
+		if (member.Kind == "[".code) {
+			final a:Array<String> = [];
+			for (item in member.Items) {
+				if (item.Kind != '"'.code)
+					return r;
+				a.push(item.Str);
+			}
+			r.Valid = true;
+			r.Value = a;
+		}
+		return r;
+	}
+
 	// PORT: json.Unmarshal into Fields (embedded structs are inlined; names match exactly;
 	// unknown members are skipped; with AllowDuplicateNames a repeated member is unmarshaled
 	// again into the same field).
@@ -188,6 +264,7 @@ class Packagejson {
 				case "devDependencies": f.DependencyFields.DevDependencies.UnmarshalJSON(v);
 				case "peerDependencies": f.DependencyFields.PeerDependencies.UnmarshalJSON(v);
 				case "optionalDependencies": f.DependencyFields.OptionalDependencies.UnmarshalJSON(v);
+				case "typescript": unmarshalTypeScriptFields(v, f);
 				default: null;
 			}
 			if (err != null) {
@@ -333,6 +410,7 @@ class Fields {
 	public var HeaderFields:HeaderFields = new HeaderFields();
 	public var PathFields:PathFields = new PathFields();
 	public var DependencyFields:DependencyFields = new DependencyFields();
+	public var ContentMapper:ExpectedContentMapper = new ExpectedContentMapper(); // json:"-"
 
 	public function new() {}
 
@@ -392,4 +470,39 @@ class Fields {
 
 	inline function get_OptionalDependencies()
 		return DependencyFields.OptionalDependencies;
+}
+
+// PORT: Expected[T] for the content mapper fields (TypeScript main), decoded by hand (see
+// Packagejson.unmarshalTypeScriptFields).
+class ExpectedOf<T> {
+	public var Valid:Bool = false;
+	public var Value:T;
+	public var present:Bool = false;
+
+	public function new(zero:T) {
+		this.Value = zero;
+	}
+
+	public function GetValue():ValueOk<T> {
+		return new ValueOk<T>(this.Value, this.Valid);
+	}
+
+	public function IsPresent():Bool {
+		return this.present;
+	}
+}
+
+class ContentMapperFields {
+	public var Exec:ExpectedOf<Array<String>> = new ExpectedOf<Array<String>>(null); // json:"exec"
+	public var CompilerOptions:ExpectedOf<Array<String>> = new ExpectedOf<Array<String>>(null); // json:"compilerOptions"
+	public var DynamicConfig:ExpectedOf<Bool> = new ExpectedOf<Bool>(false); // json:"dynamicConfig"
+	public var OutputExtensions:ExpectedOf<haxe.ds.StringMap<String>> = new ExpectedOf<haxe.ds.StringMap<String>>(null); // json:"outputExtensions"
+
+	public function new() {}
+}
+
+class ExpectedContentMapper extends ExpectedOf<ContentMapperFields> {
+	public function new() {
+		super(new ContentMapperFields());
+	}
 }

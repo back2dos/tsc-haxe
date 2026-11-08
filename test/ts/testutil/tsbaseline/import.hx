@@ -43,3 +43,6 @@ import ts.core.Scriptkind.ScriptKind.*;
 import ts.ast.Parseoptions;
 import ts.parser.Parser;
 import ts.tsoptions.Parsedcommandline;
+import ts.outputpaths.Outputpaths;
+import ts.core.Parsedoptions;
+import ts.diagnosticwriter.Diagnosticwriter.FormattingOptions;

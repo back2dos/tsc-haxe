@@ -120,6 +120,11 @@ class Harnessutil {
 			}
 		}
 
+		var contentMappers:Array<ts.contentmapper.Contentmapper.Mapper> = null;
+		if (tsconfig != null && tsconfig.ParsedConfig != null) {
+			contentMappers = tsconfig.ParsedConfig.ContentMappers;
+		}
+
 		// Create fake FS for testing
 		final testfs = new Map<String, MapFile>();
 		for (file in inputFiles) {
@@ -148,7 +153,14 @@ class Harnessutil {
 		fs = Bundled.WrapFS(fs);
 		fs = NewOutputRecorderFS(fs);
 
-		final host = createCompilerHost(fs, Bundled.LibPath(), currentDirectory);
+		// Content mappers, when trusted, are served in-process by the test mapper (see contentmappertest).
+		// The host is shared by the pre- and post-emit programs and torn down when this compilation finishes.
+		var contentMapperHost:ts.contentmapper.Host.Host = null;
+		if (compilerOptions.RunExternalCode.IsTrue() && Core.len(contentMappers) > 0) {
+			contentMapperHost = ts.contentmapper.Hostimpl.NewHost(Context.Background(), ts.testutil.contentmappertest.Contentmappertest.NewSpawner(),
+				Locale.Default);
+		}
+
 		var configFile:TsConfigSourceFile = null;
 		var errors:Array<Diagnostic> = null;
 		if (tsconfig != null) {
@@ -163,9 +175,27 @@ class Harnessutil {
 		}
 		final config = Tsoptions.NewParsedCommandLine(compilerOptions, programFileNames,
 			new ComparePathsOptions(harnessOptions.UseCaseSensitiveFileNames, baseDirectory));
+		config.ParsedConfig.ContentMappers = contentMappers;
 		config.ConfigFile = configFile;
 		config.Errors = errors;
-		final result = compileFilesWithHost(host, config, harnessOptions);
+		var contentMapperProject:ts.contentmapper.Host.Project = null;
+		if (contentMapperHost != null) {
+			contentMapperProject = contentMapperHost.Project(new ts.contentmapper.Host.ProjectSpec(config.ConfigName(), config.ContentMappers(),
+				config.CompilerOptions()));
+		}
+		final host = createCompilerHost(fs, Bundled.LibPath(), currentDirectory, contentMapperProject);
+		// PORT: Go defers contentMapperProject.Close() and contentMapperHost.Close().
+		final result = try compileFilesWithHost(host, config, harnessOptions) catch (e:Dynamic) {
+			if (contentMapperProject != null)
+				contentMapperProject.Close();
+			if (contentMapperHost != null)
+				contentMapperHost.Close();
+			throw e;
+		}
+		if (contentMapperProject != null)
+			contentMapperProject.Close();
+		if (contentMapperHost != null)
+			contentMapperHost.Close();
 		result.Symlinks = symlinks;
 		result.Trace = host.tracer.String();
 		result.Repeat = function(testConfig:TestConfiguration):CompilationResult {
@@ -424,12 +454,13 @@ class Harnessutil {
 		return t;
 	}
 
-	static function createCompilerHost(fs:FS, defaultLibraryPath:String, currentDirectory:String):CachedCompilerHost {
+	static function createCompilerHost(fs:FS, defaultLibraryPath:String, currentDirectory:String,
+			?contentMapperProject:ts.contentmapper.Host.Project):CachedCompilerHost {
 		final tracer = NewTracerForBaselining(new ComparePathsOptions(fs.UseCaseSensitiveFileNames(), currentDirectory), new go.Strings.Builder());
 		final h = new CachedCompilerHost();
 		h.CompilerHost = Compiler.NewCompilerHost(currentDirectory, fs, defaultLibraryPath, null, function(msg:Message, args:Array<Any>) {
 			tracer.Trace(msg, ...args);
-		});
+		}, contentMapperProject);
 		h.tracer = tracer;
 		return h;
 	}
@@ -457,6 +488,7 @@ class Harnessutil {
 		preConfig.ParsedConfig = new ParsedOptions();
 		preConfig.ParsedConfig.CompilerOptions = preCompilerOptions;
 		preConfig.ParsedConfig.FileNames = config.FileNames();
+		preConfig.ParsedConfig.ContentMappers = config.ContentMappers();
 		preConfig.ConfigFile = config.ConfigFile;
 		preConfig.Errors = config.Errors;
 		final preProgram = createProgram(host, preConfig);
@@ -1050,6 +1082,15 @@ class CachedCompilerHost implements CompilerHost {
 		return CompilerHost.GetResolvedProjectReference(fileName, path);
 	}
 
+	public function GetContentMappedSourceFiles(parseOptions:SourceFileParseOptions,
+			mapper:ts.contentmapper.Contentmapper.Mapper):go.Tuple.ValueError<ts.contentmapper.Transform.SourceFiles> {
+		return CompilerHost.GetContentMappedSourceFiles(parseOptions, mapper);
+	}
+
+	public function ContentMapperProject():ts.contentmapper.Host.Project {
+		return CompilerHost.ContentMapperProject();
+	}
+
 	public function GetSourceFile(opts:SourceFileParseOptions):SourceFile {
 		final r = this.FS().ReadFile(opts.FileName);
 		final text = r.value, ok = r.ok;
@@ -1199,6 +1240,9 @@ class CompilationResult {
 				path = Tspath.CombinePaths(Tspath.ResolvePath(this.Host.GetCurrentDirectory(), this.Options.OutDir), path);
 			}
 		}
+		if (ext == Tspath.GetDeclarationEmitExtensionForPath(path)) {
+			return Outputpaths.ChangeToDeclarationExtension(path, this.Program.Program());
+		}
 		return Tspath.ChangeExtension(path, ext);
 	}
 
@@ -1274,13 +1318,14 @@ class CompilationResult {
 			final sourceMapSpanWriter = SourceMapSpanWriter.newSourceMapSpanWriter(sourceMapRecorder, sourceMapData.SourceMap, currentFile);
 			final mapper = ts.sourcemap.Sourcemap.DecodeMappings(sourceMapData.SourceMap.Mappings);
 			for (decodedSourceMapping in mapper.Values()) {
-				var currentSourceFile:SourceFile = null;
-				if (decodedSourceMapping.IsSourceMapping()) {
-					currentSourceFile = this.Program.GetSourceFile(sourceMapData.InputSourceFileNames[decodedSourceMapping.SourceIndex]);
+				if (!decodedSourceMapping.IsSourceMapping()) {
+					sourceMapSpanWriter.recordSourceMapSpan(decodedSourceMapping);
+					continue;
 				}
+				final currentSourceFile = this.Program.GetSourceFile(sourceMapData.InputSourceFileNames[decodedSourceMapping.SourceIndex]);
 				if (currentSourceFile != prevSourceFile) {
 					if (currentSourceFile != null) {
-						sourceMapSpanWriter.recordNewSourceFileSpan(decodedSourceMapping, currentSourceFile.Text());
+						sourceMapSpanWriter.recordNewSourceFileSpan(decodedSourceMapping, currentSourceFile.OriginalText());
 					}
 					prevSourceFile = currentSourceFile;
 				} else {
