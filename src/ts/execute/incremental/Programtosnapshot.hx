@@ -150,6 +150,29 @@ class ToProgramSnapshot {
 		}
 	}
 
+	function handleGlobalScopeChange():Void {
+		if (this.oldProgram == null || this.globalFileRemoved) {
+			return;
+		}
+		var globalScopeLost = false;
+		this.oldProgram.snapshot.fileInfos.Range(function(filePath:Path, oldInfo:FileInfo):Bool {
+			if (!oldInfo.affectsGlobalScope) {
+				return true;
+			}
+			final newInfo = this.snapshot.fileInfos.Load(filePath);
+			if (newInfo.ok && !newInfo.value.affectsGlobalScope) {
+				globalScopeLost = true;
+				return false;
+			}
+			return true;
+		});
+		if (globalScopeLost) {
+			for (file in this.snapshot.getAllFilesExcludingDefaultLibraryFile(this.program, null)) {
+				this.snapshot.addFileToChangeSet(file.Path());
+			}
+		}
+	}
+
 	function handlePendingEmit():Void {
 		if (this.oldProgram != null && !this.globalFileRemoved) {
 			// If options affect emit, then we need to do complete emit per compiler options

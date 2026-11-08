@@ -197,15 +197,13 @@ class EmitFilesHandler {
 				if (canUseIncrementalState) {
 					var emitSignature = "";
 					final info = this.program.snapshot.fileInfos.Load(options.TargetSourceFile.Path()).value;
-					if (info.signature == info.version) {
-						final signature = this.program.snapshot.computeSignatureWithDiagnostics(options.TargetSourceFile, text, data);
-						// With d.ts diagnostics they are also part of the signature so emitSignature will be different from it since its just hash of d.ts
-						if (Core.len(data.Diagnostics) == 0) {
-							emitSignature = signature;
-						}
-						if (signature != info.version) { // Update it
-							this.signatures.Store(options.TargetSourceFile.Path(), signature);
-						}
+					final signature = this.program.snapshot.computeSignatureWithDiagnostics(options.TargetSourceFile, text, data);
+					// With d.ts diagnostics they are also part of the signature so emitSignature will be different from it since its just hash of d.ts
+					if (Core.len(data.Diagnostics) == 0) {
+						emitSignature = signature;
+					}
+					if (signature != info.signature) {
+						this.signatures.Store(options.TargetSourceFile.Path(), signature);
 					}
 
 					// Store d.ts emit hash so later can be compared to check if d.ts has changed.

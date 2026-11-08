@@ -285,6 +285,7 @@ class Incremental {
 			to.reuseFromOldProgram();
 			to.computeProgramFileChanges();
 			to.handleFileDelete();
+			to.handleGlobalScopeChange();
 			to.handlePendingEmit();
 			to.handlePendingCheck();
 		}
