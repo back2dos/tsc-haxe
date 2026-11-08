@@ -133,6 +133,17 @@ class CheckerPool_ implements CheckerPool {
 				isDeclarationFile[i] = file.IsDeclarationFile;
 			}
 			final policy = CheckerAssociation.policy(totalBaseWeight, declarationBaseWeight, checkerCount);
+			// PORT: debug knob, not in Go. TSHX_POLICY=p,m,b overrides the policy (p: 1 = prioritize source files,
+			// m: source file weight multiplier, b: balance penalty multiplier); TSHX_POLICY=show prints the chosen one.
+			final policyEnv = Sys.getEnv("TSHX_POLICY");
+			if (policyEnv == "show")
+				Sys.stderr().writeString('checker association policy: ${policy.prioritizeSourceFiles ? 1 : 0},${policy.sourceFileWeightMultiplier},${policy.balancePenaltyMultiplier} (checkers $checkerCount, declaration weight $declarationBaseWeight of $totalBaseWeight)\n');
+			else if (policyEnv != null) {
+				final a = policyEnv.split(",");
+				policy.prioritizeSourceFiles = a[0] == "1";
+				policy.sourceFileWeightMultiplier = Std.parseInt(a[1]);
+				policy.balancePenaltyMultiplier = Std.parseInt(a[2]);
+			}
 			if (policy.sourceFileWeightMultiplier != 1) {
 				// Apply this before import normalization. The policy intentionally
 				// increases both source-file work and the normalized import unit.
@@ -297,16 +308,19 @@ checkers).
 */
 class CheckerAssociation {
 	static inline final TextWeightDivisor = 100;
-	static inline final SourceFileWeightMultiplier = 4;
-	static inline final BalancePenaltyMultiplier = 16;
 	static inline final PrioritizedSourcePenalty = 12;
 	static inline final StrongBalanceMinCheckerCount = 4;
 
 	public static function policy(totalWeight:Int, declarationWeight:Int, checkerCount:Int):{prioritizeSourceFiles:Bool, sourceFileWeightMultiplier:Int, balancePenaltyMultiplier:Int} {
-		if (declarationWeight * checkerCount * 2 <= totalWeight) // shouldPrioritizeSourceFiles
+		// PORT: Go uses "strong balance" (source weight x4, penalty 16) at >= 4 checkers when declarations are a large
+		// share of the program. In the port that breaks import affinity: each checker re-infers the project's
+		// imported source symbols (t3code-server: +680 MB going from 3 to 4 checkers). We use the prioritized-source
+		// policy (Go's shouldPrioritizeSourceFiles operating point) there instead. Sweep at 4 checkers, best of 3-5,
+		// output byte-identical: t3code-server 5.58 -> 5.08 s, 2.97 -> 2.86 GB; ts6-solution build decl
+		// 1.67 -> 1.56 s, full 2.97 -> 2.93 s; native-preview 0.30 -> 0.29 s; tsc-extension 0.21 -> 0.20 s;
+		// ts6-compiler already prioritized (unchanged). TSHX_POLICY=0,4,16 restores Go's choice.
+		if (declarationWeight * checkerCount * 2 <= totalWeight || checkerCount >= StrongBalanceMinCheckerCount) // shouldPrioritizeSourceFiles
 			return {prioritizeSourceFiles: true, sourceFileWeightMultiplier: 1, balancePenaltyMultiplier: PrioritizedSourcePenalty};
-		if (checkerCount >= StrongBalanceMinCheckerCount)
-			return {prioritizeSourceFiles: false, sourceFileWeightMultiplier: SourceFileWeightMultiplier, balancePenaltyMultiplier: BalancePenaltyMultiplier};
 		return {prioritizeSourceFiles: false, sourceFileWeightMultiplier: 1, balancePenaltyMultiplier: 1};
 	}
 
