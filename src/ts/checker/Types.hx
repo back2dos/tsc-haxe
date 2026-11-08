@@ -1118,6 +1118,18 @@ class TypeExtra {
 	public function new() {}
 }
 
+// PORT: perf — the TypeExtra of a type reference, union or intersection, with the fields of Go's StructuredType and
+// ObjectType that these types rarely set (an anonymous type has them as fields: AnonymousType)
+@:allow(ts.checker)
+class StructuredTypeExtra extends TypeExtra {
+	var members:SymbolTable = null; // (t3code-server: 0.1% of the type references, no union or intersection)
+	var mapper:TypeMapper = null; // (a type reference's: 0.8%)
+
+	public function new() {
+		super();
+	}
+}
+
 @:allow(ts.checker)
 class Type implements TypeSystemEntity {
 	var flags:TypeFlags = 0;
@@ -1133,6 +1145,12 @@ class Type implements TypeSystemEntity {
 	var extra:TypeExtra = null;
 	var alias(get, set):TypeAlias; // (in TypeExtra: t3code-server, 4% of the types have one)
 
+	// the side record, made when a field of it is set: a StructuredTypeExtra for a type reference, union or
+	// intersection (StructuredType.members)
+	function newExtra():TypeExtra {
+		return extra = Std.isOfType(this, TypeReference) || Std.isOfType(this, UnionOrIntersectionType) ? new StructuredTypeExtra() : new TypeExtra();
+	}
+
 	inline function get_alias():TypeAlias {
 		return extra == null ? null : extra.alias;
 	}
@@ -1142,7 +1160,7 @@ class Type implements TypeSystemEntity {
 			if (v == null) {
 				return v;
 			}
-			extra = new TypeExtra();
+			newExtra();
 		}
 		return extra.alias = v;
 	}
@@ -1159,7 +1177,7 @@ class Type implements TypeSystemEntity {
 			if (v == null) {
 				return v;
 			}
-			extra = new TypeExtra();
+			newExtra();
 		}
 		return extra.flowType = v;
 	}
@@ -1493,7 +1511,7 @@ class ConstrainedType extends TypeBase {
 				if (v == null) {
 					return v;
 				}
-				t.extra = new TypeExtra();
+				t.newExtra();
 			}
 			return t.extra.resolvedBaseConstraint = v;
 		}
@@ -1518,7 +1536,33 @@ class InstantiableType extends ConstrainedType {
 
 @:allow(ts.checker)
 class StructuredType extends ConstrainedType {
-	var members:SymbolTable = null;
+	// PORT: perf — an anonymous type's field (AnonymousType); a type reference's, union's or intersection's (which
+	// get their members from a MemberLayout or not at all) in the side record (StructuredTypeExtra)
+	var members(get, set):SymbolTable;
+
+	inline function get_members():SymbolTable {
+		return Std.isOfType(this, AnonymousType) ? (cast this : AnonymousType).anonMembers : structuredExtraMembers();
+	}
+
+	inline function structuredExtraMembers():SymbolTable {
+		final x = (cast this : Type).extra;
+		return x == null ? null : (cast x : StructuredTypeExtra).members;
+	}
+
+	function set_members(v:SymbolTable):SymbolTable {
+		if (Std.isOfType(this, AnonymousType)) {
+			return (cast this : AnonymousType).anonMembers = v;
+		}
+		final t:Type = cast this;
+		if (t.extra == null) {
+			if (v == null) {
+				return v;
+			}
+			t.newExtra();
+		}
+		return (cast t.extra : StructuredTypeExtra).members = v;
+	}
+
 	var properties:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (one exact-size object; null: Go nil, which a lazy type tests)
 	var signatures:haxe.ds.Vector<Signature> = null; // Signatures (call + construct) // PORT: perf — Vectors (one exact-size object each)
 	var callSignatureCount:Int = 0; // Count of call signatures
@@ -1536,7 +1580,7 @@ class StructuredType extends ConstrainedType {
 			if (v == null) {
 				return v;
 			}
-			t.extra = new TypeExtra();
+			t.newExtra();
 		}
 		return t.extra.objectTypeWithoutAbstractConstructSignatures = v;
 	}
@@ -1564,19 +1608,12 @@ class StructuredType extends ConstrainedType {
 	// PORT: from TypeScript main (microsoft/typescript-go#64915, lazy member resolution): the members of a class or
 	// interface type and of its references are a shared MemberLayout (the uninstantiated symbols, by name) plus
 	// the type's LazyState; each member is instantiated when first read (getPropertyAt)
-	function getMember(name:std.String):Symbol {
-		if (members != null) {
-			return members.get(name);
-		}
-		final lazy = getLazyState();
-		if (lazy == null) {
-			return null;
-		}
-		final index:Null<Int> = lazy.layout.index.get(name);
-		if (index == null) {
-			return null;
-		}
-		return getPropertyAt(index);
+	// PORT: perf — inline, one expression (it was inlined by hxmc before `members` became a property)
+	inline function getMember(name:std.String):Symbol {
+		final m = members;
+		final lazy = m != null ? null : getLazyState();
+		final index:Null<Int> = lazy == null ? null : lazy.layout.index.get(name);
+		return m != null ? m.get(name) : index == null ? null : getPropertyAt(index);
 	}
 
 	function getMembers():SymbolTable {
@@ -1648,7 +1685,32 @@ class StructuredType extends ConstrainedType {
 @:allow(ts.checker)
 class ObjectType extends StructuredType {
 	var target:Type = null; // Target of instantiated type
-	var mapper:TypeMapper = null; // Type mapper for instantiated type
+	// PORT: perf — an anonymous type's field (AnonymousType); a type reference's in the side record
+	// (StructuredTypeExtra: t3code-server, 0.8% of the type references have one)
+	var mapper(get, set):TypeMapper; // Type mapper for instantiated type
+
+	inline function get_mapper():TypeMapper {
+		return Std.isOfType(this, AnonymousType) ? (cast this : AnonymousType).anonMapper : structuredExtraMapper();
+	}
+
+	inline function structuredExtraMapper():TypeMapper {
+		final x = (cast this : Type).extra;
+		return x == null ? null : (cast x : StructuredTypeExtra).mapper;
+	}
+
+	function set_mapper(v:TypeMapper):TypeMapper {
+		if (Std.isOfType(this, AnonymousType)) {
+			return (cast this : AnonymousType).anonMapper = v;
+		}
+		final t:Type = cast this;
+		if (t.extra == null) {
+			if (v == null) {
+				return v;
+			}
+			t.newExtra();
+		}
+		return (cast t.extra : StructuredTypeExtra).mapper = v;
+	}
 	var instantiations(get, set):ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */; // Map of type instantiations (in TypeExtra)
 
 	inline function get_instantiations():ts.core.HashKeyMap<Type> {
@@ -1662,7 +1724,7 @@ class ObjectType extends StructuredType {
 			if (v == null) {
 				return v;
 			}
-			t.extra = new TypeExtra();
+			t.newExtra();
 		}
 		return t.extra.instantiations = v;
 	}
@@ -1671,6 +1733,19 @@ class ObjectType extends StructuredType {
 		super();
 	}
 
+}
+
+// PORT: perf — an object type that is not a type reference (Go's ObjectType with ObjectFlagsAnonymous, mapped, reverse
+// mapped, evolving array and instantiation expression types), with the members and mapper as fields (see
+// StructuredType.members)
+@:allow(ts.checker)
+class AnonymousType extends ObjectType {
+	var anonMembers:SymbolTable = null;
+	var anonMapper:TypeMapper = null;
+
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
@@ -1690,7 +1765,7 @@ class TypeReference extends ObjectType {
 			if (v == null) {
 				return v;
 			}
-			t.extra = new TypeExtra();
+			t.newExtra();
 		}
 		return t.extra.node = v;
 	}
@@ -1841,7 +1916,7 @@ class TupleType extends InterfaceType {
 }
 
 @:allow(ts.checker)
-class InstantiationExpressionType extends ObjectType {
+class InstantiationExpressionType extends AnonymousType {
 	var node:Node = null;
 
 	public function new() {
@@ -1850,7 +1925,7 @@ class InstantiationExpressionType extends ObjectType {
 }
 
 @:allow(ts.checker)
-class MappedType extends ObjectType {
+class MappedType extends AnonymousType {
 	var declaration:MappedTypeNode = null;
 	var typeParameter:Type = null;
 	var constraintType:Type = null;
@@ -1866,7 +1941,7 @@ class MappedType extends ObjectType {
 }
 
 @:allow(ts.checker)
-class ReverseMappedType extends ObjectType {
+class ReverseMappedType extends AnonymousType {
 	var source:Type = null;
 	var mappedType:Type = null;
 	var constraintType:Type = null;
@@ -1877,7 +1952,7 @@ class ReverseMappedType extends ObjectType {
 }
 
 @:allow(ts.checker)
-class EvolvingArrayType extends ObjectType {
+class EvolvingArrayType extends AnonymousType {
 	var elementType:Type = null;
 	var finalArrayType:Type = null;
 
