@@ -3350,9 +3350,11 @@ class CheckerPart4 {
 					final resolvedUsingRewritableExtension = resolvedModule.ResolvedUsingTsExtension
 						|| resolvedModule.ResolvedUsingExtraExtensions && sourceFile.ContentMapper() != "" && mappedSource;
 					if (!resolvedUsingRewritableExtension && shouldRewrite) {
-						final relativeToSourceFile = Tspath.GetRelativePathFromFile_legacy(Tspath.GetNormalizedAbsolutePath(importingSourceFile.FileName(),
-							c.program.GetCurrentDirectory()),
-							resolvedModule.ResolvedFileName, new ComparePathsOptions(c.program.UseCaseSensitiveFileNames(), c.program.GetCurrentDirectory()));
+						var relativeToSourceFile = resolvedModule.ResolvedFileName.AsString();
+						final relativePath = c.program.CaseSensitivity().RelativePathFromFile(importingSourceFile.FileName(), resolvedModule.ResolvedFileName);
+						if (relativePath != null) {
+							relativeToSourceFile = relativePath.AsModuleSpecifier().AsString();
+						}
 						c.error(errorNode,
 							Diagnostics.This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
 							relativeToSourceFile);
@@ -3370,22 +3372,24 @@ class CheckerPart4 {
 							final ownRootDir = c.program.CommonSourceDirectory();
 							final otherRootDir = redirect.CommonSourceDirectory();
 
-							final compareOptions = new ComparePathsOptions(c.program.UseCaseSensitiveFileNames(), c.program.GetCurrentDirectory());
+							final caseSensitivity = c.program.CaseSensitivity();
 
-							final rootDirPath = Tspath.GetRelativePathFromDirectory_legacy(ownRootDir, otherRootDir, compareOptions);
+							final rootDirPath = caseSensitivity.RelativePathFromDirectory(ownRootDir, Tspath.RootedFilePathFromPath(otherRootDir.AsPath()));
+							final rootsCompatible = rootDirPath != null;
 
 							// Get outDir paths, defaulting to root directories if not specified
-							var ownOutDir:String = c.compilerOptions.OutDir;
-							if (ownOutDir == "") {
-								ownOutDir = ownRootDir;
+							var ownOutDir = ownRootDir;
+							if (c.compilerOptions.OutDir != "") {
+								ownOutDir = c.compilerOptions.OutDir;
 							}
-							var otherOutDir:String = redirect.CompilerOptions().OutDir;
-							if (otherOutDir == "") {
-								otherOutDir = otherRootDir;
+							var otherOutDir = otherRootDir;
+							if (redirect.CompilerOptions().OutDir != "") {
+								otherOutDir = redirect.CompilerOptions().OutDir;
 							}
-							final outDirPath = Tspath.GetRelativePathFromDirectory_legacy(ownOutDir, otherOutDir, compareOptions);
+							final outDirPath = caseSensitivity.RelativePathFromDirectory(ownOutDir, Tspath.RootedFilePathFromPath(otherOutDir.AsPath()));
+							final outDirsCompatible = outDirPath != null;
 
-							if (rootDirPath != outDirPath) {
+							if (!rootsCompatible || !outDirsCompatible || rootDirPath != outDirPath) {
 								c.error(errorNode,
 									Diagnostics.This_import_path_is_unsafe_to_rewrite_because_it_resolves_to_another_project_and_the_relative_path_between_the_projects_output_files_is_not_the_same_as_the_relative_path_between_its_input_files);
 							}

@@ -8,6 +8,14 @@ import go.IdentityMap;
 // this package's interface.
 @:allow(ts.diagnosticwriter)
 class Diagnosticwriter {
+	static function formatFileNameRelativeTo(fileName:RootedFilePath, directory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):String {
+		final relativePath = caseSensitivity.RelativePathFromDirectory(directory, fileName);
+		if (relativePath != null) {
+			return relativePath.AsString();
+		}
+		return fileName.AsString();
+	}
+
 	public static function WrapASTDiagnostic(d:ts.ast.Diagnostic.Diagnostic):ASTDiagnostic {
 		return new ASTDiagnostic(d);
 	}
@@ -274,9 +282,9 @@ class Diagnosticwriter {
 		final firstChar = first.b;
 		var relativeFileName:String;
 		if (formatOpts != null) {
-			relativeFileName = Tspath.ConvertToRelativePath_legacy(file.FileName(), formatOpts.ComparePathsOptions);
+			relativeFileName = formatFileNameRelativeTo(file.FileName(), formatOpts.CurrentDirectory, formatOpts.CaseSensitivity);
 		} else {
-			relativeFileName = file.FileName();
+			relativeFileName = file.FileName().AsString();
 		}
 
 		writeWithStyleAndReset(output, relativeFileName, foregroundColorEscapeCyan);
@@ -369,7 +377,7 @@ class Diagnosticwriter {
 		// Need an ordered map here, but sorting for consistency.
 		final sortedFiles:Array<FileLike> = errorsByFile == null ? [] : [for (k in errorsByFile.keys()) k];
 		Slices.SortFunc(sortedFiles, function(a:FileLike, b:FileLike):Int {
-			return Strings.Compare(a.FileName(), b.FileName());
+			return a.FileName().Compare(b.FileName());
 		});
 
 		final summary = new ErrorSummary();
@@ -419,10 +427,7 @@ class Diagnosticwriter {
 			return "";
 		}
 		final line = Scanner.GetECMALineOfPosition(file, fileErrors[0].Pos());
-		var fileName = file.FileName();
-		if (Tspath.PathIsAbsolute(fileName) && Tspath.PathIsAbsolute(formatOpts.ComparePathsOptions.CurrentDirectory)) {
-			fileName = Tspath.ConvertToRelativePath_legacy(file.FileName(), formatOpts.ComparePathsOptions);
-		}
+		final fileName = formatFileNameRelativeTo(file.FileName(), formatOpts.CurrentDirectory, formatOpts.CaseSensitivity);
 		return Fmt.Sprintf("%s%s:%d%s", [fileName, foregroundColorEscapeGrey, line + 1, resetEscapeSequence]);
 	}
 
@@ -440,7 +445,7 @@ class Diagnosticwriter {
 			final line = lc.a;
 			final character = lc.b;
 			final fileName = diagnostic.File().FileName();
-			final relativeFileName = Tspath.ConvertToRelativePath_legacy(fileName, formatOpts.ComparePathsOptions);
+			final relativeFileName = formatFileNameRelativeTo(fileName, formatOpts.CurrentDirectory, formatOpts.CaseSensitivity);
 			Fmt.Fprintf(output, "%s(%d,%d): ", [relativeFileName, line + 1, character + 1]);
 		}
 
@@ -488,7 +493,7 @@ class Diagnosticwriter {
 }
 
 interface FileLike extends SourceFileLike {
-	function FileName():String;
+	function FileName():RootedFilePath;
 	// Text():String and ECMALineMap():Array<TextPos> from SourceFileLike.
 }
 
@@ -636,7 +641,7 @@ class FileLikeOfSourceFile implements FileLike {
 		return f;
 	}
 
-	public function FileName():String {
+	public function FileName():RootedFilePath {
 		return SourceFile.FileName();
 	}
 
@@ -664,17 +669,17 @@ private class ResolvedLocation {
 
 // originalTextFile presents a source file's original (untransformed) text as a FileLike.
 private class OriginalTextFile implements FileLike {
-	final fileName:String;
+	final fileName:RootedFilePath;
 	final text:String;
 	final lineMap:Array<TextPos>;
 
-	public function new(file:SourceFile, fileName:String) {
+	public function new(file:SourceFile, fileName:RootedFilePath) {
 		this.text = file.OriginalText();
 		this.fileName = fileName;
 		this.lineMap = Core.ComputeECMALineStarts(this.text);
 	}
 
-	public function FileName():String {
+	public function FileName():RootedFilePath {
 		return fileName;
 	}
 
@@ -689,14 +694,14 @@ private class OriginalTextFile implements FileLike {
 
 private class RenamedFile implements FileLike {
 	final file:SourceFile;
-	final fileName:String;
+	final fileName:RootedFilePath;
 
-	public function new(file:SourceFile, fileName:String) {
+	public function new(file:SourceFile, fileName:RootedFilePath) {
 		this.file = file;
 		this.fileName = fileName;
 	}
 
-	public function FileName():String {
+	public function FileName():RootedFilePath {
 		return fileName;
 	}
 
@@ -711,8 +716,9 @@ private class RenamedFile implements FileLike {
 
 class FormattingOptions {
 	public var Locale:Locale = ts.locale.Locale.Default;
-	// PORT: embedded tspath.ComparePathsOptions → composition field.
-	public var ComparePathsOptions:ComparePathsOptions = new ComparePathsOptions();
+	// PORT: embedded tspath.CaseSensitivity → a field.
+	public var CaseSensitivity:CaseSensitivity = CaseInsensitive;
+	public var CurrentDirectory:RootedDirectoryPath = cast "";
 	public var NewLine:String = "";
 
 	public function new() {}

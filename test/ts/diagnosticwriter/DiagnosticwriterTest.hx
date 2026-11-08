@@ -32,7 +32,8 @@ class DiagnosticwriterTest {
 			final all:Array<Diagnostic> = [d1, d2, d3, d4, d5, d6, d7, d8];
 			final opts = new FormattingOptions();
 			opts.Locale = ts.locale.Locale.Default;
-			opts.ComparePathsOptions = new ComparePathsOptions(true, "/proj");
+			opts.CaseSensitivity = CaseSensitive;
+			opts.CurrentDirectory = Tspath.RootedDirectoryPathFromAbsolute("/proj");
 			opts.NewLine = "\n";
 
 			var sb = new TestWriter();
@@ -74,13 +75,14 @@ class DiagnosticwriterTest {
 		T.run("ASTDiagnosticWrapper", () -> {
 			final f = Ast.NewNodeFactory(new NodeFactoryHooks());
 			final opts = new SourceFileParseOptions();
-			opts.FileName = "/other/c.ts";
+			opts.FileName = Tspath.RootedFilePathFromAbsolute("/other/c.ts");
 			opts.Path = "/other/c.ts";
 			final file = f.NewSourceFile(opts, "x", f.NewNodeList([]), f.NewToken(KindEndOfFile)).AsSourceFile();
 			final d1 = Ast.NewDiagnostic(file, new TextRange(0, 1), Diagnostics.Cannot_find_name_0, "x");
 			final d2 = Ast.NewDiagnostic(file, new TextRange(0, 1), Diagnostics.Cannot_find_name_0, "y");
 			final fo = new FormattingOptions();
-			fo.ComparePathsOptions = new ComparePathsOptions(true, "/proj");
+			fo.CaseSensitivity = CaseSensitive;
+			fo.CurrentDirectory = Tspath.RootedDirectoryPathFromAbsolute("/proj");
 			fo.NewLine = "\n";
 			var sb = new TestWriter();
 			Diagnosticwriter.WriteFormatDiagnostics(sb, Diagnosticwriter.FromASTDiagnostics([d1]), fo);
@@ -117,8 +119,8 @@ private class TestFile implements FileLike {
 		this.lines = Core.ComputeECMALineStarts(text);
 	}
 
-	public function FileName():String {
-		return name;
+	public function FileName():RootedFilePath {
+		return Tspath.RootedFilePathFromAbsolute(name);
 	}
 
 	public function Text():String {
