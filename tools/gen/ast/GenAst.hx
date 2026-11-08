@@ -117,6 +117,8 @@ class GenAst {
 	static final RARE_FIELDS:Map<String, Array<String>> = [
 		"CallExpression" => ["Symbol", "QuestionDotToken", "TypeArguments"],
 		"PropertyAccessExpression" => ["QuestionDotToken"],
+		"PropertyAssignment" => ["PostfixToken", "Type", "modifiers"],
+		"ShorthandPropertyAssignment" => ["EqualsToken", "ObjectAssignmentInitializer", "PostfixToken", "Type", "modifiers"],
 	];
 
 	static final HAXE_KEYWORDS = [

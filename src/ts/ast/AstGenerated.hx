@@ -5476,20 +5476,46 @@ class SpreadAssignment extends NodeDefault implements DeclarationBase implements
 
 class PropertyAssignment extends NodeDefault implements DeclarationBase implements NamedMemberBase implements ObjectLiteralElementBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var modifiers(get, set):ModifierList = null;
+	public var modifiers(get, set):ModifierList; // (in PropertyAssignmentRare)
 	@:isVar public var name(get, set):PropertyName = null;
-	@:isVar public var PostfixToken(get, set):TokenNode = null;
+	public var PostfixToken(get, set):TokenNode; // (in PropertyAssignmentRare)
 	@:isVar public var facts(get, set):Int = 0;
-	public var Type:TypeNode = null;
+	public var Type(get, set):TypeNode; // (in PropertyAssignmentRare)
 	public var Initializer:Expression = null;
+	inline function get_PostfixToken():TokenNode return links == null ? null : rare_PostfixToken();
+	function rare_PostfixToken():TokenNode {
+		final r = PropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.PostfixToken;
+	}
+	function set_PostfixToken(v:TokenNode):TokenNode {
+		final r = v != null ? PropertyAssignmentRare.store.Get(this) : PropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.PostfixToken = v;
+		return v;
+	}
+	inline function get_Type():TypeNode return links == null ? null : rare_Type();
+	function rare_Type():TypeNode {
+		final r = PropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.Type;
+	}
+	function set_Type(v:TypeNode):TypeNode {
+		final r = v != null ? PropertyAssignmentRare.store.Get(this) : PropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.Type = v;
+		return v;
+	}
+	inline function get_modifiers():ModifierList return links == null ? null : rare_modifiers();
+	function rare_modifiers():ModifierList {
+		final r = PropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.modifiers;
+	}
+	function set_modifiers(v:ModifierList):ModifierList {
+		final r = v != null ? PropertyAssignmentRare.store.Get(this) : PropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.modifiers = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_modifiers():ModifierList return modifiers;
-	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_name():PropertyName return name;
 	inline function set_name(v:PropertyName):PropertyName return name = v;
-	inline function get_PostfixToken():TokenNode return PostfixToken;
-	inline function set_PostfixToken(v:TokenNode):TokenNode return PostfixToken = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -5498,10 +5524,11 @@ class PropertyAssignment extends NodeDefault implements DeclarationBase implemen
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visitModifiers(v, this.modifiers)
+		final r = PropertyAssignmentRare.store.TryGetInline(this);
+		return Ast.visitModifiers(v, (r == null ? null : r.modifiers))
 			|| Ast.visit(v, this.name)
-			|| Ast.visit(v, this.PostfixToken)
-			|| Ast.visit(v, this.Type)
+			|| Ast.visit(v, (r == null ? null : r.PostfixToken))
+			|| Ast.visit(v, (r == null ? null : r.Type))
 			|| Ast.visit(v, this.Initializer);
 	}
 
@@ -5539,27 +5566,86 @@ class PropertyAssignment extends NodeDefault implements DeclarationBase implemen
 
 }
 
+// the fields that few PropertyAssignment nodes set (see GenAst.RARE_FIELDS)
+class PropertyAssignmentRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, PropertyAssignmentRare>(() -> new PropertyAssignmentRare());
+
+	public var PostfixToken:TokenNode = null;
+	public var Type:TypeNode = null;
+	public var modifiers:ModifierList = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // ShorthandPropertyAssignment
 // ──────────────────────────────────────────────────────────────────────
 
 class ShorthandPropertyAssignment extends NodeDefault implements DeclarationBase implements NamedMemberBase implements ObjectLiteralElementBase implements CompositeBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	@:isVar public var modifiers(get, set):ModifierList = null;
+	public var modifiers(get, set):ModifierList; // (in ShorthandPropertyAssignmentRare)
 	@:isVar public var name(get, set):PropertyName = null;
-	@:isVar public var PostfixToken(get, set):TokenNode = null;
+	public var PostfixToken(get, set):TokenNode; // (in ShorthandPropertyAssignmentRare)
 	@:isVar public var facts(get, set):Int = 0;
-	public var Type:TypeNode = null;
-	public var EqualsToken:EqualsToken = null;
-	public var ObjectAssignmentInitializer:Expression = null;
+	public var Type(get, set):TypeNode; // (in ShorthandPropertyAssignmentRare)
+	public var EqualsToken(get, set):EqualsToken; // (in ShorthandPropertyAssignmentRare)
+	public var ObjectAssignmentInitializer(get, set):Expression; // (in ShorthandPropertyAssignmentRare)
+	inline function get_EqualsToken():EqualsToken return links == null ? null : rare_EqualsToken();
+	function rare_EqualsToken():EqualsToken {
+		final r = ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.EqualsToken;
+	}
+	function set_EqualsToken(v:EqualsToken):EqualsToken {
+		final r = v != null ? ShorthandPropertyAssignmentRare.store.Get(this) : ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.EqualsToken = v;
+		return v;
+	}
+	inline function get_ObjectAssignmentInitializer():Expression return links == null ? null : rare_ObjectAssignmentInitializer();
+	function rare_ObjectAssignmentInitializer():Expression {
+		final r = ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.ObjectAssignmentInitializer;
+	}
+	function set_ObjectAssignmentInitializer(v:Expression):Expression {
+		final r = v != null ? ShorthandPropertyAssignmentRare.store.Get(this) : ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.ObjectAssignmentInitializer = v;
+		return v;
+	}
+	inline function get_PostfixToken():TokenNode return links == null ? null : rare_PostfixToken();
+	function rare_PostfixToken():TokenNode {
+		final r = ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.PostfixToken;
+	}
+	function set_PostfixToken(v:TokenNode):TokenNode {
+		final r = v != null ? ShorthandPropertyAssignmentRare.store.Get(this) : ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.PostfixToken = v;
+		return v;
+	}
+	inline function get_Type():TypeNode return links == null ? null : rare_Type();
+	function rare_Type():TypeNode {
+		final r = ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.Type;
+	}
+	function set_Type(v:TypeNode):TypeNode {
+		final r = v != null ? ShorthandPropertyAssignmentRare.store.Get(this) : ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.Type = v;
+		return v;
+	}
+	inline function get_modifiers():ModifierList return links == null ? null : rare_modifiers();
+	function rare_modifiers():ModifierList {
+		final r = ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		return r == null ? null : r.modifiers;
+	}
+	function set_modifiers(v:ModifierList):ModifierList {
+		final r = v != null ? ShorthandPropertyAssignmentRare.store.Get(this) : ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		if (r != null) r.modifiers = v;
+		return v;
+	}
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;
-	inline function get_modifiers():ModifierList return modifiers;
-	inline function set_modifiers(v:ModifierList):ModifierList return modifiers = v;
 	inline function get_name():PropertyName return name;
 	inline function set_name(v:PropertyName):PropertyName return name = v;
-	inline function get_PostfixToken():TokenNode return PostfixToken;
-	inline function set_PostfixToken(v:TokenNode):TokenNode return PostfixToken = v;
 	inline function get_facts():Int return facts;
 	inline function set_facts(v:Int):Int return facts = v;
 
@@ -5568,12 +5654,13 @@ class ShorthandPropertyAssignment extends NodeDefault implements DeclarationBase
 	}
 
 	override public function ForEachChild(v:Visitor):Bool {
-		return Ast.visitModifiers(v, this.modifiers)
+		final r = ShorthandPropertyAssignmentRare.store.TryGetInline(this);
+		return Ast.visitModifiers(v, (r == null ? null : r.modifiers))
 			|| Ast.visit(v, this.name)
-			|| Ast.visit(v, this.PostfixToken)
-			|| Ast.visit(v, this.Type)
-			|| Ast.visit(v, this.EqualsToken)
-			|| Ast.visit(v, this.ObjectAssignmentInitializer);
+			|| Ast.visit(v, (r == null ? null : r.PostfixToken))
+			|| Ast.visit(v, (r == null ? null : r.Type))
+			|| Ast.visit(v, (r == null ? null : r.EqualsToken))
+			|| Ast.visit(v, (r == null ? null : r.ObjectAssignmentInitializer));
 	}
 
 	override public function VisitEachChild(v:NodeVisitor):Node {
@@ -5608,6 +5695,21 @@ class ShorthandPropertyAssignment extends NodeDefault implements DeclarationBase
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
+}
+
+// the fields that few ShorthandPropertyAssignment nodes set (see GenAst.RARE_FIELDS)
+class ShorthandPropertyAssignmentRare extends ts.core.Linkstore.LinkEntry {
+	public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, ShorthandPropertyAssignmentRare>(() -> new ShorthandPropertyAssignmentRare());
+
+	public var EqualsToken:EqualsToken = null;
+	public var ObjectAssignmentInitializer:Expression = null;
+	public var PostfixToken:TokenNode = null;
+	public var Type:TypeNode = null;
+	public var modifiers:ModifierList = null;
+
+	public function new() {
+		super();
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────
