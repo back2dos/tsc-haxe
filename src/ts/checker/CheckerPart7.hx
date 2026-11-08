@@ -1762,15 +1762,7 @@ class CheckerPart7 {
 		}
 		if (origin == null && includes & TypeFlagsUnion != 0) {
 			final namedUnions = c.addNamedUnions(null, types);
-			var reducedTypes:Array<Type> = null;
-			for (t in typeSet) {
-				if (!Core.Some(namedUnions, (u:Type) -> Checker.containsType(u.Types(), t))) {
-					if (reducedTypes == null) {
-						reducedTypes = [];
-					}
-					reducedTypes.push(t);
-				}
-			}
+			var reducedTypes:Array<Type> = typesNotInNamedUnions(typeSet, namedUnions);
 			if (alias == null && Core.len(namedUnions) == 1 && Core.len(reducedTypes) == 0) {
 				return namedUnions[0];
 			}
@@ -1850,15 +1842,7 @@ class CheckerPart7 {
 		}
 		if (origin == null && includes & TypeFlagsUnion != 0) {
 			final namedUnions = c.addNamedUnions(null, types);
-			var reducedTypes:Array<Type> = null;
-			for (t in typeSet) {
-				if (!Core.Some(namedUnions, (u:Type) -> Checker.containsType(u.Types(), t))) {
-					if (reducedTypes == null) {
-						reducedTypes = [];
-					}
-					reducedTypes.push(t);
-				}
-			}
+			var reducedTypes:Array<Type> = typesNotInNamedUnions(typeSet, namedUnions);
 			if (alias == null && Core.len(namedUnions) == 1 && Core.len(reducedTypes) == 0) {
 				return namedUnions[0];
 			}
@@ -2198,6 +2182,45 @@ class CheckerPart7 {
 			for (k in 0...n)
 				types[k] = src[k];
 		}
+	}
+
+	// PORT: perf — Go keeps each t of typeSet that no named union contains (a binary search per named union per t).
+	// typeSet and every union's types are sorted by CompareTypes, a total order in which only identical types compare
+	// equal: one walk per named union along typeSet finds the same types, comparing only types that differ.
+	static function typesNotInNamedUnions(typeSet:Array<Type>, namedUnions:Array<Type>):Array<Type> {
+		final n = typeSet.length;
+		var named:Array<Bool> = [];
+		if (namedUnions != null && namedUnions.length != 0) {
+			named.resize(n);
+			for (k in 0...n)
+				named[k] = false;
+			for (u in namedUnions) {
+				final types = u.Types();
+				final m = types.length;
+				var j = 0;
+				for (k in 0...n) {
+					final t = typeSet[k];
+					while (j < m && types[j] != t && Checker.CompareTypes(types[j], t) < 0)
+						j++;
+					if (j == m)
+						break;
+					if (types[j] == t) {
+						named[k] = true;
+						j++;
+					}
+				}
+			}
+		}
+		var reducedTypes:Array<Type> = null;
+		for (k in 0...n) {
+			if (named.length == 0 || !named[k]) {
+				if (reducedTypes == null) {
+					reducedTypes = [];
+				}
+				reducedTypes.push(typeSet[k]);
+			}
+		}
+		return reducedTypes;
 	}
 
 	static function addTypeToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t:Type):TypeFlags {
