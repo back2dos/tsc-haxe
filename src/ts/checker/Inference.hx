@@ -653,7 +653,7 @@ class Inference {
 	}
 
 	static function inferToTemplateLiteralType(c:Checker, n:InferenceState, source:Type, target:TemplateLiteralType):Void {
-		final matches = c.inferTypesFromTemplateLiteralType(source, target);
+		final matches = c.inferTypesFromTemplateLiteralType(source, target, c.compareTypesAssignable);
 		final types = target.types;
 		// When the target template literal contains only placeholders (meaning that inference is intended to extract
 		// single characters and remainder strings) and inference fails to produce matches, we want to infer 'never' for

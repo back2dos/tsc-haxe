@@ -2456,7 +2456,7 @@ class Relater {
 	}
 
 	static function isTypeMatchedByTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType, compareTypes:TypeComparer):Bool {
-		final inferences = c.inferTypesFromTemplateLiteralType(source, target);
+		final inferences = c.inferTypesFromTemplateLiteralType(source, target, compareTypes);
 		if (inferences != null) {
 			for (i in 0...inferences.length) {
 				if (!c.isValidTypeForTemplateLiteralPlaceholder(inferences[i], target.types[i], compareTypes)) {
@@ -2468,13 +2468,13 @@ class Relater {
 		return false;
 	}
 
-	static function inferTypesFromTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType):Array<Type> {
+	static function inferTypesFromTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType, compareTypes:TypeComparer):Array<Type> {
 		if (source.flags & TypeFlagsStringLiteral != 0) {
 			return c.inferFromLiteralPartsToTemplateLiteral([Checker.getStringLiteralValue(source)], null, target);
 		} else if (source.flags & TypeFlagsTemplateLiteral != 0) {
 			if (Slices.Equal(source.AsTemplateLiteralType().texts, target.texts)) {
 				return Core.MapIndex(source.AsTemplateLiteralType().types, (s, i) -> {
-					if (c.isTypeAssignableTo(c.getBaseConstraintOrType(s), c.getBaseConstraintOrType(target.types[i]))) {
+					if (compareTypes(c.getBaseConstraintOrType(s), c.getBaseConstraintOrType(target.types[i]), false /*partialMatch*/) != TernaryFalse) {
 						return s;
 					}
 					return c.getStringLikeTypeForType(s);
