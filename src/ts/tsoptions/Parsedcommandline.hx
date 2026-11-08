@@ -15,27 +15,32 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	public var Raw:Dynamic = null; // json:"raw"
 	public var CompileOnSave:Null<Bool> = null; // json:"compileOnSave"
 
-	var comparePathsOptions:ComparePathsOptions = new ComparePathsOptions();
+	var configFileSpecs:Null<ConfigFileSpecs> = null;
+	var baseDirectory:RootedDirectoryPath = cast "";
+	var caseSensitivity:CaseSensitivity = CaseInsensitive;
 	var wildcardDirectoriesOnce:Bool = false;
-	var wildcardDirectories:Null<StringMap<Bool>> = null;
+	// PORT: map[tspath.RootedDirectoryPath]bool → an OrderedMap (deterministic iteration).
+	var wildcardDirectories:Null<OrderedMap<RootedDirectoryPath, Bool>> = null;
 	var includeGlobsOnce:Bool = false;
 	var includeGlobs:Null<Array<Glob>> = null;
 	var contentMapperExtensionRewrites:Null<Array<ExtensionRewrite>> = null;
 	var contentMapperExtensionRewritesOnce:Bool = false;
 
 	var sourceAndOutputMapsOnce:Bool = false;
+	// PORT: map[tspath.PathKey]... → StringMap keyed by the PathKey text.
 	var sourceToProjectReference:Null<StringMap<SourceOutputAndProjectReference>> = null;
 	var outputDtsToProjectReference:Null<StringMap<SourceOutputAndProjectReference>> = null;
 
-	var commonSourceDirectory:std.String = "";
+	var commonSourceDirectory:RootedDirectoryPath = cast "";
 	var commonSourceDirectoryOnce:Bool = false;
 
 	var resolvedProjectReferencePaths:Null<Array<RootedFilePath>> = null;
 	var resolvedProjectReferencePathsOnce:Bool = false;
 
 	var literalFileNamesLen:Int = 0;
-	var fileNamesByPath:Null<StringMap<std.String>> = null; // maps file names to their paths, used for quick lookups
-	var fileNamesByPathOnce:Bool = false;
+	var rootFileNamesForDiagnostics:Null<Array<std.String>> = null;
+	var filePaths:Null<Set<PathKey>> = null;
+	var filePathsOnce:Bool = false;
 
 	var locale:Locale = ts.locale.Locale.Default;
 	var localeOnce:Bool = false;
@@ -58,11 +63,48 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return new Pair(fileGlob, "**/" + fileGlob);
 	}
 
-	public function ConfigName():std.String {
+	public function WithFileNames(fileNames:Null<Array<RootedFilePath>>):ParsedCommandLine {
+		final parsedConfig = this.ParsedConfig.copy();
+		parsedConfig.FileNames = fileNames;
+		final p = new ParsedCommandLine();
+		p.ParsedConfig = parsedConfig;
+		p.ConfigFile = this.ConfigFile;
+		p.Errors = this.Errors;
+		p.Raw = this.Raw;
+		p.CompileOnSave = this.CompileOnSave;
+		p.configFileSpecs = this.configFileSpecs;
+		p.baseDirectory = this.baseDirectory;
+		p.caseSensitivity = this.caseSensitivity;
+		p.wildcardDirectories = this.wildcardDirectories;
+		p.includeGlobs = this.includeGlobs;
+		p.literalFileNamesLen = this.literalFileNamesLen;
+		p.rootFileNamesForDiagnostics = this.rootFileNamesForDiagnostics;
+		return p;
+	}
+
+	function getConfigFileSpecs():Null<ConfigFileSpecs> {
+		if (this.configFileSpecs != null) {
+			return this.configFileSpecs;
+		}
+		if (this.ConfigFile != null) {
+			return this.ConfigFile.configFileSpecs;
+		}
+		return null;
+	}
+
+	public function ConfigName():RootedFilePath {
 		if (this == null || this.ConfigFile == null) {
-			return "";
+			return cast "";
 		}
 		return this.ConfigFile.SourceFile.FileName();
+	}
+
+	public function ConfigFileName():RootedFilePath {
+		final configName = this.ConfigName();
+		if (configName != "") {
+			return configName;
+		}
+		return this.CompilerOptions().ConfigFilePath;
 	}
 
 	public function SourceToProjectReference():Null<StringMap<SourceOutputAndProjectReference>> {
@@ -79,16 +121,17 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 			final sourceToOutput = new StringMap<SourceOutputAndProjectReference>();
 			final outputDtsToSource = new StringMap<SourceOutputAndProjectReference>();
 
-			this.getOutputDeclarationAndSourceFileNames()(function(outputDts:std.String, source:std.String):Bool {
-				final path = Tspath.ToPath(source, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
+			this.getOutputDeclarationAndSourceFileNames()(function(outputDtsFileName:RootedFilePath, sourceFileName:RootedFilePath):Bool {
 				final projectReference = new SourceOutputAndProjectReference();
-				projectReference.Source = source;
-				projectReference.OutputDts = outputDts;
+				projectReference.Source = sourceFileName;
+				projectReference.SourcePath = this.caseSensitivity.PathKey(sourceFileName.AsPath());
+				projectReference.OutputDts = outputDtsFileName;
 				projectReference.Resolved = this;
-				if (outputDts != "") {
-					outputDtsToSource.set(Tspath.ToPath(outputDts, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames()), projectReference);
+				if (outputDtsFileName != "") {
+					projectReference.OutputDtsPath = this.caseSensitivity.PathKey(outputDtsFileName.AsPath());
+					outputDtsToSource.set(projectReference.OutputDtsPath, projectReference);
 				}
-				sourceToOutput.set(path, projectReference);
+				sourceToOutput.set(projectReference.SourcePath, projectReference);
 				return true;
 			});
 			this.outputDtsToProjectReference = outputDtsToSource;
@@ -96,38 +139,37 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		}
 	}
 
-	public function CommonSourceDirectory():std.String {
+	public function CommonSourceDirectory():RootedDirectoryPath {
 		if (!this.commonSourceDirectoryOnce) {
 			this.commonSourceDirectoryOnce = true;
-			final files = function():Array<std.String> {
-				return Core.Filter(this.ParsedConfig.FileNames, function(file:std.String):Bool {
-					return !(this.ParsedConfig.CompilerOptions.NoEmitForJsFiles.IsTrue() && Tspath.HasJSFileExtension(file))
-						&& !Tspath.IsDeclarationFileName(file);
+			final files = function():Null<Array<RootedFilePath>> {
+				return Core.Filter(this.ParsedConfig.FileNames, function(file:RootedFilePath):Bool {
+					return !(this.ParsedConfig.CompilerOptions.NoEmitForJsFiles.IsTrue() && file.HasJSFileExtension()) && !file.IsDeclarationFile();
 				});
 			};
 
-			this.commonSourceDirectory = Outputpaths.GetCommonSourceDirectory(this.ParsedConfig.CompilerOptions, files, this.GetCurrentDirectory(),
-				this.UseCaseSensitiveFileNames(), null);
+			this.commonSourceDirectory = Outputpaths.GetCommonSourceDirectory(this.ParsedConfig.CompilerOptions, files, this.BaseDirectory(),
+				this.CaseSensitivity(), null);
 		}
 		return this.commonSourceDirectory;
 	}
 
-	public function GetCurrentDirectory():RootedDirectoryPath {
-		return /* PORT: transitional, unchecked */ cast this.comparePathsOptions.CurrentDirectory;
+	public function BaseDirectory():RootedDirectoryPath {
+		return this.baseDirectory;
 	}
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.comparePathsOptions.UseCaseSensitiveFileNames;
+	public function CaseSensitivity():CaseSensitivity {
+		return this.caseSensitivity;
 	}
 
-	// PORT: iter.Seq2[string, string] → a function that takes the yield callback.
-	function getOutputDeclarationAndSourceFileNames():(yield_:(dtsName:std.String, inputName:std.String) -> Bool) -> Void {
-		return function(yield_:(dtsName:std.String, inputName:std.String) -> Bool):Void {
+	// PORT: iter.Seq2[tspath.RootedFilePath, tspath.RootedFilePath] → a function that takes the yield callback.
+	function getOutputDeclarationAndSourceFileNames():(yield_:(dtsName:RootedFilePath, inputName:RootedFilePath) -> Bool) -> Void {
+		return function(yield_:(dtsName:RootedFilePath, inputName:RootedFilePath) -> Bool):Void {
 			if (this.ParsedConfig.FileNames == null)
 				return;
 			for (fileName in this.ParsedConfig.FileNames) {
-				var outputDts = "";
-				if (!Tspath.IsDeclarationFileName(fileName) && !Tspath.FileExtensionIs(fileName, Tspath.ExtensionJson)) {
+				var outputDts:RootedFilePath = cast "";
+				if (!fileName.IsDeclarationFile() && !fileName.ExtensionIs(Tspath.ExtensionJson)) {
 					outputDts = Outputpaths.GetOutputDeclarationFileNameWorker(fileName, this.CompilerOptions(), this);
 				}
 				if (!yield_(outputDts, fileName)) {
@@ -137,11 +179,11 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		};
 	}
 
-	// PORT: iter.Seq[string] → Iterator<String>; the outputs are collected eagerly (the Go
+	// PORT: iter.Seq[tspath.RootedFilePath] → Iterator; the outputs are collected eagerly (the Go
 	// generator has no side effects).
-	public function GetOutputFileNames():Iterator<std.String> {
-		final result:Array<std.String> = [];
-		final yield_ = function(outputName:std.String):Bool {
+	public function GetOutputFileNames():Iterator<RootedFilePath> {
+		final result:Array<RootedFilePath> = [];
+		final yield_ = function(outputName:RootedFilePath):Bool {
 			result.push(outputName);
 			return true;
 		};
@@ -149,11 +191,11 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 			if (this.ParsedConfig.FileNames == null)
 				return;
 			for (fileName in this.ParsedConfig.FileNames) {
-				if (Tspath.IsDeclarationFileName(fileName)) {
+				if (fileName.IsDeclarationFile()) {
 					continue;
 				}
 				final jsFileName = Outputpaths.GetOutputJSFileName(fileName, this.CompilerOptions(), this);
-				final isJson = Tspath.FileExtensionIs(fileName, Tspath.ExtensionJson);
+				final isJson = fileName.ExtensionIs(Tspath.ExtensionJson);
 				if (jsFileName != "") {
 					if (!yield_(jsFileName)) {
 						return;
@@ -172,15 +214,13 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 				}
 				if (this.CompilerOptions().GetEmitDeclarations()) {
 					final dtsFileName = Outputpaths.GetOutputDeclarationFileNameWorker(fileName, this.CompilerOptions(), this);
-					if (dtsFileName != "") {
-						if (!yield_(dtsFileName)) {
+					if (!yield_(dtsFileName)) {
+						return;
+					}
+					if (this.GetContentMapperForFileName(fileName) == null && this.CompilerOptions().GetAreDeclarationMapsEnabled()) {
+						final declarationMap = dtsFileName.AppendSuffix(".map");
+						if (!yield_(declarationMap)) {
 							return;
-						}
-						if (this.GetContentMapperForFileName(fileName) == null && this.CompilerOptions().GetAreDeclarationMapsEnabled()) {
-							final declarationMap = dtsFileName + ".map";
-							if (!yield_(declarationMap)) {
-								return;
-							}
 						}
 					}
 				}
@@ -189,12 +229,12 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return result.iterator();
 	}
 
-	public function GetBuildInfoFileName():std.String {
-		return Outputpaths.GetBuildInfoFileName(this.CompilerOptions(), this.comparePathsOptions);
+	public function GetBuildInfoFileName():RootedFilePath {
+		return Outputpaths.GetBuildInfoFileName(this.CompilerOptions(), this.caseSensitivity);
 	}
 
 	// WildcardDirectories returns the cached wildcard directories, initializing them if needed
-	public function WildcardDirectories():Null<StringMap<Bool>> {
+	public function WildcardDirectories():Null<OrderedMap<RootedDirectoryPath, Bool>> {
 		if (this == null) {
 			return null;
 		}
@@ -202,8 +242,9 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		if (!this.wildcardDirectoriesOnce) {
 			this.wildcardDirectoriesOnce = true;
 			if (this.wildcardDirectories == null) {
-				this.wildcardDirectories = Tsoptions.getWildcardDirectories(this.ConfigFile.configFileSpecs.validatedIncludeSpecs,
-					this.ConfigFile.configFileSpecs.validatedExcludeSpecs, this.comparePathsOptions);
+				final specs = this.getConfigFileSpecs();
+				this.wildcardDirectories = Tsoptions.getWildcardDirectories(specs.validatedIncludeSpecs, specs.validatedExcludeSpecs, this.baseDirectory,
+					this.caseSensitivity);
 			}
 		}
 
@@ -221,8 +262,9 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 			if (this.includeGlobs == null) {
 				final patterns = this.fileGlobPatterns();
 				final globs:Array<Glob> = [];
-				for (dir => recursive in wildcardDirectories) {
-					final parsed = Glob.Parse(Tspath.NormalizePath(dir) + "/" + Core.IfElse(recursive, patterns.b, patterns.a));
+				for (dir => recursive in wildcardDirectories.Entries()) {
+					final pattern = Tspath.CombinePaths(dir.AsString(), Core.IfElse(recursive, patterns.b, patterns.a));
+					final parsed = Glob.Parse(pattern);
 					if (parsed.err == null) {
 						globs.push(parsed.value);
 					}
@@ -235,7 +277,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	}
 
 	// Normalized file names explicitly specified in `files`
-	public function LiteralFileNames():Null<Array<std.String>> {
+	public function LiteralFileNames():Null<Array<RootedFilePath>> {
 		if (this != null && this.ConfigFile != null) {
 			return this.FileNames().slice(0, this.literalFileNamesLen);
 		}
@@ -266,22 +308,29 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	}
 
 	// All file names matched by files, include, and exclude patterns
-	public function FileNames():Null<Array<std.String>> {
+	public function FileNames():Null<Array<RootedFilePath>> {
 		return this.ParsedConfig.FileNames;
 	}
 
-	public function FileNamesByPath():StringMap<std.String> {
-		if (!this.fileNamesByPathOnce) {
-			this.fileNamesByPathOnce = true;
-			this.fileNamesByPath = new StringMap<std.String>();
+	public function RootFileNameForDiagnostic(index:Int):std.String {
+		if (index < Core.len(this.rootFileNamesForDiagnostics)) {
+			return this.rootFileNamesForDiagnostics[index];
+		}
+		return this.ParsedConfig.FileNames[index].AsString();
+	}
+
+	public function FilePaths():Set<PathKey> {
+		if (!this.filePathsOnce) {
+			this.filePathsOnce = true;
+			this.filePaths = new Set<PathKey>();
 			if (this.ParsedConfig.FileNames != null) {
 				for (fileName in this.ParsedConfig.FileNames) {
-					final path = Tspath.ToPath(fileName, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
-					this.fileNamesByPath.set(path, fileName);
+					final path = this.caseSensitivity.PathKey(fileName.AsPath());
+					this.filePaths.Add(path);
 				}
 			}
 		}
-		return this.fileNamesByPath;
+		return this.filePaths;
 	}
 
 	public function ProjectReferences():Null<Array<ProjectReference>> {
@@ -314,7 +363,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	function computeContentMapperExtensionRewrites():Null<Array<ExtensionRewrite>> {
 		final result:Array<ExtensionRewrite> = [];
 		var hasNonIdentityMapping = false;
-		final ignoreCase = !this.UseCaseSensitiveFileNames();
+		final ignoreCase = this.CaseSensitivity().IsCaseInsensitive();
 		final mappers = this.ContentMappers();
 		if (mappers != null) {
 			for (mapper in mappers) {
@@ -363,14 +412,14 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 
 	// GetContentMapperForFileName returns the configured content mapper whose extensions include fileName,
 	// or nil if no content mapper is registered for the file's extension.
-	public function GetContentMapperForFileName(fileName:std.String):Null<Mapper> {
-		final ignoreCase = !this.UseCaseSensitiveFileNames();
-		final extension = Tspath.GetLongestExtensionFromPath(fileName, this.ContentMapperExtensions(), Tspath.caseSensitivityOf(!ignoreCase));
+	public function GetContentMapperForFileName(fileName:RootedFilePath):Null<Mapper> {
+		final caseSensitivity = this.CaseSensitivity();
+		final extension = fileName.LongestExtension(this.ContentMapperExtensions(), caseSensitivity);
 		final mappers = this.ContentMappers();
 		if (mappers != null) {
 			for (mapper in mappers) {
 				if (mapper.Definition.Extensions != null && Lambda.exists(mapper.Definition.Extensions, function(mapperExtension:std.String):Bool {
-					return extension == mapperExtension || ignoreCase && Strings.EqualFold(extension, mapperExtension);
+					return extension == mapperExtension || caseSensitivity.IsCaseInsensitive() && Strings.EqualFold(extension, mapperExtension);
 				})) {
 					return mapper;
 				}
@@ -387,7 +436,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return this.resolvedProjectReferencePaths;
 	}
 
-	public function ExtendedSourceFiles():Null<Array<std.String>> {
+	public function ExtendedSourceFiles():Null<Array<RootedFilePath>> {
 		if (this == null || this.ConfigFile == null) {
 			return null;
 		}
@@ -404,16 +453,18 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 
 	// PossiblyMatchesFileName is a fast check to see if a file is currently included by a config
 	// or would be included if the file were to be created. It may return false positives.
-	public function PossiblyMatchesFileName(fileName:std.String):Bool {
-		final path = Tspath.ToPath(fileName, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
-		if (this.FileNamesByPath().exists(path)) {
+	public function PossiblyMatchesFileName(fileName:RootedFilePath):Bool {
+		final path = this.caseSensitivity.PathKey(fileName.AsPath());
+		if (this.FilePaths().Has(path)) {
 			return true;
 		}
 
-		if (this.ConfigFile.configFileSpecs.validatedIncludeSpecs != null) {
-			for (include in this.ConfigFile.configFileSpecs.validatedIncludeSpecs) {
-				if (!(Strings.IndexAny(include, "*?") >= 0) && !Vfsmatch.IsImplicitGlob(include)) {
-					final includePath = Tspath.ToPath(include, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
+		final specs = this.getConfigFileSpecs();
+		if (specs.validatedIncludeSpecs != null) {
+			for (include in specs.validatedIncludeSpecs) {
+				final text = include.AsString();
+				if (!(Strings.IndexAny(text, "*?") >= 0) && !Vfsmatch.IsImplicitGlob(text)) {
+					final includePath = this.CaseSensitivity().PathKey(Tspath.ToRootedPath(text, this.BaseDirectory()));
 					if (includePath == path) {
 						return true;
 					}
@@ -421,7 +472,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 			}
 		}
 		if (this.GetContentMapperForFileName(fileName) != null) {
-			final directoryPath = Tspath.GetDirectoryPath(path);
+			final directoryPath = path.Parent();
 			if (this.PossiblyMatchesDirectoryName(directoryPath)) {
 				return true;
 			}
@@ -429,7 +480,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		final wildcardDirectoryGlobs = this.WildcardDirectoryGlobs();
 		if (Core.len(wildcardDirectoryGlobs) > 0) {
 			for (glob in wildcardDirectoryGlobs) {
-				if (glob.Match(fileName)) {
+				if (glob.Match(fileName.AsString())) {
 					return true;
 				}
 			}
@@ -437,11 +488,11 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return false;
 	}
 
-	public function PossiblyMatchesDirectoryName(directoryPath:Path):Bool {
+	public function PossiblyMatchesDirectoryName(directoryPath:PathKey):Bool {
 		final wildcardDirectories = this.WildcardDirectories();
 		if (wildcardDirectories != null) {
-			for (wildcardDir => recursive in wildcardDirectories) {
-				final wildcardDirPath = Tspath.ToPath(wildcardDir, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
+			for (wildcardDir => recursive in wildcardDirectories.Entries()) {
+				final wildcardDirPath = this.caseSensitivity.PathKey(wildcardDir.AsPath());
 				if (recursive) {
 					if (wildcardDirPath.ContainsPath(directoryPath)) {
 						return true;
@@ -456,33 +507,27 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return false;
 	}
 
-	public function GetMatchedFileSpec(fileName:std.String):std.String {
-		return this.ConfigFile.configFileSpecs.getMatchedFileSpec(fileName, this.comparePathsOptions);
+	public function GetMatchedFileSpec(fileName:RootedFilePath):std.String {
+		return this.getConfigFileSpecs().getMatchedFileSpec(this.caseSensitivity.PathKey(fileName.AsPath())).AsString();
 	}
 
 	// PORT: (string, bool) → ValueOk.
-	public function GetMatchedIncludeSpec(fileName:std.String):ValueOk<std.String> {
-		if (Core.len(this.ConfigFile.configFileSpecs.validatedIncludeSpecs) == 0) {
+	public function GetMatchedIncludeSpec(fileName:RootedFilePath):ValueOk<std.String> {
+		final specs = this.getConfigFileSpecs();
+		if (Core.len(specs.validatedIncludeSpecs) == 0) {
 			return new ValueOk<std.String>("", false);
 		}
 
-		if (this.ConfigFile.configFileSpecs.isDefaultIncludeSpec) {
-			return new ValueOk<std.String>(this.ConfigFile.configFileSpecs.validatedIncludeSpecs[0], true);
+		if (specs.isDefaultIncludeSpec) {
+			return new ValueOk<std.String>(specs.validatedIncludeSpecs[0].AsString(), true);
 		}
 
-		return new ValueOk<std.String>(this.ConfigFile.configFileSpecs.getMatchedIncludeSpec(fileName, this.comparePathsOptions), false);
+		return new ValueOk<std.String>(specs.getMatchedIncludeSpec(fileName, this.baseDirectory, this.caseSensitivity).AsString(), false);
 	}
 
 	public function ReloadFileNamesOfParsedCommandLine(fs:FS):ParsedCommandLine {
-		// Go struct value copy of *p.ParsedConfig.
-		final parsedConfig = new ParsedOptions();
-		parsedConfig.CompilerOptions = this.ParsedConfig.CompilerOptions;
-		parsedConfig.WatchOptions = this.ParsedConfig.WatchOptions;
-		parsedConfig.TypeAcquisition = this.ParsedConfig.TypeAcquisition;
-		parsedConfig.FileNames = this.ParsedConfig.FileNames;
-		parsedConfig.ProjectReferences = this.ParsedConfig.ProjectReferences;
-		parsedConfig.ContentMappers = this.ParsedConfig.ContentMappers;
-		final r = Tsoptions.getFileNamesFromConfigSpecs(this.ConfigFile.configFileSpecs, this.GetCurrentDirectory(), this.CompilerOptions(), fs,
+		final parsedConfig = this.ParsedConfig.copy();
+		final r = Tsoptions.getFileNamesFromConfigSpecs(this.getConfigFileSpecs(), this.BaseDirectory(), this.CompilerOptions(), fs,
 			this.ContentMapperExtensions());
 		final fileNames = r.a;
 		final literalFileNamesLen = r.b;
@@ -493,10 +538,13 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		parsedCommandLine.Errors = this.Errors;
 		parsedCommandLine.Raw = this.Raw;
 		parsedCommandLine.CompileOnSave = this.CompileOnSave;
-		parsedCommandLine.comparePathsOptions = this.comparePathsOptions;
+		parsedCommandLine.configFileSpecs = this.configFileSpecs;
+		parsedCommandLine.baseDirectory = this.baseDirectory;
+		parsedCommandLine.caseSensitivity = this.caseSensitivity;
 		parsedCommandLine.wildcardDirectories = this.wildcardDirectories;
 		parsedCommandLine.includeGlobs = this.includeGlobs;
 		parsedCommandLine.literalFileNamesLen = literalFileNamesLen;
+		parsedCommandLine.rootFileNamesForDiagnostics = this.rootFileNamesForDiagnostics;
 		return parsedCommandLine;
 	}
 
@@ -511,8 +559,10 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 }
 
 class SourceOutputAndProjectReference {
-	public var Source:std.String = "";
-	public var OutputDts:std.String = "";
+	public var Source:RootedFilePath = cast "";
+	public var SourcePath:PathKey = cast "";
+	public var OutputDts:RootedFilePath = cast "";
+	public var OutputDtsPath:PathKey = cast "";
 	public var Resolved:ParsedCommandLine = null;
 
 	public function new() {}

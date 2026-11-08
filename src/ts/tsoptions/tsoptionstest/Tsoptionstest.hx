@@ -5,16 +5,16 @@ class Tsoptionstest {
 	// --- parsedcommandline.go ---
 
 	// PORT: the Go `t assert.TestingT` parameter is not used; it is dropped.
-	public static function GetParsedCommandLine(jsonText:String, files:Map<String, String>, currentDirectory:String,
-			useCaseSensitiveFileNames:Bool):ParsedCommandLine {
-		final host = NewVFSParseConfigHost(files, currentDirectory, useCaseSensitiveFileNames);
-		final configFileName = Tspath.CombinePaths(currentDirectory, "tsconfig.json");
-		final tsconfigSourceFile = Tsoptions.NewTsconfigSourceFileFromFilePath(configFileName,
-			Tspath.ToPath(configFileName, currentDirectory, useCaseSensitiveFileNames), jsonText);
-		return Tsoptions.ParseJsonSourceFileConfigFileContent(tsconfigSourceFile, host, currentDirectory, null, null, configFileName, null, null, null);
+	public static function GetParsedCommandLine(jsonText:String, files:Map<String, String>, currentDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity):ParsedCommandLine {
+		final fs = NewVFS(files, caseSensitivity);
+		final configFileName = currentDirectory.ResolveFile("tsconfig.json");
+		final tsconfigSourceFile = Tsoptions.NewTsconfigSourceFileFromFilePath(configFileName, caseSensitivity.PathKey(configFileName.AsPath()), jsonText);
+		return Tsoptions.ParseJsonSourceFileConfigFileContent(tsconfigSourceFile, Tsoptions.NewDefaultParseConfigHost(fs), currentDirectory, null, null, null,
+			null);
 	}
 
-	// --- vfsparseconfighost.go ---
+	// --- vfs.go ---
 
 	static function fixRoot(path:String):String {
 		final rootLength = Tspath.GetRootLength(path);
@@ -27,18 +27,15 @@ class Tsoptionstest {
 		return path.substring(rootLength);
 	}
 
-	public static function NewVFSParseConfigHost(files:Map<String, String>, currentDirectory:String, useCaseSensitiveFileNames:Bool):VfsParseConfigHost {
-		return new VfsParseConfigHost(Vfstest.FromMap(files, useCaseSensitiveFileNames), currentDirectory);
+	public static function NewVFS(files:Map<String, String>, caseSensitivity:CaseSensitivity):FS {
+		return Vfstest.FromMap(files, caseSensitivity.IsCaseSensitive());
 	}
 
-	// --- vfs.go (TypeScript main) ---
-
-	// PORT: NewVFSWithSymlinks wrapped in a VfsParseConfigHost (the port's parse config host carries the
-	// current directory).
-	public static function NewVFSParseConfigHostWithSymlinks(files:Map<String, String>, symlinks:Null<haxe.ds.StringMap<String>>, currentDirectory:String,
-			useCaseSensitiveFileNames:Bool):VfsParseConfigHost {
+	// NewVFSWithSymlinks builds a VFS that contains the given symlinks (link path -> target path).
+	public static function NewVFSWithSymlinks(files:Map<String, String>, symlinks:Null<haxe.ds.StringMap<String>>, currentDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity):FS {
 		if (symlinks == null || !symlinks.keys().hasNext()) {
-			return NewVFSParseConfigHost(files, currentDirectory, useCaseSensitiveFileNames);
+			return NewVFS(files, caseSensitivity);
 		}
 		final entries = new Map<String, Dynamic>();
 		for (name => content in files) {
@@ -47,6 +44,6 @@ class Tsoptionstest {
 		for (link => target in symlinks) {
 			entries.set(Tspath.GetNormalizedAbsolutePath(link, currentDirectory), Vfstest.Symlink(Tspath.GetNormalizedAbsolutePath(target, currentDirectory)));
 		}
-		return new VfsParseConfigHost(Vfstest.FromMap(entries, useCaseSensitiveFileNames), currentDirectory);
+		return Vfstest.FromMap(entries, caseSensitivity.IsCaseSensitive());
 	}
 }

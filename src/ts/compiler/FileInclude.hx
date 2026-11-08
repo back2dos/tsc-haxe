@@ -115,12 +115,19 @@ class FileIncludeReason {
 		}
 	}
 
-	function toDiagnostic(program:Program, relativeFileName:Bool):Diagnostic {
+	// PORT: main caches by (reason, relativeFileName, relativeTo); relativeTo is the same current directory for every
+	// call of one program (ExplainFiles), so one cached relative diagnostic per reason.
+	function toDiagnostic(program:Program, relativeFileName:Bool, relativeTo:RootedDirectoryPath):Diagnostic {
 		if (relativeFileName) {
 			if (!this.relativeFileNameDiagOnce) {
 				this.relativeFileNameDiagOnce = true;
 				this.relativeFileNameDiag = this.computeDiagnostic(program, function(fileName:std.String):std.String {
-					return Tspath.GetRelativePathFromDirectory_legacy(program.GetCurrentDirectory(), fileName, program.comparePathsOptions);
+					// PORT: transitional (main: typed toFileName parameter)
+					final relativePath = program.caseSensitivity.RelativePathFromDirectory(relativeTo, Tspath.RootedFilePathFromNormalized(fileName));
+					if (relativePath != null) {
+						return relativePath.AsString();
+					}
+					return fileName;
 				});
 			}
 			return this.relativeFileNameDiag;
@@ -143,7 +150,7 @@ class FileIncludeReason {
 			case fileIncludeKindRootFile:
 				if (program.opts.Config.ConfigFile != null) {
 					final config = program.opts.Config;
-					final fileName = Tspath.GetNormalizedAbsolutePath(config.FileNames()[this.asIndex()], program.GetCurrentDirectory());
+					final fileName = config.FileNames()[this.asIndex()];
 					final matchedFileSpec = config.GetMatchedFileSpec(fileName);
 					if (matchedFileSpec != "") {
 						return Ast.NewCompilerDiagnostic(Diagnostics.Part_of_files_list_in_tsconfig_json, matchedFileSpec, toFileName(fileName));
@@ -260,7 +267,7 @@ class FileIncludeReason {
 		final config = program.opts.Config;
 		switch (this.kind) {
 			case fileIncludeKindRootFile:
-				final fileName = Tspath.GetNormalizedAbsolutePath(config.FileNames()[this.asIndex()], program.GetCurrentDirectory());
+				final fileName = config.FileNames()[this.asIndex()];
 				final matchedFileSpec = config.GetMatchedFileSpec(fileName);
 				if (matchedFileSpec != "") {
 					final filesNode = Tsoptions.GetTsConfigPropArrayElementValue(config.ConfigFile.SourceFile, "files", matchedFileSpec);

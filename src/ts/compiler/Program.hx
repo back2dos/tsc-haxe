@@ -94,21 +94,21 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// non-exclusive access for emit, and direct global diagnostics collection.
 	var compilerCheckerPool:CheckerPool_ = null;
 
-	var comparePathsOptions:ComparePathsOptions = new ComparePathsOptions();
+	var caseSensitivity:CaseSensitivity = CaseInsensitive;
 
 	// PORT: embedded struct processedFiles → composition field; the promoted fields are forwarded below.
 	var processedFiles:ProcessedFiles = new ProcessedFiles();
 
 	var usesUriStyleNodeCoreModules:Tristate = TSUnknown;
 
-	var commonSourceDirectory:std.String = "";
+	var commonSourceDirectory:RootedDirectoryPath = cast "";
 	var commonSourceDirectoryOnce:Bool = false; // PORT: sync.Once → flag
 
 	var declarationDiagnosticCache:IdentityMap<SourceFile, Array<Diagnostic>> = new IdentityMap(); // PORT: SyncMap → IdentityMap
 
 	var programDiagnostics:Array<Diagnostic> = null;
 	var contentMapperOptionDiagnostics:Array<Diagnostic> = null;
-	var hasEmitBlockingDiagnostics:Set<Path> = new Set<Path>();
+	var hasEmitBlockingDiagnostics:Set<PathKey> = new Set<PathKey>();
 
 	var sourceFilesToEmitOnce:Bool = false; // PORT: sync.Once → flag
 	var sourceFilesToEmit:Array<SourceFile> = null;
@@ -237,9 +237,13 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.Host().FS().FileExists(/* PORT: transitional (main: typed path) */ Tspath.RootedFilePathFromAbsolute(path));
 	}
 
-	// GetCurrentDirectory implements checker.Program.
+	// BaseDirectory implements checker.Program.
+	public function BaseDirectory():RootedDirectoryPath {
+		return this.opts.Config.BaseDirectory();
+	}
+
 	public function GetCurrentDirectory():RootedDirectoryPath {
-		return this.Host().GetCurrentDirectory();
+		return this.BaseDirectory();
 	}
 
 	// GetGlobalTypingsCacheLocation implements checker.Program.
@@ -335,9 +339,13 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.projectReferenceFileMapper.rangeResolvedProjectReferenceInChildConfig(childConfig, f);
 	}
 
+	public function CaseSensitivity():CaseSensitivity {
+		return this.caseSensitivity;
+	}
+
 	// UseCaseSensitiveFileNames implements checker.Program.
 	public function UseCaseSensitiveFileNames():Bool {
-		return this.Host().FS().CaseSensitivity().IsCaseSensitive();
+		return this.caseSensitivity == CaseSensitive;
 	}
 
 	public function UsesUriStyleNodeCoreModules():Tristate {
@@ -426,7 +434,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		// TODO: reverify compiler options when config has changed?
 		final result = new Program();
 		result.opts = newOpts;
-		result.comparePathsOptions = this.comparePathsOptions;
+		result.caseSensitivity = this.caseSensitivity;
 		result.processedFiles = this.processedFiles.copy();
 		result.usesUriStyleNodeCoreModules = this.usesUriStyleNodeCoreModules;
 		result.programDiagnostics = this.programDiagnostics;
@@ -906,12 +914,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			return configFile.SourceFile;
 		});
 
-		final configFilePath = Core.Memoize(function():std.String {
+		final configFilePath = Core.Memoize(function():RootedFilePath {
 			final file = sourceFile();
 			if (file != null) {
 				return file.FileName();
 			}
-			return "";
+			return cast "";
 		});
 
 		final getCompilerOptionsPropertySyntax = Core.Memoize(function():PropertyAssignment {
@@ -993,7 +1001,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			// BaseUrl will have been turned absolute by this point.
 			var useInstead = "";
 			if (configFilePath() != "") {
-				var relative = Tspath.GetRelativePathFromFile_legacy(configFilePath(), options.BaseUrl, this.comparePathsOptions);
+				var relative = Tspath.GetRelativePathFromFile(configFilePath().AsString(), options.BaseUrl.AsString(), this.caseSensitivity);
 				if (!(StringTools.startsWith(relative, "./") || StringTools.startsWith(relative, "../"))) {
 					relative = "./" + relative;
 				}
@@ -1237,7 +1245,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			&& (options.OutDir != "" || (options.GetEmitDeclarations() && options.DeclarationDir != "") || options.OutFile != "")) {
 			// Check if rootDir inferred changed and issue diagnostic
 			final dir = this.CommonSourceDirectory();
-			var emittedFiles:Array<std.String> = null;
+			var emittedFiles:Array<RootedFilePath> = null;
 			for (file in this.files) {
 				if (!file.IsDeclarationFile && Compiler.sourceFileMayBeEmitted(file, this, false)) {
 					if (emittedFiles == null)
@@ -1245,9 +1253,8 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 					emittedFiles.push(file.FileName());
 				}
 			}
-			final dir59 = Outputpaths.GetComputedCommonSourceDirectory(emittedFiles, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
-			if (dir59 != ""
-				&& Tspath.GetCanonicalFileName(dir, this.UseCaseSensitiveFileNames()) != Tspath.GetCanonicalFileName(dir59, this.UseCaseSensitiveFileNames())) {
+			final dir59 = Outputpaths.GetComputedCommonSourceDirectory(emittedFiles, this.BaseDirectory(), this.CaseSensitivity());
+			if (dir59 != "" && this.caseSensitivity.ComparePaths(dir.AsPath(), dir59.AsPath()) != 0) {
 				// change in layout
 				var option1:std.String;
 				if (options.OutFile != "") {
@@ -1261,12 +1268,14 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 				if (options.OutFile == "" && options.OutDir != "") {
 					option2 = "declarationDir";
 				}
+				var commonSourceDirectory = dir59.AsString();
+				final relativePath = this.caseSensitivity.RelativePathFromFileToPath(options.ConfigFilePath, dir59.AsPath());
+				if (relativePath != null) {
+					commonSourceDirectory = relativePath.AsModuleSpecifier().AsString();
+				}
 				final diag = createDiagnosticForOption(true, /*onKey*/ option1, option2,
 					Diagnostics.The_common_source_directory_of_0_is_1_The_rootDir_setting_must_be_explicitly_set_to_this_or_another_path_to_adjust_your_output_s_file_layout,
-					[
-						Tspath.GetBaseFileName(options.ConfigFilePath),
-						Tspath.GetRelativePathFromFile_legacy(options.ConfigFilePath, dir59, this.comparePathsOptions)
-					]);
+					[options.ConfigFilePath.BaseName(), commonSourceDirectory]);
 				diag.AddMessageChain(Ast.NewCompilerDiagnostic(Diagnostics.Visit_https_Colon_Slash_Slashaka_ms_Slashts6_for_migration_information));
 			}
 		}
@@ -1381,12 +1390,12 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 		// If the emit is enabled make sure that every output file is unique and not overwriting any of the input files
 		if (!options.NoEmit.IsTrue() && !options.SuppressOutputPathCheck.IsTrue()) {
-			final emitFilesSeen = new Set<std.String>();
+			final emitFilesSeen = new Set<PathKey>();
 
 			// Verify that all the emit files are unique and don't overwrite input files
-			final verifyEmitFilePath = function(emitFileName:std.String) {
+			final verifyEmitFilePath = function(emitFileName:RootedFilePath) {
 				if (emitFileName != "") {
-					final emitFilePath = this.toPath(emitFileName);
+					final emitFilePath = this.PathKeyForFileName(emitFileName);
 					// Report error if the output overwrites input file
 					if (this.filesByPath.exists(emitFilePath)) {
 						final diag = Ast.NewCompilerDiagnostic(Diagnostics.Cannot_write_file_0_because_it_would_overwrite_input_file, emitFileName);
@@ -1397,20 +1406,13 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 						this.blockEmittingOfFile(emitFileName, diag);
 					}
 
-					var emitFileKey:std.String;
-					if (!this.Host().FS().CaseSensitivity().IsCaseSensitive()) {
-						emitFileKey = Tspath.ToFileNameLowerCase(emitFilePath);
-					} else {
-						emitFileKey = emitFilePath;
-					}
-
 					// Report error if multiple files write into same file
-					if (emitFilesSeen.Has(emitFileKey)) {
+					if (emitFilesSeen.Has(emitFilePath)) {
 						// Already seen the same emit file - report error
 						this.blockEmittingOfFile(emitFileName,
 							Ast.NewCompilerDiagnostic(Diagnostics.Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files, emitFileName));
 					} else {
-						emitFilesSeen.Add(emitFileKey);
+						emitFilesSeen.Add(emitFilePath);
 					}
 				}
 			};
@@ -1438,17 +1440,18 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		this.programDiagnostics.push(diag);
 	}
 
-	function blockEmittingOfFile(emitFileName:std.String, diag:Diagnostic):Void {
-		this.hasEmitBlockingDiagnostics.Add(this.toPath(emitFileName));
+	function blockEmittingOfFile(emitFileName:RootedFilePath, diag:Diagnostic):Void {
+		this.hasEmitBlockingDiagnostics.Add(this.PathKeyForFileName(emitFileName));
 		this.appendProgramDiagnostic(diag);
 	}
 
-	public function IsEmitBlocked(emitFileName:std.String):Bool {
-		return this.hasEmitBlockingDiagnostics.Has(this.toPath(emitFileName));
+	public function IsEmitBlocked(emitFileName:RootedFilePath):Bool {
+		return this.hasEmitBlockingDiagnostics.Has(this.PathKeyForFileName(emitFileName));
 	}
 
 	function verifyProjectReferences():Void {
-		final buildInfoFileName = Core.IfElse(!this.Options().SuppressOutputPathCheck.IsTrue(), this.opts.Config.GetBuildInfoFileName(), "");
+		final buildInfoFileName:RootedFilePath = Core.IfElse(!this.Options().SuppressOutputPathCheck.IsTrue(), this.opts.Config.GetBuildInfoFileName(),
+			cast "");
 		final createDiagnosticForReference = function(config:ParsedCommandLine, index:Int, message:Message, args:Array<Any>) {
 			var diag = Tsoptions.CreateDiagnosticAtReferenceSyntax(config, index, message, ...args);
 			if (diag == null) {
@@ -1479,7 +1482,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			if (buildInfoFileName != "" && buildInfoFileName == config.GetBuildInfoFileName()) {
 				createDiagnosticForReference(parent, index, Diagnostics.Cannot_write_file_0_because_it_will_overwrite_tsbuildinfo_file_generated_by_referenced_project_1,
 					[buildInfoFileName, ref.Path]);
-				this.hasEmitBlockingDiagnostics.Add(this.toPath(buildInfoFileName));
+				this.hasEmitBlockingDiagnostics.Add(this.PathKeyForFileName(buildInfoFileName));
 			}
 			return true;
 		});
@@ -1818,7 +1821,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		if (!Tspath.IsDeclarationFileName(fileName)) {
 			return false;
 		}
-		return Tspath.ContainsPath_legacy(this.GetGlobalTypingsCacheLocation(), fileName, this.comparePathsOptions);
+		return Tspath.ContainsPath(this.GetGlobalTypingsCacheLocation(), fileName, this.caseSensitivity);
 	}
 
 	public function GetDefaultLibFile(path:Path):LibFile {
@@ -1829,18 +1832,18 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return null;
 	}
 
-	public function CommonSourceDirectory():std.String {
+	public function CommonSourceDirectory():RootedDirectoryPath {
 		#if tshx_parallel
 		go.Par.onceMutex.acquire();
 		#end
 		if (!this.commonSourceDirectoryOnce) {
 			this.commonSourceDirectoryOnce = true;
-			final files = function():Array<std.String> {
-				return Core.MapFiltered(this.files, function(file:SourceFile):ValueOk<std.String> {
+			final files = function():Null<Array<RootedFilePath>> {
+				return Core.MapFiltered(this.files, function(file:SourceFile):ValueOk<RootedFilePath> {
 					return new ValueOk(file.FileName(), Compiler.sourceFileMayBeEmitted(file, this, false /*forceDtsEmit*/) && !file.IsDeclarationFile);
 				});
 			};
-			this.commonSourceDirectory = Outputpaths.GetCommonSourceDirectory(this.Options(), files, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames(),
+			this.commonSourceDirectory = Outputpaths.GetCommonSourceDirectory(this.Options(), files, this.BaseDirectory(), this.CaseSensitivity(),
 				this.checkSourceFilesBelongToPath);
 		}
 		#if tshx_parallel
@@ -1849,16 +1852,14 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.commonSourceDirectory;
 	}
 
-	function checkSourceFilesBelongToPath(sourceFiles:Array<std.String>, rootDirectory:std.String):Bool {
+	function checkSourceFilesBelongToPath(sourceFiles:Null<Array<RootedFilePath>>, rootDirectory:RootedDirectoryPath):Bool {
 		var allFilesBelongToPath = true;
 		if (sourceFiles != null) {
 			for (file in sourceFiles) {
-				final absoluteSourceFilePath = Tspath.GetCanonicalFileName(Tspath.GetNormalizedAbsolutePath(file, this.GetCurrentDirectory()),
-					this.UseCaseSensitiveFileNames());
-				if (!Tspath.ContainsPath_legacy(rootDirectory, file, this.comparePathsOptions)) {
+				if (!this.caseSensitivity.ContainsFilePath(rootDirectory, file)) {
 					this.includeProcessor.addProcessingDiagnostic(new ProcessingDiagnostic(processingDiagnosticKindExplainingFileInclude,
-						new IncludeExplainingDiagnostic(absoluteSourceFilePath, null,
-							Diagnostics.File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files, [file, rootDirectory])));
+						new IncludeExplainingDiagnostic(this.caseSensitivity.PathKey(file.AsPath()), null,
+							Diagnostics.File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files, [file.AsString(), rootDirectory.AsString()])));
 					allFilesBelongToPath = false;
 				}
 			}
@@ -1935,7 +1936,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			final host = h.a, hostDone = h.b;
 			try {
 				emitter.host = host;
-				emitter.paths = Outputpaths.GetOutputPathsFor(sourceFile, host.Options(), host, options.EmitOnly == EmitOnlyForcedDts);
+				emitter.paths = Outputpaths.GetOutputPathsFor(sourceFile, host.Options(), host, new ForceEmitPaths(options.EmitOnly == EmitOnlyForcedDts));
 				emitter.transform();
 			} catch (e:Dynamic) {
 				hostDone();
@@ -2019,6 +2020,10 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return Tspath.ToPath(filename, this.GetCurrentDirectory(), this.UseCaseSensitiveFileNames());
 	}
 
+	public function PathKeyForFileName(fileName:RootedFilePath):PathKey {
+		return this.caseSensitivity.PathKey(fileName.AsPath());
+	}
+
 	public function GetSourceFile(filename:std.String):SourceFile {
 		final path = this.toPath(filename);
 		return this.GetSourceFileByPath(path);
@@ -2097,9 +2102,9 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		});
 	}
 
-	public function ExplainFiles(w:go.Io.Writer, locale:Locale):Void {
+	public function ExplainFiles(w:go.Io.Writer, locale:Locale, currentDirectory:RootedDirectoryPath):Void {
 		final toRelativeFileName = function(fileName:std.String):std.String {
-			return Tspath.GetRelativePathFromDirectory_legacy(this.GetCurrentDirectory(), fileName, this.comparePathsOptions);
+			return Tspath.GetRelativePathFromDirectory(currentDirectory, fileName, this.caseSensitivity);
 		};
 		var filesExplained = 0;
 		final explainFile = function(file:HasFileName) {
@@ -2107,7 +2112,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			final reasons = this.includeProcessor.fileIncludeReasons.get(file.Path());
 			if (reasons != null) {
 				for (reason in reasons) {
-					Fmt.Fprint(w, ["   " + reason.toDiagnostic(this, true).Localize(locale) + "\n"]);
+					Fmt.Fprint(w, ["   " + reason.toDiagnostic(this, true, currentDirectory).Localize(locale) + "\n"]);
 				}
 			}
 			final explained = this.includeProcessor.explainRedirectAndImpliedFormat(this, file.Path(), toRelativeFileName);
@@ -2368,7 +2373,7 @@ class WriteFileData {
 	public function new() {}
 }
 
-typedef WriteFile = (fileName:std.String, text:std.String, data:WriteFileData) -> Null<Error>;
+typedef WriteFile = (fileName:RootedFilePath, text:std.String, data:WriteFileData) -> Null<Error>;
 
 class EmitOptions {
 	public var TargetSourceFile:SourceFile = null; // Single file to emit. If `nil`, emits all files
@@ -2381,7 +2386,7 @@ class EmitOptions {
 class EmitResult {
 	public var EmitSkipped:Bool = false;
 	public var Diagnostics:Array<Diagnostic> = null; // Contains declaration emit diagnostics
-	public var EmittedFiles:Array<std.String> = null; // Array of files the compiler wrote to disk
+	public var EmittedFiles:Array<RootedFilePath> = null; // Array of files the compiler wrote to disk
 	public var SourceMaps:Array<SourceMapEmitResult> = null; // Array of sourceMapData if compiler emitted sourcemaps
 
 	public function new() {}
@@ -2408,7 +2413,7 @@ interface ProgramLike {
 	function GetDeclarationDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;
 	function GetSuggestionDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;
 	function Emit(ctx:Context, options:EmitOptions):EmitResult;
-	function CommonSourceDirectory():std.String;
+	function CommonSourceDirectory():RootedDirectoryPath;
 	function IsSourceFileDefaultLibrary(path:Path):Bool;
 	function Program():Program;
 }

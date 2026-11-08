@@ -83,7 +83,7 @@ class ProcessingDiagnostic {
 			}
 			if (includeDetails == null)
 				includeDetails = [];
-			includeDetails.push(includeReason.toDiagnostic(program, false));
+			includeDetails.push(includeReason.toDiagnostic(program, false, cast ""));
 			processRelatedInfo(includeReason);
 		};
 

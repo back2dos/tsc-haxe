@@ -103,7 +103,7 @@ class Orchestrator {
 		return r.value;
 	}
 
-	function createBuildTasks(oldTasks:Null<SyncMap<Path, BuildTask>>, configs:Null<Array<std.String>>, wg:WorkGroup):Void {
+	function createBuildTasks(oldTasks:Null<SyncMap<Path, BuildTask>>, configs:Null<Array<RootedFilePath>>, wg:WorkGroup):Void {
 		for (config in configs) {
 			wg.Queue(function() {
 				final path = this.toPath(config);

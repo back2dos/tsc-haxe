@@ -13,9 +13,9 @@ class ParsedBuildCommandLine {
 	public var Errors:Null<Array<Diagnostic>> = null; // json:"errors"
 	public var Raw:Dynamic = null; // json:"raw"
 
-	var comparePathsOptions:ComparePathsOptions = new ComparePathsOptions();
+	var currentDirectory:RootedDirectoryPath = cast "";
 
-	var resolvedProjectPaths:Null<Array<std.String>> = null;
+	var resolvedProjectPaths:Null<Array<RootedFilePath>> = null;
 	var resolvedProjectPathsOnce:Bool = false;
 
 	var locale:Locale = ts.locale.Locale.Default;
@@ -23,11 +23,11 @@ class ParsedBuildCommandLine {
 
 	public function new() {}
 
-	public function ResolvedProjectPaths():Null<Array<std.String>> {
+	public function ResolvedProjectPaths():Null<Array<RootedFilePath>> {
 		if (!this.resolvedProjectPathsOnce) {
 			this.resolvedProjectPathsOnce = true;
-			this.resolvedProjectPaths = Core.Map(this.Projects, function(project:std.String):std.String {
-				return Core.ResolveConfigFileNameOfProjectReference(/* PORT: transitional, unchecked */ cast Tspath.ResolvePath(this.comparePathsOptions.CurrentDirectory, project));
+			this.resolvedProjectPaths = Core.Map(this.Projects, function(project:std.String):RootedFilePath {
+				return Core.ResolveConfigFileNameOfProjectReference(this.currentDirectory.ResolveFile(project).AsPath());
 			});
 		}
 		return this.resolvedProjectPaths;

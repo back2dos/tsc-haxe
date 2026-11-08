@@ -569,12 +569,12 @@ class Incremental {
 	static function buildInfoToSnapshot(buildInfo:BuildInfo, config:ParsedCommandLine, host:CompilerHost):Snapshot {
 		final to = new ToSnapshot();
 		to.buildInfo = buildInfo;
-		to.buildInfoDirectory = Tspath.GetDirectoryPath(Tspath.GetNormalizedAbsolutePath(config.GetBuildInfoFileName(), config.GetCurrentDirectory()));
+		to.buildInfoDirectory = config.GetBuildInfoFileName().Directory();
 		to.filePaths = Core.Map(buildInfo.FileNames, function(fileName:std.String):Path {
 			if (IsBuildInfoFileNameDefaultLibrary(fileName)) {
 				return Tspath.ToPath(Tspath.CombinePaths(host.DefaultLibraryPath(), fileName), host.GetCurrentDirectory(), host.FS().CaseSensitivity().IsCaseSensitive());
 			}
-			return Tspath.ToPath(fileName, to.buildInfoDirectory, config.UseCaseSensitiveFileNames());
+			return Tspath.ToPath(fileName, to.buildInfoDirectory, config.CaseSensitivity().IsCaseSensitive());
 		});
 		to.filePathSet = Core.Map(buildInfo.FileIdsList, function(fileIdList:Array<BuildInfoFileId>):Set<Path> {
 			final fileSet = new Set<Path>();

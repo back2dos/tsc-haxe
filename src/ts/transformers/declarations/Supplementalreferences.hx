@@ -8,7 +8,7 @@ package ts.transformers.declarations;
 class Supplementalreferences implements ts.compiler.Emitter.DeclarationTransformerLike {
 	final host:ts.compiler.EmitHost.EmitHost;
 	final supplementalFiles:Array<SourceFile>;
-	final declarationFilePath:std.String;
+	final declarationFilePath:RootedFilePath;
 	final forceDeclarationPaths:Bool;
 
 	function new(host, supplementalFiles, declarationFilePath, forceDeclarationPaths) {
@@ -19,7 +19,7 @@ class Supplementalreferences implements ts.compiler.Emitter.DeclarationTransform
 	}
 
 	// PORT: Go's DeclarationEmitHost provides SourceFileMayBeEmitted; the port's compiler EmitHost does.
-	public static function NewSupplementalReferencesTransformer(host:ts.compiler.EmitHost.EmitHost, sourceFile:SourceFile, declarationFilePath:std.String,
+	public static function NewSupplementalReferencesTransformer(host:ts.compiler.EmitHost.EmitHost, sourceFile:SourceFile, declarationFilePath:RootedFilePath,
 			forceDeclarationPaths:Bool):Supplementalreferences {
 		return new Supplementalreferences(host, sourceFile.SupplementalSourceFiles(), declarationFilePath, forceDeclarationPaths);
 	}
@@ -34,11 +34,13 @@ class Supplementalreferences implements ts.compiler.Emitter.DeclarationTransform
 				if (declarationPath == "") {
 					continue;
 				}
-				final relativePath = Tspath.GetRelativePathFromFile_legacy(declarationFilePath, declarationPath,
-					new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory()));
+				final relativePath = host.CaseSensitivity().RelativePathFromFile(declarationFilePath, declarationPath);
+				if (relativePath == null) {
+					throw "supplemental declaration output must share a root with the primary declaration";
+				}
 				final ref = new FileReference();
 				ref.TextRange = Core.NewTextRange(-1, -1);
-				ref.FileName = relativePath;
+				ref.FileName = relativePath.AsModuleSpecifier().AsString();
 				// PORT: Go append (the transformed file owns its slice)
 				sourceFile.ReferencedFiles = sourceFile.ReferencedFiles == null ? [ref] : sourceFile.ReferencedFiles.concat([ref]);
 			}

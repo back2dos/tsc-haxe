@@ -6,15 +6,15 @@ package ts.compiler;
 #if cs
 // PORT: cs — hxcs drops the members that this interface declares again; C# then rejects a call
 // through EmitHost to a member of two base interfaces as ambiguous (CS0121). Declare them in C#.
-@:classCode("new global::ts.core.CompilerOptions Options();\nnew global::Array SourceFiles();\nnew bool UseCaseSensitiveFileNames();\nnew string GetCurrentDirectory();\nnew string CommonSourceDirectory();\nnew bool IsEmitBlocked(string file);\n")
+@:classCode("new global::ts.core.CompilerOptions Options();\nnew global::Array SourceFiles();\nnew bool CaseSensitivity();\nnew string BaseDirectory();\nnew string CommonSourceDirectory();\nnew bool IsEmitBlocked(string file);\n")
 #end
 interface EmitHost extends ts.printer.Emithost.EmitHost extends ts.transformers.declarations.Transform.DeclarationEmitHost extends SourceFileMayBeEmittedHost {
 	function Options():CompilerOptions;
 	function SourceFiles():Array<SourceFile>;
-	function UseCaseSensitiveFileNames():Bool;
-	function GetCurrentDirectory():RootedDirectoryPath;
-	function CommonSourceDirectory():std.String;
-	function IsEmitBlocked(file:std.String):Bool;
+	function CaseSensitivity():CaseSensitivity;
+	function BaseDirectory():RootedDirectoryPath;
+	function CommonSourceDirectory():RootedDirectoryPath;
+	function IsEmitBlocked(file:RootedFilePath):Bool;
 	function SourceFileMayBeEmitted(file:SourceFile, forceDtsEmit:Bool):Bool;
 }
 
@@ -78,7 +78,7 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 	public function GetOutputPathsFor(file:SourceFile, forceDtsPaths:Bool):ts.transformers.declarations.Transform.OutputPaths {
 		// TODO: cache
 		// PORT: outputpaths.OutputPaths does not declare declarations.OutputPaths (nominal interfaces): adapter.
-		return new OutputPathsAdapter(Outputpaths.GetOutputPathsFor(file, this.Options(), this, forceDtsPaths));
+		return new OutputPathsAdapter(Outputpaths.GetOutputPathsFor(file, this.Options(), this, new ForceEmitPaths(forceDtsPaths)));
 	}
 
 	public function GetResolutionModeOverride(node:Node):ResolutionMode {
@@ -97,16 +97,25 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return this.program.SourceFiles();
 	}
 
+	public function BaseDirectory():RootedDirectoryPath {
+		return this.program.BaseDirectory();
+	}
+
+	// PORT: transitional — the module specifier host still reads GetCurrentDirectory/UseCaseSensitiveFileNames.
 	public function GetCurrentDirectory():RootedDirectoryPath {
 		return this.program.GetCurrentDirectory();
 	}
 
-	public function CommonSourceDirectory():std.String {
+	public function UseCaseSensitiveFileNames():Bool {
+		return this.program.UseCaseSensitiveFileNames();
+	}
+
+	public function CommonSourceDirectory():RootedDirectoryPath {
 		return this.program.CommonSourceDirectory();
 	}
 
-	public function UseCaseSensitiveFileNames():Bool {
-		return this.program.UseCaseSensitiveFileNames();
+	public function CaseSensitivity():CaseSensitivity {
+		return this.program.CaseSensitivity();
 	}
 
 	public function ContentMapperExtensions():Array<std.String> {
@@ -121,12 +130,12 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return Compiler.sourceFileMayBeEmitted(file, this, forceDtsEmit);
 	}
 
-	public function IsEmitBlocked(file:std.String):Bool {
+	public function IsEmitBlocked(file:RootedFilePath):Bool {
 		return this.program.IsEmitBlocked(file);
 	}
 
-	public function WriteFile(fileName:std.String, text:std.String):Null<Error> {
-		return this.program.Host().FS().WriteFile(/* PORT: transitional (main: typed output file names) */ Tspath.RootedFilePathFromAbsolute(fileName), text);
+	public function WriteFile(fileName:RootedFilePath, text:std.String):Null<Error> {
+		return this.program.Host().FS().WriteFile(fileName, text);
 	}
 
 	public function GetEmitResolver():EmitResolver {
@@ -155,11 +164,11 @@ class OutputPathsAdapter implements ts.transformers.declarations.Transform.Outpu
 		this.paths = paths;
 	}
 
-	public function DeclarationFilePath():std.String {
+	public function DeclarationFilePath():RootedFilePath {
 		return this.paths.DeclarationFilePath();
 	}
 
-	public function JsFilePath():std.String {
+	public function JsFilePath():RootedFilePath {
 		return this.paths.JsFilePath();
 	}
 }

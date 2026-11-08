@@ -18,7 +18,7 @@ class Emitter {
 	var paths:ts.outputpaths.Outputpaths.OutputPaths = null;
 	var sourceFile:SourceFile = null;
 	var emitResult:EmitResult = new EmitResult();
-	var writeFile:(fileName:std.String, text:std.String, data:WriteFileData) -> Null<Error> = null;
+	var writeFile:WriteFile = null;
 	var tr:Tracing = null;
 	var part:Int = 0; // PORT: hxmc (-D tshx-parallel) — 0: both outputs, 1: the .js only, 2: the .d.ts only
 	var prints:Array<() -> Void> = null;
@@ -79,12 +79,10 @@ class Emitter {
 	}
 
 	// PORT: Go's declarationTransformer interface; the DeclarationTransformer is wrapped (nominal interfaces).
-	function getDeclarationTransformers(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:std.String,
-			declarationMapPath:std.String):Array<DeclarationTransformerLike> {
+	function getDeclarationTransformers(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:RootedFilePath):Array<DeclarationTransformerLike> {
 		final forceDtsEmit = this.emitOnly == EmitOnlyForcedDts;
 		return [
-			new DeclarationTransformerAdapter(Declarations.NewDeclarationTransformer(this.host, emitContext, this.host.Options(), declarationFilePath,
-				declarationMapPath)),
+			new DeclarationTransformerAdapter(Declarations.NewDeclarationTransformer(this.host, emitContext, this.host.Options(), declarationFilePath)),
 			ts.transformers.declarations.Supplementalreferences.NewSupplementalReferencesTransformer(this.host, sourceFile, declarationFilePath,
 				forceDtsEmit)
 		];
@@ -112,8 +110,8 @@ class Emitter {
 	}
 
 	// PORT: (*ast.SourceFile, []*ast.Diagnostic) → Pair
-	function runDeclarationTransformers(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:std.String,
-			declarationMapPath:std.String):Pair<SourceFile, Array<Diagnostic>> {
+	function runDeclarationTransformers(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:RootedFilePath,
+			declarationMapPath:RootedFilePath):Pair<SourceFile, Array<Diagnostic>> {
 		var done:() -> Void = null;
 		if (this.tr != null) {
 			final args = new StringMap<Any>();
@@ -122,7 +120,7 @@ class Emitter {
 		}
 		var diags:Array<Diagnostic> = null;
 		try {
-			for (transformer in this.getDeclarationTransformers(emitContext, sourceFile, declarationFilePath, declarationMapPath)) {
+			for (transformer in this.getDeclarationTransformers(emitContext, sourceFile, declarationFilePath)) {
 				sourceFile = transformer.TransformSourceFile(sourceFile);
 				final d = transformer.GetDiagnostics();
 				if (d != null && d.length > 0) {
@@ -142,10 +140,10 @@ class Emitter {
 		return new Pair(sourceFile, diags);
 	}
 
-	function emitJSFile(sourceFile:SourceFile, jsFilePath:std.String, sourceMapFilePath:std.String):Void {
+	function emitJSFile(sourceFile:SourceFile, jsFilePath:RootedFilePath, sourceMapFilePath:RootedFilePath):Void {
 		final options = this.host.Options();
 
-		if (sourceFile == null || this.emitOnly != EmitAll && this.emitOnly != EmitOnlyJs || jsFilePath.length == 0) {
+		if (sourceFile == null || this.emitOnly != EmitAll && this.emitOnly != EmitOnlyJs || jsFilePath == "") {
 			return;
 		}
 
@@ -157,7 +155,7 @@ class Emitter {
 		var done:() -> Void = null;
 		if (this.tr != null) {
 			final args = new StringMap<Any>();
-			args.set("jsFilePath", jsFilePath);
+			args.set("jsFilePath", jsFilePath.AsString());
 			done = this.tr.Push(PhaseEmit, "emitJsFileOrBundle", args, true);
 		}
 
@@ -193,17 +191,17 @@ class Emitter {
 			done();
 	}
 
-	function emitDeclarationFile(sourceFile:SourceFile, declarationFilePath:std.String, declarationMapPath:std.String):Void {
+	function emitDeclarationFile(sourceFile:SourceFile, declarationFilePath:RootedFilePath, declarationMapPath:RootedFilePath):Void {
 		final options = this.host.Options();
 
-		if (sourceFile == null || this.emitOnly == EmitOnlyJs || declarationFilePath.length == 0) {
+		if (sourceFile == null || this.emitOnly == EmitOnlyJs || declarationFilePath == "") {
 			return;
 		}
 
 		var done:() -> Void = null;
 		if (this.tr != null) {
 			final args = new StringMap<Any>();
-			args.set("declarationFilePath", declarationFilePath);
+			args.set("declarationFilePath", declarationFilePath.AsString());
 			done = this.tr.Push(PhaseEmit, "emitDeclarationFileOrBundle", args, true);
 		}
 
@@ -220,7 +218,7 @@ class Emitter {
 	}
 
 	// PORT: body of emitDeclarationFile after its defers (split off because of the early returns).
-	function emitDeclarationFileWorker(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:std.String, declarationMapPath:std.String,
+	function emitDeclarationFileWorker(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:RootedFilePath, declarationMapPath:RootedFilePath,
 			options:CompilerOptions):Void {
 		final r = this.runDeclarationTransformers(emitContext, sourceFile, declarationFilePath, declarationMapPath);
 		sourceFile = r.a;
@@ -289,15 +287,14 @@ class Emitter {
 		});
 	}
 
-	function printSourceFile(jsFilePath:std.String, sourceMapFilePath:std.String, sourceFile:SourceFile, printer_:Printer, mapOptions:CompilerOptions,
+	function printSourceFile(jsFilePath:RootedFilePath, sourceMapFilePath:RootedFilePath, sourceFile:SourceFile, printer_:Printer, mapOptions:CompilerOptions,
 			shouldEmitSourceMaps:Bool):Void {
 		// !!! sourceMapGenerator
 		final options = this.host.Options();
 		var sourceMapGenerator:Generator = null;
 		if (shouldEmitSourceMaps) {
-			sourceMapGenerator = Sourcemap.NewGenerator(Tspath.GetBaseFileName(Tspath.NormalizeSlashes(jsFilePath)), Compiler.getSourceRoot(mapOptions),
-				this.getSourceMapDirectory(mapOptions, jsFilePath, sourceFile),
-				new ComparePathsOptions(this.host.UseCaseSensitiveFileNames(), this.host.GetCurrentDirectory()));
+			sourceMapGenerator = Sourcemap.NewGenerator(jsFilePath.BaseName(), Compiler.getSourceRoot(mapOptions),
+				this.getSourceMapDirectory(mapOptions, jsFilePath, sourceFile), this.host.CaseSensitivity());
 		}
 
 		printer_.Write(sourceFile.AsNode(), sourceFile, this.writer, sourceMapGenerator);
@@ -308,7 +305,7 @@ class Emitter {
 				final r = new SourceMapEmitResult();
 				r.InputSourceFileNames = sourceMapGenerator.Sources();
 				r.SourceMap = sourceMapGenerator.RawSourceMap();
-				r.GeneratedFile = jsFilePath;
+				r.GeneratedFile = jsFilePath.AsString();
 				if (this.emitResult.SourceMaps == null)
 					this.emitResult.SourceMaps = [];
 				this.emitResult.SourceMaps.push(r);
@@ -326,7 +323,7 @@ class Emitter {
 			}
 
 			// Write the source map
-			if (sourceMapFilePath.length > 0) {
+			if (sourceMapFilePath != "") {
 				final sourceMap = sourceMapGenerator.String();
 				final err = this.writeText(sourceMapFilePath, sourceMap, null);
 				if (err != null) {
@@ -363,59 +360,49 @@ class Emitter {
 		this.writer.Clear();
 	}
 
-	function writeText(fileName:std.String, text:std.String, data:WriteFileData):Null<Error> {
+	function writeText(fileName:RootedFilePath, text:std.String, data:WriteFileData):Null<Error> {
 		if (this.writeFile != null) {
 			return this.writeFile(fileName, text, data);
 		}
 		return this.host.WriteFile(fileName, text);
 	}
 
-	function getSourceMapDirectory(mapOptions:CompilerOptions, filePath:std.String, sourceFile:SourceFile):std.String {
+	function getMapRootDirectory(mapRoot:SourceMapLocation, sourceFile:SourceFile):RootedDirectoryPath {
+		var sourceMapDirectory = mapRoot.ResolveDirectory(this.host.CommonSourceDirectory(), this.host.BaseDirectory());
+		if (sourceFile != null) {
+			sourceMapDirectory = Outputpaths.GetSourceFileNameInNewDir(sourceFile.FileName(), sourceMapDirectory, this.host.CommonSourceDirectory(),
+				this.host.CaseSensitivity())
+				.Directory();
+		}
+		return sourceMapDirectory;
+	}
+
+	function getSourceMapDirectory(mapOptions:CompilerOptions, filePath:RootedFilePath, sourceFile:SourceFile):RootedDirectoryPath {
 		if (mapOptions.SourceRoot.length > 0) {
 			return this.host.CommonSourceDirectory();
 		}
 		if (mapOptions.MapRoot.length > 0) {
-			var sourceMapDir = Tspath.NormalizeSlashes(mapOptions.MapRoot);
-			if (sourceFile != null) {
-				// For modules or multiple emit files the mapRoot will have directory structure like the sources
-				// So if src\a.ts and src\lib\b.ts are compiled together user would be moving the maps into mapRoot\a.js.map and mapRoot\lib\b.js.map
-				sourceMapDir = Tspath.GetDirectoryPath(Outputpaths.GetSourceFilePathInNewDir(sourceFile.FileName(), sourceMapDir, this.host.GetCurrentDirectory(),
-					this.host.CommonSourceDirectory(), this.host.UseCaseSensitiveFileNames()));
-			}
-			if (Tspath.GetRootLength(sourceMapDir) == 0) {
-				// The relative paths are relative to the common directory
-				sourceMapDir = Tspath.CombinePaths(this.host.CommonSourceDirectory(), sourceMapDir);
-			}
-			return sourceMapDir;
+			return this.getMapRootDirectory(mapOptions.MapRoot, sourceFile);
 		}
-		return Tspath.GetDirectoryPath(Tspath.NormalizePath(filePath));
+		return filePath.Directory();
 	}
 
-	function getSourceMappingURL(mapOptions:CompilerOptions, sourceMapGenerator:Generator, filePath:std.String, sourceMapFilePath:std.String,
+	function getSourceMappingURL(mapOptions:CompilerOptions, sourceMapGenerator:Generator, filePath:RootedFilePath, sourceMapFilePath:RootedFilePath,
 			sourceFile:SourceFile):std.String {
 		if (mapOptions.InlineSourceMap.IsTrue()) {
 			// Encode the sourceMap into the sourceMap url
 			return sourceMapGenerator.Base64DataURL();
 		}
 
-		final sourceMapFile = Tspath.GetBaseFileName(Tspath.NormalizeSlashes(sourceMapFilePath));
+		final sourceMapFile = sourceMapFilePath.BaseName();
 		if (mapOptions.MapRoot.length > 0) {
-			var sourceMapDir = Tspath.NormalizeSlashes(mapOptions.MapRoot);
-			if (sourceFile != null) {
-				// For modules or multiple emit files the mapRoot will have directory structure like the sources
-				// So if src\a.ts and src\lib\b.ts are compiled together user would be moving the maps into mapRoot\a.js.map and mapRoot\lib\b.js.map
-				sourceMapDir = Tspath.GetDirectoryPath(Outputpaths.GetSourceFilePathInNewDir(sourceFile.FileName(), sourceMapDir, this.host.GetCurrentDirectory(),
-					this.host.CommonSourceDirectory(), this.host.UseCaseSensitiveFileNames()));
+			final sourceMapDirectory = this.getMapRootDirectory(mapOptions.MapRoot, sourceFile);
+			final sourceMapFilePath = sourceMapDirectory.ResolveFile(sourceMapFile);
+			if (mapOptions.MapRoot.IsRelative()) {
+				return Stringutil.EncodeURI(Tspath.GetRelativePathToDirectoryOrUrl(filePath.Directory().AsString(), sourceMapFilePath.AsString(), true,
+					this.host.CaseSensitivity()));
 			}
-			if (Tspath.GetRootLength(sourceMapDir) == 0) {
-				// The relative paths are relative to the common directory
-				sourceMapDir = Tspath.CombinePaths(this.host.CommonSourceDirectory(), sourceMapDir);
-				return Stringutil.EncodeURI(Tspath.GetRelativePathToDirectoryOrUrl_legacy(Tspath.GetDirectoryPath(Tspath.NormalizePath(filePath)), // get the relative sourceMapDir path based on jsFilePath
-					Tspath.CombinePaths(sourceMapDir, sourceMapFile), // this is where user expects to see sourceMap
-					/*isAbsolutePathAnUrl*/ true, new ComparePathsOptions(this.host.UseCaseSensitiveFileNames(), this.host.GetCurrentDirectory())));
-			} else {
-				return Stringutil.EncodeURI(Tspath.CombinePaths(sourceMapDir, sourceMapFile));
-			}
+			return Stringutil.EncodeURI(sourceMapFilePath.AsString());
 		}
 		return Stringutil.EncodeURI(sourceMapFile);
 	}
@@ -425,8 +412,8 @@ interface SourceFileMayBeEmittedHost {
 	function Options():CompilerOptions;
 	function GetProjectReferenceFromSource(path:Path):SourceOutputAndProjectReference;
 	function IsSourceFileFromExternalLibrary(file:SourceFile):Bool;
-	function GetCurrentDirectory():RootedDirectoryPath;
-	function UseCaseSensitiveFileNames():Bool;
+	function BaseDirectory():RootedDirectoryPath;
+	function CaseSensitivity():CaseSensitivity;
 	function SourceFiles():Array<SourceFile>;
 }
 
@@ -454,7 +441,7 @@ private class DeclarationTransformerAdapter implements DeclarationTransformerLik
 
 // declarationMapSource: the original text of a content-mapped file as a source map source.
 class DeclarationMapSource implements ts.sourcemap.Source.Source {
-	final fileName:std.String;
+	final fileName:RootedFilePath;
 	final text:std.String;
 	final lineMap:Array<TextPos>;
 
@@ -464,7 +451,7 @@ class DeclarationMapSource implements ts.sourcemap.Source.Source {
 		this.lineMap = Core.ComputeECMALineStarts(this.text);
 	}
 
-	public function FileName():std.String {
+	public function FileName():RootedFilePath {
 		return fileName;
 	}
 

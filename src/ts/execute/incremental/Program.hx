@@ -44,7 +44,7 @@ class Program implements ProgramLike {
 	}
 
 	// CommonSourceDirectory implements compiler.AnyProgram interface.
-	public function CommonSourceDirectory():std.String {
+	public function CommonSourceDirectory():RootedDirectoryPath {
 		this.panicIfNoProgram("CommonSourceDirectory");
 		return this.program.CommonSourceDirectory();
 	}
@@ -260,8 +260,7 @@ class Program implements ProgramLike {
 
 	// PORT: body of emitBuildInfo after the tracing defer.
 	function emitBuildInfoWorker(ctx:Context, options:EmitOptions):EmitResult {
-		final buildInfoFileName = Outputpaths.GetBuildInfoFileName(this.snapshot.options,
-			new ComparePathsOptions(this.program.UseCaseSensitiveFileNames(), this.program.GetCurrentDirectory()));
+		final buildInfoFileName = Outputpaths.GetBuildInfoFileName(this.snapshot.options, this.program.CaseSensitivity());
 		if (buildInfoFileName == "" || this.program.IsEmitBlocked(buildInfoFileName)) {
 			return null;
 		}
@@ -293,7 +292,7 @@ class Program implements ProgramLike {
 			data.BuildInfo = buildInfo;
 			err = options.WriteFile(buildInfoFileName, text, data);
 		} else {
-			err = this.program.Host().FS().WriteFile(/* PORT: transitional (main: typed buildInfoFileName) */ Tspath.RootedFilePathFromAbsolute(buildInfoFileName), text);
+			err = this.program.Host().FS().WriteFile(buildInfoFileName, text);
 		}
 		if (err != null) {
 			final r = new EmitResult();

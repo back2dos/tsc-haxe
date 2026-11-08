@@ -7,10 +7,10 @@ import ts.sourcemap.Sourcemap.*;
 
 @:allow(ts.sourcemap)
 class Generator {
-	var pathOptions:ComparePathsOptions = new ComparePathsOptions();
+	var caseSensitivity:CaseSensitivity = CaseInsensitive;
 	var file:String = "";
 	var sourceRoot:String = "";
-	var sourcesDirectoryPath:String = "";
+	var sourcesDirectoryPath:RootedDirectoryPath = cast "";
 	var rawSources:Array<String> = null;
 	var sources:Array<String> = null;
 	var sourceToSourceIndexMap:StringMap<SourceIndex> = null;
@@ -43,9 +43,8 @@ class Generator {
 	}
 
 	// Adds a source to the source map
-	public function AddSource(fileName:String):SourceIndex {
-		final source = Tspath.GetRelativePathToDirectoryOrUrl_legacy(sourcesDirectoryPath, fileName, true, /*isAbsolutePathAnUrl*/
-			pathOptions);
+	public function AddSource(fileName:RootedFilePath):SourceIndex {
+		final source = Tspath.GetRelativePathToDirectoryOrUrl(sourcesDirectoryPath.AsString(), fileName.AsString(), true, caseSensitivity);
 
 		var sourceIndex:SourceIndex = 0;
 		final found = sourceToSourceIndexMap != null && sourceToSourceIndexMap.exists(source);

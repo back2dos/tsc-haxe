@@ -1257,8 +1257,9 @@ class Modulespecifiers {
 				var outputFile = "";
 				var declarationFile = "";
 				if (isImports) {
-					outputFile = Outputpaths.GetOutputJSFileNameWorker(targetFilePath, options, host);
-					declarationFile = Outputpaths.GetOutputDeclarationFileNameWorker(targetFilePath, options, host);
+					// PORT: transitional (main: typed targetFilePath)
+					outputFile = Outputpaths.GetOutputJSFileNameWorker(Tspath.RootedFilePathFromAbsolute(targetFilePath), options, host);
+					declarationFile = Outputpaths.GetOutputDeclarationFileNameWorker(Tspath.RootedFilePathFromAbsolute(targetFilePath), options, host);
 				}
 
 				final pathOrPattern = Tspath.GetNormalizedAbsolutePath(Tspath.CombinePaths(packageDirectory, strValue), "");

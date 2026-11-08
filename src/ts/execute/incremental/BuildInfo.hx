@@ -771,7 +771,8 @@ class BuildInfo implements OrderedMarshaler {
 		if (this.Options != null) {
 			for (option => value in this.Options.Entries()) {
 				if (buildInfoDirectory != "") {
-					final r = Tsoptions.ConvertOptionToAbsolutePath(option, value, Tsoptions.CommandLineCompilerOptionsMap, buildInfoDirectory);
+					final r = Tsoptions.ConvertOptionToAbsolutePath(option, value, Tsoptions.CommandLineCompilerOptionsMap,
+						/* PORT: transitional (main: typed buildInfoDirectory) */ Tspath.RootedDirectoryPathFromAbsolute(buildInfoDirectory));
 					if (r.ok) {
 						Tsoptions.ParseCompilerOptions(option, r.value, options);
 						continue;

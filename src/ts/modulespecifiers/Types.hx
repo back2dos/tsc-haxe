@@ -112,6 +112,11 @@ interface ModuleSpecifierGenerationHost extends OutputPathsHost {
 	function GetSymlinkCache():KnownSymlinks;
 	// GetFileIncludeReasons() any // !!! TODO: adapt new resolution cache model
 	function GetGlobalTypingsCacheLocation():String;
+	// PORT: transitional — main's host has CaseSensitivity()/BaseDirectory() (OutputPathsHost lost these two);
+	// kept until modulespecifiers is ported.
+	function GetCurrentDirectory():RootedDirectoryPath;
+	function UseCaseSensitiveFileNames():Bool;
+	function BaseDirectory():RootedDirectoryPath;
 
 	function GetProjectReferenceFromSource(path:ts.tspath.Path):ts.tsoptions.Parsedcommandline.SourceOutputAndProjectReference;
 	function GetRedirectTargets(path:ts.tspath.Path):Array<String>;

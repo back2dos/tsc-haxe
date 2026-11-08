@@ -735,7 +735,7 @@ class WideningContext {
 
 interface Program extends Host {
 	function BindSourceFiles():Void;
-	function CommonSourceDirectory():std.String;
+	function CommonSourceDirectory():RootedDirectoryPath;
 	function FileExists(fileName:std.String):Bool;
 	function GetEmitModuleFormatOfFile(sourceFile:HasFileName):ModuleKind;
 	function GetEmitSyntaxForUsageLocation(sourceFile:HasFileName, usageLocation:StringLiteralLike):ResolutionMode;
@@ -757,7 +757,9 @@ interface Program extends Host {
 }
 
 interface Host {
-	function CommonSourceDirectory():std.String;
+	function CommonSourceDirectory():RootedDirectoryPath;
+	function CaseSensitivity():CaseSensitivity;
+	function BaseDirectory():RootedDirectoryPath;
 	function ContentMapperExtensions():Null<Array<std.String>>;
 	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
 	function FileExists(path:std.String):Bool;

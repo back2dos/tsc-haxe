@@ -34,14 +34,14 @@ class Execute {
 		if (Core.len(commandLineArgs) > 0) {
 			switch (Strings.ToLower(commandLineArgs[0])) {
 				case "-b", "--b", "-build", "--build":
-					return tscBuildCompilation(ctx, sys, Tsoptions.ParseBuildCommandLine(commandLineArgs, sys), testing);
+					return tscBuildCompilation(ctx, sys, Tsoptions.ParseBuildCommandLine(commandLineArgs, sys.FS(), sys.GetCurrentDirectory()), testing);
 				// case "-f":
 				// 	return fmtMain(sys, commandLineArgs[1], commandLineArgs[1])
 				default:
 			}
 		}
 
-		return tscCompilation(ctx, sys, Tsoptions.ParseCommandLine(commandLineArgs, sys), testing);
+		return tscCompilation(ctx, sys, Tsoptions.ParseCommandLine(commandLineArgs, sys.FS(), sys.GetCurrentDirectory()), testing);
 	}
 
 	// PORT: skipped, needs internal/format (fmtMain is only referenced from a commented-out case).
@@ -74,7 +74,7 @@ class Execute {
 	}
 
 	static function tscCompilation(ctx:Context, sys:System, commandLine:ParsedCommandLine, testing:Null<CommandLineTesting>):CommandLineResult {
-		var configFileName = "";
+		var configFileName:RootedFilePath = cast "";
 		final locale = commandLine.Locale();
 		var reportDiagnostic = Tsc.CreateDiagnosticReporter(sys, sys.Writer(), locale, commandLine.CompilerOptions());
 
@@ -116,22 +116,23 @@ class Execute {
 			final fileOrDirectory = commandLine.CompilerOptions().Project;
 			final directory = Tspath.RootedDirectoryPathFromPath(fileOrDirectory);
 			if (sys.FS().DirectoryExists(directory)) {
-				final typedConfigFileName = directory.ResolveFile("tsconfig.json");
-				configFileName = typedConfigFileName;
-				if (!sys.FS().FileExists(typedConfigFileName)) {
+				configFileName = directory.ResolveFile("tsconfig.json");
+				if (!sys.FS().FileExists(configFileName)) {
 					reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0, configFileName));
 					return new CommandLineResult(ExitStatusDiagnosticsPresent_OutputsSkipped);
 				}
 			} else {
-				final typedConfigFileName = Tspath.RootedFilePathFromPath(fileOrDirectory);
-				configFileName = typedConfigFileName;
-				if (!sys.FS().FileExists(typedConfigFileName)) {
+				configFileName = Tspath.RootedFilePathFromPath(fileOrDirectory);
+				if (!sys.FS().FileExists(configFileName)) {
 					reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.The_specified_path_does_not_exist_Colon_0, fileOrDirectory));
 					return new CommandLineResult(ExitStatusDiagnosticsPresent_OutputsSkipped);
 				}
 			}
 		} else if (!commandLine.CompilerOptions().IgnoreConfig.IsTrue() || Core.len(commandLine.FileNames()) == 0) {
-			configFileName = findConfigFile(sys.GetCurrentDirectory(), sys.FS().FileExists, "tsconfig.json");
+			final foundConfigFileName = findConfigFile(sys.GetCurrentDirectory(), sys.FS().FileExists, "tsconfig.json");
+			if (foundConfigFileName != "") {
+				configFileName = foundConfigFileName;
+			}
 			if (Core.len(commandLine.FileNames()) != 0) {
 				if (configFileName != "") {
 					// Error to not specify config file
@@ -141,7 +142,7 @@ class Execute {
 			} else if (configFileName == "") {
 				if (commandLine.CompilerOptions().ShowConfig.IsTrue()) {
 					reportDiagnostic(Ast.NewCompilerDiagnostic(Diagnostics.Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0,
-						Tspath.NormalizePath(sys.GetCurrentDirectory())));
+						sys.GetCurrentDirectory().AsString()));
 				} else {
 					Tsc.PrintVersion(sys, locale);
 					Tsc.PrintHelp(sys, locale, commandLine);
@@ -165,7 +166,9 @@ class Execute {
 				wrapped.Set("compilerOptions", raw);
 				commandLineRaw = wrapped;
 			}
-			final r = Tsoptions.GetParsedCommandLineOfConfigFile(configFileName, compilerOptionsFromCommandLine, commandLineRaw, sys, extendedConfigCache);
+			final path = sys.FS().CaseSensitivity().PathKey(configFileName.AsPath());
+			final r = Tsoptions.GetParsedCommandLineOfConfigFilePath(configFileName, path, compilerOptionsFromCommandLine, commandLineRaw, sys,
+				extendedConfigCache);
 			final configParseResult = r.a, errors = r.b;
 			compileTimes.ConfigTime = sys.Now().Sub(configStart);
 			if (Core.len(errors) != 0) {
@@ -195,7 +198,7 @@ class Execute {
 		return performCompilation(sys, configForCompilation, reportDiagnostic, reportErrorSummary, extendedConfigCache, compileTimes, testing);
 	}
 
-	static function findConfigFile(searchPath:RootedDirectoryPath, fileExists:(RootedFilePath) -> Bool, configName:std.String):std.String {
+	static function findConfigFile(searchPath:RootedDirectoryPath, fileExists:(RootedFilePath) -> Bool, configName:std.String):RootedFilePath {
 		final r = searchPath.ForEachAncestorDirectory(function(ancestor:RootedDirectoryPath):ValueOk<RootedFilePath> {
 			final fullConfigName = ancestor.ResolveFile(configName);
 			if (fileExists(fullConfigName)) {
@@ -204,7 +207,7 @@ class Execute {
 			return new ValueOk(fullConfigName, false);
 		});
 		if (!r.ok) {
-			return "";
+			return cast "";
 		}
 		return r.value;
 	}
@@ -287,7 +290,7 @@ class Execute {
 		return new CommandLineResult(result.Status);
 	}
 
-	static function showConfig(sys:System, config:ParsedCommandLine, configFileName:std.String):Void {
+	static function showConfig(sys:System, config:ParsedCommandLine, configFileName:RootedFilePath):Void {
 		final tsConfig = Tsoptions.ConvertToTSConfig(config, configFileName);
 		// PORT: json.MarshalIndentWrite(w, v, "", "    ") → MarshalIndentOrdered + Write (no trailing newline).
 		sys.Writer().Write(Json.MarshalIndentOrdered(tsConfig, "", "    "));

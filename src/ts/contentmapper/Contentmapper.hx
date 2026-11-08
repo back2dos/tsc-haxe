@@ -10,6 +10,7 @@ import ts.collections.OrderedMap;
 import ts.core.Compileroptions;
 import ts.json.Json;
 import ts.tspath.Tspath;
+import ts.tspath.RootedPath;
 
 // Port of internal/contentmapper (TypeScript main: content mappers, typescript-go #4712, #63936, #64581
 // and follow-ups).
@@ -181,7 +182,7 @@ class Mapper {
 	public var Definition:Definition = new Definition();
 	public var Manifest:Manifest = new Manifest();
 	// PackageDirectory is the real path directory returned by package resolution for package-based mappers.
-	public var PackageDirectory:String = "";
+	public var PackageDirectory:RootedDirectoryPath = cast "";
 	// ContributionID is provided by an LSP client extension for inferred project content mappers.
 	public var ContributionID:String = "";
 

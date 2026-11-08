@@ -49,11 +49,14 @@ class Harnessutil {
 
 	public static function CompileFilesEx(t:T, inputFiles:Array<TestFile>, otherFiles:Array<TestFile>, harnessOptions:HarnessOptions,
 			compilerOptions:CompilerOptions, currentDirectory:String, symlinks:StringMap<String>, tsconfig:ParsedCommandLine):CompilationResult {
-		var programFileNames:Array<String> = null;
+		// PORT: the harness keeps currentDirectory a string; main's is a RootedDirectoryPath. The declaration
+		// re-compilation can pass an empty one (its input names are absolute): the root then.
+		final typedCurrentDirectory = Tspath.RootedDirectoryPathFromAbsolute(currentDirectory == "" ? "/" : currentDirectory);
+		var programFileNames:Array<RootedFilePath> = null;
 		for (file in inputFiles) {
-			final fileName = Tspath.GetNormalizedAbsolutePath(file.UnitName, currentDirectory);
+			final fileName = Tspath.ToRootedFilePath(file.UnitName, typedCurrentDirectory);
 
-			if (!Tspath.FileExtensionIs(fileName, Tspath.ExtensionJson) && !Tspath.FileExtensionIs(fileName, Tspath.ExtensionTsBuildInfo)) {
+			if (!fileName.ExtensionIs(Tspath.ExtensionJson) && !fileName.ExtensionIs(Tspath.ExtensionTsBuildInfo)) {
 				if (programFileNames == null)
 					programFileNames = [];
 				programFileNames.push(fileName);
@@ -80,7 +83,7 @@ class Harnessutil {
 				}
 				if (programFileNames == null)
 					programFileNames = [];
-				programFileNames.push(Tspath.CombinePaths(testLibFolder, libFile));
+				programFileNames.push(typedCurrentDirectory.ResolveFile(Tspath.CombinePaths(testLibFolder, libFile)));
 				includeLibDir = true;
 			}
 		}
@@ -169,12 +172,12 @@ class Harnessutil {
 		}
 		// TypeScript main: the command line's base directory is the tsconfig's, else the current directory
 		// (tsoptions.NewParsedCommandLine with baseDirectory).
-		var baseDirectory = currentDirectory;
-		if (tsconfig != null && tsconfig.GetCurrentDirectory() != "") {
-			baseDirectory = tsconfig.GetCurrentDirectory();
+		var baseDirectory = typedCurrentDirectory;
+		if (tsconfig != null && tsconfig.BaseDirectory() != "") {
+			baseDirectory = tsconfig.BaseDirectory();
 		}
-		final config = Tsoptions.NewParsedCommandLine(compilerOptions, programFileNames,
-			new ComparePathsOptions(harnessOptions.UseCaseSensitiveFileNames, baseDirectory));
+		final config = Tsoptions.NewParsedCommandLine(compilerOptions, programFileNames, null, baseDirectory,
+			Tspath.caseSensitivityOf(harnessOptions.UseCaseSensitiveFileNames));
 		config.ParsedConfig.ContentMappers = contentMappers;
 		config.ConfigFile = configFile;
 		config.Errors = errors;
@@ -335,7 +338,9 @@ class Harnessutil {
 			case "noImplicitReferences":
 				harnessOptions.NoImplicitReferences = (value : Bool);
 			case "currentDirectory":
-				harnessOptions.CurrentDirectory = (value : String);
+				// TypeScript main: resolved against the current one (tspath.ToRootedDirectoryPath).
+				harnessOptions.CurrentDirectory = Tspath.ToRootedDirectoryPath((value : String),
+					Tspath.RootedDirectoryPathFromAbsolute(harnessOptions.CurrentDirectory == "" ? "/" : harnessOptions.CurrentDirectory));
 			case "symlink":
 				harnessOptions.Symlink = (value : String);
 			case "link":
@@ -484,10 +489,8 @@ class Harnessutil {
 		var preErrors:Array<Diagnostic> = [];
 		final preCompilerOptions = config.CompilerOptions().Clone();
 		preCompilerOptions.TraceResolution = TSFalse;
-		final preConfig = new ParsedCommandLine();
-		preConfig.ParsedConfig = new ParsedOptions();
-		preConfig.ParsedConfig.CompilerOptions = preCompilerOptions;
-		preConfig.ParsedConfig.FileNames = config.FileNames();
+		final preConfig = Tsoptions.NewParsedCommandLine(preCompilerOptions, config.FileNames(), config.ProjectReferences(), config.BaseDirectory(),
+			config.CaseSensitivity());
 		preConfig.ParsedConfig.ContentMappers = config.ContentMappers();
 		preConfig.ConfigFile = config.ConfigFile;
 		preConfig.Errors = config.Errors;
@@ -1078,7 +1081,7 @@ class CachedCompilerHost implements CompilerHost {
 		CompilerHost.Trace(msg, ...args);
 	}
 
-	public function GetResolvedProjectReference(fileName:String, path:Path):ParsedCommandLine {
+	public function GetResolvedProjectReference(fileName:RootedFilePath, path:PathKey):ParsedCommandLine {
 		return CompilerHost.GetResolvedProjectReference(fileName, path);
 	}
 
@@ -1223,8 +1226,10 @@ class CompilationResult {
 	public function new() {}
 
 	function getOutputPath(path:String, ext:String):String {
-		path = Tspath.ResolvePath(this.Host.GetCurrentDirectory(), path);
-		var outDir:String;
+		// PORT: the harness passes file names as strings; main's getOutputPath takes a RootedFilePath.
+		final filePath = Tspath.ToRootedFilePath(path, this.Host.GetCurrentDirectory());
+		var outputPath = filePath;
+		var outDir:RootedDirectoryPath;
 		if (ext == ".d.ts" || ext == ".d.mts" || ext == ".d.cts" || (StringTools.endsWith(ext, ".ts") && ext.indexOf(".d.") >= 0)) {
 			outDir = this.Options.DeclarationDir;
 			if (outDir == "") {
@@ -1236,14 +1241,20 @@ class CompilationResult {
 		if (outDir != "") {
 			final common = this.Program.CommonSourceDirectory();
 			if (common != "") {
-				path = Tspath.GetRelativePathFromDirectory_legacy(common, path, new ComparePathsOptions(this.Host.FS().CaseSensitivity().IsCaseSensitive(), this.Host.GetCurrentDirectory()));
-				path = Tspath.CombinePaths(Tspath.ResolvePath(this.Host.GetCurrentDirectory(), this.Options.OutDir), path);
+				final relativePath = this.Host.FS().CaseSensitivity().RelativePathFromDirectory(common, filePath);
+				if (relativePath != null) {
+					var outputDirectory = this.Options.OutDir;
+					if (outputDirectory == "") {
+						outputDirectory = outDir;
+					}
+					outputPath = outputDirectory.ResolveRelativeFile(relativePath);
+				}
 			}
 		}
-		if (ext == Tspath.GetDeclarationEmitExtensionForPath(path)) {
-			return Outputpaths.ChangeToDeclarationExtension(path, this.Program.Program());
+		if (ext == outputPath.DeclarationEmitExtension()) {
+			return Outputpaths.ChangeToDeclarationExtension(outputPath, this.Program.Program());
 		}
-		return Tspath.ChangeExtension(path, ext);
+		return outputPath.ChangeExtension(ext);
 	}
 
 	public function FS():FS {

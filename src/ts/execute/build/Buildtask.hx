@@ -232,7 +232,7 @@ class BuildTask {
 		emitInput.ReportDiagnostic = this.reportDiagnostic;
 		emitInput.ReportErrorSummary = Tsc.QuietDiagnosticsReporter;
 		emitInput.Writer = this.result.builderWriter;
-		emitInput.WriteFile = function(fileName:std.String, text:std.String, data:WriteFileData):Null<Error> {
+		emitInput.WriteFile = function(fileName:RootedFilePath, text:std.String, data:WriteFileData):Null<Error> {
 			return this.writeFile(orchestrator, fileName, text, data);
 		};
 		emitInput.CompileTimes = compileTimes;
@@ -256,7 +256,7 @@ class BuildTask {
 			if (Core.len(result.EmitResult.EmittedFiles) > 0) {
 				oldestOutputFileName = result.EmitResult.EmittedFiles[0];
 			} else {
-				oldestOutputFileName = Core.FirstOrNilSeq(this.resolved.GetOutputFileNames(), "");
+				oldestOutputFileName = Core.FirstOrNilSeq(this.resolved.GetOutputFileNames(), cast "");
 			}
 			this.status = new UpToDateStatus(upToDateStatusTypeUpToDate, oldestOutputFileName);
 		}

@@ -23,11 +23,11 @@ class CommandLineParser {
 	var workerDiagnostics:ParseCommandLineWorkerDiagnostics = null;
 	var optionsMap:NameMap = null;
 	var fs:Null<FS> = null;
-	var currentDirectory:String = "";
+	var currentDirectory:RootedDirectoryPath = cast "";
 	var options:OrderedMap<String, Dynamic> = null;
 	var fileNames:Null<Array<String>> = null;
 	var errors:Null<Array<Diagnostic>> = null;
-	var responseFileStack:Set<ts.tspath.Path> = new Set<ts.tspath.Path>();
+	var responseFileStack:Set<PathKey> = new Set<PathKey>();
 
 	public function new() {}
 
@@ -58,15 +58,18 @@ class CommandLineParser {
 	}
 
 	function parseResponseFile(fileName:String):Void {
-		fileName = Tspath.GetNormalizedAbsolutePath(fileName, this.currentDirectory);
-		final path = Tspath.ToPath(fileName, this.currentDirectory, this.fs.CaseSensitivity().IsCaseSensitive());
+		var typedFileName = Tspath.RootedFilePathFromPath(this.currentDirectory.AsPath());
+		if (fileName != "") {
+			typedFileName = Tspath.ToRootedFilePath(fileName, this.currentDirectory);
+		}
+		final path = this.fs.CaseSensitivity().PathKey(typedFileName.AsPath());
 		if (this.responseFileStack.Has(path)) {
 			return;
 		}
 		this.responseFileStack.Add(path);
 		// PORT: defer p.responseFileStack.Delete(path)
 		try {
-			this.parseResponseFileWorker(fileName);
+			this.parseResponseFileWorker(fileName, typedFileName);
 		} catch (e:Dynamic) {
 			this.responseFileStack.Delete(path);
 			throw e;
@@ -75,8 +78,8 @@ class CommandLineParser {
 	}
 
 	// PORT: body of parseResponseFile after the defer.
-	function parseResponseFileWorker(fileName:String):Void {
-		final r = Tsoptions.tryReadFile(/* PORT: transitional (main: typed fileName) */ Tspath.RootedFilePathFromAbsolute(fileName), function(fileName:RootedFilePath):ValueOk<String> {
+	function parseResponseFileWorker(fileName:String, typedFileName:RootedFilePath):Void {
+		final r = Tsoptions.tryReadFile(typedFileName, function(fileName:RootedFilePath):ValueOk<String> {
 			if (this.fs == null) {
 				return new ValueOk<String>("", false);
 			}

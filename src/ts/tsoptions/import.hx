@@ -51,6 +51,7 @@ import ts.tsoptions.Parsedcommandline;
 import ts.tsoptions.Tsconfigparsing;
 import ts.tsoptions.Commandlineoption.CommandLineOptionKind.*;
 import ts.tsoptions.Commandlineoption.ExtraValidation.*;
+import ts.tsoptions.Commandlineoption.CommandLineOptionPathKind.*;
 import ts.tsoptions.Commandlineparser;
 import ts.tsoptions.Diagnostics_;
 import ts.tsoptions.Namemap;

@@ -14,17 +14,17 @@ class ExtendedConfigCache implements ts.tsoptions.Tsconfigparsing.ExtendedConfig
 	public function new() {}
 
 	// GetExtendedConfig implements tsoptions.ExtendedConfigCache.
-	public function GetExtendedConfig(fileName:std.String, path:Path, resolutionStack:Null<Array<Path>>, host:ParseConfigHost):ExtendedConfigCacheEntry {
+	public function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS):ExtendedConfigCacheEntry {
 		final r = this.loadOrStoreNewLockedEntry(path);
 		final entry = r.value, loaded = r.ok;
 		if (!loaded) {
-			entry.ExtendedConfigCacheEntry = Tsoptions.ParseExtendedConfig(fileName, path, resolutionStack, host, this);
+			entry.ExtendedConfigCacheEntry = Tsoptions.ParseExtendedConfig(fileName, path, resolutionStack, fs, this);
 		}
 		return entry.ExtendedConfigCacheEntry;
 	}
 
 	// loadOrStoreNewLockedEntry loads an existing entry or creates a new one. The returned entry's mutex is locked.
-	function loadOrStoreNewLockedEntry(path:Path):ValueOk<ExtendedConfigCacheEntry_> {
+	function loadOrStoreNewLockedEntry(path:PathKey):ValueOk<ExtendedConfigCacheEntry_> {
 		final entry = new ExtendedConfigCacheEntry_();
 		final existing = this.m.get(path);
 		if (existing != null) {

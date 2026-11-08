@@ -12,6 +12,33 @@ enum abstract CommandLineOptionKind(String) to String {
 	var CommandLineOptionTypeEnum = "enum"; // map
 }
 
+enum abstract CommandLineOptionPathKind(Int) to Int {
+	var CommandLineOptionPathKindNone = 0;
+	var CommandLineOptionPathKindFile = 1;
+	var CommandLineOptionPathKindDirectory = 2;
+	var CommandLineOptionPathKindFileOrDirectory = 3;
+	var CommandLineOptionPathKindSourceMapLocation = 4;
+	var CommandLineOptionPathKindFileSpec = 5;
+	var CommandLineOptionPathKindPathPattern = 6;
+	var CommandLineOptionPathKindResolvedPathPattern = 7;
+	var CommandLineOptionPathKindConfigLocator = 8;
+
+	public function IsRooted():Bool {
+		return switch (abstract) {
+			case CommandLineOptionPathKindFile, CommandLineOptionPathKindDirectory, CommandLineOptionPathKindFileOrDirectory,
+				CommandLineOptionPathKindResolvedPathPattern: true;
+			default: false;
+		}
+	}
+
+	public function IsFileSystemPath():Bool {
+		return switch (abstract) {
+			case CommandLineOptionPathKindFile, CommandLineOptionPathKindDirectory, CommandLineOptionPathKindFileOrDirectory: true;
+			default: false;
+		}
+	}
+}
+
 @:allow(ts.tsoptions)
 class CommandLineOption {
 	public var Name:String = "";
@@ -19,6 +46,7 @@ class CommandLineOption {
 	public var Kind:CommandLineOptionKind = cast "";
 
 	// used in parsing
+	public var PathKind:CommandLineOptionPathKind = CommandLineOptionPathKindNone;
 	public var IsFilePath:Bool = false;
 	public var IsTSConfigOnly:Bool = false;
 	public var IsCommandLineOnly:Bool = false;

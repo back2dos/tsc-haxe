@@ -35,10 +35,15 @@ class Vfsmatch {
 	// PORT: math.MaxInt → 2^31-1 (Int).
 	public static inline final UnlimitedDepth = 2147483647;
 
-	// PORT: main's PathPatternInput generic (string | tspath.PathPattern) → the specs as strings.
-	public static function ReadDirectory(host:FS, path:RootedDirectoryPath, extensions:Null<Array<String>>, excludes:Null<Array<String>>,
-			includes:Null<Array<String>>, depth:Int):Null<Array<RootedFilePath>> {
-		return matchFileNames(path, extensions, excludes, includes, depth, host);
+	// PORT: main's PathPatternInput generic (string | tspath.PathPattern) → T:String; the specs are passed on as strings.
+	public static inline function ReadDirectory<T:String>(host:FS, path:RootedDirectoryPath, extensions:Null<Array<String>>, excludes:Null<Array<T>>,
+			includes:Null<Array<T>>, depth:Int):Null<Array<RootedFilePath>> {
+		return matchFileNames(path, extensions, specStrings(excludes), specStrings(includes), depth, host);
+	}
+
+	// PORT: Array<T:String> → Array<String> (the abstract spec types are strings at run time; arrays are invariant).
+	static inline function specStrings<T:String>(specs:Null<Array<T>>):Null<Array<String>> {
+		return cast specs;
 	}
 
 	// IsImplicitGlob checks if a path component is implicitly a glob.
@@ -329,7 +334,12 @@ class Vfsmatch {
 
 	// NewSpecMatcher creates a matcher for one or more glob specs.
 	// It returns a matcher that can test if paths match any of the patterns.
-	public static function NewSpecMatcher(specs:Null<Array<String>>, basePath:RootedDirectoryPath, usage:Usage,
+	public static inline function NewSpecMatcher<T:String>(specs:Null<Array<T>>, basePath:RootedDirectoryPath, usage:Usage,
+			caseSensitivity:CaseSensitivity):Null<SpecMatcher> {
+		return newSpecMatcher(specStrings(specs), basePath, usage, caseSensitivity);
+	}
+
+	static function newSpecMatcher(specs:Null<Array<String>>, basePath:RootedDirectoryPath, usage:Usage,
 			caseSensitivity:CaseSensitivity):Null<SpecMatcher> {
 		if (Core.len(specs) == 0) {
 			return null;
@@ -779,6 +789,10 @@ class SpecMatcher {
 		return false;
 	}
 
+	public inline function MatchFileName(path:RootedFilePath):Bool {
+		return this.MatchString(path.AsString());
+	}
+
 	// MatchIndex returns the index of the first matching pattern, or -1.
 	public function MatchIndex(path:String):Int {
 		for (i in 0...this.patterns.length) {
@@ -787,6 +801,10 @@ class SpecMatcher {
 			}
 		}
 		return -1;
+	}
+
+	public inline function MatchFileNameIndex(path:RootedFilePath):Int {
+		return this.MatchIndex(path.AsString());
 	}
 }
 

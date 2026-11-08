@@ -90,7 +90,7 @@ class Compiler {
 		opts.EmitResolver = emitResolver;
 		opts.GetEmitModuleFormatOfFile = host.GetEmitModuleFormatOfFile;
 		opts.ContentMapperExtensionRewrites = host.ContentMapperExtensionRewrites();
-		opts.IgnoreCase = !host.UseCaseSensitiveFileNames();
+		opts.IgnoreCase = host.CaseSensitivity().IsCaseInsensitive();
 
 		// transform TypeScript syntax
 		{
@@ -137,13 +137,13 @@ class Compiler {
 	}
 
 	static function shouldEmitSourceMaps(mapOptions:CompilerOptions, sourceFile:SourceFile):Bool {
-		return (mapOptions.SourceMap.IsTrue() || mapOptions.InlineSourceMap.IsTrue()) && !Tspath.FileExtensionIs(sourceFile.FileName(), Tspath.ExtensionJson);
+		return (mapOptions.SourceMap.IsTrue() || mapOptions.InlineSourceMap.IsTrue()) && !sourceFile.FileName().ExtensionIs(Tspath.ExtensionJson);
 	}
 
 	static function getSourceRoot(mapOptions:CompilerOptions):std.String {
 		// Normalize source root and make sure it has trailing "/" so that it can be used to combine paths with the
 		// relative paths of the sources list in the sourcemap
-		var sourceRoot = Tspath.NormalizeSlashes(mapOptions.SourceRoot);
+		var sourceRoot = mapOptions.SourceRoot.AsString();
 		if (sourceRoot.length > 0) {
 			sourceRoot = Tspath.EnsureTrailingDirectorySeparator(sourceRoot);
 		}
@@ -198,11 +198,9 @@ class Compiler {
 
 		// Otherwise, if rootDir is specified or a config file exists, we know the common source directory and can check if the file would be emitted in the same location
 		if (options.RootDir != "" || options.ConfigFilePath != "") {
-			final commonDir = Tspath.GetNormalizedAbsolutePath(Outputpaths.GetCommonSourceDirectory(options, function() return null, host.GetCurrentDirectory(),
-				host.UseCaseSensitiveFileNames(), null), host.GetCurrentDirectory());
-			final outputPath = Outputpaths.GetSourceFilePathInNewDirWorker(sourceFile.FileName(), options.OutDir, host.GetCurrentDirectory(), commonDir,
-				host.UseCaseSensitiveFileNames());
-			if (Tspath.ComparePaths_legacy(sourceFile.FileName(), outputPath, new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) == 0) {
+			final commonDir = Outputpaths.GetCommonSourceDirectory(options, function() return null, host.BaseDirectory(), host.CaseSensitivity(), null);
+			final outputPath = Outputpaths.GetSourceFileNameInNewDir(sourceFile.FileName(), options.OutDir, commonDir, host.CaseSensitivity());
+			if (host.CaseSensitivity().CompareFilePaths(sourceFile.FileName(), outputPath) == 0) {
 				return false;
 			}
 		}
@@ -233,7 +231,7 @@ class Compiler {
 			return [];
 		}
 		final options = host.Options();
-		final transform = Declarations.NewDeclarationTransformer(host, null, options, "", "");
+		final transform = Declarations.NewDeclarationTransformer(host, null, options, cast "");
 		transform.Transformer.TransformSourceFile(file);
 		return transform.GetDiagnostics();
 	}
@@ -664,6 +662,7 @@ class Compiler {
 	public static function NewProgram(opts:ProgramOptions):Program {
 		final p = new Program();
 		p.opts = opts;
+		p.caseSensitivity = opts.Host.FS().CaseSensitivity();
 		var done:() -> Void = null;
 		if (p.opts.Tracing != null) {
 			final args = new StringMap<Any>();

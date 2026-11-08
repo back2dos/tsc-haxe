@@ -3735,8 +3735,16 @@ class NodeBuilderSpecifierHostAdapter implements ModuleSpecifierGenerationHost {
 		this.h = h;
 	}
 
-	public function CommonSourceDirectory():std.String {
+	public function CommonSourceDirectory():RootedDirectoryPath {
 		return h.CommonSourceDirectory();
+	}
+
+	public function CaseSensitivity():CaseSensitivity {
+		return h.CaseSensitivity();
+	}
+
+	public function BaseDirectory():RootedDirectoryPath {
+		return h.BaseDirectory();
 	}
 
 	public function ContentMapperExtensions():Null<Array<std.String>> {

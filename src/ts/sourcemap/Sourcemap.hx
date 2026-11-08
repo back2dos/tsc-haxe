@@ -44,12 +44,12 @@ class Sourcemap {
 	static inline final notSet:Int = -1;
 	static inline final notSetUTF16:UTF16Offset = -1;
 
-	public static function NewGenerator(file:String, sourceRoot:String, sourcesDirectoryPath:String, options:ComparePathsOptions):Generator {
+	public static function NewGenerator(file:String, sourceRoot:String, sourcesDirectoryPath:RootedDirectoryPath, caseSensitivity:CaseSensitivity):Generator {
 		final gen = new Generator();
 		gen.file = file;
 		gen.sourceRoot = sourceRoot;
 		gen.sourcesDirectoryPath = sourcesDirectoryPath;
-		gen.pathOptions = options;
+		gen.caseSensitivity = caseSensitivity;
 		return gen;
 	}
 

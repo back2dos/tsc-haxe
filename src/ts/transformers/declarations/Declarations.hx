@@ -765,7 +765,8 @@ class Declarations {
 	}
 
 	// TODO: Convert to transformers.TransformerFactory signature to allow more automatic composition with other transforms
-	public static function NewDeclarationTransformer(host:DeclarationEmitHost, context:EmitContext, compilerOptions:CompilerOptions, declarationFilePath:std.String, declarationMapPath:std.String):DeclarationTransformer {
+	public static function NewDeclarationTransformer(host:DeclarationEmitHost, context:EmitContext, compilerOptions:CompilerOptions,
+			declarationFilePath:RootedFilePath):DeclarationTransformer {
 		final resolver = host.GetEmitResolver();
 		final state = new SymbolTrackerSharedState();
 		state.isolatedDeclarations = compilerOptions.IsolatedDeclarations.IsTrue();
@@ -780,7 +781,6 @@ class Declarations {
 		tx.state = state;
 		tx.resolver = resolver;
 		tx.declarationFilePath = declarationFilePath;
-		tx.declarationMapPath = declarationMapPath;
 		tx.state.reportExpandoFunctionErrors = function(node:Node):Void {
 			if (!tx.state.isolatedDeclarations) {
 				return;

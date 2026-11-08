@@ -12,13 +12,15 @@ class ReferencedFilePair {
 }
 
 interface OutputPaths {
-	function DeclarationFilePath():std.String;
-	function JsFilePath():std.String;
+	function DeclarationFilePath():RootedFilePath;
+	function JsFilePath():RootedFilePath;
 }
 
 // Used to be passed in the TransformationContext, which is now just an EmitContext
 interface DeclarationEmitHost {
-	function CommonSourceDirectory():std.String;
+	function CommonSourceDirectory():RootedDirectoryPath;
+	function CaseSensitivity():CaseSensitivity;
+	function BaseDirectory():RootedDirectoryPath;
 	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
 	function FileExists(path:std.String):Bool;
 	function GetCurrentDirectory():RootedDirectoryPath;
@@ -65,8 +67,7 @@ class DeclarationTransformer {
 	var tracker:SymbolTrackerImpl = null;
 	var state:SymbolTrackerSharedState = null;
 	var resolver:EmitResolver = null;
-	var declarationFilePath:std.String = "";
-	var declarationMapPath:std.String = "";
+	var declarationFilePath:RootedFilePath = cast "";
 	var needsDeclare:Bool = false;
 	var needsScopeFixMarker:Bool = false;
 	var resultHasScopeMarker:Bool = false;
@@ -369,12 +370,11 @@ class DeclarationTransformer {
 				combinedStatements = withMarker;
 			}
 		}
-		final outputFilePath = Tspath.GetDirectoryPath(Tspath.NormalizeSlashes(declarationFilePath));
 		final result = Factory().UpdateSourceFile(node, combinedStatements, node.EndOfFileToken);
 		result.AsSourceFile().LibReferenceDirectives = getLibReferences();
 		result.AsSourceFile().TypeReferenceDirectives = getTypeReferences();
 		result.AsSourceFile().IsDeclarationFile = true;
-		result.AsSourceFile().ReferencedFiles = getReferencedFiles(outputFilePath);
+		result.AsSourceFile().ReferencedFiles = getReferencedFiles(declarationFilePath.Directory());
 		cjsExportAssignment = null;
 		cjsExportAssignmentName = null;
 		cjsExportMembers = null;
@@ -463,7 +463,7 @@ class DeclarationTransformer {
 		return Factory().NewNodeList(results);
 	}
 
-	function getReferencedFiles(outputFilePath:std.String):Array<FileReference> {
+	function getReferencedFiles(outputFilePath:RootedDirectoryPath):Array<FileReference> {
 		var results:Array<FileReference> = null;
 		// Handle path rewrites for triple slash ref comments
 		for (pair in rawReferencedFiles) {
@@ -479,31 +479,27 @@ class DeclarationTransformer {
 				continue;
 			}
 
-			var declFileName:std.String;
+			var declFileName:RootedFilePath;
 			if (file.IsDeclarationFile) {
 				declFileName = file.FileName();
 			} else {
 				final paths = host.GetOutputPathsFor(file, true);
 				// Try to use output path for referenced file, or output js path if that doesn't exist, or the input path if all else fails
 				declFileName = paths.DeclarationFilePath();
-				if (declFileName.length == 0) {
+				if (declFileName == "") {
 					declFileName = paths.JsFilePath();
 				}
-				if (declFileName.length == 0) {
+				if (declFileName == "") {
 					declFileName = file.FileName();
 				}
 			}
 			// Should only be missing if the source file is missing a fileName (at which point we can't name a reference to it anyway)
 			// TODO: Shouldn't this be a crash or assert instead of a silent continue?
-			if (declFileName.length == 0) {
+			if (declFileName == "") {
 				continue;
 			}
 
-			final opts = new ComparePathsOptions();
-			opts.CurrentDirectory = host.GetCurrentDirectory();
-			opts.UseCaseSensitiveFileNames = host.UseCaseSensitiveFileNames();
-			final fileName = Tspath.GetRelativePathToDirectoryOrUrl_legacy(outputFilePath, declFileName, false, // TODO: Probably unsafe to assume this isn't a URL, but that's what strada does
-				opts);
+			final fileName = Tspath.GetRelativePathToDirectoryOrUrl(outputFilePath.AsString(), declFileName.AsString(), false, host.CaseSensitivity());
 
 			final r = new FileReference();
 			r.TextRange = Core.NewTextRange(-1, -1);
@@ -1503,7 +1499,7 @@ class DeclarationTransformer {
 		if (Ast.IsStringLiteral(input) && compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
 			final specifier = input.Text();
 			final rewrites = host.ContentMapperExtensionRewrites();
-			final ignoreCase = !host.UseCaseSensitiveFileNames();
+			final ignoreCase = host.CaseSensitivity().IsCaseInsensitive();
 			if (!ts.tspath.Tspath.ExtensionRewrites.ShouldRewriteExtension(specifier, rewrites, ignoreCase)) {
 				return input;
 			}

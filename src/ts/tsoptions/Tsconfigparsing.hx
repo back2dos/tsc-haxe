@@ -4,16 +4,16 @@ package ts.tsoptions;
 
 @:allow(ts.tsoptions)
 class ExtendsResult {
-	var options:CompilerOptions = null;
+	var options:ParsedCompilerOptions = null;
 	// watchOptions        compiler.WatchOptions
 	var watchOptionsCopied:Bool = false;
 	var include:Null<Array<Dynamic>> = null;
 	var exclude:Null<Array<Dynamic>> = null;
 	var files:Null<Array<Dynamic>> = null;
 	var contentMappers:Null<Array<Dynamic>> = null;
-	var contentMappersConfigFile:std.String = "";
+	var contentMappersConfigFile:RootedFilePath = cast "";
 	var compileOnSave:Bool = false;
-	var extendedSourceFiles:Set<std.String> = new Set<std.String>();
+	var extendedSourceFiles:Set<RootedFilePath> = new Set<RootedFilePath>();
 
 	public function new() {}
 }
@@ -27,75 +27,35 @@ class ConfigFileSpecs {
 	var includeSpecs:Dynamic = null;
 	// Present to report errors (user specified specs), validatedExcludeSpecs are used for file name matching
 	var excludeSpecs:Dynamic = null;
-	var validatedFilesSpec:Null<Array<std.String>> = null;
-	var validatedIncludeSpecs:Null<Array<std.String>> = null;
-	var validatedExcludeSpecs:Null<Array<std.String>> = null;
-	var validatedFilesSpecBeforeSubstitution:Null<Array<std.String>> = null;
-	var validatedIncludeSpecsBeforeSubstitution:Null<Array<std.String>> = null;
+	var validatedFilesSpec:Null<Array<FileSpec>> = null;
+	var validatedFileNames:Null<Array<RootedFilePath>> = null;
+	// PORT: map[tspath.PathKey]tspath.FileSpec → StringMap keyed by the PathKey text.
+	var fileSpecByPath:StringMap<FileSpec> = null;
+	var validatedIncludeSpecs:Null<Array<PathPattern>> = null;
+	var validatedExcludeSpecs:Null<Array<PathPattern>> = null;
+	var validatedFilesSpecBeforeSubstitution:Null<Array<FileSpec>> = null;
+	var validatedIncludeSpecsBeforeSubstitution:Null<Array<PathPattern>> = null;
 	var isDefaultIncludeSpec:Bool = false;
 
-	public function new(filesSpecs:Dynamic, includeSpecs:Dynamic, excludeSpecs:Dynamic, validatedFilesSpec:Null<Array<std.String>>,
-			validatedIncludeSpecs:Null<Array<std.String>>, validatedExcludeSpecs:Null<Array<std.String>>,
-			validatedFilesSpecBeforeSubstitution:Null<Array<std.String>>, validatedIncludeSpecsBeforeSubstitution:Null<Array<std.String>>,
-			isDefaultIncludeSpec:Bool) {
-		this.filesSpecs = filesSpecs;
-		this.includeSpecs = includeSpecs;
-		this.excludeSpecs = excludeSpecs;
-		this.validatedFilesSpec = validatedFilesSpec;
-		this.validatedIncludeSpecs = validatedIncludeSpecs;
-		this.validatedExcludeSpecs = validatedExcludeSpecs;
-		this.validatedFilesSpecBeforeSubstitution = validatedFilesSpecBeforeSubstitution;
-		this.validatedIncludeSpecsBeforeSubstitution = validatedIncludeSpecsBeforeSubstitution;
-		this.isDefaultIncludeSpec = isDefaultIncludeSpec;
-	}
+	public function new() {}
 
-	function matchesExclude(fileName:std.String, comparePathsOptions:ComparePathsOptions):Bool {
-		if (Core.len(this.validatedExcludeSpecs) == 0) {
-			return false;
-		}
-		final excludeMatcher = Vfsmatch.NewSpecMatcher(this.validatedExcludeSpecs, /* PORT: transitional, unchecked */ cast comparePathsOptions.CurrentDirectory,
-			UsageExclude, comparePathsOptions.caseSensitivity());
-		if (excludeMatcher == null) {
-			return false;
-		}
-		if (excludeMatcher.MatchString(fileName)) {
-			return true;
-		}
-		if (!Tspath.HasExtension(fileName)) {
-			if (excludeMatcher.MatchString(Tspath.EnsureTrailingDirectorySeparator(fileName))) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	function getMatchedIncludeSpec(fileName:std.String, comparePathsOptions:ComparePathsOptions):std.String {
+	function getMatchedIncludeSpec(fileName:RootedFilePath, currentDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):PathPattern {
 		if (Core.len(this.validatedIncludeSpecs) == 0) {
-			return "";
+			return cast "";
 		}
 		for (index in 0...this.validatedIncludeSpecs.length) {
 			final spec = this.validatedIncludeSpecs[index];
-			final includeMatcher = Vfsmatch.NewSpecMatcher([spec], /* PORT: transitional, unchecked */ cast comparePathsOptions.CurrentDirectory, UsageFiles,
-				comparePathsOptions.caseSensitivity());
-			if (includeMatcher != null && includeMatcher.MatchString(fileName)) {
+			final includeMatcher = Vfsmatch.NewSpecMatcher([spec], currentDirectory, UsageFiles, caseSensitivity);
+			if (includeMatcher != null && includeMatcher.MatchFileName(fileName)) {
 				return this.validatedIncludeSpecsBeforeSubstitution[index];
 			}
 		}
-		return "";
+		return cast "";
 	}
 
-	function getMatchedFileSpec(fileName:std.String, comparePathsOptions:ComparePathsOptions):std.String {
-		if (Core.len(this.validatedFilesSpec) == 0) {
-			return "";
-		}
-		final filePath = Tspath.ToPath(fileName, comparePathsOptions.CurrentDirectory, comparePathsOptions.UseCaseSensitiveFileNames);
-		for (index in 0...this.validatedFilesSpec.length) {
-			final spec = this.validatedFilesSpec[index];
-			if (Tspath.ToPath(spec, comparePathsOptions.CurrentDirectory, comparePathsOptions.UseCaseSensitiveFileNames) == filePath) {
-				return this.validatedFilesSpecBeforeSubstitution[index];
-			}
-		}
-		return "";
+	function getMatchedFileSpec(filePath:PathKey):FileSpec {
+		final spec = this.fileSpecByPath == null ? null : this.fileSpecByPath.get(filePath);
+		return spec == null ? cast "" : spec;
 	}
 }
 
@@ -112,7 +72,7 @@ class FileExtensionInfo {
 }
 
 interface ExtendedConfigCache {
-	function GetExtendedConfig(fileName:std.String, path:Path, resolutionStack:Null<Array<Path>>, host:ParseConfigHost):ExtendedConfigCacheEntry;
+	function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS):ExtendedConfigCacheEntry;
 }
 
 @:allow(ts.tsoptions)
@@ -123,7 +83,7 @@ class ExtendedConfigCacheEntry {
 
 	public function new() {}
 
-	public function ExtendedFileNames():Null<Array<std.String>> {
+	public function ExtendedFileNames():Null<Array<RootedFilePath>> {
 		if (this.extendedResult != null) {
 			return this.extendedResult.ExtendedSourceFiles;
 		}
@@ -134,19 +94,34 @@ class ExtendedConfigCacheEntry {
 @:allow(ts.tsoptions)
 class ParsedTsconfig {
 	var raw:Dynamic = null;
-	var options:Null<CompilerOptions> = null;
+	var options:Null<ParsedCompilerOptions> = null;
 	// watchOptions *core.WatchOptions
 	var typeAcquisition:Null<TypeAcquisition> = null;
-	// Note that the case of the config path has not yet been normalized, as no files have been imported into the project yet
-	var extendedConfigPath:Dynamic = null;
-	var contentMappersConfigFile:std.String = "";
+	var extendedConfigPaths:Null<Array<RootedFilePath>> = null;
+	var contentMappersConfigFile:RootedFilePath = cast "";
 
 	public function new() {}
 }
 
+// PORT: Go embeds *core.CompilerOptions; the embedded pointer is the field CompilerOptions.
+@:allow(ts.tsoptions)
+class ParsedCompilerOptions {
+	public var CompilerOptions:CompilerOptions;
+	var unresolvedPaths:Null<UnresolvedCompilerOptionPaths>;
+
+	public function new(CompilerOptions:CompilerOptions, unresolvedPaths:Null<UnresolvedCompilerOptionPaths>) {
+		this.CompilerOptions = CompilerOptions;
+		this.unresolvedPaths = unresolvedPaths;
+	}
+
+	public function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>> {
+		return new CompilerOptionsParser(this.CompilerOptions, this.unresolvedPaths).ParseOption(key, value);
+	}
+}
+
 @:allow(ts.tsoptions)
 class TsConfigSourceFile {
-	public var ExtendedSourceFiles:Null<Array<std.String>> = null;
+	public var ExtendedSourceFiles:Null<Array<RootedFilePath>> = null;
 	var configFileSpecs:Null<ConfigFileSpecs> = null;
 	public var SourceFile:Null<SourceFile> = null;
 
@@ -207,28 +182,23 @@ abstract CommandLineOptionNameMap(StringMap<CommandLineOption>) from StringMap<C
 	}
 }
 
+// PORT: main's ParseConfigHost also has IsContentMapperPackageAllowed (an LSP workspace restriction), not
+// ported: content mapper packages are always allowed.
 interface ParseConfigHost {
 	function FS():FS;
-	function GetCurrentDirectory():RootedDirectoryPath;
 }
 
-// PORT: Go embeds ParseConfigHost; the two methods are forwarded.
-class ResolverHost implements ParseConfigHost implements ts.module.Types.ResolutionHost {
-	var ParseConfigHost:ParseConfigHost;
+// Go type defaultParseConfigHost.
+class DefaultParseConfigHost implements ParseConfigHost {
+	final fs:FS;
 
-	public function new(ParseConfigHost:ParseConfigHost) {
-		this.ParseConfigHost = ParseConfigHost;
+	public function new(fs:FS) {
+		this.fs = fs;
 	}
 
 	public function FS():FS {
-		return this.ParseConfigHost.FS();
+		return this.fs;
 	}
-
-	public function GetCurrentDirectory():RootedDirectoryPath {
-		return this.ParseConfigHost.GetCurrentDirectory();
-	}
-
-	public function Trace(msg:std.String):Void {}
 }
 
 @:allow(ts.tsoptions)
@@ -243,7 +213,7 @@ class PropOfRaw {
 }
 
 // --- contentmappers.go ---
-class ContentMapperResolutionHost implements ParseConfigHost {
+class ContentMapperResolutionHost implements ts.module.Types.ResolutionHost {
 	final fs:FS;
 	final currentDirectory:RootedDirectoryPath;
 

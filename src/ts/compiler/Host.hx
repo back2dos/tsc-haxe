@@ -19,7 +19,7 @@ interface CompilerHost extends ResolutionHost {
 	// ContentMapperProject returns the project-scoped content mapper used by this host, or nil when the
 	// command line has no content mappers.
 	function ContentMapperProject():ts.contentmapper.Host.Project;
-	function GetResolvedProjectReference(fileName:std.String, path:Path):ParsedCommandLine;
+	function GetResolvedProjectReference(fileName:RootedFilePath, path:PathKey):ParsedCommandLine;
 }
 
 // PORT: the Go trace callback `func(msg *diagnostics.Message, args ...any)` → a function taking the
@@ -82,7 +82,7 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 		return this.contentMapperProject;
 	}
 
-	public function GetResolvedProjectReference(fileName:std.String, path:Path):ParsedCommandLine {
+	public function GetResolvedProjectReference(fileName:RootedFilePath, path:PathKey):ParsedCommandLine {
 		final commandLine = Tsoptions.GetParsedCommandLineOfConfigFilePath(fileName, path, null, null /*optionsRaw*/, this, this.extendedConfigCache).a;
 		return commandLine;
 	}

@@ -133,8 +133,14 @@ class Tsoptions {
 				m.set(key, o);
 			}
 			add("lib", "lib", CommandLineOptionTypeEnum, o -> o.DefaultValueDescription = TSUnknown); // libMap,
-			add("rootDirs", "rootDirs", CommandLineOptionTypeString, o -> o.IsFilePath = true);
-			add("typeRoots", "typeRoots", CommandLineOptionTypeString, o -> o.IsFilePath = true);
+			add("rootDirs", "rootDirs", CommandLineOptionTypeString, o -> {
+				o.IsFilePath = true;
+				o.PathKind = CommandLineOptionPathKindDirectory;
+			});
+			add("typeRoots", "typeRoots", CommandLineOptionTypeString, o -> {
+				o.IsFilePath = true;
+				o.PathKind = CommandLineOptionPathKindDirectory;
+			});
 			add("types", "types", CommandLineOptionTypeString);
 			add("moduleSuffixes", "moduleSuffixes", CommandLineOptionTypeString);
 			add("customConditions", "condition", CommandLineOptionTypeString);
@@ -142,10 +148,10 @@ class Tsoptions {
 			// For tsconfig root options
 			add("references", "references", CommandLineOptionTypeObject);
 			add("contentMappers", "contentMappers", CommandLineOptionTypeObject);
-			add("files", "files", CommandLineOptionTypeString);
-			add("include", "include", CommandLineOptionTypeString);
-			add("exclude", "exclude", CommandLineOptionTypeString);
-			add("extends", "extends", CommandLineOptionTypeString);
+			add("files", "files", CommandLineOptionTypeString, o -> o.PathKind = CommandLineOptionPathKindFileSpec);
+			add("include", "include", CommandLineOptionTypeString, o -> o.PathKind = CommandLineOptionPathKindPathPattern);
+			add("exclude", "exclude", CommandLineOptionTypeString, o -> o.PathKind = CommandLineOptionPathKindPathPattern);
+			add("extends", "extends", CommandLineOptionTypeString, o -> o.PathKind = CommandLineOptionPathKindConfigLocator);
 			// For Watch options
 			add("excludeDirectories", "excludeDirectory", CommandLineOptionTypeString, o -> {
 				o.IsFilePath = true;
@@ -201,28 +207,30 @@ class Tsoptions {
 
 	// --- commandlineparser.go ---
 
-	public static function ParseCommandLine(commandLine:Null<Array<std.String>>, host:ParseConfigHost):ParsedCommandLine {
+	public static function ParseCommandLine(commandLine:Null<Array<std.String>>, fs:FS, currentDirectory:RootedDirectoryPath):ParsedCommandLine {
 		if (commandLine == null) {
 			commandLine = [];
 		}
-		final parser = parseCommandLineWorker(CompilerOptionsDidYouMeanDiagnostics, commandLine, host.FS(), host.GetCurrentDirectory());
-		final optionsWithAbsolutePaths = convertToOptionsWithAbsolutePaths(parser.options.Clone(), CommandLineCompilerOptionsMap,
-			host.GetCurrentDirectory());
+		final parser = parseCommandLineWorker(CompilerOptionsDidYouMeanDiagnostics, commandLine, fs, currentDirectory);
+		final optionsWithAbsolutePaths = convertToOptionsWithAbsolutePaths(parser.options.Clone(), CommandLineCompilerOptionsMap, currentDirectory);
 		final compilerOptions = convertMapToOptions(optionsWithAbsolutePaths, new CompilerOptionsParser(new CompilerOptions())).CompilerOptions;
 		final watchOptions = convertMapToOptions(optionsWithAbsolutePaths, new WatchOptionsParser(new WatchOptions())).WatchOptions;
-		final result = NewParsedCommandLine(compilerOptions, parser.fileNames,
-			new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), host.GetCurrentDirectory()));
+		final caseSensitivity = fs.CaseSensitivity();
+		final result = NewParsedCommandLine(compilerOptions, Core.Map(parser.fileNames, function(fileName:std.String):RootedFilePath {
+			return Tspath.ToRootedFilePath(fileName, currentDirectory);
+		}), null, currentDirectory, caseSensitivity);
+		result.rootFileNamesForDiagnostics = parser.fileNames;
 		result.ParsedConfig.WatchOptions = watchOptions;
 		result.Errors = parser.errors;
 		result.Raw = parser.options;
 		return result;
 	}
 
-	public static function ParseBuildCommandLine(commandLine:Null<Array<std.String>>, host:ParseConfigHost):ParsedBuildCommandLine {
+	public static function ParseBuildCommandLine(commandLine:Null<Array<std.String>>, fs:FS, currentDirectory:RootedDirectoryPath):ParsedBuildCommandLine {
 		if (commandLine == null) {
 			commandLine = [];
 		}
-		final parser = parseCommandLineWorker(buildOptionsDidYouMeanDiagnostics, commandLine, host.FS(), host.GetCurrentDirectory());
+		final parser = parseCommandLineWorker(buildOptionsDidYouMeanDiagnostics, commandLine, fs, currentDirectory);
 		final compilerOptions = new CompilerOptions();
 		for (key => value in parser.options.Entries()) {
 			final buildOption = BuildNameMap.Get(key);
@@ -238,7 +246,7 @@ class Tsoptions {
 		result.Errors = parser.errors;
 		result.Raw = parser.options;
 
-		result.comparePathsOptions = new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), host.GetCurrentDirectory());
+		result.currentDirectory = currentDirectory;
 
 		if (Core.len(result.Projects) == 0) {
 			// tsc -b invoked with no extra arguments; act as if invoked with "tsc -b ."
@@ -265,7 +273,7 @@ class Tsoptions {
 	}
 
 	static function parseCommandLineWorker(parseCommandLineWithDiagnostics:ParseCommandLineWorkerDiagnostics, commandLine:Array<std.String>,
-			fs:Null<FS>, currentDirectory:std.String):CommandLineParser {
+			fs:Null<FS>, currentDirectory:RootedDirectoryPath):CommandLineParser {
 		final parser = new CommandLineParser();
 		parser.fs = fs;
 		parser.currentDirectory = currentDirectory;
@@ -597,6 +605,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "generateCpuProfile";
+					o.PathKind = CommandLineOptionPathKindFile;
 					o.Kind = CommandLineOptionTypeString;
 					o.IsFilePath = true;
 					o.Category = Diagnostics.Compiler_Diagnostics;
@@ -607,6 +616,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "generateTrace";
+					o.PathKind = CommandLineOptionPathKindDirectory;
 					o.Kind = CommandLineOptionTypeString;
 					o.IsFilePath = true;
 					o.Category = Diagnostics.Compiler_Diagnostics;
@@ -765,6 +775,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "pprofDir";
+					o.PathKind = CommandLineOptionPathKindDirectory;
 					o.Kind = CommandLineOptionTypeString;
 					o.IsFilePath = true;
 					o.Category = Diagnostics.Command_line_Options;
@@ -838,6 +849,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "project";
+					o.PathKind = CommandLineOptionPathKindFileOrDirectory;
 					o.ShortName = "p";
 					o.Kind = CommandLineOptionTypeString;
 					o.IsFilePath = true;
@@ -974,6 +986,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "outFile";
+					o.PathKind = CommandLineOptionPathKindFile;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -988,6 +1001,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "outDir";
+					o.PathKind = CommandLineOptionPathKindDirectory;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -1001,6 +1015,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "rootDir";
+					o.PathKind = CommandLineOptionPathKindDirectory;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -1027,6 +1042,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "tsBuildInfoFile";
+					o.PathKind = CommandLineOptionPathKindFile;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -1392,6 +1408,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "baseUrl";
+					o.PathKind = CommandLineOptionPathKindDirectory;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsModuleResolution = true;
 					o.IsFilePath = true;
@@ -1608,6 +1625,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "sourceRoot";
+					o.PathKind = CommandLineOptionPathKindSourceMapLocation;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -1618,6 +1636,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "mapRoot";
+					o.PathKind = CommandLineOptionPathKindSourceMapLocation;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -1894,6 +1913,7 @@ class Tsoptions {
 				{
 					final o = new CommandLineOption();
 					o.Name = "declarationDir";
+					o.PathKind = CommandLineOptionPathKindDirectory;
 					o.Kind = CommandLineOptionTypeString;
 					o.AffectsEmit = true;
 					o.AffectsBuildInfo = true;
@@ -2804,14 +2824,16 @@ class Tsoptions {
 	static inline final fileGlobPattern = "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json}";
 	static inline final recursiveFileGlobPattern = "**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json}";
 
-	public static function NewParsedCommandLine(compilerOptions:CompilerOptions, rootFileNames:Null<Array<std.String>>,
-			comparePathsOptions:ComparePathsOptions):ParsedCommandLine {
+	public static function NewParsedCommandLine(compilerOptions:CompilerOptions, rootFileNames:Null<Array<RootedFilePath>>,
+			projectReferences:Null<Array<ProjectReference>>, baseDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):ParsedCommandLine {
 		final p = new ParsedCommandLine();
 		final parsedConfig = new ParsedOptions();
 		parsedConfig.CompilerOptions = compilerOptions;
 		parsedConfig.FileNames = rootFileNames;
+		parsedConfig.ProjectReferences = projectReferences;
 		p.ParsedConfig = parsedConfig;
-		p.comparePathsOptions = comparePathsOptions;
+		p.baseDirectory = baseDirectory;
+		p.caseSensitivity = caseSensitivity;
 		return p;
 	}
 
@@ -2868,23 +2890,37 @@ class Tsoptions {
 		return "";
 	}
 
-	// PORT: transitional — main validates with Rooted*FromNormalized (its tsconfig parsing keeps unresolved
-	// option paths apart); this port still parses path options before they are made absolute, so the value
-	// is taken as is (unchecked) until tsconfigparsing is ported.
 	static function parseFileName(value:Dynamic):RootedFilePath {
-		return cast ParseString(value);
+		final path = ParseString(value);
+		if (path == "") {
+			return cast "";
+		}
+		return Tspath.RootedFilePathFromNormalized(path);
 	}
 
 	static function parseDirectoryName(value:Dynamic):RootedDirectoryPath {
-		return cast ParseString(value);
+		final path = ParseString(value);
+		if (path == "") {
+			return cast "";
+		}
+		return Tspath.RootedDirectoryPathFromNormalized(path);
 	}
 
 	static function parseFileOrDirectoryName(value:Dynamic):RootedPath {
-		return cast ParseString(value);
+		final path = ParseString(value);
+		if (path == "") {
+			return cast "";
+		}
+		return Tspath.RootedPathFromNormalized(path);
 	}
 
 	static function parseDirectoryNames(value:Dynamic):Null<Array<RootedDirectoryPath>> {
-		return cast ParseStringArray(value);
+		return Core.Map(ParseStringArray(value), function(path:std.String):RootedDirectoryPath {
+			if (path == "") {
+				return cast "";
+			}
+			return Tspath.RootedDirectoryPathFromNormalized(path);
+		});
 	}
 
 	// PORT: *int → Null<Int>. Go tells int from float64; both are numbers here and give the
@@ -2913,7 +2949,7 @@ class Tsoptions {
 				result.hasPath = true;
 				final value:Dynamic = p.value;
 				if (Std.isOfType(value, std.String)) {
-					result.reference.Path = value;
+					result.path = value;
 					result.pathValid = true;
 				}
 			}
@@ -3026,20 +3062,20 @@ class Tsoptions {
 	// node_modules (walking up via node module resolution) and reads its package.json to produce the mapper's manifest
 	// and package directory. It never executes the package.
 	// PORT: ParseConfigHost.IsContentMapperPackageAllowed (an LSP workspace restriction) is not ported: always allowed.
-	static function resolveContentMapperManifest(host:ParseConfigHost, containingFile:std.String,
-			packageName:std.String):Triple<Manifest, std.String, Null<Diagnostic>> {
+	static function resolveContentMapperManifest(host:ParseConfigHost, containingFile:RootedFilePath,
+			packageName:std.String):Triple<Manifest, RootedDirectoryPath, Null<Diagnostic>> {
 		final fs = host.FS();
 		final resolverOptions = new CompilerOptions();
 		resolverOptions.ModuleResolution = ModuleResolutionKindBundler;
-		final resolver = ts.module.Module.NewResolver(new ResolverHost(new ContentMapperResolutionHost(fs, /* PORT: transitional, unchecked */ cast Tspath.GetDirectoryPath(containingFile))),
-			resolverOptions, cast "", "");
-		final resolved = resolver.ResolvePackageDirectory(packageName, /* PORT: transitional, unchecked */ cast containingFile, ts.core.Core.ResolutionModeNone, null);
+		final resolver = ts.module.Module.NewResolver(new ContentMapperResolutionHost(fs, containingFile.Directory()), resolverOptions, cast "", "");
+		final resolved = resolver.ResolvePackageDirectory(packageName, containingFile, ts.core.Core.ResolutionModeNone, null);
 		if (resolved == null || resolved.ResolvedFileName == "") {
-			return new Triple(new Manifest(), "", Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_package_0_could_not_be_resolved, packageName));
+			return new Triple(new Manifest(), (cast "" : RootedDirectoryPath),
+				Ast.NewCompilerDiagnostic(Diagnostics.The_content_mapper_package_0_could_not_be_resolved, packageName));
 		}
-		final packageDirectory = resolved.ResolvedFileName;
+		final packageDirectory = Tspath.RootedDirectoryPathFromPath(resolved.ResolvedFileName.AsPath());
 
-		final packageJsonPath = /* PORT: transitional (main: typed package directory) */ Tspath.RootedDirectoryPathFromAbsolute(packageDirectory).ResolveFile("package.json");
+		final packageJsonPath = packageDirectory.ResolveFile("package.json");
 		final contents = fs.ReadFile(packageJsonPath);
 		if (!contents.ok) {
 			return new Triple(new Manifest(), packageDirectory,
@@ -3693,7 +3729,7 @@ class Tsoptions {
 	}
 
 	static function convertToOptionsWithAbsolutePaths(optionsBase:Null<OrderedMap<std.String, Dynamic>>, optionMap:CommandLineOptionNameMap,
-			cwd:std.String):Null<OrderedMap<std.String, Dynamic>> {
+			cwd:RootedDirectoryPath):Null<OrderedMap<std.String, Dynamic>> {
 		// !!! convert to options with absolute paths was previously done with `CompilerOptions` object, but for ease of implementation, we do it pre-conversion.
 		// !!! Revisit this choice if/when refactoring when conversion is done in tsconfig parsing
 		if (optionsBase == null) {
@@ -3709,7 +3745,8 @@ class Tsoptions {
 	}
 
 	// PORT: (any, bool) → ValueOk.
-	public static function ConvertOptionToAbsolutePath(o:std.String, v:Dynamic, optionMap:CommandLineOptionNameMap, cwd:std.String):ValueOk<Dynamic> {
+	public static function ConvertOptionToAbsolutePath(o:std.String, v:Dynamic, optionMap:CommandLineOptionNameMap,
+			cwd:RootedDirectoryPath):ValueOk<Dynamic> {
 		final option = optionMap.Get(o);
 		if (option == null) {
 			return new ValueOk<Dynamic>(null, false);
@@ -3776,27 +3813,29 @@ class Tsoptions {
 
 	// ConvertToTSConfig generates a complete tsconfig representation for --showConfig output,
 	// matching the behavior of TypeScript's convertToTSConfig function.
-	public static function ConvertToTSConfig(configParseResult:ParsedCommandLine, configFileName:std.String):TSConfig {
+	public static function ConvertToTSConfig(configParseResult:ParsedCommandLine, configFileName:RootedFilePath):TSConfig {
 		if (configFileName == "") {
-			configFileName = "tsconfig.json";
+			configFileName = configParseResult.BaseDirectory().ResolveFile("tsconfig.json");
 		}
-		final normalizedConfigPath = Tspath.GetNormalizedAbsolutePath(configFileName, configParseResult.GetCurrentDirectory());
-		final comparePathsOptions = new ComparePathsOptions(configParseResult.UseCaseSensitiveFileNames(), configParseResult.GetCurrentDirectory());
+		final caseSensitivity = configParseResult.CaseSensitivity();
 
 		// Build the list of all resolved files as relative paths from the config file.
 		var files:Null<Array<std.String>> = null;
 		if (configParseResult.FileNames() != null) {
 			for (f in configParseResult.FileNames()) {
-				final normalizedFilePath = Tspath.GetNormalizedAbsolutePath(f, configParseResult.GetCurrentDirectory());
-				final relativePath = Tspath.GetRelativePathFromFile_legacy(normalizedConfigPath, normalizedFilePath, comparePathsOptions);
 				if (files == null)
 					files = [];
-				files.push(relativePath);
+				final relativePath = caseSensitivity.RelativePathFromFile(configFileName, f);
+				if (relativePath != null) {
+					files.push(relativePath.AsModuleSpecifier().AsString());
+				} else {
+					files.push(f.AsString());
+				}
 			}
 		}
 
 		// Serialize compiler options
-		final optionMap = serializeCompilerOptions(configParseResult.CompilerOptions(), normalizedConfigPath, comparePathsOptions);
+		final optionMap = serializeCompilerOptions(configParseResult.CompilerOptions(), configFileName, caseSensitivity);
 
 		// Remove command-line-only options from the output
 		for (name in [
@@ -3808,7 +3847,7 @@ class Tsoptions {
 		// Add implied compiler options (options that are derived from explicitly set options,
 		// such as moduleResolution implied by module, or useDefineForClassFields implied by target).
 		// This mirrors TypeScript's convertToTSConfig computedOptions logic.
-		addImpliedOptions(optionMap, configParseResult.CompilerOptions(), normalizedConfigPath, comparePathsOptions);
+		addImpliedOptions(optionMap, configParseResult.CompilerOptions());
 
 		final config = new TSConfig();
 		config.CompilerOptions = optionMap;
@@ -3836,13 +3875,13 @@ class Tsoptions {
 		}
 
 		// Add include/exclude from configFileSpecs
-		if (configParseResult.ConfigFile != null && configParseResult.ConfigFile.configFileSpecs != null) {
-			final specs = configParseResult.ConfigFile.configFileSpecs;
-			final include = filterSameAsDefaultInclude(specs.validatedIncludeSpecs);
+		final specs = configParseResult.getConfigFileSpecs();
+		if (specs != null) {
+			final include = filterSameAsDefaultInclude(Core.Map(specs.validatedIncludeSpecs, (spec:PathPattern) -> spec.AsString()));
 			if (Core.len(include) > 0) {
 				config.Include = include;
 			}
-			config.Exclude = specs.validatedExcludeSpecs;
+			config.Exclude = Core.Map(specs.validatedExcludeSpecs, (spec:PathPattern) -> spec.AsString());
 		}
 
 		// Add compileOnSave
@@ -3852,6 +3891,14 @@ class Tsoptions {
 		}
 
 		return config;
+	}
+
+	static function serializeCompilerOptionPath(value:RootedPath, configFilePath:RootedFilePath, caseSensitivity:CaseSensitivity):std.String {
+		final relativePath = caseSensitivity.RelativePathFromFileToPath(configFilePath, value);
+		if (relativePath != null) {
+			return relativePath.AsModuleSpecifier().AsString();
+		}
+		return value.AsString();
 	}
 
 	// filterSameAsDefaultInclude returns nil if specs is the default include spec ["**/*"]
@@ -3879,10 +3926,9 @@ class Tsoptions {
 	// serializeCompilerOptions converts CompilerOptions to an ordered map with
 	// string names as keys and serialized values (enums as strings, paths as
 	// relative paths, etc.) matching the output of tsc --showConfig.
-	static function serializeCompilerOptions(options:CompilerOptions, configFilePath:std.String,
-			comparePathsOptions:ComparePathsOptions):OrderedMap<std.String, Dynamic> {
+	static function serializeCompilerOptions(options:CompilerOptions, configFilePath:RootedFilePath,
+			caseSensitivity:CaseSensitivity):OrderedMap<std.String, Dynamic> {
 		final result:OrderedMap<std.String, Dynamic> = Collections.NewOrderedMapWithSizeHint(32, (null : Dynamic));
-		final configDir = Tspath.GetDirectoryPath(configFilePath);
 
 		// PORT: Go walks the struct fields with reflect; compilerOptionsFields lists them.
 		for (field in compilerOptionsFields) {
@@ -3927,13 +3973,14 @@ class Tsoptions {
 					if (elem != null && elem.IsFilePath) {
 						// List of file paths - make relative
 						if (isStrings) {
-							final strs:Array<std.String> = value;
-							final relPaths:Array<std.String> = [];
-							for (s in strs) {
-								final absPath = Tspath.GetNormalizedAbsolutePath(s, configDir);
-								relPaths.push(Tspath.GetRelativePathFromFile_legacy(configFilePath, absPath, comparePathsOptions));
-							}
-							result.Set(name, relPaths);
+							// PORT: the path list fields hold []tspath.RootedDirectoryPath (rootDirs, typeRoots).
+							final strs:Array<RootedDirectoryPath> = value;
+							result.Set(name, Core.Map(strs, function(value:RootedDirectoryPath):std.String {
+								if (value == "") {
+									return "";
+								}
+								return serializeCompilerOptionPath(value.AsPath(), configFilePath, caseSensitivity);
+							}));
 							done = true;
 						}
 					}
@@ -3965,8 +4012,9 @@ class Tsoptions {
 					if (optionDecl.IsFilePath) {
 						// File path option - make relative to config
 						if (isString(value) && (value : std.String) != "") {
-							final absPath = Tspath.GetNormalizedAbsolutePath(value, configDir);
-							result.Set(name, Tspath.GetRelativePathFromFile_legacy(configFilePath, absPath, comparePathsOptions));
+							// PORT: the file path fields hold a tspath.RootedFilePath/RootedDirectoryPath (main: .AsPath()).
+							final path:RootedPath = value;
+							result.Set(name, serializeCompilerOptionPath(path, configFilePath, caseSensitivity));
 							done = true;
 						}
 					}
@@ -4017,7 +4065,7 @@ class Tsoptions {
 	// addImpliedOptions adds compiler options that are implied by other explicitly-set options,
 	// mirroring TypeScript's convertToTSConfig behavior for computedOptions.
 	// For example, when module: nodenext is set, moduleResolution: nodenext is implied.
-	static function addImpliedOptions(optionMap:OrderedMap<std.String, Dynamic>, options:CompilerOptions, _:std.String, __:ComparePathsOptions):Void {
+	static function addImpliedOptions(optionMap:OrderedMap<std.String, Dynamic>, options:CompilerOptions):Void {
 		// Build the set of explicitly provided option JSON names (e.g., "module", "target").
 		final provided = new StringMap<Bool>();
 		for (k in optionMap.Keys()) {
@@ -4141,6 +4189,7 @@ class Tsoptions {
 			final e = new CommandLineOption();
 			e.Name = "extends";
 			e.Kind = CommandLineOptionTypeString;
+			e.PathKind = CommandLineOptionPathKindConfigLocator;
 			o.ElementOptions = commandLineOptionsToMap([e]);
 			_extendsOptionDeclaration = o;
 		}
@@ -4193,12 +4242,12 @@ class Tsoptions {
 		return _tsconfigRootOptionsMap;
 	}
 
-	static function parseOwnConfigOfJsonSourceFile(sourceFile:SourceFile, host:ParseConfigHost, basePath:std.String,
-			configFileName:std.String):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
+	static function parseOwnConfigOfJsonSourceFile(sourceFile:SourceFile, fs:FS, basePath:RootedDirectoryPath,
+			configFileName:RootedFilePath):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
 		final compilerOptions = getDefaultCompilerOptions(configFileName);
 		final typeAcquisition = getDefaultTypeAcquisition(configFileName);
 		// var watchOptions *compiler.WatchOptions
-		var extendedConfigPath:Dynamic = null;
+		var extendedConfigPaths:Null<Array<RootedFilePath>> = null;
 		var rootCompilerOptions:Null<Array<Node>> = null;
 		var errors:Null<Array<Diagnostic>> = null;
 		final onPropertySet = function(keyText:std.String, value:Dynamic, propertyAssignment:PropertyAssignment, parentOption:Null<CommandLineOption>, // TsConfigOnlyOption,
@@ -4215,7 +4264,7 @@ class Tsoptions {
 					var parseDiagnostics:Null<Array<Diagnostic>> = null;
 					switch (parentOption.Name) {
 						case "compilerOptions":
-							parseDiagnostics = ParseCompilerOptions(option.Name, value, compilerOptions);
+							parseDiagnostics = compilerOptions.ParseOption(option.Name, value);
 						case "typeAcquisition":
 							parseDiagnostics = ParseTypeAcquisition(option.Name, value, typeAcquisition);
 						default:
@@ -4242,9 +4291,9 @@ class Tsoptions {
 				}
 			} else if (parentOption == tsconfigRootOptionsMap) {
 				if (option == extendsOptionDeclaration) {
-					final r = getExtendsConfigPathOrArray(value, host, basePath, configFileName, propertyAssignment, propertyAssignment.Initializer,
+					final r = getExtendsConfigPathOrArray(value, fs, basePath, configFileName, propertyAssignment, propertyAssignment.Initializer,
 						sourceFile);
-					extendedConfigPath = stringSliceToAny(r.a);
+					extendedConfigPaths = r.a;
 					propertySetErrors = appendDiags(propertySetErrors, r.b);
 				} else if (option == null) {
 					if (keyText == "excludes") {
@@ -4275,8 +4324,8 @@ class Tsoptions {
 		parsed.options = compilerOptions;
 		// watchOptions:    watchOptions,
 		parsed.typeAcquisition = typeAcquisition;
-		parsed.extendedConfigPath = extendedConfigPath;
-		parsed.contentMappersConfigFile = contentMappersConfigFileOf(configFileName, basePath);
+		parsed.extendedConfigPaths = extendedConfigPaths;
+		parsed.contentMappersConfigFile = configFileName;
 		return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(parsed, errors);
 	}
 
@@ -4287,9 +4336,9 @@ class Tsoptions {
 		return tsconfigSourceFile.SourceFile;
 	}
 
-	public static function NewTsconfigSourceFileFromFilePath(configFileName:std.String, configPath:Path, configSourceText:std.String):TsConfigSourceFile {
+	public static function NewTsconfigSourceFileFromFilePath(configFileName:RootedFilePath, configPath:PathKey, configSourceText:std.String):TsConfigSourceFile {
 		final opts = new SourceFileParseOptions();
-		opts.FileName = /* PORT: transitional, unchecked */ cast configFileName;
+		opts.FileName = configFileName;
 		opts.Path = configPath;
 		final sourceFile = Parser.ParseSourceFile(opts, configSourceText, ScriptKindJSON);
 		return new TsConfigSourceFile(sourceFile);
@@ -4302,7 +4351,7 @@ class Tsoptions {
 		}
 		if (rootExpression != null && rootExpression.Kind != KindObjectLiteralExpression) {
 			var baseFileName = "tsconfig.json";
-			if (Tspath.GetBaseFileName(sourceFile.FileName()) == "jsconfig.json") {
+			if (sourceFile.FileName().BaseName() == "jsconfig.json") {
 				baseFileName = "jsconfig.json";
 			}
 			final errors = [CreateDiagnosticForNodeInSourceFile(sourceFile, rootExpression, Diagnostics.The_root_value_of_a_0_file_must_be_an_object, baseFileName)];
@@ -4368,7 +4417,7 @@ class Tsoptions {
 
 		switch (opt.extraValidation) {
 			case extraValidationSpec:
-				final diag = specToDiagnostic(mustString(val), false, ""); // PORT: watch options (removed in TypeScript main)
+				final diag = specToDiagnostic(mustString(val), false, cast ""); // PORT: watch options (removed in TypeScript main)
 				if (diag != null) {
 					errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, valueExpression, diag));
 				}
@@ -4387,7 +4436,7 @@ class Tsoptions {
 	}
 
 	// PORT: returns the Go []any (nil → null); callers that store it in an `any` use anySliceToAny.
-	static function convertJsonOptionOfListType(option:CommandLineOption, values:Dynamic, basePath:std.String, propertyAssignment:Null<PropertyAssignment>,
+	static function convertJsonOptionOfListType(option:CommandLineOption, values:Dynamic, basePath:RootedDirectoryPath, propertyAssignment:Null<PropertyAssignment>,
 			valueExpression:Null<Node>, sourceFile:Null<SourceFile>):Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>> {
 		var expression:Null<Node> = null;
 		var errors:Null<Array<Diagnostic>> = null;
@@ -4423,8 +4472,8 @@ class Tsoptions {
 		return StringTools.startsWith(Strings.ToLower(str), Strings.ToLower(configDirTemplate));
 	}
 
-	static function normalizeNonListOptionValue(option:CommandLineOption, basePath:std.String, value:Dynamic):Dynamic {
-		if (option.IsFilePath) {
+	static function normalizeNonListOptionValue(option:CommandLineOption, basePath:RootedDirectoryPath, value:Dynamic):Dynamic {
+		if (option.PathKind.IsRooted()) {
 			value = Tspath.NormalizeSlashes(mustString(value));
 			if (!startsWithConfigDirTemplate(value)) {
 				value = Tspath.GetNormalizedAbsolutePath(mustString(value), basePath);
@@ -4436,7 +4485,7 @@ class Tsoptions {
 		return value;
 	}
 
-	static function convertJsonOption(opt:CommandLineOption, value:Dynamic, basePath:std.String, propertyAssignment:Null<PropertyAssignment>,
+	static function convertJsonOption(opt:CommandLineOption, value:Dynamic, basePath:RootedDirectoryPath, propertyAssignment:Null<PropertyAssignment>,
 			valueExpression:Null<Node>, sourceFile:Null<SourceFile>):Pair<Dynamic, Null<Array<Diagnostic>>> {
 		if (opt.IsCommandLineOnly) {
 			var nodeValue:Null<Node> = null;
@@ -4479,8 +4528,7 @@ class Tsoptions {
 			final errors = r.b;
 			if (Core.len(errors) > 0 || validatedValue == null) {
 				return new Pair<Dynamic, Null<Array<Diagnostic>>>(validatedValue, errors);
-			} else if (isString(validatedValue) && opt.IsFilePath && isNetworkPathValue(validatedValue, basePath)) {
-				// PORT: opt.PathKind.IsRooted() — the options with a rooted path kind are the IsFilePath ones.
+			} else if (isString(validatedValue) && opt.PathKind.IsRooted() && isNetworkPathValue(validatedValue, basePath)) {
 				return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, [
 					CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, valueExpression, Diagnostics.Network_path_0_is_not_supported, validatedValue)
 				]);
@@ -4496,24 +4544,24 @@ class Tsoptions {
 	}
 
 	// PORT: returns the Go []string (nil → null).
-	static function getExtendsConfigPathOrArray(value:CompilerOptionsValue, host:ParseConfigHost, basePath:std.String, configFileName:std.String,
+	static function getExtendsConfigPathOrArray(value:CompilerOptionsValue, fs:FS, basePath:RootedDirectoryPath, configFileName:RootedFilePath,
 			propertyAssignment:Null<PropertyAssignment>, valueExpression:Null<Node>,
-			sourceFile:Null<SourceFile>):Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>> {
-		var extendedConfigPathArray:Null<Array<std.String>> = null;
+			sourceFile:Null<SourceFile>):Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>> {
+		var extendedConfigPathArray:Null<Array<RootedFilePath>> = null;
 		var newBase = basePath;
 		if (configFileName != "") {
-			newBase = directoryOfCombinedPath(configFileName, basePath);
+			newBase = configFileName.Directory();
 		}
 		if (value == null) {
 			final r = convertJsonOption(extendsOptionDeclaration, value, basePath, propertyAssignment, valueExpression, sourceFile);
-			return new Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, r.b);
+			return new Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, r.b);
 		}
 		if (isString(value)) {
-			final r = getExtendsConfigPath(value, host, newBase, valueExpression, sourceFile);
+			final r = getExtendsConfigPath(value, fs, newBase, valueExpression, sourceFile);
 			if (r.a != "") {
 				extendedConfigPathArray = [r.a];
 			}
-			return new Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, r.b);
+			return new Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, r.b);
 		}
 		var errors:Null<Array<Diagnostic>> = null;
 		if (isSlice(value)) {
@@ -4527,7 +4575,7 @@ class Tsoptions {
 						expression = valueExpression.Elements()[index];
 					}
 					if (isString(fileName)) {
-						final r = getExtendsConfigPath(fileName, host, newBase, expression, sourceFile);
+						final r = getExtendsConfigPath(fileName, fs, newBase, expression, sourceFile);
 						if (r.a != "") {
 							if (extendedConfigPathArray == null)
 								extendedConfigPathArray = [];
@@ -4543,19 +4591,19 @@ class Tsoptions {
 		} else {
 			errors = convertJsonOption(extendsOptionDeclaration, value, basePath, propertyAssignment, valueExpression, sourceFile).b;
 		}
-		return new Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, errors);
+		return new Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, errors);
 	}
 
 	// isNetworkPathValue reports whether a path written in a config file refers
 	// to a network location once resolved against basePath. Checking the resolved
 	// path matches what the file system refuses to access, since normalization
 	// can add or remove a `/??/` prefix.
-	@:allow(ts.tsoptions) static function isNetworkPathValue(value:std.String, basePath:std.String):Bool {
+	@:allow(ts.tsoptions) static function isNetworkPathValue(value:std.String, basePath:RootedDirectoryPath):Bool {
 		return ts.nativepath.Nativepath.IsNetworkPath(Tspath.GetNormalizedAbsolutePath(value, basePath));
 	}
 
-	static function getExtendsConfigPath(extendedConfig:std.String, host:ParseConfigHost, basePath:std.String, valueExpression:Null<Node>,
-			sourceFile:Null<SourceFile>):Pair<std.String, Null<Array<Diagnostic>>> {
+	static function getExtendsConfigPath(extendedConfig:std.String, fs:FS, basePath:RootedDirectoryPath, valueExpression:Null<Node>,
+			sourceFile:Null<SourceFile>):Pair<RootedFilePath, Null<Array<Diagnostic>>> {
 		extendedConfig = Tspath.NormalizeSlashes(extendedConfig);
 		var errors:Null<Array<Diagnostic>> = null;
 		var errorFile:Null<SourceFile> = null;
@@ -4565,26 +4613,24 @@ class Tsoptions {
 		if (isNetworkPathValue(extendedConfig, basePath)) {
 			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.Network_path_0_is_not_supported,
 				extendedConfig));
-			return new Pair<std.String, Null<Array<Diagnostic>>>("", errors);
+			return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(cast "", errors);
 		}
 		if (Tspath.IsRootedDiskPath(extendedConfig) || StringTools.startsWith(extendedConfig, "./") || StringTools.startsWith(extendedConfig, "../")) {
-			var extendedConfigPath = Tspath.GetNormalizedAbsolutePath(extendedConfig, basePath);
-			// PORT: transitional (main: typed extendedConfigPath)
-			if (!host.FS().FileExists(Tspath.RootedFilePathFromAbsolute(extendedConfigPath)) && !StringTools.endsWith(extendedConfigPath, Tspath.ExtensionJson)) {
-				extendedConfigPath = extendedConfigPath + Tspath.ExtensionJson;
-				if (!host.FS().FileExists(Tspath.RootedFilePathFromAbsolute(extendedConfigPath))) {
+			var extendedConfigPath = Tspath.ToRootedFilePath(extendedConfig, basePath);
+			if (!fs.FileExists(extendedConfigPath) && !extendedConfigPath.ExtensionIs(Tspath.ExtensionJson)) {
+				extendedConfigPath = extendedConfigPath.AppendSuffix(Tspath.ExtensionJson);
+				if (!fs.FileExists(extendedConfigPath)) {
 					errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.File_0_not_found,
 						extendedConfig));
-					return new Pair<std.String, Null<Array<Diagnostic>>>("", errors);
+					return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(cast "", errors);
 				}
 			}
-			return new Pair<std.String, Null<Array<Diagnostic>>>(extendedConfigPath, errors);
+			return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(extendedConfigPath, errors);
 		}
 		// If the path isn't a rooted or relative path, resolve like a module
-		final resolved = ts.module.Module.ResolveConfig(extendedConfig,
-			/* PORT: transitional (main: typed basePath) */ Tspath.RootedDirectoryPathFromAbsolute(basePath).ResolveFile("tsconfig.json"), host.FS());
+		final resolved = ts.module.Module.ResolveConfig(extendedConfig, basePath.ResolveFile("tsconfig.json"), fs);
 		if (resolved.IsResolved()) {
-			return new Pair<std.String, Null<Array<Diagnostic>>>(resolved.ResolvedFileName, errors);
+			return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(resolved.ResolvedFileName, errors);
 		}
 		if (extendedConfig == "") {
 			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression,
@@ -4593,7 +4639,7 @@ class Tsoptions {
 			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.File_0_not_found,
 				extendedConfig));
 		}
-		return new Pair<std.String, Null<Array<Diagnostic>>>("", errors);
+		return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(cast "", errors);
 	}
 
 	@:allow(ts.tsoptions) static function commandLineOptionsToMap(compilerOptions:Array<CommandLineOption>):CommandLineOptionNameMap {
@@ -4623,7 +4669,7 @@ class Tsoptions {
 		return result;
 	}
 
-	static function convertOptionsFromJson<O:OptionParser>(optionsNameMap:CommandLineOptionNameMap, jsonOptions:Dynamic, basePath:std.String,
+	static function convertOptionsFromJson<O:OptionParser>(optionsNameMap:CommandLineOptionNameMap, jsonOptions:Dynamic, basePath:RootedDirectoryPath,
 			result:O):Pair<O, Null<Array<Diagnostic>>> {
 		if (jsonOptions == null) {
 			return new Pair<O, Null<Array<Diagnostic>>>(result, null);
@@ -4686,18 +4732,12 @@ class Tsoptions {
 		return new Pair<Dynamic, Null<Array<Diagnostic>>>(anySliceToAny(value), errors);
 	}
 
-	static function directoryOfCombinedPath(fileName:std.String, basePath:std.String):std.String {
-		// Use the `getNormalizedAbsolutePath` function to avoid canonicalizing the path, as it must remain noncanonical
-		// until consistent casing errors are reported
-		return Tspath.GetDirectoryPath(Tspath.GetNormalizedAbsolutePath(fileName, basePath));
-	}
-
 	// ParseConfigFileTextToJson parses the text of the tsconfig.json file
 	// fileName is the path to the config file
 	// jsonText is the text of the config file
-	public static function ParseConfigFileTextToJson(fileName:std.String, path:Path, jsonText:std.String):Pair<Dynamic, Null<Array<Diagnostic>>> {
+	public static function ParseConfigFileTextToJson(fileName:RootedFilePath, path:PathKey, jsonText:std.String):Pair<Dynamic, Null<Array<Diagnostic>>> {
 		final opts = new SourceFileParseOptions();
-		opts.FileName = /* PORT: transitional, unchecked */ cast fileName;
+		opts.FileName = fileName;
 		opts.Path = path;
 		final jsonSourceFile = Parser.ParseSourceFile(opts, jsonText, ScriptKindJSON);
 		final r = convertConfigFileToObject(jsonSourceFile /*jsonConversionNotifier*/, null);
@@ -4709,13 +4749,17 @@ class Tsoptions {
 		return new Pair<Dynamic, Null<Array<Diagnostic>>>(config, errors);
 	}
 
-	public static function ParseJsonSourceFileConfigFileContent(sourceFile:TsConfigSourceFile, host:ParseConfigHost, basePath:std.String,
-			existingOptions:Null<CompilerOptions>, existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>, configFileName:std.String,
-			resolutionStack:Null<Array<Path>>, extraFileExtensions:Null<Array<FileExtensionInfo>>,
+	// NewDefaultParseConfigHost leaves external code authorization to the runExternalCode option.
+	public static function NewDefaultParseConfigHost(fs:FS):ParseConfigHost {
+		return new DefaultParseConfigHost(fs);
+	}
+
+	public static function ParseJsonSourceFileConfigFileContent(sourceFile:TsConfigSourceFile, host:ParseConfigHost, basePath:RootedDirectoryPath,
+			existingOptions:Null<CompilerOptions>, existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>, resolutionStack:Null<Array<PathKey>>,
 			extendedConfigCache:Null<ExtendedConfigCache>):ParsedCommandLine {
 		// tracing?.push(tracing.Phase.Parse, "parseJsonSourceFileConfigFileContent", { path: sourceFile.fileName });
-		final result = parseJsonConfigFileContentWorker(null /*json*/, sourceFile, host, basePath, existingOptions, existingOptionsRaw, configFileName,
-			resolutionStack, extraFileExtensions, extendedConfigCache);
+		final result = parseJsonConfigFileContentWorker(null /*json*/, sourceFile, host, basePath, existingOptions, existingOptionsRaw,
+			sourceFile.SourceFile.FileName(), resolutionStack, extendedConfigCache);
 		// tracing?.pop();
 		return result;
 	}
@@ -4857,11 +4901,11 @@ class Tsoptions {
 	// jsonNode: The contents of the config file to parse
 	// host: Instance of ParseConfigHost used to enumerate files in folder.
 	// basePath: A root directory to resolve relative path entries in the config file to. e.g. outDir
-	public static function ParseJsonConfigFileContent(json:Dynamic, host:ParseConfigHost, basePath:std.String, existingOptions:Null<CompilerOptions>,
-			configFileName:std.String, resolutionStack:Null<Array<Path>>, extraFileExtensions:Null<Array<FileExtensionInfo>>,
+	public static function ParseJsonConfigFileContent(json:Dynamic, host:ParseConfigHost, basePath:RootedDirectoryPath,
+			existingOptions:Null<CompilerOptions>, configFileName:RootedFilePath, resolutionStack:Null<Array<PathKey>>,
 			extendedConfigCache:Null<ExtendedConfigCache>):ParsedCommandLine {
 		final result = parseJsonConfigFileContentWorker(parseJsonToStringKey(json), null /*sourceFile*/, host, basePath, existingOptions,
-			null /*existingOptionsRaw*/, configFileName, resolutionStack, extraFileExtensions, extendedConfigCache);
+			null /*existingOptionsRaw*/, configFileName, resolutionStack, extendedConfigCache);
 		return result;
 	}
 
@@ -4874,9 +4918,9 @@ class Tsoptions {
 		return convertToJson(sourceFile, rootExpression, true /*returnValue*/, null /*jsonConversionNotifier*/);
 	}
 
-	static function getDefaultCompilerOptions(configFileName:std.String):CompilerOptions {
+	static function getDefaultCompilerOptions(configFileName:RootedFilePath):ParsedCompilerOptions {
 		var options = new CompilerOptions();
-		if (configFileName != "" && Tspath.GetBaseFileName(configFileName) == "jsconfig.json") {
+		if (configFileName != "" && configFileName.BaseName() == "jsconfig.json") {
 			final depth = 2;
 			options = new CompilerOptions();
 			options.AllowJs = TSTrue;
@@ -4884,36 +4928,37 @@ class Tsoptions {
 			options.SkipLibCheck = TSTrue;
 			options.NoEmit = TSTrue;
 		}
-		return options;
+		return new ParsedCompilerOptions(options, new UnresolvedCompilerOptionPaths());
 	}
 
-	static function getDefaultTypeAcquisition(configFileName:std.String):TypeAcquisition {
+	static function getDefaultTypeAcquisition(configFileName:RootedFilePath):TypeAcquisition {
 		final options = new TypeAcquisition();
-		if (configFileName != "" && Tspath.GetBaseFileName(configFileName) == "jsconfig.json") {
+		if (configFileName != "" && configFileName.BaseName() == "jsconfig.json") {
 			options.Enable = TSTrue;
 		}
 		return options;
 	}
 
-	static function convertCompilerOptionsFromJsonWorker(jsonOptions:Dynamic, basePath:std.String,
-			configFileName:std.String):Pair<CompilerOptions, Null<Array<Diagnostic>>> {
+	static function convertCompilerOptionsFromJsonWorker(jsonOptions:Dynamic, basePath:RootedDirectoryPath,
+			configFileName:RootedFilePath):Pair<ParsedCompilerOptions, Null<Array<Diagnostic>>> {
 		final options = getDefaultCompilerOptions(configFileName);
-		final errors = convertOptionsFromJson(CommandLineCompilerOptionsMap, jsonOptions, basePath, new CompilerOptionsParser(options)).b;
+		final errors = convertOptionsFromJson(CommandLineCompilerOptionsMap, jsonOptions, basePath,
+			new CompilerOptionsParser(options.CompilerOptions, options.unresolvedPaths)).b;
 		if (configFileName != "") {
-			options.ConfigFilePath = /* PORT: transitional, unchecked */ cast Tspath.NormalizeSlashes(configFileName);
+			options.CompilerOptions.ConfigFilePath = configFileName;
 		}
-		return new Pair<CompilerOptions, Null<Array<Diagnostic>>>(options, errors);
+		return new Pair<ParsedCompilerOptions, Null<Array<Diagnostic>>>(options, errors);
 	}
 
-	static function convertTypeAcquisitionFromJsonWorker(jsonOptions:Dynamic, basePath:std.String,
-			configFileName:std.String):Pair<TypeAcquisition, Null<Array<Diagnostic>>> {
+	static function convertTypeAcquisitionFromJsonWorker(jsonOptions:Dynamic, basePath:RootedDirectoryPath,
+			configFileName:RootedFilePath):Pair<TypeAcquisition, Null<Array<Diagnostic>>> {
 		final options = getDefaultTypeAcquisition(configFileName);
 		final errors = convertOptionsFromJson(typeAcquisitionDeclaration.ElementOptions, jsonOptions, basePath, new TypeAcquisitionParser(options)).b;
 		return new Pair<TypeAcquisition, Null<Array<Diagnostic>>>(options, errors);
 	}
 
-	static function parseOwnConfigOfJson(json:OrderedMap<std.String, Dynamic>, host:ParseConfigHost, basePath:std.String,
-			configFileName:std.String):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
+	static function parseOwnConfigOfJson(json:OrderedMap<std.String, Dynamic>, fs:FS, basePath:RootedDirectoryPath,
+			configFileName:RootedFilePath):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
 		var errors:Null<Array<Diagnostic>> = null;
 		if (json.Has("excludes")) {
 			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Unknown_option_excludes_Did_you_mean_exclude));
@@ -4927,11 +4972,11 @@ class Tsoptions {
 		errors = appendDiags(appendDiags(errors, err), err2);
 		// watchOptions := convertWatchOptionsFromJsonWorker(json.watchOptions, basePath, errors)
 		// json.compileOnSave = convertCompileOnSaveOptionFromJson(json, basePath, errors)
-		var extendedConfigPath:Null<Array<std.String>> = null;
+		var extendedConfigPaths:Null<Array<RootedFilePath>> = null;
 		final extends_ = json.GetOrZero("extends");
 		if (extends_ != null && !(isString(extends_) && (extends_ : std.String) == "")) {
-			final r3 = getExtendsConfigPathOrArray(extends_, host, basePath, configFileName, null, null, null);
-			extendedConfigPath = r3.a;
+			final r3 = getExtendsConfigPathOrArray(extends_, fs, basePath, configFileName, null, null, null);
+			extendedConfigPaths = r3.a;
 			err = r3.b;
 			errors = appendDiags(errors, err);
 		}
@@ -4939,21 +4984,12 @@ class Tsoptions {
 		parsedConfig.raw = json;
 		parsedConfig.options = options;
 		parsedConfig.typeAcquisition = typeAcquisition;
-		parsedConfig.extendedConfigPath = stringSliceToAny(extendedConfigPath);
-		parsedConfig.contentMappersConfigFile = contentMappersConfigFileOf(configFileName, basePath);
+		parsedConfig.extendedConfigPaths = extendedConfigPaths;
+		parsedConfig.contentMappersConfigFile = configFileName;
 		return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(parsedConfig, errors);
 	}
 
-	// PORT: Go's configFileName is an absolute RootedFilePath; the port's may be relative to basePath
-	// (extended configs are parsed with their base name).
-	static function contentMappersConfigFileOf(configFileName:std.String, basePath:std.String):std.String {
-		if (configFileName == "") {
-			return "";
-		}
-		return Tspath.GetNormalizedAbsolutePath(configFileName, basePath);
-	}
-
-	static function readJsonConfigFile(fileName:RootedFilePath, path:Path,
+	static function readJsonConfigFile(fileName:RootedFilePath, path:PathKey,
 			readFile:(fileName:RootedFilePath) -> ValueOk<std.String>):Pair<TsConfigSourceFile, Null<Array<Diagnostic>>> {
 		final r = tryReadFile(fileName, readFile, []);
 		final text = r.a;
@@ -4975,11 +5011,11 @@ class Tsoptions {
 		}
 	}
 
-	static function getExtendedConfig(sourceFile:Null<TsConfigSourceFile>, extendedConfigFileName:std.String, host:ParseConfigHost,
-			resolutionStack:Null<Array<Path>>, extendedConfigCache:Null<ExtendedConfigCache>,
+	static function getExtendedConfig(sourceFile:Null<TsConfigSourceFile>, extendedConfigFileName:RootedFilePath, fs:FS,
+			resolutionStack:Null<Array<PathKey>>, extendedConfigCache:Null<ExtendedConfigCache>,
 			result:ExtendsResult):Pair<Null<ParsedTsconfig>, Null<Array<Diagnostic>>> {
 		var errors:Null<Array<Diagnostic>> = null;
-		final extendedConfigPath = Tspath.ToPath(extendedConfigFileName, host.GetCurrentDirectory(), host.FS().CaseSensitivity().IsCaseSensitive());
+		final extendedConfigPath = fs.CaseSensitivity().PathKey(extendedConfigFileName.AsPath());
 
 		var cacheEntry:ExtendedConfigCacheEntry = null;
 		// Bypass the cache when we detect a cycle in the resolution stack.
@@ -4987,9 +5023,9 @@ class Tsoptions {
 		// to re-lock the same entry, resulting in a deadlock. Let parseConfig handle the
 		// circularity error via its own resolution stack check.
 		if (extendedConfigCache != null && !Slices.Contains(resolutionStack, extendedConfigPath)) {
-			cacheEntry = extendedConfigCache.GetExtendedConfig(extendedConfigFileName, extendedConfigPath, resolutionStack, host);
+			cacheEntry = extendedConfigCache.GetExtendedConfig(extendedConfigFileName, extendedConfigPath, resolutionStack, fs);
 		} else {
-			cacheEntry = ParseExtendedConfig(extendedConfigFileName, extendedConfigPath, resolutionStack, host, extendedConfigCache);
+			cacheEntry = ParseExtendedConfig(extendedConfigFileName, extendedConfigPath, resolutionStack, fs, extendedConfigCache);
 		}
 
 		if (Core.len(cacheEntry.errors) > 0) {
@@ -5009,10 +5045,9 @@ class Tsoptions {
 		return new Pair<Null<ParsedTsconfig>, Null<Array<Diagnostic>>>(cacheEntry.extendedConfig, errors);
 	}
 
-	public static function ParseExtendedConfig(fileName:std.String, path:Path, resolutionStack:Null<Array<Path>>, host:ParseConfigHost,
+	public static function ParseExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS,
 			extendedConfigCache:Null<ExtendedConfigCache>):ExtendedConfigCacheEntry {
-		final fs = host.FS();
-		final r = readJsonConfigFile(/* PORT: transitional (main: typed fileName) */ Tspath.RootedFilePathFromAbsolute(fileName), path, fs.ReadFile);
+		final r = readJsonConfigFile(fileName, path, fs.ReadFile);
 		final extendedResult = r.a;
 		final readErrors = r.b;
 		final entry = new ExtendedConfigCacheEntry();
@@ -5029,8 +5064,7 @@ class Tsoptions {
 			return entry;
 		}
 
-		final r2 = parseConfig(null, extendedResult, host, Tspath.GetDirectoryPath(fileName), Tspath.GetBaseFileName(fileName), resolutionStack,
-			extendedConfigCache);
+		final r2 = parseConfig(null, extendedResult, fs, fileName.Directory(), fileName, resolutionStack, extendedConfigCache);
 		entry.extendedConfig = r2.a;
 		entry.errors = r2.b;
 		return entry;
@@ -5038,11 +5072,14 @@ class Tsoptions {
 
 	// parseConfig just extracts options/include/exclude/files out of a config file.
 	// It does not resolve the included files.
-	static function parseConfig(json:Null<OrderedMap<std.String, Dynamic>>, sourceFile:Null<TsConfigSourceFile>, host:ParseConfigHost,
-			basePath:std.String, configFileName:std.String, resolutionStack:Null<Array<Path>>,
+	static function parseConfig(json:Null<OrderedMap<std.String, Dynamic>>, sourceFile:Null<TsConfigSourceFile>, fs:FS,
+			basePath:RootedDirectoryPath, configFileName:RootedFilePath, resolutionStack:Null<Array<PathKey>>,
 			extendedConfigCache:Null<ExtendedConfigCache>):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
-		basePath = Tspath.NormalizeSlashes(basePath);
-		final resolvedPath = Tspath.ToPath(configFileName, basePath, host.FS().CaseSensitivity().IsCaseSensitive());
+		final caseSensitivity = fs.CaseSensitivity();
+		var resolvedPath = caseSensitivity.PathKey(basePath.AsPath());
+		if (configFileName != "") {
+			resolvedPath = caseSensitivity.PathKey(configFileName.AsPath());
+		}
 		var errors:Null<Array<Diagnostic>> = null;
 		if (Slices.Contains(resolutionStack, resolvedPath)) {
 			var result:ParsedTsconfig = null;
@@ -5064,25 +5101,25 @@ class Tsoptions {
 		var ownConfig:ParsedTsconfig = null;
 		var err:Null<Array<Diagnostic>> = null;
 		if (json != null) {
-			final r = parseOwnConfigOfJson(json, host, basePath, configFileName);
+			final r = parseOwnConfigOfJson(json, fs, basePath, configFileName);
 			ownConfig = r.a;
 			err = r.b;
 		} else {
-			final r = parseOwnConfigOfJsonSourceFile(tsconfigToSourceFile(sourceFile), host, basePath, configFileName);
+			final r = parseOwnConfigOfJsonSourceFile(tsconfigToSourceFile(sourceFile), fs, basePath, configFileName);
 			ownConfig = r.a;
 			err = r.b;
 		}
 		errors = appendDiags(errors, err);
-		if (ownConfig.options != null && ownConfig.options.Paths != null) {
+		if (ownConfig.options != null && ownConfig.options.CompilerOptions.Paths != null) {
 			// If we end up needing to resolve relative paths from 'paths' relative to
 			// the config file location, we'll need to know where that config file was.
 			// Since 'paths' can be inherited from an extended config in another directory,
 			// we wouldn't know which directory to use unless we store it here.
-			ownConfig.options.PathsBasePath = /* PORT: transitional, unchecked */ cast basePath;
+			ownConfig.options.CompilerOptions.PathsBasePath = basePath;
 		}
 
-		final applyExtendedConfig = function(result:ExtendsResult, extendedConfigPath:std.String):Void {
-			final r = getExtendedConfig(sourceFile, extendedConfigPath, host, resolutionStack, extendedConfigCache, result);
+		final applyExtendedConfig = function(result:ExtendsResult, extendedConfigPath:RootedFilePath):Void {
+			final r = getExtendedConfig(sourceFile, extendedConfigPath, fs, resolutionStack, extendedConfigCache, result);
 			final extendedConfig = r.a;
 			errors = appendDiags(errors, r.b);
 			if (extendedConfig != null && extendedConfig.options != null) {
@@ -5106,8 +5143,8 @@ class Tsoptions {
 										return pathStr;
 									} else {
 										if (relativeDifference == "") {
-											final t = new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), basePath);
-											relativeDifference = Tspath.ConvertToRelativePath_legacy(Tspath.GetDirectoryPath(extendedConfigPath), t);
+											relativeDifference = Tspath.ConvertToRelativePath(extendedConfigPath.Directory().AsString(), basePath,
+												caseSensitivity);
 										}
 										return Tspath.CombinePaths(relativeDifference, pathStr);
 									}
@@ -5138,25 +5175,19 @@ class Tsoptions {
 						result.compileOnSave = compileOnSave;
 					}
 				}
-				mergeCompilerOptions(result.options, extendedConfig.options, extendsRaw);
+				mergeParsedCompilerOptions(result.options, extendedConfig.options, extendsRaw);
 			}
 		};
 
-		if (ownConfig.extendedConfigPath != null) {
+		if (Core.len(ownConfig.extendedConfigPaths) != 0) {
 			// copy the resolution stack so it is never reused between branches in potential diamond-problem scenarios.
 			// PORT: Go append may share the backing array; an explicit copy is equivalent here.
 			resolutionStack = resolutionStack == null ? [] : resolutionStack.copy();
 			resolutionStack.push(resolvedPath);
 			final result = new ExtendsResult();
-			result.options = new CompilerOptions();
-			if (isString(ownConfig.extendedConfigPath)) {
-				applyExtendedConfig(result, ownConfig.extendedConfigPath);
-			} else if (isSlice(ownConfig.extendedConfigPath)) {
-				// PORT: Go `.([]string)`; this slot only ever holds a []string.
-				final configPath:Array<std.String> = ownConfig.extendedConfigPath;
-				for (extendedConfigPath in configPath) {
-					applyExtendedConfig(result, extendedConfigPath);
-				}
+			result.options = new ParsedCompilerOptions(new CompilerOptions(), new UnresolvedCompilerOptionPaths());
+			for (extendedConfigPath in ownConfig.extendedConfigPaths) {
+				applyExtendedConfig(result, extendedConfigPath);
 			}
 			if (result.include != null) {
 				(ownConfig.raw : OrderedMap<std.String, Dynamic>).Set("include", result.include);
@@ -5178,13 +5209,14 @@ class Tsoptions {
 				final keys = result.extendedSourceFiles.Keys();
 				if (keys != null) {
 					for (extendedSourceFile in keys.keys()) {
-						if (Tspath.ToPath(extendedSourceFile, "", host.FS().CaseSensitivity().IsCaseSensitive()) != resolvedPath) {
-							sourceFile.ExtendedSourceFiles = Core.InsertSorted(sourceFile.ExtendedSourceFiles, extendedSourceFile, Strings.Compare);
+						if (caseSensitivity.PathKey(extendedSourceFile.AsPath()) != resolvedPath) {
+							sourceFile.ExtendedSourceFiles = Core.InsertSorted(sourceFile.ExtendedSourceFiles, extendedSourceFile,
+								(a:RootedFilePath, b:RootedFilePath) -> Strings.Compare(a, b));
 						}
 					}
 				}
 			}
-			ownConfig.options = mergeCompilerOptions(result.options, ownConfig.options, ownConfig.raw);
+			ownConfig.options = mergeParsedCompilerOptions(result.options, ownConfig.options, ownConfig.raw);
 			// ownConfig.watchOptions = ownConfig.watchOptions && result.watchOptions ?
 			//     assignWatchOptions(result, ownConfig.watchOptions) :
 			//     ownConfig.watchOptions || result.watchOptions;
@@ -5201,26 +5233,28 @@ class Tsoptions {
 	// basePath: A root directory to resolve relative path entries in the config file to. e.g. outDir
 	// resolutionStack: Only present for backwards-compatibility. Should be empty.
 	static function parseJsonConfigFileContentWorker(json:Null<OrderedMap<std.String, Dynamic>>, sourceFile:Null<TsConfigSourceFile>,
-			host:ParseConfigHost, basePath:std.String, existingOptions:Null<CompilerOptions>, existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>,
-			configFileName:std.String, resolutionStack:Null<Array<Path>>, extraFileExtensions:Null<Array<FileExtensionInfo>>,
+			host:ParseConfigHost, basePath:RootedDirectoryPath, existingOptions:Null<CompilerOptions>,
+			existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>, configFileName:RootedFilePath, resolutionStack:Null<Array<PathKey>>,
 			extendedConfigCache:Null<ExtendedConfigCache>):ParsedCommandLine {
+		final fs = host.FS();
 		Debug.Assert((json == null && sourceFile != null) || (json != null && sourceFile == null));
 
-		var basePathForFileNames = "";
+		final baseDirectory = basePath;
+		var basePathForFileNames:RootedDirectoryPath;
 		if (configFileName != "") {
-			basePathForFileNames = Tspath.NormalizePath(directoryOfCombinedPath(configFileName, basePath));
+			basePathForFileNames = configFileName.Directory();
 		} else {
-			basePathForFileNames = Tspath.NormalizePath(basePath);
+			basePathForFileNames = baseDirectory;
 		}
 
-		final r = parseConfig(json, sourceFile, host, basePath, configFileName, resolutionStack, extendedConfigCache);
+		final r = parseConfig(json, sourceFile, fs, baseDirectory, configFileName, resolutionStack, extendedConfigCache);
 		final parsedConfig = r.a;
 		var errors = r.b;
-		mergeCompilerOptions(parsedConfig.options, existingOptions, existingOptionsRaw);
+		mergeParsedCompilerOptions(parsedConfig.options, new ParsedCompilerOptions(existingOptions, null), existingOptionsRaw);
 		handleOptionConfigDirTemplateSubstitution(parsedConfig.options, basePathForFileNames);
 		final rawConfig = parseJsonToStringKey(parsedConfig.raw);
 		if (configFileName != "" && parsedConfig.options != null) {
-			parsedConfig.options.ConfigFilePath = /* PORT: transitional, unchecked */ cast Tspath.NormalizeSlashes(configFileName);
+			parsedConfig.options.CompilerOptions.ConfigFilePath = configFileName;
 		}
 		final getPropFromRaw = function(prop:std.String, validateElement:(value:Dynamic) -> Bool, elementTypeName:std.String):PropOfRaw {
 			final g = rawConfig.Get(prop);
@@ -5258,7 +5292,7 @@ class Tsoptions {
 				if (sourceFile != null) {
 					var fileName:std.String;
 					if (configFileName != "") {
-						fileName = configFileName;
+						fileName = configFileName.AsString();
 					} else {
 						fileName = "tsconfig.json";
 					}
@@ -5280,15 +5314,15 @@ class Tsoptions {
 		}, "string");
 		var isDefaultIncludeSpec = false;
 		if (excludeSpecs.wrongValue == "no-prop" && parsedConfig.options != null) {
-			final outDir = parsedConfig.options.OutDir;
-			final declarationDir = parsedConfig.options.DeclarationDir;
+			final outDir = parsedConfig.options.CompilerOptions.OutDir;
+			final declarationDir = parsedConfig.options.CompilerOptions.DeclarationDir;
 			if (outDir != "" || declarationDir != "") {
 				final values:Array<Dynamic> = [];
 				if (outDir != "") {
-					values.push(outDir);
+					values.push(outDir.AsString());
 				}
 				if (declarationDir != "") {
-					values.push(declarationDir);
+					values.push(declarationDir.AsString());
 				}
 				excludeSpecs = new PropOfRaw(values);
 			}
@@ -5297,11 +5331,11 @@ class Tsoptions {
 			includeSpecs = new PropOfRaw(([defaultIncludeSpec] : Array<Dynamic>));
 			isDefaultIncludeSpec = true;
 		}
-		var validatedIncludeSpecs:Null<Array<std.String>> = null;
-		var validatedIncludeSpecsBeforeSubstitution:Null<Array<std.String>> = null;
-		var validatedExcludeSpecs:Null<Array<std.String>> = null;
-		var validatedFilesSpec:Null<Array<std.String>> = null;
-		var validatedFilesSpecBeforeSubstitution:Null<Array<std.String>> = null;
+		var validatedIncludeSpecs:Null<Array<PathPattern>> = null;
+		var validatedIncludeSpecsBeforeSubstitution:Null<Array<PathPattern>> = null;
+		var validatedExcludeSpecs:Null<Array<PathPattern>> = null;
+		var validatedFilesSpec:Null<Array<FileSpec>> = null;
+		var validatedFilesSpecBeforeSubstitution:Null<Array<FileSpec>> = null;
 		// The exclude spec list is converted into a regular expression, which allows us to quickly
 		// test whether a file or directory should be excluded before recursively traversing the
 		// file system.
@@ -5334,17 +5368,45 @@ class Tsoptions {
 					}
 					if (validatedFilesSpecBeforeSubstitution == null)
 						validatedFilesSpecBeforeSubstitution = [];
-					validatedFilesSpecBeforeSubstitution.push(spec);
+					validatedFilesSpecBeforeSubstitution.push(Tspath.ToFileSpec(spec));
 				}
 			}
 			if ((validatedFilesSpec = getSubstitutedStringArrayWithConfigDirTemplate(validatedFilesSpecBeforeSubstitution, basePathForFileNames)) == null) {
 				validatedFilesSpec = validatedFilesSpecBeforeSubstitution;
 			}
 		}
+		final caseSensitivity = fs.CaseSensitivity();
+		final validatedFileNames:Array<RootedFilePath> = [];
+		final fileSpecByPath = new StringMap<FileSpec>();
+		if (validatedFilesSpec != null) {
+			for (i in 0...validatedFilesSpec.length) {
+				final spec = validatedFilesSpec[i];
+				var fileName:RootedFilePath;
+				if (spec == "") {
+					fileName = Tspath.RootedFilePathFromPath(basePathForFileNames.AsPath());
+				} else {
+					fileName = Tspath.ToRootedFilePath(spec.AsString(), basePathForFileNames);
+				}
+				validatedFileNames.push(fileName);
+				final path = caseSensitivity.PathKey(fileName.AsPath());
+				if (!fileSpecByPath.exists(path)) {
+					fileSpecByPath.set(path, validatedFilesSpecBeforeSubstitution[i]);
+				}
+			}
+		}
 		// PORT: the []any fields hold a Go typed nil when the slice is nil (anySliceToAny).
-		final configFileSpecs = new ConfigFileSpecs(anySliceToAny(fileSpecs.sliceValue), anySliceToAny(includeSpecs.sliceValue),
-			anySliceToAny(excludeSpecs.sliceValue), validatedFilesSpec, validatedIncludeSpecs, validatedExcludeSpecs, validatedFilesSpecBeforeSubstitution,
-			validatedIncludeSpecsBeforeSubstitution, isDefaultIncludeSpec);
+		final configFileSpecs = new ConfigFileSpecs();
+		configFileSpecs.filesSpecs = anySliceToAny(fileSpecs.sliceValue);
+		configFileSpecs.includeSpecs = anySliceToAny(includeSpecs.sliceValue);
+		configFileSpecs.excludeSpecs = anySliceToAny(excludeSpecs.sliceValue);
+		configFileSpecs.validatedFilesSpec = validatedFilesSpec;
+		configFileSpecs.validatedFileNames = validatedFileNames;
+		configFileSpecs.fileSpecByPath = fileSpecByPath;
+		configFileSpecs.validatedIncludeSpecs = validatedIncludeSpecs;
+		configFileSpecs.validatedExcludeSpecs = validatedExcludeSpecs;
+		configFileSpecs.validatedFilesSpecBeforeSubstitution = validatedFilesSpecBeforeSubstitution;
+		configFileSpecs.validatedIncludeSpecsBeforeSubstitution = validatedIncludeSpecsBeforeSubstitution;
+		configFileSpecs.isDefaultIncludeSpec = isDefaultIncludeSpec;
 
 		if (sourceFile != null) {
 			sourceFile.configFileSpecs = configFileSpecs;
@@ -5377,9 +5439,9 @@ class Tsoptions {
 		}
 		final seenContentMapperExtensions = new StringMap<Bool>();
 		var contentMapperExtensions:Null<Array<std.String>> = [];
-		final caseInsensitive = !host.FS().CaseSensitivity().IsCaseSensitive();
+		final caseInsensitive = fs.CaseSensitivity().IsCaseInsensitive();
 		final canonicalExtension = function(extension:std.String):std.String {
-			return caseInsensitive ? extension.toLowerCase() : extension;
+			return fs.CaseSensitivity().Canonicalize(extension);
 		};
 		if (contentMappers != null) {
 			for (j in 0...contentMappers.length) {
@@ -5446,7 +5508,7 @@ class Tsoptions {
 				}
 			}
 		}
-		if (contentMappers != null && !(parsedConfig.options != null && parsedConfig.options.RunExternalCode.IsTrue())) {
+		if (contentMappers != null && !(parsedConfig.options != null && parsedConfig.options.CompilerOptions.RunExternalCode.IsTrue())) {
 			errors = appendDiag(errors,
 				setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mappers_require_the_runExternalCode_command_line_flag_to_be_enabled),
 					contentMapperSourceFile, getContentMappersKeySyntax(contentMapperSourceFile)));
@@ -5459,9 +5521,9 @@ class Tsoptions {
 			// everything downstream (diagnostics, build-info staleness) without executing anything.
 			var containingFile = parsedConfig.contentMappersConfigFile;
 			if (containingFile == "") {
-				containingFile = configFileName != "" ? Tspath.GetNormalizedAbsolutePath(configFileName, basePath) : "";
+				containingFile = configFileName;
 				if (containingFile == "") {
-					containingFile = Tspath.CombinePaths(basePathForFileNames, "tsconfig.json");
+					containingFile = basePathForFileNames.ResolveFile("tsconfig.json");
 				}
 			}
 			final resolvedContentMappers:Array<Mapper> = [];
@@ -5486,7 +5548,7 @@ class Tsoptions {
 					final o = ParsedCommandLine.getContentMapperOutputExtension(mapper.Definition.OutputExtensions, sourceExtension, caseInsensitive);
 					final outputExtension = o.value;
 					final identity = sourceExtension == outputExtension || caseInsensitive && Strings.EqualFold(sourceExtension, outputExtension);
-					if (o.ok && !identity && !parsedConfig.options.RewriteRelativeImportExtensions.IsTrue()) {
+					if (o.ok && !identity && !parsedConfig.options.CompilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
 						errors = appendDiag(errors,
 							setContentMapperDiagnosticLocation(Ast.NewCompilerDiagnostic(Diagnostics.Content_mapper_output_extension_mapping_from_0_to_1_requires_rewriteRelativeImportExtensions_to_be_enabled,
 								sourceExtension, outputExtension),
@@ -5501,9 +5563,9 @@ class Tsoptions {
 			});
 		}
 
-		final getFileNames = function(basePath:std.String):Pair<Array<std.String>, Int> {
+		final getFileNames = function(basePath:RootedDirectoryPath):Pair<Array<RootedFilePath>, Int> {
 			final parsedConfigOptions = parsedConfig.options;
-			final r = getFileNamesFromConfigSpecs(configFileSpecs, basePath, parsedConfigOptions, host.FS(), contentMapperExtensions);
+			final r = getFileNamesFromConfigSpecs(configFileSpecs, basePath, parsedConfigOptions.CompilerOptions, fs, contentMapperExtensions);
 			final fileNames = r.a;
 			final literalFileNamesLen = r.b;
 			if (shouldReportNoInputFiles(fileNames, canJsonReportNoInputFiles(rawConfig), resolutionStack)) {
@@ -5520,10 +5582,10 @@ class Tsoptions {
 					Ast.NewCompilerDiagnostic(Diagnostics.No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2,
 						configFileName, Json.MarshalOrdered(includeSpecs), Json.MarshalOrdered(excludeSpecs)));
 			}
-			return new Pair<Array<std.String>, Int>(fileNames, literalFileNamesLen);
+			return new Pair<Array<RootedFilePath>, Int>(fileNames, literalFileNamesLen);
 		};
 
-		final getProjectReferences = function(basePath:std.String):Null<Array<ProjectReference>> {
+		final getProjectReferences = function(basePath:RootedDirectoryPath):Null<Array<ProjectReference>> {
 			var projectReferences:Null<Array<ProjectReference>> = null;
 			final newReferencesOfRaw = getPropFromRaw("references", function(element:Dynamic):Bool {
 				return isOrderedMap(element);
@@ -5540,20 +5602,20 @@ class Tsoptions {
 						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "path", Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "reference.path", "string"));
 						continue;
 					}
-					if (ref.reference.Path == "") {
+					if (ref.path == "") {
 						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "path", Diagnostics.Compiler_option_0_cannot_be_given_an_empty_string, "reference.path"));
 						continue;
 					}
-					if (isNetworkPathValue(ref.reference.Path, basePath)) {
-						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "path", Diagnostics.Network_path_0_is_not_supported, ref.reference.Path));
+					if (isNetworkPathValue(ref.path, basePath)) {
+						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "path", Diagnostics.Network_path_0_is_not_supported, ref.path));
 						continue;
 					}
 					if (ref.hasCircular && !ref.circularValid) {
 						errors = appendDiag(errors, createDiagnosticAtProjectReferenceProperty(sourceFile, index, "circular", Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "reference.circular", "boolean"));
 					}
 					final pr = new ProjectReference();
-					pr.Path = /* PORT: transitional, unchecked */ cast Tspath.GetNormalizedAbsolutePath(ref.reference.Path, basePath);
-					pr.OriginalPath = ref.reference.Path;
+					pr.Path = Tspath.ToRootedPath(ref.path, basePath);
+					pr.OriginalPath = ref.path;
 					pr.Circular = ref.reference.Circular;
 					projectReferences.push(pr);
 				}
@@ -5566,7 +5628,7 @@ class Tsoptions {
 		final literalFileNamesLen = fn.b;
 		final result = new ParsedCommandLine();
 		final parsedOptions = new ParsedOptions();
-		parsedOptions.CompilerOptions = parsedConfig.options;
+		parsedOptions.CompilerOptions = parsedConfig.options.CompilerOptions;
 		parsedOptions.TypeAcquisition = parsedConfig.typeAcquisition;
 		// WatchOptions:      nil,
 		parsedOptions.FileNames = fileNames;
@@ -5577,7 +5639,9 @@ class Tsoptions {
 		result.Raw = parsedConfig.raw;
 		result.Errors = errors;
 
-		result.comparePathsOptions = new ComparePathsOptions(host.FS().CaseSensitivity().IsCaseSensitive(), basePathForFileNames);
+		result.configFileSpecs = configFileSpecs;
+		result.baseDirectory = basePathForFileNames;
+		result.caseSensitivity = fs.CaseSensitivity();
 		result.literalFileNamesLen = literalFileNamesLen;
 		return result;
 	}
@@ -5588,7 +5652,8 @@ class Tsoptions {
 		return !filesExists && !referencesExists;
 	}
 
-	static function shouldReportNoInputFiles(fileNames:Null<Array<std.String>>, canJsonReportNoInputFiles:Bool, resolutionStack:Null<Array<Path>>):Bool {
+	static function shouldReportNoInputFiles(fileNames:Null<Array<RootedFilePath>>, canJsonReportNoInputFiles:Bool,
+			resolutionStack:Null<Array<PathKey>>):Bool {
 		return Core.len(fileNames) == 0 && canJsonReportNoInputFiles && Core.len(resolutionStack) == 0;
 	}
 
@@ -5601,10 +5666,10 @@ class Tsoptions {
 		return CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(jsonSourceFile, node, message, spec);
 	}
 
-	static function validateSpecs(specs:Dynamic, disallowTrailingRecursion:Bool, basePath:std.String, jsonSourceFile:Null<SourceFile>,
-			specKey:std.String):Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>> {
+	static function validateSpecs(specs:Dynamic, disallowTrailingRecursion:Bool, basePath:RootedDirectoryPath, jsonSourceFile:Null<SourceFile>,
+			specKey:std.String):Pair<Null<Array<PathPattern>>, Null<Array<Diagnostic>>> {
 		var errors:Null<Array<Diagnostic>> = null;
-		var finalSpecs:Null<Array<std.String>> = null;
+		var finalSpecs:Null<Array<PathPattern>> = null;
 		final arr:Null<Array<Dynamic>> = asAnySlice(specs);
 		if (arr != null) {
 			for (spec in arr) {
@@ -5617,14 +5682,14 @@ class Tsoptions {
 				} else {
 					if (finalSpecs == null)
 						finalSpecs = [];
-					finalSpecs.push(spec);
+					finalSpecs.push(Tspath.ToPathPattern(spec));
 				}
 			}
 		}
-		return new Pair<Null<Array<std.String>>, Null<Array<Diagnostic>>>(finalSpecs, errors);
+		return new Pair<Null<Array<PathPattern>>, Null<Array<Diagnostic>>>(finalSpecs, errors);
 	}
 
-	static function specToDiagnostic(spec:std.String, disallowTrailingRecursion:Bool, basePath:std.String):Null<Message> {
+	static function specToDiagnostic(spec:std.String, disallowTrailingRecursion:Bool, basePath:RootedDirectoryPath):Null<Message> {
 		// `?` is a wildcard in specs, so only UNC and device roots can name a
 		// network path; a `/??/` spec matches local directories.
 		if (StringTools.startsWith(Tspath.GetNormalizedAbsolutePath(spec, basePath), "//")) {
@@ -5777,23 +5842,25 @@ class Tsoptions {
 		return null;
 	}
 
-	static function getSubstitutedPathWithConfigDirTemplate(value:std.String, basePath:std.String):std.String {
+	static function getSubstitutedPathWithConfigDirTemplate(value:std.String, basePath:RootedDirectoryPath):std.String {
+		// TODO: Match the case-insensitive prefix check; Replace currently only substitutes "${configDir}" with this exact casing.
 		// PORT: strings.Replace(value, configDirTemplate, "./", 1)
 		final i = value.indexOf(configDirTemplate);
 		final replaced = i < 0 ? value : value.substring(0, i) + "./" + value.substring(i + configDirTemplate.length);
 		return Tspath.GetNormalizedAbsolutePath(replaced, basePath);
 	}
 
-	static function getSubstitutedStringArrayWithConfigDirTemplate(list:Null<Array<std.String>>, basePath:std.String):Null<Array<std.String>> {
-		var result:Null<Array<std.String>> = null;
+	static function getSubstitutedStringArrayWithConfigDirTemplate<T:std.String>(list:Null<Array<T>>, basePath:RootedDirectoryPath):Null<Array<T>> {
+		var result:Null<Array<T>> = null;
 		if (list != null) {
 			for (i in 0...list.length) {
 				final element = list[i];
-				if (startsWithConfigDirTemplate(element)) {
+				if (startsWithConfigDirTemplate((element : std.String))) {
 					if (result == null) {
 						result = Slices.Clone(list);
 					}
-					result[i] = getSubstitutedPathWithConfigDirTemplate(element, basePath);
+					// PORT: Go T(string) conversion of the substituted text.
+					result[i] = cast getSubstitutedPathWithConfigDirTemplate(element, basePath);
 				}
 			}
 		}
@@ -5803,65 +5870,100 @@ class Tsoptions {
 		return null;
 	}
 
-	static function handleOptionConfigDirTemplateSubstitution(compilerOptions:Null<CompilerOptions>, basePath:std.String):Void {
+	static function handleOptionConfigDirTemplateSubstitution(compilerOptions:Null<ParsedCompilerOptions>, basePath:RootedDirectoryPath):Void {
 		if (compilerOptions == null) {
 			return;
 		}
-
-		// !!! don't hardcode this; use options declarations?
-
-		var paths:Null<OrderedMap<std.String, Array<std.String>>> = null;
-		for (k => v in compilerOptions.Paths.Entries()) {
-			final substitution = getSubstitutedStringArrayWithConfigDirTemplate(v, basePath);
-			if (substitution != null) {
-				if (paths == null) {
-					paths = compilerOptions.Paths.Clone();
-					compilerOptions.Paths = paths;
+		{
+			var paths:Null<OrderedMap<std.String, Array<std.String>>> = null;
+			for (k => v in compilerOptions.CompilerOptions.Paths.Entries()) {
+				final substitution = getSubstitutedStringArrayWithConfigDirTemplate(v, basePath);
+				if (substitution != null) {
+					if (paths == null) {
+						paths = compilerOptions.CompilerOptions.Paths.Clone();
+						compilerOptions.CompilerOptions.Paths = paths;
+					}
+					paths.Set(k, substitution);
 				}
-				paths.Set(k, substitution);
 			}
 		}
+		if (compilerOptions.unresolvedPaths != null) {
+			for (key => value in compilerOptions.unresolvedPaths.Entries()) {
+				final option = CommandLineCompilerOptionsMap.Get(key);
+				var substituted:Dynamic;
+				if (option.Kind == CommandLineOptionTypeList) {
+					substituted = anySliceToAny(Core.Map(ParseStringArray(value), function(path:std.String):Dynamic {
+						return getSubstitutedPathWithConfigDirTemplate(path, basePath);
+					}));
+				} else {
+					substituted = getSubstitutedPathWithConfigDirTemplate(ParseString(value), basePath);
+				}
+				ParseCompilerOptions(key, substituted, compilerOptions.CompilerOptions);
+			}
+			compilerOptions.unresolvedPaths.Clear();
+		}
+	}
 
-		final rootDirs = getSubstitutedStringArrayWithConfigDirTemplate(compilerOptions.RootDirs, basePath);
-		if (rootDirs != null) {
-			compilerOptions.RootDirs = /* PORT: transitional, unchecked */ cast rootDirs;
+	static function compilerOptionContainsConfigDirTemplate(key:std.String, value:Dynamic):Bool {
+		final option = CommandLineCompilerOptionsMap.Get(key);
+		if (option == null) {
+			return false;
 		}
-		final typeRoots = getSubstitutedStringArrayWithConfigDirTemplate(compilerOptions.TypeRoots, basePath);
-		if (typeRoots != null) {
-			compilerOptions.TypeRoots = /* PORT: transitional, unchecked */ cast typeRoots;
+		var pathKind = option.PathKind;
+		if (option.Kind == CommandLineOptionTypeList) {
+			final element = option.Elements();
+			if (element == null) {
+				return false;
+			}
+			pathKind = element.PathKind;
 		}
-		if (startsWithConfigDirTemplate(compilerOptions.GenerateCpuProfile)) {
-			compilerOptions.GenerateCpuProfile = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.GenerateCpuProfile, basePath);
+		if (!pathKind.IsRooted()) {
+			return false;
 		}
-		if (startsWithConfigDirTemplate(compilerOptions.GenerateTrace)) {
-			compilerOptions.GenerateTrace = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.GenerateTrace, basePath);
+		if (option.Kind == CommandLineOptionTypeList) {
+			return Core.Some(ParseStringArray(value), startsWithConfigDirTemplate);
 		}
-		if (startsWithConfigDirTemplate(compilerOptions.OutFile)) {
-			compilerOptions.OutFile = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.OutFile, basePath);
+		return isString(value) && startsWithConfigDirTemplate(value);
+	}
+
+	static function mergeParsedCompilerOptions(targetOptions:Null<ParsedCompilerOptions>, sourceOptions:Null<ParsedCompilerOptions>,
+			rawSource:Dynamic):Null<ParsedCompilerOptions> {
+		if (sourceOptions == null) {
+			return targetOptions;
 		}
-		if (startsWithConfigDirTemplate(compilerOptions.OutDir)) {
-			compilerOptions.OutDir = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.OutDir, basePath);
+		if (targetOptions == null) {
+			targetOptions = new ParsedCompilerOptions(new CompilerOptions(), new UnresolvedCompilerOptionPaths());
 		}
-		if (startsWithConfigDirTemplate(compilerOptions.RootDir)) {
-			compilerOptions.RootDir = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.RootDir, basePath);
+		mergeCompilerOptions(targetOptions.CompilerOptions, sourceOptions.CompilerOptions, rawSource);
+		if (rawSource != null && isOrderedMap(rawSource)) {
+			final rawMap:OrderedMap<std.String, Dynamic> = rawSource;
+			final compilerOptionsRaw = rawMap.Get("compilerOptions");
+			if (compilerOptionsRaw.ok && isOrderedMap(compilerOptionsRaw.value)) {
+				final compilerOptionsMap:OrderedMap<std.String, Dynamic> = compilerOptionsRaw.value;
+				if (targetOptions.unresolvedPaths != null) {
+					for (key in compilerOptionsMap.Keys()) {
+						targetOptions.unresolvedPaths.Delete(key);
+					}
+				}
+			}
 		}
-		if (startsWithConfigDirTemplate(compilerOptions.TsBuildInfoFile)) {
-			compilerOptions.TsBuildInfoFile = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.TsBuildInfoFile, basePath);
+		// PORT: maps.Copy into a nil map panics in Go only when the source is non-empty; the targets here
+		// always have a map.
+		if (sourceOptions.unresolvedPaths != null) {
+			for (key => value in sourceOptions.unresolvedPaths.Entries()) {
+				targetOptions.unresolvedPaths.Set(key, value);
+			}
 		}
-		if (startsWithConfigDirTemplate(compilerOptions.BaseUrl)) {
-			compilerOptions.BaseUrl = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.BaseUrl, basePath);
-		}
-		if (startsWithConfigDirTemplate(compilerOptions.DeclarationDir)) {
-			compilerOptions.DeclarationDir = /* PORT: transitional, unchecked */ cast getSubstitutedPathWithConfigDirTemplate(compilerOptions.DeclarationDir, basePath);
-		}
+		return targetOptions;
 	}
 
 	// hasFileWithHigherPriorityExtension determines whether a literal or wildcard file has already been included that has a higher extension priority.
 	// file is the path to the file.
-	static function hasFileWithHigherPriorityExtension(file:std.String, extensions:Array<Array<std.String>>, hasFile:(fileName:std.String) -> Bool):Bool {
+	static function hasFileWithHigherPriorityExtension(file:RootedFilePath, extensions:Array<Array<std.String>>,
+			hasFile:(fileName:RootedFilePath) -> Bool):Bool {
 		var extensionGroup:Null<Array<std.String>> = null;
 		for (group in extensions) {
-			if (Tspath.FileExtensionIsOneOf(file, group)) {
+			if (file.ExtensionIsOneOf(group)) {
 				extensionGroup = Slices.Concat(extensionGroup, group);
 			}
 		}
@@ -5872,11 +5974,11 @@ class Tsoptions {
 			// d.ts files match with .ts extension and with case sensitive sorting the file order for same files with ts tsx and dts extension is
 			// d.ts, .ts, .tsx in that order so we need to handle tsx and dts of same same name case here and in remove files with same extensions
 			// So dont match .d.ts files with .ts extension
-			if (Tspath.FileExtensionIs(file, ext) && (ext != Tspath.ExtensionTs || !Tspath.FileExtensionIs(file, Tspath.ExtensionDts))) {
+			if (file.ExtensionIs(ext) && (ext != Tspath.ExtensionTs || !file.ExtensionIs(Tspath.ExtensionDts))) {
 				return false;
 			}
-			if (hasFile(Tspath.ChangeExtension(file, ext))) {
-				if (ext == Tspath.ExtensionDts && (Tspath.FileExtensionIs(file, Tspath.ExtensionJs) || Tspath.FileExtensionIs(file, Tspath.ExtensionJsx))) {
+			if (hasFile(file.ChangeExtension(ext))) {
+				if (ext == Tspath.ExtensionDts && (file.ExtensionIs(Tspath.ExtensionJs) || file.ExtensionIs(Tspath.ExtensionJsx))) {
 					// LEGACY BEHAVIOR: An off-by-one bug somewhere in the extension priority system for wildcard module loading allowed declaration
 					// files to be loaded alongside their js(x) counterparts. We regard this as generally undesirable, but retain the behavior to
 					// prevent breakage.
@@ -5890,11 +5992,11 @@ class Tsoptions {
 
 	// Removes files included via wildcard expansion with a lower extension priority that have already been included.
 	// file is the path to the file.
-	static function removeWildcardFilesWithLowerPriorityExtension(file:std.String, wildcardFiles:OrderedMap<std.String, std.String>,
-			extensions:Array<Array<std.String>>, keyMapper:(value:std.String) -> std.String):Void {
+	static function removeWildcardFilesWithLowerPriorityExtension<V>(file:RootedFilePath, wildcardFiles:OrderedMap<PathKey, V>,
+			extensions:Array<Array<std.String>>, keyMapper:(value:RootedFilePath) -> PathKey):Void {
 		var extensionGroup:Null<Array<std.String>> = null;
 		for (group in extensions) {
-			if (Tspath.FileExtensionIsOneOf(file, group)) {
+			if (file.ExtensionIsOneOf(group)) {
 				extensionGroup = Slices.Concat(extensionGroup, group);
 			}
 		}
@@ -5904,10 +6006,10 @@ class Tsoptions {
 		var i = extensionGroup.length - 1;
 		while (i >= 0) {
 			final ext = extensionGroup[i];
-			if (Tspath.FileExtensionIs(file, ext)) {
+			if (file.ExtensionIs(ext)) {
 				return;
 			}
-			final lowerPriorityPath = keyMapper(Tspath.ChangeExtension(file, ext));
+			final lowerPriorityPath = keyMapper(file.ChangeExtension(ext));
 			wildcardFiles.Delete(lowerPriorityPath);
 			i--;
 		}
@@ -5920,25 +6022,25 @@ class Tsoptions {
 	// options is the Compiler options.
 	// host is the host used to resolve files and directories.
 	// extraFileExtensions optionally file extra file extension information from host
-	static function getFileNamesFromConfigSpecs(configFileSpecs:ConfigFileSpecs, basePath:std.String, // considering this is the current directory
-			options:CompilerOptions, host:FS, extraExtensions:Null<Array<std.String>>):Pair<Array<std.String>, Int> {
-		basePath = Tspath.NormalizePath(basePath);
-		final keyMappper = function(value:std.String):std.String {
-			return Tspath.GetCanonicalFileName(value, host.CaseSensitivity().IsCaseSensitive());
+	static function getFileNamesFromConfigSpecs(configFileSpecs:ConfigFileSpecs, basePath:RootedDirectoryPath, // considering this is the current directory
+			options:CompilerOptions, host:FS, extraExtensions:Null<Array<std.String>>):Pair<Array<RootedFilePath>, Int> {
+		final keyMapper = function(fileName:RootedFilePath):PathKey {
+			return host.CaseSensitivity().PathKey(fileName.AsPath());
 		};
 		// Literal file names (provided via the "files" array in tsconfig.json) are stored in a
 		// file map with a possibly case insensitive key. We use this map later when when including
 		// wildcard paths.
-		final literalFileMap = new OrderedMap<std.String, std.String>("");
+		final literalFileMap = new OrderedMap<PathKey, RootedFilePath>(cast "");
 		// Wildcard paths (provided via the "includes" array in tsconfig.json) are stored in a
 		// file map with a possibly case insensitive key. We use this map to store paths matched
 		// via wildcard, and to handle extension priority.
-		final wildcardFileMap = new OrderedMap<std.String, std.String>("");
+		final wildcardFileMap = new OrderedMap<PathKey, RootedFilePath>(cast "");
 		// Wildcard paths of json files (provided via the "includes" array in tsconfig.json) are stored in a
 		// file map with a possibly case insensitive key. We use this map to store paths matched
 		// via wildcard of *.json kind
-		final wildCardJsonFileMap = new OrderedMap<std.String, std.String>("");
+		final wildCardJsonFileMap = new OrderedMap<PathKey, RootedFilePath>(cast "");
 		final validatedFilesSpec = configFileSpecs.validatedFilesSpec;
+		final validatedFileNames = configFileSpecs.validatedFileNames;
 		final validatedIncludeSpecs = configFileSpecs.validatedIncludeSpecs;
 		final validatedExcludeSpecs = configFileSpecs.validatedExcludeSpecs;
 		// Rather than re-query this for each file and filespec, we query the supported extensions
@@ -5948,33 +6050,30 @@ class Tsoptions {
 		// Literal files are always included verbatim. An "include" or "exclude" specification cannot
 		// remove a literal file.
 		if (validatedFilesSpec != null) {
-			for (fileName in validatedFilesSpec) {
-				final file = Tspath.GetNormalizedAbsolutePath(fileName, basePath);
-				literalFileMap.Set(keyMappper(fileName), file);
+			for (i in 0...validatedFilesSpec.length) {
+				literalFileMap.Set(keyMapper(validatedFileNames[i]), validatedFileNames[i]);
 			}
 		}
 
 		var jsonOnlyIncludeMatchers:Null<SpecMatcher> = null;
 		if (Core.len(validatedIncludeSpecs) > 0) {
-			final files = Vfsmatch.ReadDirectory(host, /* PORT: transitional (main: typed basePath) */ Tspath.RootedDirectoryPathFromAbsolute(basePath),
-				Core.Flatten(supportedExtensionsWithJsonIfResolveJsonModule), validatedExcludeSpecs,
+			final files = Vfsmatch.ReadDirectory(host, basePath, Core.Flatten(supportedExtensionsWithJsonIfResolveJsonModule), validatedExcludeSpecs,
 				validatedIncludeSpecs, Vfsmatch.UnlimitedDepth);
 			if (files != null) {
 				for (file in files) {
-					if (Tspath.FileExtensionIs(file, Tspath.ExtensionJson)) {
+					if (file.ExtensionIs(Tspath.ExtensionJson)) {
 						if (jsonOnlyIncludeMatchers == null) {
-							final includes = Core.Filter(validatedIncludeSpecs, function(include:std.String):Bool {
-								return StringTools.endsWith(include, Tspath.ExtensionJson);
+							final includes = Core.Filter(validatedIncludeSpecs, function(include:PathPattern):Bool {
+								return StringTools.endsWith(include.AsString(), Tspath.ExtensionJson);
 							});
-							jsonOnlyIncludeMatchers = Vfsmatch.NewSpecMatcher(includes, /* PORT: transitional, unchecked */ cast basePath, UsageFiles,
-								host.CaseSensitivity());
+							jsonOnlyIncludeMatchers = Vfsmatch.NewSpecMatcher(includes, basePath, UsageFiles, host.CaseSensitivity());
 						}
 						var includeIndex:Int = -1;
 						if (jsonOnlyIncludeMatchers != null) {
-							includeIndex = jsonOnlyIncludeMatchers.MatchIndex(file);
+							includeIndex = jsonOnlyIncludeMatchers.MatchFileNameIndex(file);
 						}
 						if (includeIndex != -1) {
-							final key = keyMappper(file);
+							final key = keyMapper(file);
 							if (!literalFileMap.Has(key) && !wildCardJsonFileMap.Has(key)) {
 								wildCardJsonFileMap.Set(key, file);
 							}
@@ -5987,8 +6086,8 @@ class Tsoptions {
 					// This handles cases where we may encounter both <file>.ts and
 					// <file>.d.ts (or <file>.js if "allowJs" is enabled) in the same
 					// directory when they are compilation outputs.
-					if (hasFileWithHigherPriorityExtension(file, supportedExtensions, function(fileName:std.String):Bool {
-						final canonicalFileName = keyMappper(fileName);
+					if (hasFileWithHigherPriorityExtension(file, supportedExtensions, function(fileName:RootedFilePath):Bool {
+						final canonicalFileName = keyMapper(fileName);
 						return literalFileMap.Has(canonicalFileName) || wildcardFileMap.Has(canonicalFileName);
 					})) {
 						continue;
@@ -5997,15 +6096,15 @@ class Tsoptions {
 					// extension due to the user-defined order of entries in the
 					// "include" array. If there is a lower priority extension in the
 					// same directory, we should remove it.
-					removeWildcardFilesWithLowerPriorityExtension(file, wildcardFileMap, supportedExtensions, keyMappper);
-					final key = keyMappper(file);
+					removeWildcardFilesWithLowerPriorityExtension(file, wildcardFileMap, supportedExtensions, keyMapper);
+					final key = keyMapper(file);
 					if (!literalFileMap.Has(key) && !wildcardFileMap.Has(key)) {
 						wildcardFileMap.Set(key, file);
 					}
 				}
 			}
 		}
-		final files:Array<std.String> = [];
+		final files:Array<RootedFilePath> = [];
 		for (file in literalFileMap.Values()) {
 			files.push(file);
 		}
@@ -6015,7 +6114,7 @@ class Tsoptions {
 		for (file in wildCardJsonFileMap.Values()) {
 			files.push(file);
 		}
-		return new Pair<Array<std.String>, Int>(files, literalFileMap.Size());
+		return new Pair<Array<RootedFilePath>, Int>(files, literalFileMap.Size());
 	}
 
 	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraExtensions:Null<Array<std.String>>):Array<Array<std.String>> {
@@ -6060,20 +6159,19 @@ class Tsoptions {
 
 	// Reads the config file and reports errors.
 	// PORT: (*ParsedCommandLine, []*ast.Diagnostic) → Pair.
-	public static function GetParsedCommandLineOfConfigFile(configFileName:std.String, options:Null<CompilerOptions>,
-			optionsRaw:Null<OrderedMap<std.String, Dynamic>>, sys:ParseConfigHost,
+	public static function GetParsedCommandLineOfConfigFile(configFileName:RootedFilePath, options:Null<CompilerOptions>,
+			optionsRaw:Null<OrderedMap<std.String, Dynamic>>, host:ParseConfigHost,
 			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>> {
-		configFileName = Tspath.GetNormalizedAbsolutePath(configFileName, sys.GetCurrentDirectory());
-		return GetParsedCommandLineOfConfigFilePath(configFileName, Tspath.ToPath(configFileName, sys.GetCurrentDirectory(), sys.FS().CaseSensitivity().IsCaseSensitive()),
-			options, optionsRaw, sys, extendedConfigCache);
+		return GetParsedCommandLineOfConfigFilePath(configFileName, host.FS().CaseSensitivity().PathKey(configFileName.AsPath()), options, optionsRaw, host,
+			extendedConfigCache);
 	}
 
-	public static function GetParsedCommandLineOfConfigFilePath(configFileName:std.String, path:Path, options:Null<CompilerOptions>,
-			optionsRaw:Null<OrderedMap<std.String, Dynamic>>, sys:ParseConfigHost,
+	public static function GetParsedCommandLineOfConfigFilePath(configFileName:RootedFilePath, path:PathKey, options:Null<CompilerOptions>,
+			optionsRaw:Null<OrderedMap<std.String, Dynamic>>, host:ParseConfigHost,
 			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>> {
 		var errors:Null<Array<Diagnostic>> = [];
-		final fs = sys.FS();
-		final r = tryReadFile(/* PORT: transitional (main: typed configFileName) */ Tspath.RootedFilePathFromAbsolute(configFileName), fs.ReadFile, errors);
+		final fs = host.FS();
+		final r = tryReadFile(configFileName, fs.ReadFile, errors);
 		final configFileText = r.a;
 		errors = r.b;
 		if (Core.len(errors) > 0) {
@@ -6084,16 +6182,16 @@ class Tsoptions {
 		final tsConfigSourceFile = NewTsconfigSourceFileFromFilePath(configFileName, path, configFileText);
 		// tsConfigSourceFile.resolvedPath = tsConfigSourceFile.FileName()
 		// tsConfigSourceFile.originalFileName = tsConfigSourceFile.FileName()
-		return new Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>>(ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, sys,
-			Tspath.GetDirectoryPath(configFileName), options, optionsRaw, configFileName, null, null, extendedConfigCache), null);
+		return new Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>>(ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, host,
+			configFileName.Directory(), options, optionsRaw, null, extendedConfigCache), null);
 	}
 
 	// --- wildcarddirectories.go ---
 
-	// PORT: map[string]bool → StringMap<Bool> (Go map iteration order is random; the result does
-	// not depend on it).
-	static function getWildcardDirectories(include:Null<Array<std.String>>, exclude:Null<Array<std.String>>,
-			comparePathsOptions:ComparePathsOptions):Null<StringMap<Bool>> {
+	// PORT: map[tspath.RootedDirectoryPath]bool → an OrderedMap (Go map iteration order is random; the
+	// result does not depend on it). main's PathPatternInput generic (string | tspath.PathPattern) → T:String.
+	static function getWildcardDirectories<T:std.String>(include:Null<Array<T>>, exclude:Null<Array<T>>, currentDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity):Null<OrderedMap<RootedDirectoryPath, Bool>> {
 		// We watch a directory recursively if it contains a wildcard anywhere in a directory segment
 		// of the pattern:
 		//
@@ -6111,32 +6209,34 @@ class Tsoptions {
 			return null;
 		}
 
-		final excludeMatcher = Vfsmatch.NewSpecMatcher(exclude, /* PORT: transitional, unchecked */ cast comparePathsOptions.CurrentDirectory, UsageExclude,
-			comparePathsOptions.caseSensitivity());
+		final excludeMatcher = Vfsmatch.NewSpecMatcher(exclude, currentDirectory, UsageExclude, caseSensitivity);
 
-		final wildcardDirectories = new StringMap<Bool>();
-		final wildCardKeyToPath = new StringMap<std.String>();
+		final wildcardDirectories = new OrderedMap<RootedDirectoryPath, Bool>(false);
+		final wildCardKeyToPath = new StringMap<RootedDirectoryPath>();
 
-		var recursiveKeys:Null<Array<std.String>> = null;
+		var recursiveKeys:Null<Array<PathKey>> = null;
 
 		for (file in include) {
-			final spec = Tspath.NormalizePath(Tspath.CombinePaths(comparePathsOptions.CurrentDirectory, file));
+			final spec = Tspath.NormalizePath(Tspath.CombinePaths(currentDirectory.AsString(), (file : std.String)));
 			if (excludeMatcher != null && excludeMatcher.MatchString(spec)) {
 				continue;
 			}
 
-			final match = getWildcardDirectoryFromSpec(spec, comparePathsOptions.UseCaseSensitiveFileNames);
+			final match = getWildcardDirectoryFromSpec(spec);
 			if (match != null) {
-				final key = match.Key;
-				final path = match.Path;
+				var path = match.Path;
+				if (path == "") {
+					path = Tspath.RootedDirectoryPathFromNormalized(spec.substring(0, Tspath.GetRootLength(spec)));
+				}
+				final key = caseSensitivity.PathKey(path.AsPath());
 				final recursive = match.Recursive;
 
 				final existsPath = wildCardKeyToPath.exists(key);
-				final existingPath = existsPath ? wildCardKeyToPath.get(key) : "";
+				final existingPath = existsPath ? wildCardKeyToPath.get(key) : cast "";
 				var existingRecursive = false;
 
 				if (existsPath) {
-					existingRecursive = wildcardDirectories.get(existingPath) == true;
+					existingRecursive = wildcardDirectories.GetOrZero(existingPath);
 				}
 
 				if (!existsPath || (!existingRecursive && recursive)) {
@@ -6144,7 +6244,7 @@ class Tsoptions {
 					if (existsPath) {
 						pathToUse = existingPath;
 					}
-					wildcardDirectories.set(pathToUse, recursive);
+					wildcardDirectories.Set(pathToUse, recursive);
 
 					if (!existsPath) {
 						wildCardKeyToPath.set(key, path);
@@ -6161,13 +6261,13 @@ class Tsoptions {
 			// Remove any subpaths under an existing recursively watched directory
 			// PORT: Go deletes while ranging over the map; the keys are snapshotted first (the
 			// result does not depend on the iteration order).
-			final paths = [for (p in wildcardDirectories.keys()) p];
+			final paths = [for (p in wildcardDirectories.Keys()) p];
 			for (path in paths) {
 				if (recursiveKeys != null) {
 					for (recursiveKey in recursiveKeys) {
-						final key = toCanonicalKey(path, comparePathsOptions.UseCaseSensitiveFileNames);
-						if (key != recursiveKey && Tspath.ContainsPath_legacy(recursiveKey, key, comparePathsOptions)) {
-							wildcardDirectories.remove(path);
+						final key = caseSensitivity.PathKey(path.AsPath());
+						if (key != recursiveKey && recursiveKey.ContainsPath(key)) {
+							wildcardDirectories.Delete(path);
 						}
 					}
 				}
@@ -6177,28 +6277,25 @@ class Tsoptions {
 		return wildcardDirectories;
 	}
 
-	static function toCanonicalKey(path:std.String, useCaseSensitiveFileNames:Bool):std.String {
-		if (useCaseSensitiveFileNames) {
-			return path;
-		}
-		return Strings.ToLower(path);
-	}
-
-	static function getWildcardDirectoryFromSpec(spec:std.String, useCaseSensitiveFileNames:Bool):Null<WildcardDirectoryMatch> {
+	static function getWildcardDirectoryFromSpec(spec:std.String):Null<WildcardDirectoryMatch> {
 		// Find the first occurrence of a wildcard character
 		final firstWildcard = Strings.IndexAny(spec, "*?");
 		if (firstWildcard != -1) {
 			// Find the last directory separator before the wildcard
 			final lastSepBeforeWildcard = spec.substring(0, firstWildcard).lastIndexOf("/");
 			if (lastSepBeforeWildcard != -1) {
-				final path = spec.substring(0, lastSepBeforeWildcard);
+				var path:RootedDirectoryPath = cast "";
+				final pathText = spec.substring(0, lastSepBeforeWildcard);
+				if (pathText != "") {
+					path = Tspath.RootedDirectoryPathFromAbsolute(pathText);
+				}
 				final lastDirectorySeparatorIndex = spec.lastIndexOf("/");
 
 				// Determine if this should be watched recursively:
 				// recursive if the wildcard appears in a directory segment (not just the final file segment)
 				final recursive = firstWildcard < lastDirectorySeparatorIndex;
 
-				return new WildcardDirectoryMatch(toCanonicalKey(path, useCaseSensitiveFileNames), path, recursive);
+				return new WildcardDirectoryMatch(path, recursive);
 			}
 		}
 
@@ -6206,8 +6303,8 @@ class Tsoptions {
 		if (lastSepIndex != -1) {
 			final lastSegment = spec.substring(lastSepIndex + 1);
 			if (Vfsmatch.IsImplicitGlob(lastSegment)) {
-				final path = Tspath.RemoveTrailingDirectorySeparator(spec);
-				return new WildcardDirectoryMatch(toCanonicalKey(path, useCaseSensitiveFileNames), path, true);
+				final path = Tspath.RootedDirectoryPathFromAbsolute(Tspath.RemoveTrailingDirectorySeparator(spec));
+				return new WildcardDirectoryMatch(path, true);
 			}
 		}
 
@@ -6467,6 +6564,7 @@ class CompilerOptionsField {
 // PORT: Go projectReferenceParseResult (parsinghelpers.go)
 class ProjectReferenceParseResult {
 	public var reference:ProjectReference = new ProjectReference();
+	public var path:std.String = "";
 	public var hasPath:Bool = false;
 	public var pathValid:Bool = false;
 	public var hasCircular:Bool = false;

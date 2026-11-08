@@ -78,7 +78,7 @@ class AffectedFilesHandler {
 		final options = new EmitOptions();
 		options.TargetSourceFile = file;
 		options.EmitOnly = EmitOnlyForcedDts;
-		options.WriteFile = function(fileName:std.String, text:std.String, data:WriteFileData):Null<Error> {
+		options.WriteFile = function(fileName:RootedFilePath, text:std.String, data:WriteFileData):Null<Error> {
 			if (!Tspath.IsDeclarationFileName(fileName)) {
 				throw "File extension for signature expected to be dts, got : " + fileName;
 			}

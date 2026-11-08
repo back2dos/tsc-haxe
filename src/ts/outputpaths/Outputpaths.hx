@@ -7,84 +7,37 @@ package ts.outputpaths;
 class Outputpaths {
 	// --- commonsourcedirectory.go ---
 
-	static function computeCommonSourceDirectoryOfFilenames(fileNames:Array<String>, currentDirectory:String, useCaseSensitiveFileNames:Bool):String {
-		var commonPathComponents:Array<String> = null;
-		if (fileNames != null) {
-			for (sourceFile in fileNames) {
-				// Each file contributes into common source file path
-				var sourcePathComponents = Tspath.GetNormalizedPathComponents(sourceFile, currentDirectory);
-
-				// The base file name is not part of the common directory path
-				sourcePathComponents = sourcePathComponents.slice(0, sourcePathComponents.length - 1);
-
-				if (commonPathComponents == null) {
-					// first file
-					commonPathComponents = sourcePathComponents;
-					continue;
-				}
-
-				final n = commonPathComponents.length < sourcePathComponents.length ? commonPathComponents.length : sourcePathComponents.length; // min
-				for (i in 0...n) {
-					if (Tspath.GetCanonicalFileName(commonPathComponents[i], useCaseSensitiveFileNames) != Tspath.GetCanonicalFileName(sourcePathComponents[i],
-						useCaseSensitiveFileNames)) {
-						if (i == 0) {
-							// Failed to find any common path component
-							return "";
-						}
-
-						// New common path found that is 0 -> i-1
-						commonPathComponents = commonPathComponents.slice(0, i);
-						break;
-					}
-				}
-
-				// If the sourcePathComponents was shorter than the commonPathComponents, truncate to the sourcePathComponents
-				if (sourcePathComponents.length < commonPathComponents.length) {
-					commonPathComponents = commonPathComponents.slice(0, sourcePathComponents.length);
-				}
-			}
-		}
-
-		if (Core.len(commonPathComponents) == 0) {
-			// Can happen when all input files are .d.ts files
+	static function computeCommonSourceDirectoryOfFilenames(fileNames:Null<Array<RootedFilePath>>, currentDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity):RootedDirectoryPath {
+		if (Core.len(fileNames) == 0) {
+			// Can happen when all input files are .d.ts files.
 			return currentDirectory;
 		}
-
-		return Tspath.GetPathFromPathComponents(commonPathComponents);
+		return caseSensitivity.CommonDirectoryOfFiles(fileNames);
 	}
 
-	public static function GetComputedCommonSourceDirectory(emittedFiles:Array<String>, currentDirectory:String, useCaseSensitiveFileNames:Bool):String {
-		var commonSourceDirectory = computeCommonSourceDirectoryOfFilenames(emittedFiles, currentDirectory, useCaseSensitiveFileNames);
-		if (commonSourceDirectory.length > 0) {
-			commonSourceDirectory = Tspath.EnsureTrailingDirectorySeparator(commonSourceDirectory);
-		}
-		return commonSourceDirectory;
+	public static function GetComputedCommonSourceDirectory(emittedFiles:Null<Array<RootedFilePath>>, currentDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity):RootedDirectoryPath {
+		return computeCommonSourceDirectoryOfFilenames(emittedFiles, currentDirectory, caseSensitivity);
 	}
 
-	public static function GetCommonSourceDirectory(options:CompilerOptions, files:() -> Array<String>, currentDirectory:String,
-			useCaseSensitiveFileNames:Bool, checkSourceFilesBelongToPath:(Array<String>, String) -> Bool):String {
-		var commonSourceDirectory:String;
+	public static function GetCommonSourceDirectory(options:CompilerOptions, files:() -> Null<Array<RootedFilePath>>, currentDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity, checkSourceFilesBelongToPath:Null<(Null<Array<RootedFilePath>>, RootedDirectoryPath) -> Bool>):RootedDirectoryPath {
+		var commonSourceDirectory:RootedDirectoryPath;
 		if (options.RootDir != "") {
 			// If a rootDir is specified use it as the commonSourceDirectory
 			commonSourceDirectory = options.RootDir;
 			if (checkSourceFilesBelongToPath != null) {
-				checkSourceFilesBelongToPath(files(), options.RootDir);
+				checkSourceFilesBelongToPath(files(), commonSourceDirectory);
 			}
 		} else if (options.ConfigFilePath != "") {
 			// If the rootDir is not specified, then the common source directory is the directory of the config file.
-			commonSourceDirectory = Tspath.GetDirectoryPath(options.ConfigFilePath);
+			commonSourceDirectory = options.ConfigFilePath.Directory();
 			if (checkSourceFilesBelongToPath != null) {
 				checkSourceFilesBelongToPath(files(), commonSourceDirectory);
 			}
 		} else {
-			commonSourceDirectory = computeCommonSourceDirectoryOfFilenames(files(), currentDirectory, useCaseSensitiveFileNames);
-		}
-
-		if (commonSourceDirectory.length > 0) {
-			// Make sure directory path ends with directory separator so this string can directly
-			// used to replace with "" to get the relative path of the source file and the relative path doesn't
-			// start with / making it rooted path
-			commonSourceDirectory = Tspath.EnsureTrailingDirectorySeparator(commonSourceDirectory);
+			commonSourceDirectory = computeCommonSourceDirectoryOfFilenames(files(), currentDirectory, caseSensitivity);
 		}
 
 		return commonSourceDirectory;
@@ -92,40 +45,38 @@ class Outputpaths {
 
 	// --- outputpaths.go ---
 
-	public static function GetOutputPathsFor(sourceFile:SourceFile, options:CompilerOptions, host:OutputPathsHost, forceDtsEmit:Bool):OutputPaths {
-		final ownOutputFilePath = getOwnEmitOutputFilePath(sourceFile.FileName(), options, host, GetOutputExtension(sourceFile.FileName(), options.Jsx));
+	public static function GetOutputPathsFor(sourceFile:SourceFile, options:CompilerOptions, host:OutputPathsHost, force:ForceEmitPaths):OutputPaths {
+		final fileName = sourceFile.FileName();
+		final ownOutputFilePath = getOwnEmitOutputFilePathForFileName(fileName, options, host, GetOutputExtensionForFileName(fileName, options.Jsx));
 		final isJsonFile = Ast.IsJsonSourceFile(sourceFile);
 		// If json file emits to the same location skip writing it, if emitDeclarationOnly skip writing it
-		final isJsonEmittedToSameLocation = isJsonFile
-			&& Tspath.ComparePaths_legacy(sourceFile.FileName(), ownOutputFilePath,
-				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) == 0;
+		final isJsonEmittedToSameLocation = isJsonFile && host.CaseSensitivity().CompareFilePaths(fileName, ownOutputFilePath) == 0;
 		final paths = new OutputPaths();
 		if (sourceFile.ContentMapper() != "") {
 			paths.externalOutputFilePath = GetExternalOutputFileName(sourceFile.FileName(), options, host);
 		}
-		if (sourceFile.ContentMapper() == "" && options.EmitDeclarationOnly != TSTrue && !isJsonEmittedToSameLocation) {
+		if (sourceFile.ContentMapper() == "" && (force.Js || options.EmitDeclarationOnly != TSTrue) && !isJsonEmittedToSameLocation) {
 			paths.jsFilePath = ownOutputFilePath;
 			if (!Ast.IsJsonSourceFile(sourceFile)) {
 				paths.sourceMapFilePath = GetSourceMapFilePath(paths.jsFilePath, options);
 			}
 		}
-		if (forceDtsEmit || options.GetEmitDeclarations() && !isJsonFile) {
-			paths.declarationFilePath = GetDeclarationEmitOutputFilePath(sourceFile.FileName(), options, host);
-			if (options.GetAreDeclarationMapsEnabled()) {
-				paths.declarationMapPath = paths.declarationFilePath + ".map";
+		if (force.Dts || options.GetEmitDeclarations() && !isJsonFile) {
+			paths.declarationFilePath = getDeclarationEmitOutputFilePathForFileName(fileName, options, host);
+			if (options.GetAreDeclarationMapsEnabled() || force.DeclarationMap && options.DeclarationMap.IsTrue()) {
+				paths.declarationMapPath = paths.declarationFilePath.AppendSuffix(".map");
 			}
 		}
 		return paths;
 	}
 
-	// PORT: externalOutputSourceFiles (TypeScript main, #64581) is an optional parameter before forceDtsEmit.
 	public static function ForEachEmittedFile(host:OutputPathsHost, options:CompilerOptions, action:(emitFileNames:OutputPaths, sourceFile:SourceFile) -> Bool,
 			sourceFiles:Array<SourceFile>, externalOutputSourceFiles:Null<Array<SourceFile>>, forceDtsEmit:Bool):Bool {
 		final seen = new go.IdentityMap<SourceFile, Bool>();
 		if (sourceFiles != null) {
 			for (sourceFile in sourceFiles) {
 				seen.set(sourceFile, true);
-				if (action(GetOutputPathsFor(sourceFile, options, host, forceDtsEmit), sourceFile)) {
+				if (action(GetOutputPathsFor(sourceFile, options, host, new ForceEmitPaths(forceDtsEmit)), sourceFile)) {
 					return true;
 				}
 			}
@@ -145,42 +96,40 @@ class Outputpaths {
 		return false;
 	}
 
-	public static function GetOutputJSFileName(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
+	public static function GetOutputJSFileName(inputFileName:RootedFilePath, options:CompilerOptions, host:OutputPathsHost):RootedFilePath {
 		if (options.EmitDeclarationOnly.IsTrue() || isContentMappedFileName(inputFileName, host)) {
-			return "";
+			return cast "";
 		}
 		final outputFileName = GetOutputJSFileNameWorker(inputFileName, options, host);
-		if (!Tspath.FileExtensionIs(outputFileName, Tspath.ExtensionJson)
-			|| Tspath.ComparePaths_legacy(inputFileName, outputFileName,
-				new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())) != 0) {
+		if (!outputFileName.ExtensionIs(Tspath.ExtensionJson) || host.CaseSensitivity().CompareFilePaths(inputFileName, outputFileName) != 0) {
 			return outputFileName;
 		}
-		return "";
+		return cast "";
 	}
 
-	static function isContentMappedFileName(fileName:String, host:OutputPathsHost):Bool {
-		return Tspath.GetLongestExtensionFromPath(fileName, host.ContentMapperExtensions(), Tspath.caseSensitivityOf(host.UseCaseSensitiveFileNames())) != "";
+	static function isContentMappedFileName(fileName:RootedFilePath, host:OutputPathsHost):Bool {
+		return fileName.LongestExtension(host.ContentMapperExtensions(), host.CaseSensitivity()) != "";
 	}
 
-	public static function GetOutputJSFileNameWorker(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
-		return Tspath.ChangeExtension(getOutputPathWithoutChangingExtension(inputFileName, options.OutDir, host),
-			GetOutputExtension(inputFileName, options.Jsx));
+	public static function GetOutputJSFileNameWorker(inputFileName:RootedFilePath, options:CompilerOptions, host:OutputPathsHost):RootedFilePath {
+		return getOutputFileNameWithoutChangingExtension(inputFileName, options.OutDir, host)
+			.ChangeExtension(GetOutputExtensionForFileName(inputFileName, options.Jsx));
 	}
 
-	public static function GetOutputDeclarationFileNameWorker(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
+	public static function GetOutputDeclarationFileNameWorker(inputFileName:RootedFilePath, options:CompilerOptions, host:OutputPathsHost):RootedFilePath {
 		var dir = options.DeclarationDir;
 		if (dir.length == 0) {
 			dir = options.OutDir;
 		}
-		return ChangeToDeclarationExtension(getOutputPathWithoutChangingExtension(inputFileName, dir, host), host);
+		final path = getOutputFileNameWithoutChangingExtension(inputFileName, dir, host);
+		return ChangeToDeclarationExtension(path, host);
 	}
 
-	public static function GetExternalOutputFileName(inputFileName:String, options:CompilerOptions, host:OutputPathsHost):String {
-		final outputPath = getOutputPathWithoutChangingExtension(inputFileName, options.OutDir, host);
-		final rewritten = ts.tspath.Tspath.ExtensionRewrites.RewriteFileExtension(outputPath, host.ContentMapperExtensionRewrites(),
-			!host.UseCaseSensitiveFileNames());
+	public static function GetExternalOutputFileName(inputFileName:RootedFilePath, options:CompilerOptions, host:OutputPathsHost):RootedFilePath {
+		final outputPath = getOutputFileNameWithoutChangingExtension(inputFileName, options.OutDir, host);
+		final rewritten = outputPath.RewriteExtension(host.ContentMapperExtensionRewrites(), host.CaseSensitivity());
 		if (!rewritten.ok) {
-			return "";
+			return cast "";
 		}
 		return rewritten.value;
 	}
@@ -199,153 +148,168 @@ class Outputpaths {
 		}
 	}
 
-	public static function GetDeclarationEmitOutputFilePath(file:String, options:CompilerOptions, host:OutputPathsHost):String {
-		// PORT: pointer — Go `outputDir *string` → the string, null for nil.
-		var outputDir:Null<String> = null;
+	public static inline function GetOutputExtensionForFileName(fileName:RootedFilePath, jsx:JsxEmit):String {
+		return GetOutputExtension(fileName.AsString(), jsx);
+	}
+
+	static function getDeclarationEmitOutputFilePathForFileName(file:RootedFilePath, options:CompilerOptions, host:OutputPathsHost):RootedFilePath {
+		var outputDir:RootedDirectoryPath = cast "";
 		if (options.DeclarationDir.length > 0) {
 			outputDir = options.DeclarationDir;
 		} else if (options.OutDir.length > 0) {
 			outputDir = options.OutDir;
 		}
 
-		var path:String;
-		if (outputDir != null) {
-			path = GetSourceFilePathInNewDirWorker(file, outputDir, host.GetCurrentDirectory(), host.CommonSourceDirectory(), host.UseCaseSensitiveFileNames());
-		} else {
-			path = file;
+		if (outputDir != "") {
+			return ChangeToDeclarationExtension(GetSourceFileNameInNewDir(file, outputDir, host.CommonSourceDirectory(), host.CaseSensitivity()), host);
 		}
-		return ChangeToDeclarationExtension(path, host);
+		return ChangeToDeclarationExtension(file, host);
 	}
 
-	public static function ChangeToDeclarationExtension(path:String, host:OutputPathsHost):String {
-		final rewritten = ts.tspath.Tspath.ExtensionRewrites.RewriteFileExtension(path, host.ContentMapperExtensionRewrites(),
-			!host.UseCaseSensitiveFileNames());
+	public static function ChangeToDeclarationExtension(path:RootedFilePath, host:OutputPathsHost):RootedFilePath {
+		final rewritten = path.RewriteExtension(host.ContentMapperExtensionRewrites(), host.CaseSensitivity());
 		if (rewritten.ok) {
 			return changeToDeclarationExtension(rewritten.value);
 		}
-		final extension = Tspath.GetLongestExtensionFromPath(path, host.ContentMapperExtensions(), Tspath.CaseSensitive);
+		final extension = path.LongestExtension(host.ContentMapperExtensions(), CaseSensitive);
 		if (extension != "") {
-			return Tspath.RemoveExtension(path, extension) + ".d" + extension + ".ts";
+			return path.RemoveExtension(extension).AppendSuffix(".d" + extension + ".ts");
 		}
 		return changeToDeclarationExtension(path);
 	}
 
-	static function changeToDeclarationExtension(path:String):String {
-		var pathWithoutExtension = Tspath.RemoveFileExtension(path);
-		if (pathWithoutExtension == path) {
-			final extension = Tspath.GetAnyExtensionFromPath(path, null, Tspath.CaseSensitive);
+	static function changeToDeclarationExtension(path:RootedFilePath):RootedFilePath {
+		var pathWithoutExtension = path.RemoveFileExtension();
+		if (pathWithoutExtension.AsString() == path.AsString()) {
+			final extension = path.AnyExtension(null, CaseSensitive);
 			if (extension != "") {
-				pathWithoutExtension = Tspath.RemoveExtension(path, extension);
+				pathWithoutExtension = path.RemoveExtension(extension);
 			}
 		}
-		return pathWithoutExtension + Tspath.GetDeclarationEmitExtensionForPath(path);
+		return pathWithoutExtension.AppendSuffix(path.DeclarationEmitExtension());
 	}
 
-	public static function GetSourceFilePathInNewDir(fileName:String, newDirPath:String, currentDirectory:String, commonSourceDirectory:String,
-			useCaseSensitiveFileNames:Bool):String {
-		return GetSourceFilePathInNewDirWorker(fileName, newDirPath, currentDirectory, commonSourceDirectory, useCaseSensitiveFileNames);
-	}
+	static function getOutputFileNameWithoutChangingExtension(inputFileName:RootedFilePath, outputDirectory:RootedDirectoryPath,
+			host:OutputPathsHost):RootedFilePath {
+		if (outputDirectory != "") {
+			final relativePath = host.CaseSensitivity().RelativePathFromDirectory(host.CommonSourceDirectory(), inputFileName);
+			if (relativePath == null) {
+				return inputFileName;
+			}
 
-	static function getOutputPathWithoutChangingExtension(inputFileName:String, outputDirectory:String, host:OutputPathsHost):String {
-		if (outputDirectory.length > 0) {
-			return Tspath.ResolvePath(outputDirectory,
-				Tspath.GetRelativePathFromDirectory_legacy(host.CommonSourceDirectory(), inputFileName,
-					new ComparePathsOptions(host.UseCaseSensitiveFileNames(), host.GetCurrentDirectory())));
+			return outputDirectory.ResolveRelativeFile(relativePath);
 		}
 		return inputFileName;
 	}
 
-	public static function GetSourceFilePathInNewDirWorker(fileName:String, newDirPath:String, currentDirectory:String, commonSourceDirectory:String,
-			useCaseSensitiveFileNames:Bool):String {
-		var sourceFilePath = Tspath.GetNormalizedAbsolutePath(fileName, currentDirectory);
-		final trimmed = Tspath.TrimFilePathPrefix(sourceFilePath, commonSourceDirectory, useCaseSensitiveFileNames);
-		if (trimmed.ok) {
-			sourceFilePath = trimmed.value;
+	public static function GetSourceFileNameInNewDir(fileName:RootedFilePath, newDirPath:RootedDirectoryPath, commonSourceDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity):RootedFilePath {
+		if (fileName.AsString() == commonSourceDirectory.AsString()) {
+			return fileName;
 		}
-		return Tspath.CombinePaths(newDirPath, sourceFilePath);
+		final relativePath = caseSensitivity.RelativeFilePathFromDirectory(commonSourceDirectory, fileName);
+		if (relativePath != null) {
+			return newDirPath.ResolveRelativeFile(relativePath);
+		}
+		return fileName;
 	}
 
-	static function getOwnEmitOutputFilePath(fileName:String, options:CompilerOptions, host:OutputPathsHost, extension:String):String {
-		var emitOutputFilePathWithoutExtension:String;
+	static function getOwnEmitOutputFilePathForFileName(fileName:RootedFilePath, options:CompilerOptions, host:OutputPathsHost,
+			extension:String):RootedFilePath {
+		var emitOutputFilePath:RootedFilePath;
 		if (options.OutDir.length > 0) {
-			final currentDirectory = host.GetCurrentDirectory();
-			emitOutputFilePathWithoutExtension = Tspath.RemoveFileExtension(GetSourceFilePathInNewDir(fileName, options.OutDir, currentDirectory,
-				host.CommonSourceDirectory(), host.UseCaseSensitiveFileNames()));
+			emitOutputFilePath = GetSourceFileNameInNewDir(fileName, options.OutDir, host.CommonSourceDirectory(), host.CaseSensitivity());
 		} else {
-			emitOutputFilePathWithoutExtension = Tspath.RemoveFileExtension(fileName);
+			emitOutputFilePath = fileName;
 		}
-		return emitOutputFilePathWithoutExtension + extension;
+		return emitOutputFilePath.RemoveFileExtension().AppendSuffix(extension);
 	}
 
-	public static function GetSourceMapFilePath(jsFilePath:String, options:CompilerOptions):String {
+	public static function GetSourceMapFilePath(jsFilePath:RootedFilePath, options:CompilerOptions):RootedFilePath {
 		if (options.SourceMap.IsTrue() && !options.InlineSourceMap.IsTrue()) {
-			return jsFilePath + ".map";
+			return jsFilePath.AppendSuffix(".map");
 		}
-		return "";
+		return cast "";
 	}
 
-	public static function GetBuildInfoFileName(options:CompilerOptions, opts:ComparePathsOptions):String {
+	public static function GetBuildInfoFileName(options:CompilerOptions, caseSensitivity:CaseSensitivity):RootedFilePath {
 		if (!options.IsIncremental() && !options.Build.IsTrue()) {
-			return "";
+			return cast "";
 		}
 		if (options.TsBuildInfoFile != "") {
 			return options.TsBuildInfoFile;
 		}
 		if (options.ConfigFilePath == "") {
-			return "";
+			return cast "";
 		}
-		final configFileExtensionLess = Tspath.RemoveFileExtension(options.ConfigFilePath);
-		var buildInfoExtensionLess:String;
+		final configFileName = options.ConfigFilePath;
+		var buildInfoFileName:RootedFilePath;
 		if (options.OutDir != "") {
 			if (options.RootDir != "") {
-				buildInfoExtensionLess = Tspath.ResolvePath(options.OutDir, Tspath.GetRelativePathFromDirectory_legacy(options.RootDir, configFileExtensionLess, opts));
+				final relativePath = caseSensitivity.RelativePathFromDirectory(options.RootDir, configFileName);
+				if (relativePath != null) {
+					buildInfoFileName = options.OutDir.ResolveRelativeFile(relativePath);
+				} else {
+					buildInfoFileName = configFileName;
+				}
 			} else {
-				buildInfoExtensionLess = Tspath.CombinePaths(options.OutDir, Tspath.GetBaseFileName(configFileExtensionLess));
+				buildInfoFileName = options.OutDir.ResolveFile(configFileName.BaseName());
 			}
 		} else {
-			buildInfoExtensionLess = configFileExtensionLess;
+			buildInfoFileName = configFileName;
 		}
-		return buildInfoExtensionLess + Tspath.ExtensionTsBuildInfo;
+		return buildInfoFileName.RemoveFileExtension().AppendSuffix(Tspath.ExtensionTsBuildInfo);
 	}
 }
 
 interface OutputPathsHost {
-	function CommonSourceDirectory():String;
+	function CommonSourceDirectory():RootedDirectoryPath;
 	function ContentMapperExtensions():Null<Array<String>>;
 	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
-	function GetCurrentDirectory():RootedDirectoryPath;
-	function UseCaseSensitiveFileNames():Bool;
+	function CaseSensitivity():CaseSensitivity;
 }
 
 @:allow(ts.outputpaths)
 class OutputPaths {
-	var jsFilePath:String = "";
-	var sourceMapFilePath:String = "";
-	var declarationFilePath:String = "";
-	var declarationMapPath:String = "";
-	var externalOutputFilePath:String = "";
+	var jsFilePath:RootedFilePath = cast "";
+	var sourceMapFilePath:RootedFilePath = cast "";
+	var declarationFilePath:RootedFilePath = cast "";
+	var declarationMapPath:RootedFilePath = cast "";
+	var externalOutputFilePath:RootedFilePath = cast "";
 
 	public function new() {}
 
-	public function ExternalOutputFilePath():String {
-		return externalOutputFilePath;
-	}
-
 	// DeclarationFilePath implements declarations.OutputPaths.
-	public function DeclarationFilePath():String {
+	public function DeclarationFilePath():RootedFilePath {
 		return declarationFilePath;
 	}
 
 	// JsFilePath implements declarations.OutputPaths.
-	public function JsFilePath():String {
+	public function JsFilePath():RootedFilePath {
 		return jsFilePath;
 	}
 
-	public function SourceMapFilePath():String {
+	public function SourceMapFilePath():RootedFilePath {
 		return sourceMapFilePath;
 	}
 
-	public function DeclarationMapPath():String {
+	public function DeclarationMapPath():RootedFilePath {
 		return declarationMapPath;
+	}
+
+	public function ExternalOutputFilePath():RootedFilePath {
+		return externalOutputFilePath;
+	}
+}
+
+class ForceEmitPaths {
+	public var Dts:Bool;
+	public var Js:Bool;
+	public var DeclarationMap:Bool;
+
+	public function new(Dts:Bool = false, Js:Bool = false, DeclarationMap:Bool = false) {
+		this.Dts = Dts;
+		this.Js = Js;
+		this.DeclarationMap = DeclarationMap;
 	}
 }

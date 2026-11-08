@@ -858,14 +858,13 @@ class Tsbaseline {
 				throw "Program has no source file with name '" + fileName + "'";
 			}
 			// Is this file going to be emitted separately
-			var sourceFileName:String;
+			var sourceFileName = sourceFile.FileName();
 
 			if (options.OutDir.length != 0) {
-				var sourceFilePath = Tspath.GetNormalizedAbsolutePath(sourceFile.FileName(), result.Host.GetCurrentDirectory());
-				sourceFilePath = Strings.Replace(sourceFilePath, result.Program.CommonSourceDirectory(), "", 1);
-				sourceFileName = Tspath.CombinePaths(options.OutDir, sourceFilePath);
-			} else {
-				sourceFileName = sourceFile.FileName();
+				final relativePath = result.Host.FS().CaseSensitivity().RelativePathFromDirectory(result.Program.CommonSourceDirectory(), sourceFileName);
+				if (relativePath != null) {
+					sourceFileName = options.OutDir.ResolveRelativeFile(relativePath);
+				}
 			}
 
 			final dTsFileName = Outputpaths.ChangeToDeclarationExtension(sourceFileName, result.Program.Program());

@@ -11,12 +11,18 @@ interface OptionParser {
 // PORT: Go embeds *core.CompilerOptions; the embedded pointer is the field CompilerOptions.
 class CompilerOptionsParser implements OptionParser {
 	public var CompilerOptions:CompilerOptions;
+	var unresolvedPaths:Null<UnresolvedCompilerOptionPaths>;
 
-	public function new(CompilerOptions:CompilerOptions) {
+	public function new(CompilerOptions:CompilerOptions, ?unresolvedPaths:UnresolvedCompilerOptionPaths) {
 		this.CompilerOptions = CompilerOptions;
+		this.unresolvedPaths = unresolvedPaths;
 	}
 
 	public function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>> {
+		if (this.unresolvedPaths != null && Tsoptions.compilerOptionContainsConfigDirTemplate(key, value)) {
+			this.unresolvedPaths.Set(key, value);
+			return null;
+		}
 		return Tsoptions.ParseCompilerOptions(key, value, this.CompilerOptions);
 	}
 
@@ -88,3 +94,7 @@ class BuildOptionsParser implements OptionParser {
 		return Tsoptions.extraKeyDidYouMeanDiagnostics("buildOptions");
 	}
 }
+
+// PORT: Go map[string]any (only set, deleted, copied and iterated, in an order that does not matter: each
+// key sets its own option) → an OrderedMap.
+typedef UnresolvedCompilerOptionPaths = OrderedMap<std.String, Dynamic>;

@@ -179,6 +179,18 @@ abstract RootedFilePath(String) to String {
 		return Tspath.rootedFilePathFromExtensionMutation(Tspath.ChangeAnyExtension(this, extension, extensions, caseSensitivity));
 	}
 
+	// --- extensionrewrite.go ---
+	// PORT: (RootedFilePath, bool) -> ValueOk.
+	public function RewriteExtension(rewrites:Null<Array<Tspath.ExtensionRewrite>>, caseSensitivity:CaseSensitivity):ValueOk<RootedFilePath> {
+		final ignoreCase = caseSensitivity.IsCaseInsensitive();
+		final rewrite = Tspath.ExtensionRewrites.GetExtensionRewrite(this, rewrites, ignoreCase);
+		if (!rewrite.ok || rewrite.value.isIdentity(ignoreCase)) {
+			return new ValueOk(abstract, false);
+		}
+		final suffix = this.substring(this.length - rewrite.value.Source.length);
+		return new ValueOk(RemoveExtension(suffix).AppendSuffix(rewrite.value.Target), true);
+	}
+
 	public inline function BaseName():String {
 		return Tspath.getBaseFileNameFromNormalized(this);
 	}

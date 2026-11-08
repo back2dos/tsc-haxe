@@ -90,18 +90,17 @@ class Testrunner {
 		});
 		var testUnits = r.units;
 		final symlinks = r.symlinks;
-		var currentDirectory = r.currentDir;
-
-		if (currentDirectory == "") {
-			currentDirectory = srcFolder;
+		var currentDirectory = Tspath.RootedDirectoryPathFromAbsolute(srcFolder);
+		if (r.currentDir != "") {
+			currentDirectory = Tspath.ToRootedDirectoryPath(r.currentDir, currentDirectory);
 		}
 
 		// unit tests always list files explicitly
 		final allFiles = new Map<String, String>();
 		for (data in testUnits) {
-			allFiles.set(Tspath.GetNormalizedAbsolutePath(data.name, currentDirectory), data.content);
+			allFiles.set(Tspath.ToRootedFilePath(data.name, currentDirectory).AsString(), data.content);
 		}
-		final parseConfigHost = Tsoptionstest.NewVFSParseConfigHostWithSymlinks(allFiles, symlinks, currentDirectory, true /*useCaseSensitiveFileNames*/);
+		final configFS = Tsoptionstest.NewVFSWithSymlinks(allFiles, symlinks, currentDirectory, CaseSensitive /*caseSensitivity*/);
 
 		// Content mappers are gated behind --runExternalCode, a command-line-only option. A test
 		// opts in with a top-level `// @runExternalCode: true`, which we surface to the config
@@ -118,16 +117,16 @@ class Testrunner {
 		for (i in 0...testUnits.length) {
 			final data = testUnits[i];
 			if (Harnessutil.GetConfigNameFromFileName(data.name) != "") {
-				final configFileName = Tspath.GetNormalizedAbsolutePath(data.name, currentDirectory);
-				final path = Tspath.ToPath(data.name, parseConfigHost.GetCurrentDirectory(), parseConfigHost.Vfs.CaseSensitivity().IsCaseSensitive());
+				final configFileName = Tspath.ToRootedFilePath(data.name, currentDirectory);
+				final path = configFS.CaseSensitivity().PathKey(configFileName.AsPath());
 				final opts = new SourceFileParseOptions();
-				opts.FileName = cast configFileName;
+				opts.FileName = configFileName;
 				opts.Path = path;
 				final configJson = Parser.ParseSourceFile(opts, data.content, ScriptKindJSON);
 				final tsConfigSourceFile = new TsConfigSourceFile(configJson);
-				final configDir = Tspath.GetDirectoryPath(configFileName);
-				tsConfig = Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, parseConfigHost, configDir, existingOptions,
-					null, /*existingOptionsRaw*/ configFileName, null, /*resolutionStack*/ null, /*extraFileExtensions*/ null /*extendedConfigCache*/);
+				final configDir = configFileName.Directory();
+				tsConfig = Tsoptions.ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, Tsoptions.NewDefaultParseConfigHost(configFS), configDir,
+					existingOptions, null, /*existingOptionsRaw*/ null, /*resolutionStack*/ null /*extendedConfigCache*/);
 				tsConfigFileUnitData = data;
 
 				// delete tsconfig file entry from the list
@@ -537,7 +536,7 @@ class Testrunner {
 		testCaseContentWithConfig.configuration = configuration;
 
 		final harnessConfig = testCaseContentWithConfig.configuration;
-		final currentDirectory = Tspath.GetNormalizedAbsolutePath(mapGet(harnessConfig, "currentdirectory"), srcFolder);
+		final currentDirectory = Tspath.RootedDirectoryPathFromAbsolute(Tspath.GetNormalizedAbsolutePath(mapGet(harnessConfig, "currentdirectory"), srcFolder));
 
 		final units = testCaseContentWithConfig.testCaseContent.testUnitData;
 		var toBeCompiled:Array<TestFile> = null;
@@ -549,7 +548,7 @@ class Testrunner {
 			tsConfig = testCaseContentWithConfig.testCaseContent.tsConfig;
 			tsConfigFiles = [createHarnessTestFile(testCaseContentWithConfig.testCaseContent.tsConfigFileUnitData, currentDirectory)];
 			for (unit in units) {
-				if (Slices.Contains(tsConfig.ParsedConfig.FileNames, Tspath.GetNormalizedAbsolutePath(unit.name, currentDirectory))) {
+				if (Slices.Contains(tsConfig.ParsedConfig.FileNames, Tspath.ToRootedFilePath(unit.name, currentDirectory))) {
 					if (toBeCompiled == null)
 						toBeCompiled = [];
 					toBeCompiled.push(createHarnessTestFile(unit, currentDirectory));

@@ -250,11 +250,11 @@ class Tsc {
 		final options = input.Program.Options();
 		if (options.ListEmittedFiles.IsTrue()) {
 			for (file in emitResult.EmittedFiles) {
-				input.Writer.Write("TSFILE: " + Tspath.GetNormalizedAbsolutePath(file, input.Program.GetCurrentDirectory()) + "\n");
+				input.Writer.Write("TSFILE: " + file.AsString() + "\n");
 			}
 		}
 		if (options.ExplainFiles.IsTrue()) {
-			input.Program.ExplainFiles(input.Writer, input.Config.Locale());
+			input.Program.ExplainFiles(input.Writer, input.Config.Locale(), input.Sys.GetCurrentDirectory());
 		} else if (options.ListFiles.IsTrue() || options.ListFilesOnly.IsTrue()) {
 			for (file in input.Program.GetSourceFiles()) {
 				input.Writer.Write(file.FileName() + "\n");

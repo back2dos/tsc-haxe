@@ -63,7 +63,7 @@ class Host implements CompilerHost implements ParseConfigHost implements BuildIn
 		return this.host.GetSourceFile(opts);
 	}
 
-	public function GetResolvedProjectReference(fileName:std.String, path:Path):ParsedCommandLine {
+	public function GetResolvedProjectReference(fileName:RootedFilePath, path:PathKey):ParsedCommandLine {
 		return this.resolvedReferences.loadOrStore(path, function(path:Path):ParsedCommandLine {
 			final configStart = this.orchestrator.opts.Sys.Now();
 			// Wrap command line options in "compilerOptions" key to match tsconfig.json structure

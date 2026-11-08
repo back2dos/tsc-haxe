@@ -42,7 +42,7 @@ class CompilerHost_ implements CompilerHost implements ParseConfigHost {
 		return null;
 	}
 
-	public function GetResolvedProjectReference(fileName:std.String, path:Path):ParsedCommandLine {
+	public function GetResolvedProjectReference(fileName:RootedFilePath, path:PathKey):ParsedCommandLine {
 		return this.host.GetResolvedProjectReference(fileName, path);
 	}
 }

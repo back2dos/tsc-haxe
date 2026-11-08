@@ -7979,7 +7979,7 @@ class SourceFileSource implements Source {
 		return file.Text();
 	}
 
-	public function FileName():std.String {
+	public function FileName():RootedFilePath {
 		return file.FileName();
 	}
 
