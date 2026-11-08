@@ -959,7 +959,7 @@ class Tsbaseline {
 				expectedMapCount += result.GetNumberOfJSFiles(/*includeJSON*/ false);
 			}
 			if (declMaps) {
-				expectedMapCount += result.GetNumberOfJSFiles(/*includeJSON*/ true);
+				expectedMapCount += result.DTS.Size();
 			}
 			if (result.Maps.Size() != expectedMapCount) {
 				t.Fatal("Number of sourcemap files should be same as js files.");
