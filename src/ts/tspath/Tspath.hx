@@ -862,6 +862,55 @@ class Tspath {
 		return ToFileNameLowerCase(fileName);
 	}
 
+	// TrimFilePathPrefix removes prefix from the start of path, honoring
+	// useCaseSensitiveFileNames the same way GetCanonicalFileName does. It returns
+	// the remainder of path and true if path starts with prefix; otherwise it
+	// returns path unchanged and false.
+	//
+	// This must not slice path using len(prefix): case-folding (as performed by
+	// GetCanonicalFileName) can change a string's length without changing its
+	// rune count, so path and prefix can disagree in length even when one is
+	// (a case-insensitive match for) a prefix of the other.
+	public static function TrimFilePathPrefix(path:String, prefix:String, useCaseSensitiveFileNames:Bool):ValueOk<String> {
+		if (useCaseSensitiveFileNames) {
+			if (StringTools.startsWith(path, prefix)) {
+				return new ValueOk<String>(path.substring(prefix.length), true);
+			}
+			return new ValueOk<String>(path, false);
+		}
+		final canonicalPrefix = GetCanonicalFileName(prefix, false /*useCaseSensitiveFileNames*/);
+		if (!StringTools.startsWith(GetCanonicalFileName(path, false /*useCaseSensitiveFileNames*/), canonicalPrefix)) {
+			return new ValueOk<String>(path, false);
+		}
+		return new ValueOk<String>(trimRuneCount(path, runeCount(canonicalPrefix)), true);
+	}
+
+	// PORT: utf8.RuneCountInString on UTF-16 strings: count code points.
+	static function runeCount(s:String):Int {
+		var n = 0;
+		var i = 0;
+		while (i < s.length) {
+			final c = StringTools.fastCodeAt(s, i);
+			i += (c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length) ? 2 : 1;
+			n++;
+		}
+		return n;
+	}
+
+	// trimRuneCount returns the suffix of s after skipping up to runeCount runes,
+	// clamping to the end of s if it has fewer runes than runeCount.
+	static function trimRuneCount(s:String, runeCount:Int):String {
+		var i = 0;
+		for (_ in 0...runeCount) {
+			if (i >= s.length) {
+				break;
+			}
+			final c = StringTools.fastCodeAt(s, i);
+			i += (c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length) ? 2 : 1;
+		}
+		return s.substring(i);
+	}
+
 	// We convert the file names to lower case as key for file name on case insensitive file system
 	// While doing so we need to handle special characters (eg \u0130) to ensure that we dont convert
 	// it to lower case, fileName with its lowercase form can exist along side it.

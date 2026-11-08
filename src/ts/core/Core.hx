@@ -1071,6 +1071,17 @@ class Core {
 		return ScriptKindUnknown;
 	}
 
+	// EnsureScriptKindFromFileName is like GetScriptKindFromFileName, but defaults to
+	// ScriptKindTS when the file name has no recognized extension (e.g. files included
+	// with allowNonTsExtensions), so the result is always safe to hand to the parser.
+	public static function EnsureScriptKindFromFileName(fileName:String):ScriptKind {
+		final kind = GetScriptKindFromFileName(fileName);
+		if (kind != ScriptKindUnknown) {
+			return kind;
+		}
+		return ScriptKindTS;
+	}
+
 	// Given a name and a list of names that are *not* equal to the name, return a spelling suggestion if there is one that is close enough.
 	// Names less than length 3 only check for case-insensitive equality.
 	//

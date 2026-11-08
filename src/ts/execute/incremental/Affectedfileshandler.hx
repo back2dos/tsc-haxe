@@ -99,7 +99,9 @@ class AffectedFilesHandler {
 
 		final info = this.program.snapshot.fileInfos.Load(file.Path()).value;
 		final prevSignature = info.signature;
-		if (!file.IsDeclarationFile && !useFileVersionAsSignature) {
+		// JSON files have no declaration output from which to compute a shape
+		// signature, so use the file version to conservatively invalidate dependents.
+		if (!file.IsDeclarationFile && !Ast.IsJsonSourceFile(file) && !useFileVersionAsSignature) {
 			update.signature = this.computeDtsSignature(file);
 		}
 		// Default is to use file version as signature
@@ -123,7 +125,7 @@ class AffectedFilesHandler {
 		final info = this.program.snapshot.fileInfos.Load(file.Path()).value;
 		if (info.affectsGlobalScope) {
 			this.hasAllFilesExcludingDefaultLibraryFile = true;
-			this.program.snapshot.getAllFilesExcludingDefaultLibraryFile(this.program.program, file);
+			return this.program.snapshot.getAllFilesExcludingDefaultLibraryFile(this.program.program, file);
 		}
 
 		if (this.program.snapshot.options.IsolatedModules.IsTrue()) {

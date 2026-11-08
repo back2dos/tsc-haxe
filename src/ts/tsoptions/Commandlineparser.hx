@@ -27,6 +27,7 @@ class CommandLineParser {
 	var options:OrderedMap<String, Dynamic> = null;
 	var fileNames:Null<Array<String>> = null;
 	var errors:Null<Array<Diagnostic>> = null;
+	var responseFileStack:Set<ts.tspath.Path> = new Set<ts.tspath.Path>();
 
 	public function new() {}
 
@@ -47,12 +48,8 @@ class CommandLineParser {
 					if (opt != null) {
 						i = this.parseOptionValue(args, i, opt, this.workerDiagnostics.OptionTypeMismatchDiagnostic);
 					} else {
-						final watchOpt = Tsoptions.WatchNameMap.GetOptionDeclarationFromName(inputOptionName, true /*allowShort*/);
-						if (watchOpt != null) {
-							i = this.parseOptionValue(args, i, watchOpt, Tsoptions.watchOptionsDidYouMeanDiagnostics.OptionTypeMismatchDiagnostic);
-						} else {
-							this.errors.push(this.createUnknownOptionError(inputOptionName, s, null, null));
-						}
+						// PORT: TypeScript main removed the watch options (#64457); they are unknown options now.
+						this.errors.push(this.createUnknownOptionError(inputOptionName, s, null, null));
 					}
 				default:
 					this.fileNames.push(s);
@@ -62,6 +59,23 @@ class CommandLineParser {
 
 	function parseResponseFile(fileName:String):Void {
 		fileName = Tspath.GetNormalizedAbsolutePath(fileName, this.currentDirectory);
+		final path = Tspath.ToPath(fileName, this.currentDirectory, this.fs.UseCaseSensitiveFileNames());
+		if (this.responseFileStack.Has(path)) {
+			return;
+		}
+		this.responseFileStack.Add(path);
+		// PORT: defer p.responseFileStack.Delete(path)
+		try {
+			this.parseResponseFileWorker(fileName);
+		} catch (e:Dynamic) {
+			this.responseFileStack.Delete(path);
+			throw e;
+		}
+		this.responseFileStack.Delete(path);
+	}
+
+	// PORT: body of parseResponseFile after the defer.
+	function parseResponseFileWorker(fileName:String):Void {
 		final r = Tsoptions.tryReadFile(fileName, function(fileName:String):ValueOk<String> {
 			if (this.fs == null) {
 				return new ValueOk<String>("", false);
@@ -102,14 +116,7 @@ class CommandLineParser {
 					this.errors.push(Ast.NewCompilerDiagnostic(Diagnostics.Unterminated_quoted_string_in_response_file_0, fileName));
 				}
 			} else {
-				while (true) {
-					// PORT: Go indexes text[pos] without a bounds check and panics at the end of the text.
-					if (pos >= textLength) {
-						throw "runtime error: index out of range [" + pos + "] with length " + textLength;
-					}
-					if (!(StringTools.fastCodeAt(text, pos) > ' '.code)) {
-						break;
-					}
+				while (pos < textLength && StringTools.fastCodeAt(text, pos) > ' '.code) {
 					pos++;
 				}
 				args.push(text.substring(start, pos));
@@ -196,7 +203,9 @@ class CommandLineParser {
 						final r = Tsoptions.validateJsonOptionValue(opt, args[i], null, null);
 						final val = r.a;
 						final err = r.b;
-						if (err == null) {
+						if (err == null && Tsoptions.isString(val) && opt.IsFilePath && Tsoptions.isNetworkPathValue(val, this.currentDirectory)) {
+							this.errors.push(Ast.NewCompilerDiagnostic(Diagnostics.Network_path_0_is_not_supported, val));
+						} else if (err == null) {
 							this.options.Set(opt.Name, val);
 						} else {
 							for (d in err)

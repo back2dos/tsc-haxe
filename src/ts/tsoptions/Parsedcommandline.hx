@@ -90,28 +90,9 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 			};
 
 			this.commonSourceDirectory = Outputpaths.GetCommonSourceDirectory(this.ParsedConfig.CompilerOptions, files, this.GetCurrentDirectory(),
-				this.UseCaseSensitiveFileNames(), this.checkSourceFilesBelongToPath);
+				this.UseCaseSensitiveFileNames(), null);
 		}
 		return this.commonSourceDirectory;
-	}
-
-	function checkSourceFilesBelongToPath(sourceFiles:Array<std.String>, rootDirectory:std.String):Bool {
-		var allFilesBelongToPath = true;
-		if (sourceFiles != null) {
-			for (file in sourceFiles) {
-				final absoluteSourceFilePath = Tspath.GetCanonicalFileName(Tspath.GetNormalizedAbsolutePath(file, this.GetCurrentDirectory()),
-					this.UseCaseSensitiveFileNames());
-				if (!Tspath.ContainsPath(rootDirectory, file, this.comparePathsOptions)) {
-					if (this.Errors == null)
-						this.Errors = [];
-					this.Errors.push(Ast.NewCompilerDiagnostic(Diagnostics.File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
-						absoluteSourceFilePath, rootDirectory));
-					allFilesBelongToPath = false;
-				}
-			}
-		}
-
-		return allFilesBelongToPath;
 	}
 
 	public function GetCurrentDirectory():std.String {

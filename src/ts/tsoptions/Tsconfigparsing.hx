@@ -193,6 +193,15 @@ abstract CommandLineOptionNameMap(StringMap<CommandLineOption>) from StringMap<C
 		}
 		return opt;
 	}
+
+	public function GetSpellingSuggestion(name:std.String):Null<CommandLineOption> {
+		// PORT: Go maps.Values(m) (random order); the comparison breaks ties.
+		return ts.core.Core.GetSpellingSuggestion(name, this == null ? [].iterator() : this.iterator(), function(option:CommandLineOption):std.String {
+			return option.Name;
+		}, function(a:CommandLineOption, b:CommandLineOption):Int {
+			return go.Strings.Compare(a.Name, b.Name);
+		});
+	}
 }
 
 interface ParseConfigHost {

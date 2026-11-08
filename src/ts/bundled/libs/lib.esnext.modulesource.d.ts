@@ -13,10 +13,8 @@ See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
 
+/// <reference lib="es2015.symbol.wellknown" />
 
-interface ErrorConstructor {
-    /**
-     * Indicates whether the argument provided is a built-in Error instance or not.
-     */
-    isError(error: unknown): error is Error;
+interface AbstractModuleSource {
+    readonly [Symbol.toStringTag]: string;
 }

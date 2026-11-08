@@ -13,6 +13,7 @@ class ParseTask implements HasFileName {
 	var loaded:Bool = false;
 	var startedSubTasks:Bool = false;
 	var isForAutomaticTypeDirective:Bool = false;
+	var failedLookup:Bool = false;
 	var includeReason:FileIncludeReason = null;
 	var packageId:PackageId = new PackageId();
 
@@ -46,6 +47,11 @@ class ParseTask implements HasFileName {
 		this.loaded = true;
 		if (this.isForAutomaticTypeDirective) {
 			this.loadAutomaticTypeDirectives(loader);
+			return;
+		}
+		if (this.failedLookup) {
+			// The root file name did not resolve to a supported extension; the task
+			// exists only to carry its processing diagnostic, so nothing is parsed.
 			return;
 		}
 		var done:() -> Void = null;
@@ -299,7 +305,8 @@ class FilesParser {
 				}
 
 				final currentDepth = Core.IfElse(task.increaseDepth, depth + 1, depth);
-				if (currentDepth < data.lowestDepth) {
+				final lowered = currentDepth < data.lowestDepth;
+				if (lowered) {
 					// If we're seeing this task at a lower depth than before,
 					// reprocess its subtasks to ensure they are loaded.
 					data.lowestDepth = currentDepth;
@@ -322,7 +329,7 @@ class FilesParser {
 							data.startedSubTasks = true;
 						}
 					}
-					if (!taskByFileName.startedSubTasks && loadSubTasks) {
+					if (loadSubTasks && (lowered || !taskByFileName.startedSubTasks)) {
 						taskByFileName.startedSubTasks = true;
 						this.start(loader, taskByFileName.subTasks, data.lowestDepth);
 					}
