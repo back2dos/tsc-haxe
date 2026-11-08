@@ -1102,8 +1102,8 @@ class Compiler {
 
 	// --- projectreferenceparser.go ---
 
-	static function createProjectReferenceParseTasks(projectReferences:Array<std.String>):Array<ProjectReferenceParseTask> {
-		return Core.Map(projectReferences, function(configName:std.String):ProjectReferenceParseTask {
+	static function createProjectReferenceParseTasks(projectReferences:Array<RootedFilePath>):Array<ProjectReferenceParseTask> {
+		return Core.Map(projectReferences, function(configName:RootedFilePath):ProjectReferenceParseTask {
 			final t = new ProjectReferenceParseTask();
 			t.configName = configName;
 			return t;

@@ -30,7 +30,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	var commonSourceDirectory:std.String = "";
 	var commonSourceDirectoryOnce:Bool = false;
 
-	var resolvedProjectReferencePaths:Null<Array<std.String>> = null;
+	var resolvedProjectReferencePaths:Null<Array<RootedFilePath>> = null;
 	var resolvedProjectReferencePathsOnce:Bool = false;
 
 	var literalFileNamesLen:Int = 0;
@@ -379,7 +379,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return null;
 	}
 
-	public function ResolvedProjectReferencePaths():Null<Array<std.String>> {
+	public function ResolvedProjectReferencePaths():Null<Array<RootedFilePath>> {
 		if (!this.resolvedProjectReferencePathsOnce) {
 			this.resolvedProjectReferencePathsOnce = true;
 			this.resolvedProjectReferencePaths = Core.Map(this.ParsedConfig.ProjectReferences, Core.ResolveProjectReferencePath);
