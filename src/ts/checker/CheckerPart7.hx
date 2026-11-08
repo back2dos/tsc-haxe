@@ -1354,7 +1354,7 @@ class CheckerPart7 {
 		return c.newType(TypeFlagsSubstitution, ObjectFlagsNone, data);
 	}
 
-	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:Array<Type>, thisParameter:Symbol, parameters:Array<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
+	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:Array<Type>, thisParameter:Symbol, parameters:haxe.ds.Vector<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
 		c.SignatureCount++;
 		final sig = c.signatureArena.New();
 		sig.id = c.SignatureCount;
@@ -4340,7 +4340,7 @@ class CheckerPart7 {
 		final elementTypes = c.getTypeArguments(restType.AsType());
 		final elementInfos = restType.TargetTupleType().elementInfos;
 		final associatedNames = c.getUniqAssociatedNamesFromTupleType(restType, restSymbol);
-		final expanded:Array<Symbol> = signature.parameters.slice(0, restIndex);
+		final expanded:Array<Symbol> = [for (i in 0...restIndex) signature.parameters[i]];
 		for (i in 0...Core.len(elementTypes)) {
 			final t = elementTypes[i];
 			final flags = elementInfos[i].flags;

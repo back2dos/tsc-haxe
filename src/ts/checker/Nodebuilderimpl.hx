@@ -1726,7 +1726,7 @@ class NodeBuilderImpl {
 		// If the expanded parameter list had a variadic in a non-trailing position, don't expand it
 		var parameters = Core.Map(Core.IfElse(Core.Some(expandedParams, (p:Symbol) -> {
 			return p != expandedParams[expandedParams.length - 1] && p.CheckFlags & CheckFlagsRestParameter != 0;
-		}), signature.parameters, expandedParams), (parameter:Symbol) -> {
+		}), Core.vectorToArray(signature.parameters), expandedParams), (parameter:Symbol) -> { // PORT: perf — a copy (printing)
 			return b.symbolToParameterDeclaration(parameter, kind == KindConstructor);
 		});
 		var thisParameter:Node = null;
@@ -2402,7 +2402,7 @@ class NodeBuilderImpl {
 
 					final setterParam = b.ch.newSymbol(SymbolFlagsFunctionScopedVariable, "arg");
 					b.ch.valueSymbolLinks.Get(setterParam).resolvedType = writeType;
-					final fakeSetterSignature = b.ch.newSignature(SignatureFlagsNone, null, null, null, [setterParam], b.ch.voidType, null, 0);
+					final fakeSetterSignature = b.ch.newSignature(SignatureFlagsNone, null, null, null, Core.vector1(setterParam), b.ch.voidType, null, 0);
 					final setterOpts = new SignatureToSignatureDeclarationOptions();
 					setterOpts.name = propertyName;
 					final fakeSetterDeclaration = b.signatureToSignatureDeclarationHelper(fakeSetterSignature, KindSetAccessor, setterOpts);
@@ -3689,7 +3689,7 @@ class Nodebuilderimpl {
 					}
 					return symbol;
 				});
-				return Core.Concatenate(sig.parameters.slice(0, restIndex), restParams);
+				return Core.Concatenate([for (i in 0...restIndex) sig.parameters[i]], restParams);
 			};
 
 			if (Checker.isTupleType(restType)) {
@@ -3700,7 +3700,7 @@ class Nodebuilderimpl {
 				});
 			}
 		}
-		return [sig.parameters];
+		return [Core.vectorToArray(sig.parameters)]; // PORT: perf — a copy (printing)
 	}
 
 	public static function ToTypeReferenceNode(t:TypeAlias, b:NodeBuilderImpl):Node {

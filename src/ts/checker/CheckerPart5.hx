@@ -3892,7 +3892,7 @@ class CheckerPart5 {
 			|| Ast.IsConstructorDeclaration(declaration) && Ast.HasSyntacticModifier(declaration.Parent, ModifierFlagsAbstract)) {
 			flags |= SignatureFlagsAbstract;
 		}
-		links.resolvedSignature = c.newSignature(flags, declaration, typeParameters, thisParameter, parameters, null /*resolvedReturnType*/,
+		links.resolvedSignature = c.newSignature(flags, declaration, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), null /*resolvedReturnType*/,
 			null /*resolvedTypePredicate*/, minArgumentCount);
 		return links.resolvedSignature;
 	}

@@ -4707,7 +4707,7 @@ class Checker {
 				var typeParams:Array<Type> = null;
 				if (Ast.IsFunctionLike(node)) {
 					final sig = b.ch.getSignatureFromDeclaration(node);
-					params = sig.parameters;
+					params = Core.vectorToArray(sig.parameters); // PORT: perf — a copy (printing)
 					typeParams = sig.typeParameters;
 				} else if (Ast.IsConditionalTypeNode(node)) { // !!! TODO: impossible in combination with the scope start check???
 					typeParams = b.ch.getInferTypeParameters(node);

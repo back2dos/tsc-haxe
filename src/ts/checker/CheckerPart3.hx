@@ -1690,7 +1690,7 @@ class CheckerPart3 {
 		if (Core.Some(candidates, Checker.signatureHasLiteralTypes)) {
 			flags |= SignatureFlagsHasLiteralTypes;
 		}
-		return c.newSignature(flags, candidates[0].declaration, null, thisParameter, parameters, c.getIntersectionType(Core.Map(candidates, c.getReturnTypeOfSignature)),
+		return c.newSignature(flags, candidates[0].declaration, null, thisParameter, VectorBuilder.freezeOrNull(parameters), c.getIntersectionType(Core.Map(candidates, c.getReturnTypeOfSignature)),
 			null, minArgumentCount);
 	}
 

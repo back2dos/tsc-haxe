@@ -2390,7 +2390,7 @@ class CheckerPart8 {
 	// Creates a synthetic `Signature` corresponding to a call signature.
 	static function newCallSignature(c:Checker, typeParameters:Array<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Signature {
 		final decl = c.factory.NewFunctionTypeNode(null, null, c.factory.NewKeywordTypeNode(KindAnyKeyword));
-		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, parameters, returnType, null, Core.len(parameters));
+		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), returnType, null, Core.len(parameters));
 	}
 
 	static function newTypedPropertyDescriptorType(c:Checker, propertyType:Type):Type {

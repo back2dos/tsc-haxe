@@ -1111,7 +1111,7 @@ class CheckerPart6 {
 		}
 		final thisParam = c.combineUnionOrIntersectionThisParam(left.thisParameter, right.thisParameter, paramMapper, isUnion);
 		final minArgCount = left.minArgumentCount > right.minArgumentCount ? left.minArgumentCount : right.minArgumentCount;
-		final result = c.newSignature(flags, declaration, typeParams, thisParam, params, null, null, minArgCount);
+		final result = c.newSignature(flags, declaration, typeParams, thisParam, VectorBuilder.freezeOrNull(params), null, null, minArgCount);
 		var leftSignatures:Array<Signature>;
 		if (left.composite != null && left.composite.isUnion) {
 			leftSignatures = left.composite.signatures;
@@ -2993,7 +2993,11 @@ class CheckerPart6 {
 		return values;
 	}
 
-	static function instantiateSymbols(c:Checker, symbols:Array<Symbol>, m:TypeMapper):Array<Symbol> {
+	static extern inline overload function instantiateSymbols(c:Checker, symbols:haxe.ds.Vector<Symbol>, m:TypeMapper):haxe.ds.Vector<Symbol> {
+		return Checker.instantiateVector(c, symbols, m, instantiateSymbolFn);
+	}
+
+	static extern inline overload function instantiateSymbols(c:Checker, symbols:Array<Symbol>, m:TypeMapper):Array<Symbol> {
 		return Checker.instantiateList(c, symbols, m, instantiateSymbolFn);
 	}
 

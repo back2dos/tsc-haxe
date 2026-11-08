@@ -1735,7 +1735,7 @@ class Signature implements TypeSystemEntity {
 	var resolvedMinArgumentCount:Int = 0;
 	var declaration:Node = null;
 	var typeParameters:Array<Type> = null;
-	var parameters:Array<Symbol> = null;
+	var parameters:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (one exact-size object)
 	var thisParameter:Symbol = null;
 	var resolvedReturnType:Type = null;
 	var resolvedTypePredicate:TypePredicate = null;
@@ -1800,7 +1800,7 @@ class Signature implements TypeSystemEntity {
 		return thisParameter;
 	}
 
-	public function Parameters():Array<Symbol> {
+	public function Parameters():haxe.ds.Vector<Symbol> {
 		return parameters;
 	}
 

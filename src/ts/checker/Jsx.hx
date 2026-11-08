@@ -1164,7 +1164,7 @@ class Jsx {
 		// declaration := factory.createFunctionTypeNode(nil, []ParameterDeclaration{factory.createParameterDeclaration(nil, nil /*dotDotDotToken*/, "props", nil /*questionToken*/, c.nodeBuilder.typeToTypeNode(result, node))}, ifElse(returnNode != nil, factory.createTypeReferenceNode(returnNode, nil /*typeArguments*/), factory.createKeywordTypeNode(ast.KindAnyKeyword)))
 		final parameterSymbol = c.newSymbol(SymbolFlagsFunctionScopedVariable, "props");
 		c.valueSymbolLinks.Get(parameterSymbol).resolvedType = result;
-		return c.newSignature(SignatureFlagsNone, null, null, null, [parameterSymbol], elementType, null, 1);
+		return c.newSignature(SignatureFlagsNone, null, null, null, Core.vector1(parameterSymbol), elementType, null, 1);
 	}
 
 	// Get attributes type of the given intrinsic opening-like Jsx element by resolving the tag name.
