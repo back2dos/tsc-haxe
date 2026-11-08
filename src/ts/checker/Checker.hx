@@ -1497,7 +1497,6 @@ class Checker {
 	var symbolNodeLinks:LinkStore<Node, SymbolNodeLinks> = new LinkStore<Node, SymbolNodeLinks>(() -> new SymbolNodeLinks());
 	var typeNodeLinks:LinkStore<Node, TypeNodeLinks> = new LinkStore<Node, TypeNodeLinks>(() -> new TypeNodeLinks());
 	// PORT: perf — fields of Go's TypeNodeLinks and SignatureLinks that few links have, in stores of their own
-	var outerTypeParametersLinks:LinkStore<Node, OuterTypeParametersLinks> = new LinkStore<Node, OuterTypeParametersLinks>(() -> new OuterTypeParametersLinks());
 	var effectsSignatureLinks:LinkStore<Node, EffectsSignatureLinks> = new LinkStore<Node, EffectsSignatureLinks>(() -> new EffectsSignatureLinks());
 	var decoratorSignatureLinks:LinkStore<Node, DecoratorSignatureLinks> = new LinkStore<Node, DecoratorSignatureLinks>(() -> new DecoratorSignatureLinks());
 	var enumMemberLinks:LinkStore<Node, EnumMemberLinks> = new LinkStore<Node, EnumMemberLinks>(() -> new EnumMemberLinks());

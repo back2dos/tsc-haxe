@@ -674,23 +674,13 @@ class SymbolNodeLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class TypeNodeLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Resolved type associated with node
-	// PORT: perf — outerTypeParameters in a store of its own (OuterTypeParametersLinks: t3code-server, 9% of the
-	// type node links had them)
-
-	public function new() {
-		super();
-	}
-}
-
-// PORT: perf — Go's TypeNodeLinks.outerTypeParameters (Checker.outerTypeParametersLinks)
-@:allow(ts.checker)
-class OuterTypeParametersLinks extends ts.core.Linkstore.LinkEntry {
 	var outerTypeParameters:Array<Type> = null; // Outer type parameters of anonymous object type
 
 	public function new() {
 		super();
 	}
 }
+
 
 enum abstract MemberOverrideStatus(Int) from Int to Int {
 	var MemberOverrideStatusNone = 0;
