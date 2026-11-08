@@ -478,7 +478,9 @@ class FilesParser {
 					}
 					// PORT: perf — equal names give equal paths (main compares the typed paths' WithoutRoot, no
 					// normalization; here both are normalized again)
-					if (!loader.opts.Config.CompilerOptions().ForceConsistentCasingInFileNames.IsFalse()) {
+					// PORT: perf — equal names give equal paths (main compares the typed paths' WithoutRoot, no
+					// normalization; here both are normalized again)
+					if (checkedName != task.normalizedFilePath && !loader.opts.Config.CompilerOptions().ForceConsistentCasingInFileNames.IsFalse()) {
 						// Check if it differs only in drive letters its ok to ignore that error:
 						final checkedAbsolutePath = Tspath.GetNormalizedAbsolutePathWithoutRoot(checkedName, loader.comparePathsOptions.CurrentDirectory);
 						final inputAbsolutePath = Tspath.GetNormalizedAbsolutePathWithoutRoot(task.normalizedFilePath, loader.comparePathsOptions.CurrentDirectory);
