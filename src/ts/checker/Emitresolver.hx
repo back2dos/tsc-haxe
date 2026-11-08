@@ -888,7 +888,11 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 			//           return a;
 			//       }
 			if (Core.len(signaturesOfSymbol) == 1) {
-				final declaration = signaturesOfSymbol[0].declaration;
+				final signature = signaturesOfSymbol[0];
+				if (signature == checker.getSignatureOfFullSignatureType(node)) {
+					return false;
+				}
+				final declaration = signature.declaration;
 				if (declaration != node && (declaration.Flags & NodeFlagsJSDoc) == 0) {
 					return true;
 				}
@@ -1034,7 +1038,11 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 			return false;
 		}
 		if (Checker.isDeclarationReadonly(node) || (Ast.IsVariableDeclaration(node) && Ast.IsVarConst(node))) {
-			return Checker.isFreshLiteralType(checker.getTypeOfSymbol(checker.getSymbolOfDeclaration(node)));
+			final s = checker.getSymbolOfDeclaration(node);
+			if (s == null) {
+				return false;
+			}
+			return Checker.isFreshLiteralType(checker.getTypeOfSymbol(s));
 		}
 		return false;
 	}

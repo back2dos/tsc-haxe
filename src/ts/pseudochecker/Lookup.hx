@@ -126,7 +126,7 @@ class Lookup {
 			return NewPseudoTypeDirect(t);
 		}
 		final init = declaration.Initializer;
-		if (init != null
+		if (init != null && declaration.Symbol != null
 			&& (Core.len(declaration.Symbol.Declarations) == 1 || Core.CountWhere(declaration.Symbol.Declarations, Ast.IsVariableDeclaration) == 1)) {
 			if (!isContextuallyTyped(declaration.AsNode())) { // TODO: also should bail on expando declarations; reuse syntactic expando check used in declaration emit
 				// TODO: Strada forces an inference fallback on `const` variables with template expression initializers, to leave space for template literal freshness in the future

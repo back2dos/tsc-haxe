@@ -4014,7 +4014,15 @@ class Checker {
 	}
 
 	static function hasTypeAnnotation(declaration:Declaration):Bool {
-		return declaration != null && declaration.Type() != null;
+		if (declaration == null || declaration.Type() == null) {
+			return false;
+		}
+		// Type alias declarations have a .Type() that is their type definition, not a type annotation on a value.
+		// Exclude them so callers don't mistake them for annotated value declarations.
+		if (Ast.IsTypeAliasDeclaration(declaration) || Ast.IsJSTypeAliasDeclaration(declaration)) {
+			return false;
+		}
+		return true;
 	}
 
 	public static inline final MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH:Int = 3;
