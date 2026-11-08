@@ -1710,6 +1710,14 @@ enum abstract SignatureFlags(Int) from Int to Int {
 }
 
 @:allow(ts.checker)
+class SignatureExtra {
+	var isolatedSignatureType:Type = null;
+	var composite:CompositeSignature = null;
+
+	public function new() {}
+}
+
+@:allow(ts.checker)
 class Signature implements TypeSystemEntity {
 	var id:SignatureId = 0;
 	var flags:SignatureFlags = 0;
@@ -1723,10 +1731,40 @@ class Signature implements TypeSystemEntity {
 	var resolvedTypePredicate:TypePredicate = null;
 	var target:Signature = null;
 	var mapper:TypeMapper = null;
-	var isolatedSignatureType:Type = null;
-	var composite:CompositeSignature = null;
+	// PORT: perf — the rarely set fields in a side record (allocated when one is set to a non-nil value)
+	var extra:SignatureExtra = null;
+	var isolatedSignatureType(get, set):Type;
+	var composite(get, set):CompositeSignature;
 
 	public function new() {}
+
+	inline function get_isolatedSignatureType():Type {
+		return extra == null ? null : extra.isolatedSignatureType;
+	}
+
+	function set_isolatedSignatureType(v:Type):Type {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new SignatureExtra();
+		}
+		return extra.isolatedSignatureType = v;
+	}
+
+	inline function get_composite():CompositeSignature {
+		return extra == null ? null : extra.composite;
+	}
+
+	function set_composite(v:CompositeSignature):CompositeSignature {
+		if (extra == null) {
+			if (v == null) {
+				return v;
+			}
+			extra = new SignatureExtra();
+		}
+		return extra.composite = v;
+	}
 
 	public function Id():SignatureId {
 		return id;
