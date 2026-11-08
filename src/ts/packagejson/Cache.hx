@@ -273,4 +273,18 @@ class InfoCache {
 	public function Range(f:(key:Path, value:InfoCacheEntry) -> Bool):Void {
 		this.cache.Range(f);
 	}
+
+	// PORT: perf — the entry of a package directory by the directory string as the resolver passes it, so
+	// a repeated lookup skips combining "package.json" and ToPath (TypeScript main keys this cache by the
+	// typed package directory, #64159). The key mapping is fixed for this cache and entries are
+	// first-writer-wins, so the memo returns what Get(ToPath(directory + "/package.json")) returns.
+	var byDirectory:SyncMap<String, InfoCacheEntry> = new SyncMap<String, InfoCacheEntry>();
+
+	public inline function GetByDirectory(packageDirectory:String):Null<InfoCacheEntry> {
+		return this.byDirectory.Load(packageDirectory).value;
+	}
+
+	public inline function SetByDirectory(packageDirectory:String, entry:InfoCacheEntry):Void {
+		this.byDirectory.Store(packageDirectory, entry);
+	}
 }

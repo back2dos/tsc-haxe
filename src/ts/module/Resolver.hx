@@ -233,6 +233,14 @@ class ResolutionState {
 
 	function getPackageScopeForPath(directory:String):Null<InfoCacheEntry> {
 		final r = this;
+		// PORT: perf — memo per directory string (untraced only: the walk traces each lookup). The walk's
+		// result only depends on the package.json info cache (first-writer-wins) and the typings location.
+		if (r.tracer == null) {
+			final memo = r.resolver.packageScopeCache.Load(directory);
+			if (memo.ok) {
+				return memo.value;
+			}
+		}
 		final result = Tspath.ForEachAncestorDirectoryStoppingAtGlobalCache(r.resolver.typingsLocation, directory,
 			function(directory:String):ValueOk<InfoCacheEntry> {
 				final result = r.getPackageJsonInfo(directory);
@@ -241,6 +249,9 @@ class ResolutionState {
 				}
 				return new ValueOk<InfoCacheEntry>(null, false);
 			});
+		if (r.tracer == null) {
+			r.resolver.packageScopeCache.Store(directory, result);
+		}
 		return result;
 	}
 
@@ -1636,9 +1647,18 @@ class ResolutionState {
 
 	function getPackageJsonInfo(packageDirectory:String):Null<InfoCacheEntry> {
 		final r = this;
-		final packageJsonPath = Tspath.CombinePaths(packageDirectory, "package.json");
-
-		final existing = r.resolver.caches.packageJsonInfoCache.Get(packageJsonPath);
+		// PORT: perf — look up by the directory first (InfoCache.GetByDirectory); packageJsonPath on demand
+		var packageJsonPath:Null<String> = null;
+		var existing = r.resolver.caches.packageJsonInfoCache.GetByDirectory(packageDirectory);
+		if (existing == null) {
+			packageJsonPath = Tspath.CombinePaths(packageDirectory, "package.json");
+			existing = r.resolver.caches.packageJsonInfoCache.Get(packageJsonPath);
+			if (existing != null) {
+				r.resolver.caches.packageJsonInfoCache.SetByDirectory(packageDirectory, existing);
+			}
+		} else if (r.tracer != null) {
+			packageJsonPath = Tspath.CombinePaths(packageDirectory, "package.json");
+		}
 		if (existing != null) {
 			if (existing.Contents != null) {
 				if (r.tracer != null) {
@@ -1667,12 +1687,14 @@ class ResolutionState {
 			contentsJson.Parseable = err == null;
 			var result = new InfoCacheEntry(packageDirectory, true, contentsJson);
 			result = r.resolver.caches.packageJsonInfoCache.Set(packageJsonPath, result);
+			r.resolver.caches.packageJsonInfoCache.SetByDirectory(packageDirectory, result);
 			return result.WithPackageDirectory(packageDirectory);
 		} else {
 			if (directoryExists && r.tracer != null) {
 				r.tracer.write(Diagnostics.File_0_does_not_exist, packageJsonPath);
 			}
-			r.resolver.caches.packageJsonInfoCache.Set(packageJsonPath, new InfoCacheEntry(packageDirectory, directoryExists));
+			final actual = r.resolver.caches.packageJsonInfoCache.Set(packageJsonPath, new InfoCacheEntry(packageDirectory, directoryExists));
+			r.resolver.caches.packageJsonInfoCache.SetByDirectory(packageDirectory, actual);
 		}
 		return null;
 	}
@@ -1945,6 +1967,8 @@ class ResolutionState {
 class Resolver {
 	// PORT: embedded `caches` → composition field.
 	public var caches:Caches = new Caches();
+	// PORT: perf — getPackageScopeForPath results by directory (see there)
+	public var packageScopeCache:SyncMap<String, Null<InfoCacheEntry>> = new SyncMap<String, Null<InfoCacheEntry>>();
 	public var host:ResolutionHost = null;
 	public var compilerOptions:CompilerOptions = null;
 	public var typingsLocation:String = "";
