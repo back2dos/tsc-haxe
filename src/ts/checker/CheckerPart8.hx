@@ -39,7 +39,7 @@ class CheckerPart8 {
 		if (Core.len(typeParameters) == 0) {
 			instantiatedBase = bases[0];
 		} else {
-			instantiatedBase = c.instantiateType(bases[0], Checker.newTypeMapper(typeParameters, c.getTypeArguments(t).slice(0, typeParameters.length)));
+			instantiatedBase = c.instantiateType(bases[0], Checker.newTypeMapper(typeParameters, Core.subVector(c.getTypeArguments(t), 0, typeParameters.length)));
 		}
 		if (Core.len(c.getTypeArguments(t)) > Core.len(typeParameters)) {
 			instantiatedBase = c.getTypeWithThisArgument(instantiatedBase, Core.LastOrNil(c.getTypeArguments(t)), false);

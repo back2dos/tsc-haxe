@@ -2856,7 +2856,7 @@ class NodeBuilderImpl {
 	}
 
 	function arrayOrTupleTypeToNode(t:Type):TypeNode {
-		var typeArguments:Array<Type> = this.ch.getTypeArguments(t);
+		var typeArguments:Array<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
 		if (t.Target() == this.ch.globalArrayType || t.Target() == this.ch.globalReadonlyArrayType) {
 			if (this.ctx.flags & FlagsWriteArrayAsGenericType != 0) {
 				final typeArgumentNode = this.typeToTypeNode(typeArguments[0]);
@@ -2926,7 +2926,7 @@ class NodeBuilderImpl {
 	}
 
 	function typeReferenceToTypeNode(t:Type):TypeNode {
-		var typeArguments:Array<Type> = this.ch.getTypeArguments(t);
+		var typeArguments:Array<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
 		if (this.ctx.flags & FlagsWriteClassExpressionAsTypeLiteral != 0 && t.symbol.ValueDeclaration != null && Ast.IsClassLike(t.symbol.ValueDeclaration)
 			&& !this.ch.IsValueSymbolAccessible(t.symbol, this.ctx.enclosingDeclaration)) {
 			return this.createAnonymousTypeNode(t);
@@ -3313,7 +3313,7 @@ class NodeBuilderImpl {
 				// If we should expand this type alias, skip the alias and fall through to expand the underlying type
 				if (!this.shouldExpandType(t, true /*isAlias*/)) {
 					final sym = t.alias.Symbol();
-					final typeArgumentNodes = this.mapToTypeNodes(t.alias.TypeArguments(), false /*isBareList*/);
+					final typeArgumentNodes = this.mapToTypeNodes(Core.vectorToArray(t.alias.TypeArguments()), false /*isBareList*/); // PORT: perf — a copy (printing)
 					if (Checker.isReservedMemberName(sym.Name) && sym.Flags & SymbolFlagsClass == 0) {
 						return this.f.NewTypeReferenceNode(this.f.NewIdentifier(""), typeArgumentNodes);
 					}
@@ -3704,7 +3704,7 @@ class Nodebuilderimpl {
 	}
 
 	public static function ToTypeReferenceNode(t:TypeAlias, b:NodeBuilderImpl):Node {
-		return b.f.NewTypeReferenceNode(b.symbolToEntityNameNode(t.Symbol()), b.mapToTypeNodes(t.TypeArguments(), false /*isBareList*/));
+		return b.f.NewTypeReferenceNode(b.symbolToEntityNameNode(t.Symbol()), b.mapToTypeNodes(Core.vectorToArray(t.TypeArguments()), false /*isBareList*/)); // PORT: perf — a copy (printing)
 	}
 }
 

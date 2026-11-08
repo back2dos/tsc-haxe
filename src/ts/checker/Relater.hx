@@ -1373,7 +1373,12 @@ class Relater {
 		if (t == c.globalArrayType || t == c.globalReadonlyArrayType || t.objectFlags & ObjectFlagsTuple != 0) {
 			return c.arrayVariances;
 		}
-		return c.getVariancesWorker(t.symbol, t.AsInterfaceType().TypeParameters());
+		// PORT: perf — the type parameters as an Array (a copy) only when the variances are computed
+		final variances = c.varianceLinks.Get(t.symbol).variances;
+		if (variances != null) {
+			return variances;
+		}
+		return c.getVariancesWorker(t.symbol, Core.vectorToArray(t.AsInterfaceType().TypeParameters()));
 	}
 
 	static function getAliasVariances(c:Checker, symbol:Symbol):Array<VarianceFlags> {
@@ -1539,7 +1544,7 @@ class Relater {
 
 	// Return true if the given type reference has a 'void' type argument for a covariant type parameter.
 	// See comment at call in recursiveTypeRelatedTo for when this case matters.
-	static function hasCovariantVoidArgument(c:Checker, typeArguments:Array<Type>, variances:Array<VarianceFlags>):Bool {
+	static function hasCovariantVoidArgument(c:Checker, typeArguments:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>):Bool {
 		for (i in 0...Core.len(variances)) {
 			final v = variances[i];
 			if (v & VarianceFlagsVarianceMask == VarianceFlagsCovariant && typeArguments[i].flags & TypeFlagsVoid != 0) {
@@ -1909,7 +1914,7 @@ class Relater {
 		}
 		final length = parameterCount - pos;
 		if (length <= 0) {
-			return c.createTupleTypeEx(null, null, readonly);
+			return c.createTupleTypeEx((null : Array<Type>), null, readonly);
 		}
 		final types:Array<Type> = [for (_ in 0...length) null];
 		final infos:Array<TupleElementInfo> = [for (_ in 0...length) null];
@@ -1998,7 +2003,7 @@ class Relater {
 		if (index >= endIndex) {
 			return c.createTupleType(null);
 		}
-		return c.createTupleTypeEx(c.getTypeArguments(t).slice(index, endIndex), target.elementInfos.slice(index, endIndex), false /*readonly*/);
+		return c.createTupleTypeEx(Core.subVector(c.getTypeArguments(t), index, endIndex), target.elementInfos.slice(index, endIndex), false /*readonly*/);
 	}
 
 	static function getKnownKeysOfTupleType(c:Checker, t:Type):Type {
@@ -3447,7 +3452,7 @@ class Relater {
 		final saveErrorState = getErrorState();
 		// PORT: Go returns (Ternary, bool); the bool is passed back through relateVariancesOk
 		var relateVariancesOk = false;
-		final relateVariances = (sourceTypeArguments:Array<Type>, targetTypeArguments:Array<Type>, variances:Array<VarianceFlags>,
+		final relateVariances = (sourceTypeArguments:haxe.ds.Vector<Type>, targetTypeArguments:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>,
 				intersectionState:IntersectionState) -> {
 			result = typeArgumentsRelatedTo(sourceTypeArguments, targetTypeArguments, variances, reportErrors, intersectionState);
 			if (result != TernaryFalse) {
@@ -4105,7 +4110,7 @@ class Relater {
 		return TernaryFalse;
 	}
 
-	function typeArgumentsRelatedTo(sources:Array<Type>, targets:Array<Type>, variances:Array<VarianceFlags>, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
+	function typeArgumentsRelatedTo(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
 		if (Core.len(sources) != Core.len(targets) && relation == c.identityRelation) {
 			return TernaryFalse;
 		}

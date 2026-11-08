@@ -776,7 +776,7 @@ enum abstract ObjectFlags(Int) from Int to Int {
 @:allow(ts.checker)
 class TypeAlias {
 	var symbol:Symbol = null;
-	var typeArguments:Array<Type> = null;
+	var typeArguments:haxe.ds.Vector<Type> = null; // PORT: perf — a Vector (one exact-size object)
 
 	public function new() {}
 
@@ -789,7 +789,7 @@ class TypeAlias {
 	}
 
 	// PORT: nil receiver — inline with a `this == null` check like Go.
-	public inline function TypeArguments():Array<Type> {
+	public inline function TypeArguments():haxe.ds.Vector<Type> {
 		if (this == null) {
 			return null;
 		}
@@ -1314,7 +1314,7 @@ class ObjectType extends StructuredType {
 @:allow(ts.checker)
 class TypeReference extends ObjectType {
 	var node:Node = null; // TypeReferenceNode | ArrayTypeNode | TupleTypeNode when deferred, else nil
-	var resolvedTypeArguments:Array<Type> = null;
+	var resolvedTypeArguments:haxe.ds.Vector<Type> = null; // PORT: perf — a Vector (one exact-size object; null: not resolved yet)
 	var lazy:LazyState = null; // Resolved member layout and instantiation state
 
 	public function new() {
@@ -1347,7 +1347,8 @@ class MemberLayout {
 
 @:allow(ts.checker)
 class InterfaceType extends TypeReference {
-	var allTypeParameters:Array<Type> = null; // Type parameters (outer + local + thisType)
+	var allTypeParameters:haxe.ds.Vector<Type> = null; // Type parameters (outer + local + thisType)
+	var typeParameters:haxe.ds.Vector<Type> = null; // PORT: perf — TypeParameters() made once (Go's subslice of allTypeParameters is no copy either)
 	var outerTypeParameterCount:Int = 0; // Count of outer type parameters
 	var thisType:Type = null; // The "this" type (nil if none)
 	var baseTypesResolved:Bool = false;
@@ -1364,25 +1365,34 @@ class InterfaceType extends TypeReference {
 	}
 
 
+	// PORT: a fresh Array (Go's clipped subslice: an append to it makes a new slice)
 	public function OuterTypeParameters():Array<Type> {
 		if (Core.len(allTypeParameters) == 0) {
 			return null;
 		}
-		return allTypeParameters.slice(0, outerTypeParameterCount);
+		return [for (i in 0...outerTypeParameterCount) allTypeParameters[i]];
 	}
 
+	// PORT: a fresh Array (Go's clipped subslice: an append to it makes a new slice)
 	public function LocalTypeParameters():Array<Type> {
 		if (Core.len(allTypeParameters) == 0) {
 			return null;
 		}
-		return allTypeParameters.slice(outerTypeParameterCount, allTypeParameters.length - 1);
+		return [for (i in outerTypeParameterCount...allTypeParameters.length - 1) allTypeParameters[i]];
 	}
 
-	public function TypeParameters():Array<Type> {
-		if (Core.len(allTypeParameters) == 0) {
-			return null;
+	// PORT: perf — one Vector per type (the same one on every call, as Go's subslice shares the storage)
+	public function TypeParameters():haxe.ds.Vector<Type> {
+		if (typeParameters == null) {
+			final n = Core.len(allTypeParameters) - 1;
+			if (n < 0) {
+				return null;
+			}
+			final v = new haxe.ds.Vector<Type>(n);
+			haxe.ds.Vector.blit(allTypeParameters, 0, v, 0, n);
+			typeParameters = v;
 		}
-		return allTypeParameters.slice(0, allTypeParameters.length - 1);
+		return typeParameters;
 	}
 }
 

@@ -278,7 +278,7 @@ class Exports {
 		return c.getRestTypeOfSignature(sig);
 	}
 
-	public static function GetTypeArguments(c:Checker, t:Type):Array<Type> {
+	public static function GetTypeArguments(c:Checker, t:Type):haxe.ds.Vector<Type> {
 		return c.getTypeArguments(t);
 	}
 

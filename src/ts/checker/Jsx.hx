@@ -1024,7 +1024,7 @@ class Jsx {
 			}
 		}
 		if ((declaredManagedType.objectFlags & ObjectFlagsClassOrInterface) != 0 && Core.len(declaredManagedType.AsInterfaceType().TypeParameters()) >= Core.len(typeArguments)) {
-			final args = c.fillMissingTypeArguments(typeArguments, declaredManagedType.AsInterfaceType().TypeParameters(), Core.len(typeArguments), inJavaScript);
+			final args = c.fillMissingTypeArguments(typeArguments, Core.vectorToArray(declaredManagedType.AsInterfaceType().TypeParameters()), Core.len(typeArguments), inJavaScript); // PORT: perf — a copy (JSX LibraryManagedAttributes of a class type)
 			return c.createTypeReference(declaredManagedType, args);
 		}
 		return null;

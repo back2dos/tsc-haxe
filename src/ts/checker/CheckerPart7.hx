@@ -752,7 +752,25 @@ class CheckerPart7 {
 		return c.createTupleTypeEx(elementTypes, elementInfos, false /*readonly*/);
 	}
 
-	static function createTupleTypeEx(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+		return c.createTupleTypeExV(elementTypes, elementInfos, readonly);
+	}
+
+	static function createTupleTypeExV(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+		final tupleTarget = c.getTupleTargetType(elementInfos, readonly);
+		if (tupleTarget == c.emptyGenericType) {
+			return c.emptyObjectType;
+		} else if (Core.len(elementTypes) != 0) {
+			return c.createNormalizedTypeReference(tupleTarget, elementTypes);
+		}
+		return tupleTarget;
+	}
+
+	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+		return c.createTupleTypeExA(elementTypes, elementInfos, readonly);
+	}
+
+	static function createTupleTypeExA(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
 		final tupleTarget = c.getTupleTargetType(elementInfos, readonly);
 		if (tupleTarget == c.emptyGenericType) {
 			return c.emptyObjectType;
@@ -843,7 +861,7 @@ class CheckerPart7 {
 			typeParameters = [];
 		}
 		typeParameters.push(d.thisType);
-		d.allTypeParameters = typeParameters;
+		d.allTypeParameters = VectorBuilder.freeze(typeParameters);
 		d.instantiations = new ts.core.HashKeyMap<Type>();
 		d.instantiations.set(Checker.getTypeListKey(d.TypeParameters()).Key(), t);
 		d.target = t;
@@ -1138,17 +1156,45 @@ class CheckerPart7 {
 		return c.createTypeReference(target, typeArguments);
 	}
 
-	static function createTypeReference(c:Checker, target:Type, typeArguments:Array<Type>):Type {
-		return c.createTypeReferenceEx(target, typeArguments, ObjectFlagsNone);
+	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:Array<Type>):Type {
+		return c.createTypeReferenceExA(target, typeArguments, ObjectFlagsNone);
 	}
 
-	static function createTypeReferenceEx(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
+	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>):Type {
+		return c.createTypeReferenceExV(target, typeArguments, ObjectFlagsNone);
+	}
+
+	// PORT: perf — the type arguments of a new reference are a Vector: an Array (a fresh list) is copied once, on a miss
+	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
+		return c.createTypeReferenceExA(target, typeArguments, objectFlags);
+	}
+
+	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+		return c.createTypeReferenceExV(target, typeArguments, objectFlags);
+	}
+
+	static function createTypeReferenceExA(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
 		final id = Checker.getTypeListKey(typeArguments).Key();
 		final intf = target.AsInterfaceType();
 		final cached = intf.instantiations.get(id);
 		if (cached != null) {
 			return cached;
 		}
+		return c.newTypeReference(intf, id, VectorBuilder.freeze(typeArguments), objectFlags);
+	}
+
+	static function createTypeReferenceExV(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+		final id = Checker.getTypeListKey(typeArguments).Key();
+		final intf = target.AsInterfaceType();
+		final cached = intf.instantiations.get(id);
+		if (cached != null) {
+			return cached;
+		}
+		return c.newTypeReference(intf, id, typeArguments == null ? Core.emptyVector() : typeArguments, objectFlags);
+	}
+
+	static function newTypeReference(c:Checker, intf:InterfaceType, id:std.String, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+		final target:Type = intf;
 		final t = c.newObjectType(ObjectFlagsReference | objectFlags | c.getPropagatingFlagsOfTypes(typeArguments, TypeFlagsNone), target.symbol);
 		final d = t.AsTypeReference();
 		d.target = target;

@@ -3718,7 +3718,25 @@ class Checker {
 
 	// --- mapper.go ---
 
-	static function newTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
+	// PORT: perf — an ArrayTypeMapper holds Vectors (one exact-size object each): Array arguments are copied (a
+	// builder the caller does not change afterwards), a Vector is held as it is
+	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+		return newTypeMapperV(sources, targets);
+	}
+
+	static extern inline overload function newTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
+		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), Core.toVector(targets));
+	}
+
+	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:Array<Type>):TypeMapper {
+		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(sources, Core.toVector(targets));
+	}
+
+	static extern inline overload function newTypeMapper(sources:Array<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), targets);
+	}
+
+	static function newTypeMapperV(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
 		if (Core.len(sources) == 1) {
 			return newSimpleTypeMapper(sources[0], targets[0]);
 		}
@@ -3774,16 +3792,16 @@ class Checker {
 		return m;
 	}
 
-	static function newArrayTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
+	static function newArrayTypeMapper(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
 		final m = new ArrayTypeMapper();
-		m.sources = sources;
-		m.targets = targets;
+		m.sources = sources == null ? Core.emptyVector() : sources;
+		m.targets = targets == null ? Core.emptyVector() : targets;
 		return m;
 	}
 
 	// PORT: perf — newTypeMapper(sources, append(typeArguments, thisArgument)) without the new slice
 	// (ThisArgumentTypeMapper); len(sources) == len(typeArguments) + 1
-	static function newThisArgumentTypeMapper(sources:Array<Type>, typeArguments:Array<Type>, thisArgument:Type):TypeMapper {
+	static function newThisArgumentTypeMapper(sources:haxe.ds.Vector<Type>, typeArguments:haxe.ds.Vector<Type>, thisArgument:Type):TypeMapper {
 		if (sources.length == 1) {
 			return newSimpleTypeMapper(sources[0], thisArgument);
 		}
@@ -5908,8 +5926,8 @@ class Checker {
 		final s2 = getTypeNameSymbol(t2);
 		if (s1 == s2) {
 			// PORT: Go's nil-safe alias.TypeArguments()
-			final a1:Array<Type> = t1.alias != null ? t1.alias.typeArguments : null;
-			final a2:Array<Type> = t2.alias != null ? t2.alias.typeArguments : null;
+			final a1:haxe.ds.Vector<Type> = t1.alias != null ? t1.alias.typeArguments : null;
+			final a2:haxe.ds.Vector<Type> = t2.alias != null ? t2.alias.typeArguments : null;
 			return compareTypeLists(a1, a2);
 		}
 		if (s1 == null) {

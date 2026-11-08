@@ -816,7 +816,7 @@ class CheckerPart5 {
 		if ((t.TargetTupleType().combinedFlags & ElementFlagsVariable) != 0 || c.getTypeReferenceArity(t) >= Core.len(patternElements)) {
 			return t;
 		}
-		var elementTypes = Slices.Clone(c.getElementTypes(t));
+		var elementTypes = Core.vectorToArray(c.getElementTypes(t)); // (Go's slices.Clone)
 		// PORT: Go `slices.Clone` of []TupleElementInfo copies the struct values.
 		var elementInfos = Core.Map(t.TargetTupleType().elementInfos, function(info:TupleElementInfo):TupleElementInfo {
 			final r = new TupleElementInfo();
@@ -1316,9 +1316,13 @@ class CheckerPart5 {
 				d.thisType = c.newTypeParameter(symbol);
 				d.thisType.AsTypeParameter().isThisType = true;
 				d.thisType.AsTypeParameter().constraint = t;
-				// PORT: Go `append(typeParameters, d.thisType)` never shows in the holder of typeParameters; copy first.
-				final all = typeParameters == null ? [] : typeParameters.copy();
-				all.push(d.thisType);
+				// PORT: Go `append(typeParameters, d.thisType)` never shows in the holder of typeParameters: a new Vector.
+				final n = Core.len(typeParameters);
+				final all = new haxe.ds.Vector<Type>(n + 1);
+				for (i in 0...n) {
+					all[i] = typeParameters[i];
+				}
+				all[n] = d.thisType;
 				d.allTypeParameters = all;
 				d.outerTypeParameterCount = outerTypeParameterCount;
 				d.resolvedTypeArguments = d.TypeParameters();
@@ -2866,8 +2870,8 @@ class CheckerPart5 {
 	// references of one target (with the same base types) and the type's LazyState
 	static function resolveObjectTypeMembers(c:Checker, t:Type):Void {
 		var mapper:TypeMapper = null;
-		var typeParameters:Array<Type> = null;
-		var typeArguments:Array<Type> = null;
+		var typeParameters:haxe.ds.Vector<Type> = null;
+		var typeArguments:haxe.ds.Vector<Type> = null;
 		var callSignatures:Array<Signature> = null;
 		var constructSignatures:Array<Signature> = null;
 		var indexInfos:Array<IndexInfo> = null;
@@ -2933,7 +2937,7 @@ class CheckerPart5 {
 	}
 
 	// slices.Equal(typeParameters, append(typeArguments, t)) (len(typeParameters) == len(typeArguments) + 1)
-	static function equalWithThis(typeParameters:Array<Type>, typeArguments:Array<Type>, t:Type):Bool {
+	static function equalWithThis(typeParameters:haxe.ds.Vector<Type>, typeArguments:haxe.ds.Vector<Type>, t:Type):Bool {
 		final n = Core.len(typeArguments);
 		for (i in 0...n) {
 			if (typeParameters[i] != typeArguments[i]) {
@@ -3524,7 +3528,7 @@ class CheckerPart5 {
 				if (thisArgument == null) {
 					thisArgument = target.AsInterfaceType().thisType;
 				}
-				return c.createTypeReference(target, Core.Concatenate(typeArguments, [thisArgument]));
+				return c.createTypeReference(target, Core.concatVectors(typeArguments, Core.vector1(thisArgument)));
 			}
 			return t;
 		} else if ((t.flags & TypeFlagsIntersection) != 0) {

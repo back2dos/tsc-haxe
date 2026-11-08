@@ -366,7 +366,7 @@ class Inference {
 		c.inferFromTypeArguments(n, c.getTypeArguments(source), c.getTypeArguments(target), c.getVariances(source.AsTypeReference().target));
 	}
 
-	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:Array<Type>, targetTypes:Array<Type>, variances:Array<VarianceFlags>):Void {
+	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:haxe.ds.Vector<Type>, targetTypes:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>):Void {
 		final count = Std.int(std.Math.min(Core.len(sourceTypes), Core.len(targetTypes)));
 		for (i in 0...count) {
 			if (i < Core.len(variances) && (variances[i] & VarianceFlagsVarianceMask) == VarianceFlagsContravariant) {
@@ -542,7 +542,7 @@ class Inference {
 		return 0;
 	}
 
-	static function getTypeListDepth(types:Array<Type>, maxDepth:Int):Int {
+	static function getTypeListDepth(types:haxe.ds.Vector<Type>, maxDepth:Int):Int {
 		var depth = 0;
 		for (t in types) {
 			depth = Std.int(std.Math.max(depth, getTypeDepth(t, maxDepth)));
@@ -892,7 +892,7 @@ class Inference {
 									if (startIndex >= startLength) {
 										// PORT: Go reslices a possibly nil slice (empty tuple); keep nil instead of `null.slice`.
 										final sourceTypeArguments = c.getTypeArguments(source);
-										final trailingSlice = c.createTupleTypeEx(sourceTypeArguments != null ? sourceTypeArguments.slice(startIndex, endIndex) : null,
+										final trailingSlice = c.createTupleTypeEx(sourceTypeArguments != null ? Core.subVector(sourceTypeArguments, startIndex, endIndex) : null,
 											source.TargetTupleType().elementInfos != null ? source.TargetTupleType().elementInfos.slice(startIndex, endIndex) : null,
 											false /*readonly*/);
 										final restType = c.getElementTypeOfSliceOfTupleType(source, startLength, endLength + impliedArity, false, false);
