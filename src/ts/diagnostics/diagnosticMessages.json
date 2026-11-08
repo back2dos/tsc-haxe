@@ -6950,6 +6950,10 @@
         "category": "Error",
         "code": 7061
     },
+    "Declaration emit elides private members, but '{0}' refers to a private member. Write an explicit type here.": {
+        "category": "Error",
+        "code": 7080
+    },
 
     "You cannot rename this element.": {
         "category": "Error",
@@ -7152,7 +7156,7 @@
         "category": "Error",
         "code": 9018
     },
-    "Binding elements can't be exported directly with --isolatedDeclarations.": {
+    "Binding elements with initializers can't be exported directly with --isolatedDeclarations.": {
         "category": "Error",
         "code": 9019
     },

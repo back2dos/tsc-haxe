@@ -58,7 +58,13 @@ class SymbolTrackerImpl implements ts.nodebuilder.Types.SymbolTracker { // PORT:
 		if (!(Ast.IsExpandoPropertyDeclaration(node) && Ast.IsPropertyAccessExpression(node.AsBinaryExpression().Left))) {
 			return false;
 		}
-		final ref = resolver.GetReferencedValueDeclarationUnsafe(Ast.GetLeftmostExpression(node.AsBinaryExpression().Left, true));
+		// Match transformExpandoAssignment: only an assignment rooted at an identifier (`f.x = ...`) can bind an expando
+		// property; `this.x = ...`, `super.x = ...`, `f().x = ...` and the like have no referenced declaration.
+		final ns = Ast.GetLeftmostAccessExpression(node.AsBinaryExpression().Left);
+		if (!Ast.IsIdentifier(ns)) {
+			return false;
+		}
+		final ref = resolver.GetReferencedValueDeclarationUnsafe(ns);
 		if (ref == null) {
 			return false;
 		}
