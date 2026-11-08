@@ -506,7 +506,7 @@ class Binder {
 		if (Ast.IsStatic(node)) {
 			return declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
 		}
-		return declareSymbol(Ast.GetMembers(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
+		return declareSymbol(getMembersSized(container.Symbol(), container), container.Symbol(), node, symbolFlags, symbolExcludes);
 	}
 
 	function declareSourceFileMember(node:Node, symbolFlags:SymbolFlags, symbolExcludes:SymbolFlags):Symbol {
@@ -514,6 +514,54 @@ class Binder {
 			return declareModuleMember(node, symbolFlags, symbolExcludes);
 		}
 		return declareSymbol(Ast.GetLocals(file.AsNode()), null /*parent*/, node, symbolFlags, symbolExcludes);
+	}
+
+	// PORT: perf — Ast.GetMembers/GetExports/GetLocals of a container whose entries are mostly known from its syntax:
+	// a new table gets room for them (symbolTableHint) instead of growing 1, 2, 3, 5, 8, 16, ... entries. Same
+	// entries in the same order; the table is still created only on the first declaration.
+	static inline function getMembersSized(symbol:Symbol, container:Node):SymbolTable {
+		if (symbol.Members == null)
+			symbol.Members = newSymbolTable(symbolTableHint(container));
+		return symbol.Members;
+	}
+
+	static inline function getExportsSized(symbol:Symbol, container:Node):SymbolTable {
+		if (symbol.Exports == null)
+			symbol.Exports = newSymbolTable(symbolTableHint(container));
+		return symbol.Exports;
+	}
+
+	static inline function getLocalsSized(container:Node):SymbolTable {
+		final data = container.LocalsContainerData();
+		if (data.Locals == null)
+			data.Locals = newSymbolTable(symbolTableHint(container));
+		return data.Locals;
+	}
+
+	static function newSymbolTable(hint:Int):SymbolTable {
+		final t = new SymbolTable();
+		if (hint > 1)
+			t.reserve(hint);
+		return t;
+	}
+
+	// the members of a class, interface, type literal or enum, the properties of an object literal or JSX attributes,
+	// the parameters and type parameters of a function-like node or type alias
+	static function symbolTableHint(container:Node):Int {
+		switch (container.Kind) {
+			case KindClassDeclaration | KindClassExpression | KindInterfaceDeclaration | KindTypeLiteral | KindEnumDeclaration:
+				return Core.len(container.Members());
+			case KindObjectLiteralExpression | KindJsxAttributes:
+				return Core.len(container.Properties());
+			case KindTypeAliasDeclaration | KindJSTypeAliasDeclaration:
+				return Core.len(container.TypeParameters());
+			default:
+				final f = container.FunctionLikeData();
+				if (f != null) {
+					return (f.Parameters == null ? 0 : Core.len(f.Parameters.Nodes)) + (f.TypeParameters == null ? 0 : Core.len(f.TypeParameters.Nodes));
+				}
+		}
+		return 0;
 	}
 
 	function declareSymbolAndAddToSymbolTable(node:Node, symbolFlags:SymbolFlags, symbolExcludes:SymbolFlags):Symbol {
@@ -525,13 +573,13 @@ class Binder {
 			case KindClassExpression | KindClassDeclaration:
 				return declareClassMember(node, symbolFlags, symbolExcludes);
 			case KindEnumDeclaration:
-				return declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
+				return declareSymbol(getExportsSized(container.Symbol(), container), container.Symbol(), node, symbolFlags, symbolExcludes);
 			case KindTypeLiteral | KindObjectLiteralExpression | KindInterfaceDeclaration | KindJsxAttributes:
-				return declareSymbol(Ast.GetMembers(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
+				return declareSymbol(getMembersSized(container.Symbol(), container), container.Symbol(), node, symbolFlags, symbolExcludes);
 			case KindFunctionType | KindConstructorType | KindCallSignature | KindConstructSignature | KindIndexSignature | KindMethodDeclaration |
 				KindMethodSignature | KindConstructor | KindGetAccessor | KindSetAccessor | KindFunctionDeclaration | KindFunctionExpression |
 				KindArrowFunction | KindClassStaticBlockDeclaration | KindTypeAliasDeclaration | KindJSTypeAliasDeclaration | KindMappedType:
-				return declareSymbol(Ast.GetLocals(container), null /*parent*/, node, symbolFlags, symbolExcludes);
+				return declareSymbol(getLocalsSized(container), null /*parent*/, node, symbolFlags, symbolExcludes);
 			default:
 		}
 		throw "Unhandled case in declareSymbolAndAddToSymbolTable";
