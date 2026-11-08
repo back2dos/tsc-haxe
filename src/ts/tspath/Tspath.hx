@@ -522,7 +522,16 @@ class Tspath {
 	}
 
 	public static inline function NormalizeSlashes(path:String):String {
-		return Strings.ReplaceAll(path, "\\", "/");
+		// PORT: perf — a unit loop finds no '\\' faster than the runtime's substring search (hxmc)
+		return hasBackslash(path) ? Strings.ReplaceAll(path, "\\", "/") : path;
+	}
+
+	static function hasBackslash(path:String):Bool {
+		final n = path.length;
+		var i = 0;
+		while (i < n && StringTools.fastCodeAt(path, i) != '\\'.code)
+			i++;
+		return i < n;
 	}
 
 	static function reducePathComponents(components:Array<String>):Array<String> {
@@ -646,6 +655,10 @@ class Tspath {
 		var rootLength = GetRootLength(fileName);
 		if (rootLength == 0 && currentDirectory != "") {
 			fileName = CombinePaths(currentDirectory, fileName);
+		} else if (!scanRelativePathSegment(fileName, true)) {
+			// PORT: perf — one scan: no '\\' (NormalizeSlashes leaves fileName and its root length as they
+			// are) and no relative segment (simpleNormalizePath returns it)
+			return simpleNormalizedAbsolutePath(fileName, rootLength);
 		} else {
 			// CombinePaths normalizes slashes, so not necessary in other branch
 			fileName = NormalizeSlashes(fileName);
@@ -654,14 +667,7 @@ class Tspath {
 
 		final simpleNormalized = simpleNormalizePath(fileName);
 		if (simpleNormalized != null) {
-			final length = simpleNormalized.length;
-			if (length > rootLength) {
-				return RemoveTrailingDirectorySeparator(simpleNormalized);
-			}
-			if (length == rootLength && rootLength != 0) {
-				return EnsureTrailingDirectorySeparator(simpleNormalized);
-			}
-			return simpleNormalized;
+			return simpleNormalizedAbsolutePath(simpleNormalized, rootLength);
 		}
 
 		final length = fileName.length;
@@ -768,6 +774,18 @@ class Tspath {
 		return fileName;
 	}
 
+	// GetNormalizedAbsolutePath's result for a simple normalized path
+	static inline function simpleNormalizedAbsolutePath(simpleNormalized:String, rootLength:Int):String {
+		final length = simpleNormalized.length;
+		return if (length > rootLength) {
+			RemoveTrailingDirectorySeparator(simpleNormalized);
+		} else if (length == rootLength && rootLength != 0) {
+			EnsureTrailingDirectorySeparator(simpleNormalized);
+		} else {
+			simpleNormalized;
+		}
+	}
+
 	// PORT: Go returns (string, bool); here null means !ok (hot path, no result object).
 	static function simpleNormalizePath(path:String):Null<String> {
 		// Most paths don't require normalization
@@ -787,6 +805,11 @@ class Tspath {
 
 	// hasRelativePathSegment reports whether p contains ".", "..", "./", "../", "/.", "/..", "//", "/./", or "/../".
 	static function hasRelativePathSegment(p:String):Bool {
+		return scanRelativePathSegment(p, false);
+	}
+
+	// hasRelativePathSegment, or (backslash) a '\\' in p
+	static function scanRelativePathSegment(p:String, backslash:Bool):Bool {
 		final n = p.length;
 		if (n == 0) {
 			return false;
@@ -844,6 +867,9 @@ class Tspath {
 					dotCount++;
 				}
 			} else {
+				if (backslash && c == '\\'.code) {
+					return true;
+				}
 				dotCount = -1;
 			}
 			segLen++;
@@ -855,6 +881,10 @@ class Tspath {
 	}
 
 	public static function NormalizePath(path:String):String {
+		// PORT: perf — one scan: no '\\' and no relative segment: NormalizeSlashes and simpleNormalizePath return path
+		if (!scanRelativePathSegment(path, true)) {
+			return path;
+		}
 		path = NormalizeSlashes(path);
 		final simple = simpleNormalizePath(path);
 		if (simple != null) {
