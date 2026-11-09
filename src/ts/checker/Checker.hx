@@ -2891,6 +2891,17 @@ class Checker {
 		return s;
 	}
 
+	// PORT: perf — the map's entry for the packed key of types (at most 3) without making the key string
+	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:Array<Type>):Type {
+		final n = types == null ? 0 : types.length;
+		return m.getPacked(0xF000 | (family << 8) | (flag << 4) | n, n, n > 0 ? types[0].id : 0, n > 1 ? types[1].id : 0, n > 2 ? types[2].id : 0);
+	}
+
+	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:haxe.ds.Vector<Type>):Type {
+		final n = types == null ? 0 : types.length;
+		return m.getPacked(0xF000 | (family << 8) | (flag << 4) | n, n, n > 0 ? types[0].id : 0, n > 1 ? types[1].id : 0, n > 2 ? types[2].id : 0);
+	}
+
 	// (the same layout: three ints a, b, c as the "ids", count 3)
 	static function packedIdsKey(family:Int, a:Int, b:Int, c:Int):std.String {
 		final s = hxmc.rt.Str.make2(7);

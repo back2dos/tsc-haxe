@@ -1174,22 +1174,58 @@ class CheckerPart7 {
 	}
 
 	static function createTypeReferenceExA(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
-		final id = Checker.getTypeListKey(typeArguments).Key();
 		final intf = target.AsInterfaceType();
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		final packed = Core.len(typeArguments) <= 3;
+		if (packed) {
+			final cached = Checker.getPackedTypes(intf.instantiations, 1, 0, typeArguments);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		final id = Checker.getTypeListKey(typeArguments).Key();
+		if (!packed) {
+			final cached = intf.instantiations.get(id);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		#else
+		final id = Checker.getTypeListKey(typeArguments).Key();
 		final cached = intf.instantiations.get(id);
 		if (cached != null) {
 			return cached;
 		}
+		#end
 		return c.newTypeReference(intf, id, VectorBuilder.freeze(typeArguments), objectFlags);
 	}
 
 	static function createTypeReferenceExV(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
-		final id = Checker.getTypeListKey(typeArguments).Key();
 		final intf = target.AsInterfaceType();
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		final packed = Core.len(typeArguments) <= 3;
+		if (packed) {
+			final cached = Checker.getPackedTypes(intf.instantiations, 1, 0, typeArguments);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		final id = Checker.getTypeListKey(typeArguments).Key();
+		if (!packed) {
+			final cached = intf.instantiations.get(id);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		#else
+		final id = Checker.getTypeListKey(typeArguments).Key();
 		final cached = intf.instantiations.get(id);
 		if (cached != null) {
 			return cached;
 		}
+		#end
 		return c.newTypeReference(intf, id, typeArguments == null ? Core.emptyVector() : typeArguments, objectFlags);
 	}
 
@@ -1934,6 +1970,15 @@ class CheckerPart7 {
 		if (types.length == 1) {
 			return types[0];
 		}
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		if (origin == null && alias == null && types.length <= 3) {
+			final t = Checker.getPackedTypes(c.unionTypes, 5, 0, types);
+			if (t != null) {
+				return t;
+			}
+		}
+		#end
 		final key = Checker.getUnionKey(types, origin, alias).Key();
 		var t = c.unionTypes.get(key);
 		if (t == null) {
@@ -1955,6 +2000,15 @@ class CheckerPart7 {
 		if (types.length == 1) {
 			return types[0];
 		}
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		if (origin == null && alias == null && types.length <= 3) {
+			final t = Checker.getPackedTypes(c.unionTypes, 5, 0, types);
+			if (t != null) {
+				return t;
+			}
+		}
+		#end
 		final key = Checker.getUnionKey(types, origin, alias).Key();
 		var t = c.unionTypes.get(key);
 		if (t == null) {
