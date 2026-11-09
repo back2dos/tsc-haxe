@@ -1736,6 +1736,13 @@ class CheckerPart4 {
 		if (depth >= 5 || t == null) {
 			return false;
 		}
+		// PORT: perf — (from tsrs, checker_07.rs:1389) every branch below that can answer true reaches a type variable
+		// (conditional, mapped and instantiable types could contain one), so a type known not to contain one
+		// (couldContainTypeVariables computed false: read, never computed here) and a union of primitives answer false
+		if ((t.objectFlags & (ObjectFlagsCouldContainTypeVariablesComputed | ObjectFlagsCouldContainTypeVariables)) == ObjectFlagsCouldContainTypeVariablesComputed
+			|| (t.flags & TypeFlagsUnion) != 0 && (t.objectFlags & ObjectFlagsPrimitiveUnion) != 0) {
+			return false;
+		}
 		if ((t.flags & TypeFlagsTypeParameter) != 0) {
 			return t.symbol != null && Core.Some(t.symbol.Declarations, d -> Ast.HasSyntacticModifier(d, ModifierFlagsConst));
 		} else if ((t.flags & TypeFlagsUnionOrIntersection) != 0) {
