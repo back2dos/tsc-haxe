@@ -148,10 +148,13 @@ class SymbolReferenceLinks extends ts.core.Linkstore.LinkEntry {
 	}
 }
 
-// PORT: perf — an instantiated symbol (Checker.instantiateSymbol: most transient symbols, t3code-server 1.7M) has
-// its value links as fields (InstantiatedSymbol, like Strada's TransientSymbol): no links entry (24 B less: its
-// header, store and next entry). ValueSymbolLinks is the instantiated symbol itself or the links entry of another
-// symbol (ValueSymbolLinksRecord); Checker.valueSymbolLinks (ValueSymbolLinkStore) returns one or the other.
+// PORT: perf — most transient symbols have their value links as fields, like Strada's TransientSymbol: no links
+// entry (its header, store and next entry), the rarely set fields in an entry of the symbol's links
+// (EmbeddedSymbolLinks). An instantiated symbol (Checker.instantiateSymbol, t3code-server 1.7M) is an
+// InstantiatedSymbol, a symbol made by Checker.newSymbol a TransientSymbol (vscode 0.8M); not the mapped and
+// synthetic properties (Checker.newSymbolEx), which have SyntheticValueSymbolLinks. ValueSymbolLinks is such a symbol
+// itself or the links entry of another symbol (ValueSymbolLinksRecord); Checker.valueSymbolLinks
+// (ValueSymbolLinkStore) returns one or the other.
 @:allow(ts.checker)
 abstract ValueSymbolLinks(Any) {
 	var resolvedType(get, set):Type;
@@ -166,7 +169,23 @@ abstract ValueSymbolLinks(Any) {
 		return Std.isOfType(this, InstantiatedSymbol);
 	}
 
+	inline function isTrans():Bool {
+		return Std.isOfType(this, TransientSymbol);
+	}
+
+	inline function isEmbedded():Bool {
+		return isInst() || isTrans();
+	}
+
 	inline function inst():InstantiatedSymbol {
+		return cast this;
+	}
+
+	inline function trans():TransientSymbol {
+		return cast this;
+	}
+
+	inline function sym():Symbol {
 		return cast this;
 	}
 
@@ -174,69 +193,69 @@ abstract ValueSymbolLinks(Any) {
 		return cast this;
 	}
 
-	// the links entry (null for an instantiated symbol)
+	// the links entry (null for a symbol with its links as fields)
 	inline function record():ValueSymbolLinksRecord {
-		return isInst() ? null : cast this;
+		return isEmbedded() ? null : cast this;
 	}
 
 	inline function get_resolvedType():Type {
-		return isInst() ? inst().vResolvedType : rec().resolvedType;
+		return isInst() ? inst().vResolvedType : isTrans() ? trans().tResolvedType : rec().resolvedType;
 	}
 
 	inline function set_resolvedType(v:Type):Type {
-		return isInst() ? inst().vResolvedType = v : rec().resolvedType = v;
+		return isInst() ? inst().vResolvedType = v : isTrans() ? trans().tResolvedType = v : rec().resolvedType = v;
 	}
 
 	inline function get_target():Symbol {
-		return isInst() ? inst().vTarget : rec().target;
+		return isInst() ? inst().vTarget : isTrans() ? trans().tTarget : rec().target;
 	}
 
 	inline function set_target(v:Symbol):Symbol {
-		return isInst() ? inst().vTarget = v : rec().target = v;
+		return isInst() ? inst().vTarget = v : isTrans() ? trans().tTarget = v : rec().target = v;
 	}
 
 	inline function get_mapper():TypeMapper {
-		return isInst() ? inst().vMapper : rec().mapper;
+		return isInst() ? inst().vMapper : isTrans() ? EmbeddedSymbolLinks.getMapper(sym()) : rec().mapper;
 	}
 
 	inline function set_mapper(v:TypeMapper):TypeMapper {
-		return isInst() ? inst().vMapper = v : rec().mapper = v;
+		return isInst() ? inst().vMapper = v : isTrans() ? EmbeddedSymbolLinks.setMapper(sym(), v) : rec().mapper = v;
 	}
 
 	inline function get_functionOrConstructorChecked():Bool {
-		return isInst() ? inst().extraFunctionOrConstructorChecked() : rec().functionOrConstructorChecked;
+		return isEmbedded() ? EmbeddedSymbolLinks.getFunctionOrConstructorChecked(sym()) : rec().functionOrConstructorChecked;
 	}
 
 	inline function set_functionOrConstructorChecked(v:Bool):Bool {
-		return isInst() ? inst().setFunctionOrConstructorChecked(v) : rec().functionOrConstructorChecked = v;
+		return isEmbedded() ? EmbeddedSymbolLinks.setFunctionOrConstructorChecked(sym(), v) : rec().functionOrConstructorChecked = v;
 	}
 
 	inline function get_writeType():Type {
-		return isInst() ? inst().extraWriteType() : rec().writeType;
+		return isEmbedded() ? EmbeddedSymbolLinks.getWriteType(sym()) : rec().writeType;
 	}
 
 	inline function set_writeType(v:Type):Type {
-		return isInst() ? inst().setWriteType(v) : rec().writeType = v;
+		return isEmbedded() ? EmbeddedSymbolLinks.setWriteType(sym(), v) : rec().writeType = v;
 	}
 
 	inline function get_nameType():Type {
-		return isInst() ? inst().extraNameType() : rec().nameType;
+		return isEmbedded() ? EmbeddedSymbolLinks.getNameType(sym()) : rec().nameType;
 	}
 
 	inline function set_nameType(v:Type):Type {
-		return isInst() ? inst().setNameType(v) : rec().nameType = v;
+		return isEmbedded() ? EmbeddedSymbolLinks.setNameType(sym(), v) : rec().nameType = v;
 	}
 
 	inline function get_containingType():Type {
-		return isInst() ? inst().extraContainingType() : rec().containingType;
+		return isEmbedded() ? EmbeddedSymbolLinks.getContainingType(sym()) : rec().containingType;
 	}
 
 	inline function set_containingType(v:Type):Type {
-		return isInst() ? inst().setContainingType(v) : rec().containingType = v;
+		return isEmbedded() ? EmbeddedSymbolLinks.setContainingType(sym(), v) : rec().containingType = v;
 	}
 }
 
-// Checker.valueSymbolLinks: an instantiated symbol's links are the symbol (see ValueSymbolLinks)
+// Checker.valueSymbolLinks: an InstantiatedSymbol's or TransientSymbol's links are the symbol (see ValueSymbolLinks)
 class ValueSymbolLinkStore {
 	final store:LinkStore<Symbol, ValueSymbolLinksRecord>;
 
@@ -244,21 +263,25 @@ class ValueSymbolLinkStore {
 		store = new LinkStore<Symbol, ValueSymbolLinksRecord>(factory, forKey);
 	}
 
+	static inline function embedded(s:Symbol):Bool {
+		return Std.isOfType(s, InstantiatedSymbol) || Std.isOfType(s, TransientSymbol);
+	}
+
 	public inline function Get(s:Symbol):ValueSymbolLinks {
-		return Std.isOfType(s, InstantiatedSymbol) ? cast s : cast store.Get(s);
+		return embedded(s) ? cast s : cast store.Get(s);
 	}
 
 	public inline function TryGet(s:Symbol):Null<ValueSymbolLinks> {
-		return Std.isOfType(s, InstantiatedSymbol) ? cast s : cast store.TryGet(s);
+		return embedded(s) ? cast s : cast store.TryGet(s);
 	}
 
 	public inline function Has(s:Symbol):Bool {
-		return Std.isOfType(s, InstantiatedSymbol) || store.Has(s);
+		return embedded(s) || store.Has(s);
 	}
 
-	// the links entry of a symbol that is not instantiated
+	// the links entry of a symbol without its links as fields
 	public inline function TryGetRecord(s:Symbol):Null<ValueSymbolLinksRecord> {
-		return Std.isOfType(s, InstantiatedSymbol) ? null : store.TryGet(s);
+		return embedded(s) ? null : store.TryGet(s);
 	}
 }
 
@@ -269,88 +292,98 @@ class InstantiatedSymbol extends Symbol {
 	var vResolvedType:Type = null;
 	var vTarget:Symbol = null;
 	var vMapper:TypeMapper = null;
-	// Go's rarely set fields (see ValueSymbolLinksRecord.extra; t3code-server: 5% of the instantiated symbols) in
-	// an entry of the symbol's links (no field: 64 -> 56 B; its links are most often empty: t3code-server 100%)
-	var vExtra(get, never):InstantiatedSymbolExtra;
 
 	public function new(other:Symbol) {
 		super();
 		data = other.data;
 	}
+}
 
-	inline function get_vExtra():InstantiatedSymbolExtra {
-		return links == null ? null : InstantiatedSymbolExtra.store.TryGetInline(this);
-	}
+// a symbol made by Checker.newSymbol, with its type and target (vscode: 99% / 56% have one; the mapper is rare)
+@:allow(ts.checker)
+class TransientSymbol extends SymbolWithData {
+	var tResolvedType:Type = null;
+	var tTarget:Symbol = null;
 
-	function newExtra():InstantiatedSymbolExtra {
-		return InstantiatedSymbolExtra.store.Get(this);
-	}
-
-	function extraFunctionOrConstructorChecked():Bool {
-		final x = vExtra;
-		return x != null && x.functionOrConstructorChecked;
-	}
-
-	function extraWriteType():Type {
-		final x = vExtra;
-		return x == null ? null : x.writeType;
-	}
-
-	function extraNameType():Type {
-		final x = vExtra;
-		return x == null ? null : x.nameType;
-	}
-
-	function extraContainingType():Type {
-		final x = vExtra;
-		return x == null ? null : x.containingType;
-	}
-
-	function setFunctionOrConstructorChecked(b:Bool):Bool {
-		final x = vExtra;
-		if (x == null && !b) {
-			return b;
-		}
-		return (x != null ? x : newExtra()).functionOrConstructorChecked = b;
-	}
-
-	function setWriteType(t:Type):Type {
-		final x = vExtra;
-		if (x == null && t == null) {
-			return t;
-		}
-		return (x != null ? x : newExtra()).writeType = t;
-	}
-
-	function setNameType(t:Type):Type {
-		final x = vExtra;
-		if (x == null && t == null) {
-			return t;
-		}
-		return (x != null ? x : newExtra()).nameType = t;
-	}
-
-	function setContainingType(t:Type):Type {
-		final x = vExtra;
-		if (x == null && t == null) {
-			return t;
-		}
-		return (x != null ? x : newExtra()).containingType = t;
+	public function new() {
+		super();
 	}
 }
 
-// the rarely set value links of an instantiated symbol (InstantiatedSymbol.vExtra)
+// the rarely set value links of an InstantiatedSymbol or TransientSymbol: an entry of its links (t3code-server: 5% of
+// the instantiated symbols have one; their links are otherwise most often empty)
 @:allow(ts.checker)
-class InstantiatedSymbolExtra extends ts.core.Linkstore.LinkEntry {
-	static final store = new LinkStore<Symbol, InstantiatedSymbolExtra>(() -> new InstantiatedSymbolExtra());
+class EmbeddedSymbolLinks extends ts.core.Linkstore.LinkEntry {
+	static final store = new LinkStore<Symbol, EmbeddedSymbolLinks>(() -> new EmbeddedSymbolLinks());
 
 	var writeType:Type = null;
 	var nameType:Type = null;
 	var containingType:Type = null;
+	var mapper:TypeMapper = null; // (a TransientSymbol's)
 	var functionOrConstructorChecked:Bool = false;
 
 	public function new() {
 		super();
+	}
+
+	static inline function of(s:Symbol):EmbeddedSymbolLinks {
+		return s.links == null ? null : store.TryGetInline(s);
+	}
+
+	static function getFunctionOrConstructorChecked(s:Symbol):Bool {
+		final x = of(s);
+		return x != null && x.functionOrConstructorChecked;
+	}
+
+	static function getWriteType(s:Symbol):Type {
+		final x = of(s);
+		return x == null ? null : x.writeType;
+	}
+
+	static function getNameType(s:Symbol):Type {
+		final x = of(s);
+		return x == null ? null : x.nameType;
+	}
+
+	static function getContainingType(s:Symbol):Type {
+		final x = of(s);
+		return x == null ? null : x.containingType;
+	}
+
+	static function getMapper(s:Symbol):TypeMapper {
+		final x = of(s);
+		return x == null ? null : x.mapper;
+	}
+
+	// the entry to write v to (null when v is the zero value and there is none: nothing to write)
+	static inline function forWrite(s:Symbol, zero:Bool):EmbeddedSymbolLinks {
+		final x = of(s);
+		return x != null || zero ? x : store.Get(s);
+	}
+
+	static function setFunctionOrConstructorChecked(s:Symbol, b:Bool):Bool {
+		final x = forWrite(s, !b);
+		return x == null ? b : x.functionOrConstructorChecked = b;
+	}
+
+	static function setWriteType(s:Symbol, t:Type):Type {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.writeType = t;
+	}
+
+	static function setNameType(s:Symbol, t:Type):Type {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.nameType = t;
+	}
+
+	static function setContainingType(s:Symbol, t:Type):Type {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.containingType = t;
+	}
+
+	static function setMapper(s:Symbol, m:TypeMapper):TypeMapper {
+		final x = forWrite(s, m == null);
+		return x == null ? m : x.mapper = m;
 	}
 }
 

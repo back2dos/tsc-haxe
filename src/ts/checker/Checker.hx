@@ -1486,7 +1486,7 @@ class Checker {
 	var propertiesTypes:StringMap<Type> /* key: checker.PropertiesTypesKey */ = null;
 	var diagnostics:DiagnosticsCollection = new DiagnosticsCollection();
 	var suggestionDiagnostics:DiagnosticsCollection = new DiagnosticsCollection();
-	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new ts.ast.Symbol.SymbolWithData());
+	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new TransientSymbol()); // PORT: perf — (see ValueSymbolLinks)
 	var signatureArena:Arena<Signature> = new Arena<Signature>(() -> new Signature());
 	var indexInfoArena:Arena<IndexInfo> = new Arena<IndexInfo>(() -> new IndexInfo());
 	var mergedExportsChecked:Set<Symbol> = new Set<Symbol>();

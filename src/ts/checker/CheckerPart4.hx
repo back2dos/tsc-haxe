@@ -2173,9 +2173,20 @@ class CheckerPart4 {
 		return Core.len(sourceFile.Diagnostics()) > 0;
 	}
 
+	// PORT: perf — a TransientSymbol (its value links as fields, see ValueSymbolLinks)
 	static function newSymbol(c:Checker, flags:SymbolFlags, name:std.String):Symbol {
 		c.SymbolCount++;
 		final result = c.symbolArena.New();
+		result.Flags = flags | SymbolFlagsTransient;
+		result.Name = name;
+		return result;
+	}
+
+	// a transient symbol whose value links are an entry of its links: a mapped or synthetic property's
+	// (SyntheticValueSymbolLinks, see ValueSymbolLinks)
+	static function newSymbolWithLinksEntry(c:Checker, flags:SymbolFlags, name:std.String):Symbol {
+		c.SymbolCount++;
+		final result = new SymbolWithData();
 		result.Flags = flags | SymbolFlagsTransient;
 		result.Name = name;
 		return result;
@@ -2228,7 +2239,7 @@ class CheckerPart4 {
 	}
 
 	static function newSymbolEx(c:Checker, flags:SymbolFlags, name:std.String, checkFlags:CheckFlags):Symbol {
-		final result = c.newSymbol(flags, name);
+		final result = (checkFlags & (CheckFlagsMapped | CheckFlagsSynthetic)) != 0 ? c.newSymbolWithLinksEntry(flags, name) : c.newSymbol(flags, name);
 		result.CheckFlags = checkFlags;
 		return result;
 	}
