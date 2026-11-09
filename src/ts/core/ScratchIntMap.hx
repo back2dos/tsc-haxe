@@ -17,7 +17,7 @@ class ScratchIntMap<T> {
 	var used:Int;
 	var mask:Int; // cap - 1
 
-	static inline final BIG = 1024;
+	static inline final BIG = 16384;
 
 	public function new() {
 		used = 0;

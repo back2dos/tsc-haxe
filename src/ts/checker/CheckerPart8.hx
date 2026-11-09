@@ -14,7 +14,9 @@ class CheckerPart8 {
 		}
 		final key = CachedTypeKey.keyOf(CachedTypeKindEquivalentBaseType, t.id);
 		if ((t.objectFlags & ObjectFlagsIdenticalBaseTypeCalculated) != 0) {
-			return c.cachedTypes.get(key);
+			// PORT: perf — (from tsrs) IdenticalBaseTypeExists (unused in Go) is set with the cache entry below: without
+			// it there is no entry, so no lookup
+			return (t.objectFlags & ObjectFlagsIdenticalBaseTypeExists) != 0 ? c.cachedTypes.get(key) : null;
 		}
 		t.objectFlags |= ObjectFlagsIdenticalBaseTypeCalculated;
 		final target = t.Target();
@@ -45,6 +47,7 @@ class CheckerPart8 {
 			instantiatedBase = c.getTypeWithThisArgument(instantiatedBase, Core.LastOrNil(c.getTypeArguments(t)), false);
 		}
 		c.cachedTypes.set(key, instantiatedBase);
+		t.objectFlags |= ObjectFlagsIdenticalBaseTypeExists;
 		return instantiatedBase;
 	}
 

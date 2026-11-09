@@ -3274,15 +3274,51 @@ class Checker {
 	static extern inline overload function containsType(types:haxe.ds.Vector<Type>, t:Type):Bool
 		return containsTypeV(types, t);
 
+	// PORT: perf — (from tsrs) a short list is scanned for the type itself first (CompareTypes is 0 only for the same
+	// type, so a found one is what the search finds); the search without a ValueOk
 	static function containsTypeV(types:haxe.ds.Vector<Type>, t:Type):Bool {
-		return Slices.BinarySearchFuncInline(types, t, (a, b) -> CompareTypes(a, b)) /* PORT: perf */.ok;
+		final n = types == null ? 0 : types.length;
+		if (n <= 8) {
+			for (i in 0...n) {
+				if (types[i] == t) {
+					return true;
+				}
+			}
+		}
+		var i = 0, j = n;
+		while (i < j) {
+			final h = (i + j) >>> 1;
+			if (CompareTypes(types[h], t) < 0) {
+				i = h + 1;
+			} else {
+				j = h;
+			}
+		}
+		return i < n && types[i] == t;
 	}
 
 	static extern inline overload function containsType(types:Array<Type>, t:Type):Bool
 		return containsTypeA(types, t);
 
 	static function containsTypeA(types:Array<Type>, t:Type):Bool {
-		return Slices.BinarySearchFuncInline(types, t, (a, b) -> CompareTypes(a, b)) /* PORT: perf */.ok;
+		final n = types == null ? 0 : types.length;
+		if (n <= 8) {
+			for (i in 0...n) {
+				if (types[i] == t) {
+					return true;
+				}
+			}
+		}
+		var i = 0, j = n;
+		while (i < j) {
+			final h = (i + j) >>> 1;
+			if (CompareTypes(types[h], t) < 0) {
+				i = h + 1;
+			} else {
+				j = h;
+			}
+		}
+		return i < n && types[i] == t;
 	}
 
 	static function insertType(types:Array<Type>, t:Type):ValueOk<Array<Type>> {
