@@ -87,24 +87,31 @@ class HashKeyMap<T> {
 		return find(n, a, b, c, d, mix(n, a, b, c, d)) >= 0;
 	}
 
-	public function set(k:String, v:T):Void {
+	public inline function set(k:String, v:T):Void {
+		setNew(k, v);
+	}
+
+	// set, and whether the key is new (PORT: perf — Go's len(m) before and after, in one lookup)
+	public function setNew(k:String, v:T):Bool {
 		final n = Str.len(k);
 		if (n > 8) {
 			if (long == null)
 				long = new haxe.ds.StringMap<T>();
+			final isNew = !long.exists(k);
 			long.set(k, v);
-			return;
+			return isNew;
 		}
 		final a = pair(k, n, 0), b = pair(k, n, 2), c = pair(k, n, 4), d = pair(k, n, 6);
 		final h = mix(n, a, b, c, d);
 		final e = find(n, a, b, c, d, h);
 		if (e >= 0) {
 			vals[e] = v;
-			return;
+			return false;
 		}
 		if (used >= (mask + 1) >> 1)
 			rebuild(mask < 0 ? 8 : 2 * (mask + 1));
 		add(n, a, b, c, d, h, v);
+		return true;
 	}
 
 	public function iterator():Iterator<T> {

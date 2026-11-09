@@ -148,10 +148,16 @@ class Relation {
 		if (results == null) {
 			results = new ts.core.HashKeyMap<RelationComparisonResult>();
 		}
+		#if (target.name == "hxmc")
+		if (results.setNew(key, result)) {
+			count++;
+		}
+		#else
 		if (!results.exists(key)) {
 			count++;
 		}
 		results.set(key, result);
+		#end
 	}
 
 	function size():Int {
@@ -843,8 +849,13 @@ class Relater {
 	static function isWeakType(c:Checker, t:Type):Bool {
 		if (t.flags & TypeFlagsObject != 0) {
 			final resolved = c.resolveStructuredTypeMembers(t);
-			return Core.len(resolved.signatures) == 0 && Core.len(resolved.indexInfos) == 0 && Core.len(c.getLayoutPropertiesOfType(t)) > 0
-				&& Core.Every(c.getLayoutPropertiesOfType(t), p -> p.Flags & SymbolFlagsOptional != 0); // PORT: layout properties (#64915)
+			if (Core.len(resolved.signatures) != 0 || Core.len(resolved.indexInfos) != 0) {
+				return false;
+			}
+			// PORT: layout properties (#64915); PORT: perf — read once (Go calls getLayoutPropertiesOfType twice, the
+			// second call returns the first's list)
+			final props = c.getLayoutPropertiesOfType(t);
+			return Core.len(props) > 0 && Core.Every(props, p -> p.Flags & SymbolFlagsOptional != 0);
 		}
 		if (t.flags & TypeFlagsSubstitution != 0) {
 			return c.isWeakType(t.AsSubstitutionType().baseType);
