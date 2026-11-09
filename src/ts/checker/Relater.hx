@@ -3280,7 +3280,7 @@ class Relater {
 			return TernaryFalse;
 		}
 		// If source and target are already being compared, consider them related with assumptions
-		if (maybeKeysSet.Has(id)) {
+		if (maybeStackHas(id)) {
 			return TernaryMaybe;
 		}
 		// A constrained key indicates that we have type references that reference constrained
@@ -3288,7 +3288,7 @@ class Relater {
 		// were unconstrained.
 		if (constrained) {
 			final broadestEquivalentId = Checker.getRelationKey(source, target, intersectionState, relation == c.identityRelation, true /*ignoreConstraints*/);
-			if (maybeKeysSet.Has(Relation.keyString(broadestEquivalentId))) {
+			if (maybeStackHas(Relation.keyString(broadestEquivalentId))) {
 				return TernaryMaybe;
 			}
 		}
@@ -3302,8 +3302,7 @@ class Relater {
 			maybeKeys = [];
 		}
 		final maybeStart = maybeKeys.length;
-		maybeKeys.push(id);
-		maybeKeysSet.Add(id);
+		maybeStackPush(id);
 		final saveExpandingFlags = expandingFlags;
 		if (recursionFlags & RecursionFlagsSource != 0) {
 			if (sourceStack == null) {
@@ -3384,14 +3383,46 @@ class Relater {
 	}
 
 	function resetMaybeStack(maybeStart:Int, propagatingVarianceFlags:RelationComparisonResult, markAllAsSucceeded:Bool):Void {
-		for (i in maybeStart...maybeKeys.length) {
-			maybeKeysSet.Delete(maybeKeys[i]);
-			if (markAllAsSucceeded) {
+		final len = maybeKeys.length;
+		if (markAllAsSucceeded) {
+			for (i in maybeStart...len) {
 				relation.setByKey(maybeKeys[i], RelationComparisonResultSucceeded | propagatingVarianceFlags);
 				relationCount--;
 			}
 		}
+		// PORT: perf — maybeKeysSet mirrors the stack only while it is longer than MAYBE_STACK_SCAN_MAX
+		if (maybeStart <= MAYBE_STACK_SCAN_MAX) {
+			if (len > MAYBE_STACK_SCAN_MAX) {
+				maybeKeysSet.Clear();
+			}
+		} else {
+			for (i in maybeStart...len) {
+				maybeKeysSet.Delete(maybeKeys[i]);
+			}
+		}
 		maybeKeys.resize(maybeStart);
+	}
+
+	// PORT: perf — (from tsrs) the maybe stack is searched by a scan while it has at most MAYBE_STACK_SCAN_MAX keys
+	// (nearly always), through maybeKeysSet (Go always uses the set) beyond; the set is kept only while the stack is
+	// longer (no set entries made and dropped per relation)
+	static inline final MAYBE_STACK_SCAN_MAX = 32;
+
+	inline function maybeStackHas(key:std.String):Bool {
+		final keys = maybeKeys;
+		return keys == null ? false : keys.length <= MAYBE_STACK_SCAN_MAX ? keys.indexOf(key) >= 0 : maybeKeysSet.Has(key);
+	}
+
+	function maybeStackPush(key:std.String):Void {
+		final keys = maybeKeys;
+		keys.push(key);
+		if (keys.length == MAYBE_STACK_SCAN_MAX + 1) {
+			for (k in keys) {
+				maybeKeysSet.Add(k);
+			}
+		} else if (keys.length > MAYBE_STACK_SCAN_MAX) {
+			maybeKeysSet.Add(key);
+		}
 	}
 
 	function getErrorState():ErrorState {
