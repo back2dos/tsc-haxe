@@ -23,20 +23,34 @@ class ModuleResolutionCacheKey {
 	public function key():String {
 		return containingDirectory + "\x00" + moduleName + "\x00" + (resolutionMode : Int) + "\x00" + redirectConfigName;
 	}
+
+	// the key in the map of the containing directory (ModuleResolutionCache): the module name when there is no mode or
+	// redirect (such a name never starts with U+0000), else all three after a U+0000
+	public function keyInDirectory():String {
+		return (resolutionMode : Int) == 0 && redirectConfigName == "" && !StringTools.startsWith(moduleName, "\x00") ? moduleName : "\x00" + moduleName
+			+ "\x00" + (resolutionMode : Int) + "\x00" + redirectConfigName;
+	}
 }
 
+// PORT: perf — a map per containing directory: no key string with the directory per lookup (key(): t3code-server
+// made 38 MB of these strings while loading the program, one or two per import)
 class ModuleResolutionCache {
-	final cache:SyncMap<String, ResolvedModule> = new SyncMap<String, ResolvedModule>();
+	final cache:SyncMap<String, SyncMap<String, ResolvedModule>> = new SyncMap<String, SyncMap<String, ResolvedModule>>();
 
 	public function new() {}
 
 	// PORT: (*ResolvedModule, bool) → ValueOk.
 	public function Get(key:ModuleResolutionCacheKey):ValueOk<ResolvedModule> {
-		return this.cache.Load(key.key());
+		final d = this.cache.Load(key.containingDirectory);
+		return d.ok ? d.value.Load(key.keyInDirectory()) : new ValueOk<ResolvedModule>(null, false);
 	}
 
 	public function Set(key:ModuleResolutionCacheKey, value:ResolvedModule):Void {
-		this.cache.LoadOrStore(key.key(), value);
+		var d = this.cache.Load(key.containingDirectory);
+		if (!d.ok) {
+			d = this.cache.LoadOrStore(key.containingDirectory, new SyncMap<String, ResolvedModule>());
+		}
+		d.value.LoadOrStore(key.keyInDirectory(), value);
 	}
 }
 
