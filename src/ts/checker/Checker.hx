@@ -2643,6 +2643,10 @@ class Checker {
 		return getUnionKeyV(types, origin, alias);
 
 	static function getUnionKeyA(types:Array<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
+		#if (target.name == "hxmc")
+		if (origin == null && alias == null && Core.len(types) <= 3)
+			return new CacheHashKey(packedTypesKeyA(5, 0, types));
+		#end
 		final b = new KeyBuilder();
 		if (origin == null) {
 			b.writeTypes(types);
@@ -2666,6 +2670,10 @@ class Checker {
 	}
 
 	static function getUnionKeyV(types:haxe.ds.Vector<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
+		#if (target.name == "hxmc")
+		if (origin == null && alias == null && Core.len(types) <= 3)
+			return new CacheHashKey(packedTypesKeyV(5, 0, types));
+		#end
 		final b = new KeyBuilder();
 		if (origin == null) {
 			b.writeTypes(types);
@@ -2689,6 +2697,11 @@ class Checker {
 	}
 
 	static function getIntersectionKey(types:Array<Type>, flags:IntersectionFlags, alias:TypeAlias):CacheHashKey {
+		#if (target.name == "hxmc")
+		final noReduction = flags & IntersectionFlagsNoConstraintReduction != 0;
+		if ((alias == null || noReduction) && Core.len(types) <= 3)
+			return new CacheHashKey(packedTypesKeyA(6, noReduction ? 1 : 0, types));
+		#end
 		final b = new KeyBuilder();
 		b.writeTypes(types);
 		if (flags & IntersectionFlagsNoConstraintReduction == 0) {
@@ -2742,6 +2755,10 @@ class Checker {
 	}
 
 	static function getIndexedAccessKey(objectType:Type, indexType:Type, accessFlags:AccessFlags, alias:TypeAlias):CacheHashKey {
+		#if (target.name == "hxmc")
+		if (alias == null)
+			return new CacheHashKey(packedIdsKey(4, objectType.id, indexType.id, accessFlags));
+		#end
 		final b = new KeyBuilder();
 		b.writeType(objectType);
 		b.writeType(indexType);
@@ -2821,7 +2838,8 @@ class Checker {
 
 	#if (target.name == "hxmc")
 	// PORT: perf — (from tsrs, checker_09.rs) the key of at most 3 types without an alias: a header unit (0xF000, the
-	// key's family (1 type list, 2 type instantiation, 3 conditional type), its flag and the count) and each id as two
+	// key's family (1 type list, 2 type instantiation, 3 conditional type, 4 indexed access, 5 union, 6
+	// intersection), its flag and the count) and each id as two
 	// units, 1 to 7 units: never equal to a hashed key (KeyHasher.Sum: 8 units), equal to another packed key exactly
 	// when family, flag and ids are; no hasher and no hashing
 	static function packedTypesKeyA(family:Int, flag:Int, types:Array<Type>):std.String {
@@ -2838,6 +2856,27 @@ class Checker {
 			d.set(2 + 2 * i, id >>> 16);
 			x = (x ^ (id >>> 16)) * 16777619;
 		}
+		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
+		return s;
+	}
+
+	// (the same layout: three ints a, b, c as the "ids", count 3)
+	static function packedIdsKey(family:Int, a:Int, b:Int, c:Int):std.String {
+		final s = hxmc.rt.Str.make2(7);
+		final d = hxmc.rt.Str.chars2(s);
+		final h0 = 0xF000 | (family << 8) | 3;
+		d.set(0, h0);
+		var x = (0x811C9DC5 ^ h0) * 16777619;
+		inline function put(i:Int, u:Int) {
+			d.set(i, u);
+			x = (x ^ u) * 16777619;
+		}
+		put(1, a & 0xFFFF);
+		put(2, a >>> 16);
+		put(3, b & 0xFFFF);
+		put(4, b >>> 16);
+		put(5, c & 0xFFFF);
+		put(6, c >>> 16);
 		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
 		return s;
 	}
