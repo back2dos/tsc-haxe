@@ -1673,6 +1673,9 @@ class Checker {
 	var globalFunctionType:Type = null;
 	var globalCallableFunctionType:Type = null;
 	var globalNewableFunctionType:Type = null;
+	#if (target.name == "hxmc")
+	var fallbackMemberFilter:haxe.ds.Vector<Int> = null; // PORT: perf (see CheckerPart5.mayBeFallbackMember)
+	#end
 	var globalArrayType:Type = null;
 	var globalReadonlyArrayType:Type = null;
 	var globalStringType:Type = null;

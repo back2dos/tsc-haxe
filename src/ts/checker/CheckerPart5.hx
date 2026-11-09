@@ -2676,21 +2676,25 @@ class CheckerPart5 {
 			if (skipObjectFunctionPropertyAugment) {
 				return null;
 			}
-			var functionType:Type = null;
-			if (t == c.anyFunctionType) {
-				functionType = c.globalFunctionType;
-			} else if (Core.len(resolved.CallSignatures()) != 0) {
-				functionType = c.globalCallableFunctionType;
-			} else if (Core.len(resolved.ConstructSignatures()) != 0) {
-				functionType = c.globalNewableFunctionType;
-			}
-			if (functionType != null) {
-				symbol = c.getPropertyOfObjectType(functionType, name);
-				if (symbol != null) {
-					return symbol;
+			#if (target.name == "hxmc")
+			// PORT: perf — (from tsrs, notes/perf-symbol-map-lookups.md) a name that is a member of none of the global
+			// Function, CallableFunction, NewableFunction and Object types (a Bloom filter of their member names, built
+			// once all four have their members resolved) finds nothing below: the two lookups would miss, and with
+			// those types resolved they have no effects
+			// (TSHX_FALLBACK_FILTER=0 turns it off; =shadow looks the name up below anyway and exits (99) if it is found)
+			final mode = fallbackFilterMode();
+			if (mode != 0 && !c.mayBeFallbackMember(name)) {
+				if (mode == 2) {
+					final found = c.getFallbackProperty(t, resolved, name);
+					if (found != null) {
+						Sys.stderr().writeString("tshx: fallback member filter: '" + name + "' rejected but found\n");
+						Sys.exit(99);
+					}
 				}
+				return null;
 			}
-			return c.getPropertyOfObjectType(c.globalObjectType, name);
+			#end
+			return c.getFallbackProperty(t, resolved, name);
 		} else if ((t.flags & TypeFlagsIntersection) != 0) {
 			final prop = c.getPropertyOfUnionOrIntersectionType(t, name, true /*skipObjectFunctionPropertyAugment*/);
 			if (prop != null) {
@@ -2705,6 +2709,92 @@ class CheckerPart5 {
 		}
 		return null;
 	}
+
+	// the property of an object type t (resolved: its resolved members) that its own members lack: of the global
+	// Function, CallableFunction or NewableFunction type, then of Object
+	static function getFallbackProperty(c:Checker, t:Type, resolved:StructuredType, name:std.String):Symbol {
+		var functionType:Type = null;
+		if (t == c.anyFunctionType) {
+			functionType = c.globalFunctionType;
+		} else if (Core.len(resolved.CallSignatures()) != 0) {
+			functionType = c.globalCallableFunctionType;
+		} else if (Core.len(resolved.ConstructSignatures()) != 0) {
+			functionType = c.globalNewableFunctionType;
+		}
+		if (functionType != null) {
+			final symbol = c.getPropertyOfObjectType(functionType, name);
+			if (symbol != null) {
+				return symbol;
+			}
+		}
+		return c.getPropertyOfObjectType(c.globalObjectType, name);
+	}
+
+	#if (target.name == "hxmc")
+	static var fallbackFilterModeValue = -1;
+
+	// 1: the filter on (default), 0: off (TSHX_FALLBACK_FILTER=0), 2: shadow (=shadow)
+	static inline function fallbackFilterMode():Int {
+		var m = fallbackFilterModeValue;
+		if (m < 0) {
+			final v = Sys.getEnv("TSHX_FALLBACK_FILTER");
+			m = fallbackFilterModeValue = v == "0" || v == "off" ? 0 : v == "shadow" ? 2 : 1;
+		}
+		return m;
+	}
+
+	// whether name may be a member of the global Function, CallableFunction, NewableFunction or Object type (true
+	// while one of them has its members unresolved)
+	static inline function mayBeFallbackMember(c:Checker, name:std.String):Bool {
+		final f = c.fallbackMemberFilter;
+		return f == null ? c.buildFallbackMemberFilter(name) : fallbackFilterHas(f, @:privateAccess hxmc.rt.Str.hash(name));
+	}
+
+	static inline function fallbackFilterHas(f:haxe.ds.Vector<Int>, h:Int):Bool {
+		final b1 = (h >>> 24) & 255, b2 = (h >>> 16) & 255;
+		return (f[b1 >>> 5] & (1 << (b1 & 31))) != 0 && (f[b2 >>> 5] & (1 << (b2 & 31))) != 0;
+	}
+
+	static inline function fallbackFilterAdd(f:haxe.ds.Vector<Int>, name:std.String):Void {
+		final h = @:privateAccess hxmc.rt.Str.hash(name);
+		final b1 = (h >>> 24) & 255, b2 = (h >>> 16) & 255;
+		f[b1 >>> 5] |= 1 << (b1 & 31);
+		f[b2 >>> 5] |= 1 << (b2 & 31);
+	}
+
+	static function buildFallbackMemberFilter(c:Checker, name:std.String):Bool {
+		final globals = [c.globalFunctionType, c.globalCallableFunctionType, c.globalNewableFunctionType, c.globalObjectType];
+		for (g in globals) {
+			if (g == null || (g.flags & TypeFlagsObject) != 0 && (g.objectFlags & ObjectFlagsMembersResolved) == 0) {
+				return true;
+			}
+		}
+		final f = new haxe.ds.Vector<Int>(8);
+		for (i in 0...8) {
+			f[i] = 0;
+		}
+		for (g in globals) {
+			if ((g.flags & TypeFlagsObject) == 0) {
+				continue;
+			}
+			final st:StructuredType = cast g;
+			final members = st.members;
+			if (members != null) {
+				for (k in members.keys()) {
+					fallbackFilterAdd(f, k);
+				}
+			}
+			final lazy = st.getLazyState();
+			if (lazy != null) {
+				for (k in lazy.layout.index.keys()) {
+					fallbackFilterAdd(f, k);
+				}
+			}
+		}
+		c.fallbackMemberFilter = f;
+		return fallbackFilterHas(f, @:privateAccess hxmc.rt.Str.hash(name));
+	}
+	#end
 
 	// Return the type of the given property in the given type, or nil if no such property exists
 	static function getTypeOfPropertyOfType(c:Checker, t:Type, name:std.String):Type {
@@ -3131,6 +3221,11 @@ class CheckerPart5 {
 			// members partially resolved. Here we ensure any such partial resolution is reset.
 			// See https://github.com/microsoft/TypeScript/issues/16861 for an example.
 			t.objectFlags &= ~ObjectFlagsMembersResolved;
+			#if (target.name == "hxmc")
+			if (t == c.globalFunctionType || t == c.globalCallableFunctionType || t == c.globalNewableFunctionType || t == c.globalObjectType) {
+				c.fallbackMemberFilter = null; // (built again once its members are resolved again)
+			}
+			#end
 			data.baseTypesResolved = true;
 		}
 		return data.resolvedBaseTypes;
