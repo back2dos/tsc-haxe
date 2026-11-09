@@ -223,11 +223,13 @@ class SymbolExtra {
 //   EmptySymbolTable.instance a non-nil empty table (Go make(SymbolTable)), shared
 //   a Symbol                  one entry, the symbol under its Name
 //   SymbolTable2/SymbolTable3 two or three entries under their Names, in insertion order (immutable)
-//   StringMap<Symbol>         four or more entries, or a table with an entry whose key is not its symbol's Name
-//                             (module augmentation merges through aliases, the node builder's renamed type
-//                             parameters, ...; measured with -D symtab_check, see commit 40f0d2b) (mutable)
+//   SymbolTableN              (hxmc) four or more entries under their Names, no key array (mutable)
+//   StringMap<Symbol>         a table with an entry whose key is not its symbol's Name (module augmentation merges
+//                             through aliases, the node builder's renamed type parameters, ...; measured with
+//                             -D symtab_check, see commit 40f0d2b), a shared table (newShared), or on the other
+//                             targets four or more entries (mutable)
 // Reads keep StringMap's API. A write returns the table to store: `owner.table = owner.table.with(symbol)`. The small
-// forms make a new object, the map changes in place and returns itself, so every write stores its result where
+// forms make a new object, the big ones change in place and returns itself, so every write stores its result where
 // the table lives (Go writes a map that every holder shares). A replaced entry keeps its position; iteration is in
 // insertion order (TypeScript main #64979); a loop over a table sees the entries it had when the loop started.
 abstract SymbolTable(Dynamic) {
@@ -240,14 +242,6 @@ abstract SymbolTable(Dynamic) {
 	// see change (Go: every holder of a map shares it); its writes still store their result
 	public static inline function newShared():SymbolTable {
 		return cast new StringMap<Symbol>();
-	}
-
-	inline function isMap():Bool {
-		return Std.isOfType(this, StringMap);
-	}
-
-	inline function map():StringMap<Symbol> {
-		return cast this;
 	}
 
 	public inline function get(k:String):Symbol {
@@ -277,9 +271,9 @@ abstract SymbolTable(Dynamic) {
 		return this == null ? null : SymbolTableImpl.without(this, k);
 	}
 
-	// Go maps.Clone: a map is copied, the immutable small forms are shared
+	// Go maps.Clone: a big table is copied, the immutable small forms are shared
 	public inline function copy():SymbolTable {
-		return isMap() ? (map().copy() : Dynamic) : this;
+		return this == null ? null : SymbolTableImpl.copy(this);
 	}
 
 	public inline function iterator():SymbolTableIterator {
@@ -362,6 +356,13 @@ class SymbolTableImpl {
 			}
 			return null;
 		}
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (Std.isOfType(t, SymbolTableN)) {
+			final tn:SymbolTableN = cast t;
+			final j = tn.find(k);
+			return j < 0 ? null : tn.syms[j];
+		}
+		#end
 		if (Std.isOfType(t, StringMap)) {
 			return (cast t : StringMap<Symbol>).get(k);
 		}
@@ -382,13 +383,30 @@ class SymbolTableImpl {
 		if (Std.isOfType(t, SymbolTable2)) {
 			return Std.isOfType(t, SymbolTable3) ? 3 : 2;
 		}
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (Std.isOfType(t, SymbolTableN)) {
+			return (cast t : SymbolTableN).n;
+		}
+		#end
 		if (Std.isOfType(t, StringMap)) {
 			return (cast t : StringMap<Symbol>).size();
 		}
 		return 0;
 	}
 
-	// the i-th symbol of a table that is not a map (i < size)
+	public static function copy(t:Dynamic):Dynamic {
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (Std.isOfType(t, SymbolTableN)) {
+			return (cast t : SymbolTableN).copy();
+		}
+		#end
+		if (Std.isOfType(t, StringMap)) {
+			return (cast t : StringMap<Symbol>).copy();
+		}
+		return t;
+	}
+
+	// the i-th symbol of a small table (a Symbol, SymbolTable2 or SymbolTable3; i < size)
 	public static inline function smallAt(t:Dynamic, i:Int):Symbol {
 		return if (Std.isOfType(t, Symbol)) {
 			cast t;
@@ -419,12 +437,22 @@ class SymbolTableImpl {
 			if (c.Name == k) {
 				return new SymbolTable3(a, b, s);
 			}
+			#if (target.name == "hxmc" && !hxmc.wasm_gc)
+			final m = new SymbolTableN(4);
+			m.syms[0] = a;
+			m.syms[1] = b;
+			m.syms[2] = c;
+			m.syms[3] = s;
+			m.n = 4;
+			return m;
+			#else
 			final m = new StringMap<Symbol>();
 			m.set(a.Name, a);
 			m.set(b.Name, b);
 			m.set(c.Name, c);
 			m.set(k, s);
 			return m;
+			#end
 		}
 		if (Std.isOfType(t, SymbolTable2)) {
 			final t2:SymbolTable2 = cast t;
@@ -437,6 +465,12 @@ class SymbolTableImpl {
 			}
 			return new SymbolTable3(a, b, s);
 		}
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (Std.isOfType(t, SymbolTableN)) {
+			(cast t : SymbolTableN).put(s);
+			return t;
+		}
+		#end
 		final m:StringMap<Symbol> = cast t;
 		m.set(k, s);
 		return m;
@@ -457,9 +491,9 @@ class SymbolTableImpl {
 			return cast t;
 		}
 		final m = new StringMap<Symbol>();
-		final n = t == null ? 0 : size(t);
-		for (i in 0...n) {
-			final s = smallAt(t, i);
+		final it = new SymbolTableIterator(t, 0);
+		while (it.hasNext()) {
+			final s = it.next();
 			m.set(s.Name, s);
 		}
 		return m;
@@ -470,6 +504,12 @@ class SymbolTableImpl {
 			(cast t : StringMap<Symbol>).remove(k);
 			return t;
 		}
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (Std.isOfType(t, SymbolTableN)) {
+			(cast t : SymbolTableN).remove(k);
+			return t;
+		}
+		#end
 		final n = size(t);
 		var r:Dynamic = new SymbolTable();
 		for (i in 0...n) {
@@ -482,12 +522,140 @@ class SymbolTableImpl {
 	}
 }
 
-// for (symbol in table): the symbols in insertion order (of a map: a snapshot of its values). `mode` (a constant):
-// 0 the values, 1 the keys, 2 both (`key` is the key of the last value)
+#if (target.name == "hxmc" && !hxmc.wasm_gc)
+// PORT: memory — four or more entries under their names (hxmc): the symbols in insertion order (no key array: the
+// key is the symbol's Name) and, past 8 entries, an open-addressing table of their indices + 1 by the name's cached
+// hash (a power of two, at most half full), as checker.MemberLayout. Changes in place.
+@:allow(ts.ast)
+class SymbolTableN {
+	var syms:haxe.ds.Vector<Symbol>;
+	var n:Int;
+	var slots:haxe.ds.Vector<Int>;
+
+	public function new(cap:Int) {
+		syms = new haxe.ds.Vector<Symbol>(cap);
+		n = 0;
+		slots = null;
+	}
+
+	static inline function hashOf(name:String):Int {
+		final h = hxmc.rt.Str.strHash(name) * 0x9E3779B1;
+		return h ^ (h >>> 16);
+	}
+
+	public inline function find(k:String):Int {
+		final s = slots;
+		var r = -1;
+		if (s == null) {
+			final a = syms;
+			var i = 0;
+			while (i < n) {
+				if (a[i].Name == k) {
+					r = i;
+					break;
+				}
+				i++;
+			}
+		} else {
+			final mask = s.length - 1;
+			var i = hashOf(k) & mask;
+			while (true) {
+				final e = s[i];
+				if (e == 0) {
+					break;
+				}
+				if (syms[e - 1].Name == k) {
+					r = e - 1;
+					break;
+				}
+				i = (i + 1) & mask;
+			}
+		}
+		return r;
+	}
+
+	// s under its name: replaced in place, or appended
+	public function put(s:Symbol):Void {
+		final j = find(s.Name);
+		if (j >= 0) {
+			syms[j] = s;
+			return;
+		}
+		if (n == syms.length) {
+			final a = new haxe.ds.Vector<Symbol>(n + (n >> 1));
+			haxe.ds.Vector.blit(syms, 0, a, 0, n);
+			syms = a;
+		}
+		syms[n] = s;
+		n++;
+		final sl = slots;
+		if (sl == null) {
+			if (n > 8) {
+				reindex();
+			}
+		} else if (2 * n > sl.length) {
+			reindex();
+		} else {
+			final mask = sl.length - 1;
+			var i = hashOf(s.Name) & mask;
+			while (sl[i] != 0) {
+				i = (i + 1) & mask;
+			}
+			sl[i] = n;
+		}
+	}
+
+	function reindex():Void {
+		var cap = 32;
+		while (cap < 2 * n) {
+			cap <<= 1;
+		}
+		final sl = new haxe.ds.Vector<Int>(cap);
+		final mask = cap - 1;
+		for (j in 0...n) {
+			var i = hashOf(syms[j].Name) & mask;
+			while (sl[i] != 0) {
+				i = (i + 1) & mask;
+			}
+			sl[i] = j + 1;
+		}
+		slots = sl;
+	}
+
+	public function remove(k:String):Void {
+		final j = find(k);
+		if (j < 0) {
+			return;
+		}
+		haxe.ds.Vector.blit(syms, j + 1, syms, j, n - j - 1);
+		n--;
+		syms[n] = null;
+		if (slots != null) {
+			reindex();
+		}
+	}
+
+	public function copy():SymbolTableN {
+		final t = new SymbolTableN(n);
+		haxe.ds.Vector.blit(syms, 0, t.syms, 0, n);
+		t.n = n;
+		if (slots != null) {
+			t.slots = slots.copy();
+		}
+		return t;
+	}
+}
+#end
+
+// for (symbol in table): the symbols in insertion order (of a big table: those it had when the loop started). `mode`
+// (a constant): 0 the values, 1 the keys, 2 both (`key` is the key of the last value)
 class SymbolTableIterator {
 	final t:Dynamic;
 	final big:Array<Symbol>;
 	final bigKeys:Array<String>;
+	#if (target.name == "hxmc" && !hxmc.wasm_gc)
+	final nsyms:haxe.ds.Vector<Symbol>;
+	#end
 	final n:Int;
 	final mode:Int;
 	var i:Int;
@@ -499,7 +667,22 @@ class SymbolTableIterator {
 		this.mode = mode;
 		i = 0;
 		key = null;
-		if (t != null && Std.isOfType(t, StringMap)) {
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		nsyms = null;
+		#end
+		if (t == null) {
+			bigKeys = null;
+			big = null;
+			n = 0;
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		} else if (Std.isOfType(t, SymbolTableN)) {
+			bigKeys = null;
+			big = null;
+			final tn:SymbolTableN = cast t;
+			nsyms = tn.syms;
+			n = tn.n;
+		#end
+		} else if (Std.isOfType(t, StringMap)) {
 			final m:StringMap<Symbol> = cast t;
 			bigKeys = mode != 0 ? go.ForIn.StringKeys(m) : null;
 			big = mode != 1 ? go.ForIn.StringValues(m) : null;
@@ -507,7 +690,7 @@ class SymbolTableIterator {
 		} else {
 			bigKeys = null;
 			big = null;
-			n = t == null ? 0 : SymbolTableImpl.size(t);
+			n = SymbolTableImpl.size(t);
 		}
 	}
 
@@ -517,20 +700,29 @@ class SymbolTableIterator {
 
 	public inline function next():Symbol {
 		final j = i++;
+		var s:Symbol;
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		if (nsyms != null) {
+			s = nsyms[j];
+			if (mode != 0) {
+				key = s.Name;
+			}
+			return s;
+		}
+		#end
 		if (bigKeys != null || big != null) {
 			if (mode != 0) {
 				key = bigKeys[j];
 			}
 			return mode != 1 ? big[j] : null;
 		}
-		final s = SymbolTableImpl.smallAt(t, j);
+		s = SymbolTableImpl.smallAt(t, j);
 		if (mode != 0) {
 			key = s.Name;
 		}
 		return s;
 	}
 }
-
 class SymbolTableKeyIterator {
 	final it:SymbolTableIterator;
 

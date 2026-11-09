@@ -4084,11 +4084,7 @@ class CheckerPart8 {
 		if (table == null) {
 			return 0;
 		}
-		var n = 0;
-		for (_ in table.keys()) {
-			n++;
-		}
-		return n;
+		return table.size();
 	}
 	
 	// PORT: Go TypeSystemEntity is `any`; the skeleton's empty interface is not declared by Symbol/Type/Signature,

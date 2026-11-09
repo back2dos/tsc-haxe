@@ -536,7 +536,7 @@ class NodebuilderHover {
 				// If the function also has namespace characteristics, emit an empty namespace.
 				final merged = b.ch.getMergedSymbol(resolved);
 				final hasModuleExports = merged.Flags & (SymbolFlagsValueModule | SymbolFlagsNamespaceModule) != 0 && merged.Exports != null
-					&& merged.Exports.keys().hasNext();
+					&& merged.Exports.size() != 0;
 				if (!hasModuleExports) {
 					bodyNodes.push(b.f.NewModuleDeclaration(null, KindNamespaceKeyword, b.f.NewIdentifier(m.Name), null /*attributes*/, b.f.NewModuleBlock(b.f.NewNodeList(null))));
 					bodyIsLocal.push(false);

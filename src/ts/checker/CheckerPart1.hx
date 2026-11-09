@@ -363,7 +363,7 @@ class CheckerPart1 {
 					c.patternAmbientModuleAugmentationTargets = c.patternAmbientModuleAugmentationTargets.withKey(moduleName.Text(), mainModule);
 				} else {
 					if (mainModule.Exports != null && mainModule.Exports.get(Ast.InternalSymbolNameExportStar) != null
-						&& moduleAugmentation.Symbol.Exports != null && moduleAugmentation.Symbol.Exports.keys().hasNext()) {
+						&& moduleAugmentation.Symbol.Exports != null && moduleAugmentation.Symbol.Exports.size() != 0) {
 						// We may need to merge the module augmentation's exports into the target symbols of the resolved exports
 						final resolvedExports = c.getResolvedMembersOrExportsOfSymbol(mainModule, MembersOrExportsResolutionKindResolvedExports);
 						for (key => value in moduleAugmentation.Symbol.Exports) {
@@ -2786,7 +2786,7 @@ class CheckerPart1 {
 			c.checkSourceElements(node.Statements());
 		}
 		final locals = node.Locals();
-		if (locals != null && locals.keys().hasNext()) {
+		if (locals != null && locals.size() != 0) {
 			c.registerForUnusedIdentifiersCheck(node);
 		}
 	}

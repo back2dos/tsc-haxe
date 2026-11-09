@@ -1490,7 +1490,7 @@ class Jsx {
 
 	// PORT: Go `len(table) != 0` on an ast.SymbolTable.
 	static inline function symbolTableHasEntries(table:SymbolTable):Bool {
-		return table != null && table.keys().hasNext();
+		return table != null && table.size() != 0;
 	}
 
 	// PORT: Go `append(s, t)` on a possibly-nil []*Type owned by the caller.

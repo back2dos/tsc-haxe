@@ -4815,11 +4815,7 @@ class CheckerPart7 {
 		if (table == null) {
 			return 0;
 		}
-		var n = 0;
-		for (_ in table) {
-			n++;
-		}
-		return n;
+		return table.size();
 	}
 
 	// PORT: Go math.MaxInt (int is 32-bit here, PORTING.md §3).

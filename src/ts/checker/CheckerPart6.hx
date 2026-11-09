@@ -4253,11 +4253,7 @@ class CheckerPart6 {
 		if (table == null) {
 			return 0;
 		}
-		var n = 0;
-		for (_ in table) {
-			n++;
-		}
-		return n;
+		return table.size();
 	}
 
 	// PORT: Go `maps.Clone` of an ast.SymbolTable: nil stays nil.

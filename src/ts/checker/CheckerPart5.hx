@@ -4189,11 +4189,7 @@ class CheckerPart5 {
 		if (table == null) {
 			return 0;
 		}
-		var n = 0;
-		for (_ in table.keys()) {
-			n++;
-		}
-		return n;
+		return table.size();
 	}
 	
 	// PORT: Go `append(s, x)` on a possibly-nil []*ast.Node owned by the caller.

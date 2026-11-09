@@ -1171,7 +1171,7 @@ class CheckerPart4 {
 
 	static function checkObjectLiteral(c:Checker, node:Node, checkMode:CheckMode):Type {
 		// Expando object literals have empty properties but filled exports
-		if (Core.len(node.Properties()) == 0 && node.Symbol() != null && node.Symbol().Exports != null && node.Symbol().Exports.keys().hasNext()) {
+		if (Core.len(node.Properties()) == 0 && node.Symbol() != null && node.Symbol().Exports != null && node.Symbol().Exports.size() != 0) {
 			final result = c.newAnonymousType(node.Symbol(), node.Symbol().Exports, null, null, null);
 			if (Ast.IsInJSFile(node) && !Ast.IsInJsonFile(node)) {
 				result.objectFlags |= ObjectFlagsJSLiteral;
@@ -4415,11 +4415,7 @@ class CheckerPart4 {
 		if (table == null) {
 			return 0;
 		}
-		var n = 0;
-		for (_ in table) {
-			n++;
-		}
-		return n;
+		return table.size();
 	}
 	
 	// PORT: *ast.SourceFile passed where Go converts it to ast.HasFileName (structural interface);
