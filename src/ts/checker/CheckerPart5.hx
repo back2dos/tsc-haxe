@@ -3125,7 +3125,7 @@ class CheckerPart5 {
 		final index = new StringMap<Int>();
 		final baseIndices = new VectorBuilder<Int>();
 		inline function addMember(symbol:Symbol, baseIndex:Int) {
-			if (!index.exists(symbol.Name)) {
+			if (index.get(symbol.Name) == null) {
 				index.set(symbol.Name, symbols.length);
 				symbols.push(symbol);
 				baseIndices.push(baseIndex);
@@ -3134,6 +3134,9 @@ class CheckerPart5 {
 		// Add declared members
 		final declaredMembers = t.AsInterfaceType().declaredMembers;
 		if (declaredMembers != null) {
+			#if (target.name == "hxmc")
+			index.reserve(symbolTableLen(declaredMembers)); // PORT: perf — the table sized for the declared members
+			#end
 			for (id => symbol in declaredMembers) {
 				if (c.isNamedMember(symbol, id)) {
 					addMember(symbol, -1);
@@ -3146,6 +3149,9 @@ class CheckerPart5 {
 				final baseType = baseTypes[baseIndex];
 				if ((baseType.objectFlags & (ObjectFlagsReference | ObjectFlagsClassOrInterface)) != 0) {
 					c.resolveStructuredTypeMembers(baseType);
+					#if (target.name == "hxmc")
+					index.reserve(symbols.length + Core.len(baseType.AsTypeReference().lazy.layout.symbols)); // PORT: perf — and the base's
+					#end
 					for (symbol in baseType.AsTypeReference().lazy.layout.symbols) {
 						if (!Checker.isStaticPrivateIdentifierProperty(symbol)) {
 							addMember(symbol, baseIndex);
