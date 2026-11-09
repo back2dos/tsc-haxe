@@ -319,6 +319,12 @@ class Relater {
 		if (source == target) {
 			return true;
 		}
+		// PORT: perf — (from tsrs) two different regular literals of one kind (not enum members) are related by no
+		// relation: narrowing a union of literals by a literal asks this of every constituent
+		final flags = source.flags;
+		if (flags == target.flags && (flags == TypeFlagsStringLiteral || flags == TypeFlagsNumberLiteral || flags == TypeFlagsBigIntLiteral)) {
+			return false;
+		}
 		if (relation != c.identityRelation) {
 			if (relation == c.comparableRelation && target.flags & TypeFlagsNever == 0 && c.isSimpleTypeRelatedTo(target, source, relation, null)
 				|| c.isSimpleTypeRelatedTo(source, target, relation, null)) {
