@@ -47,8 +47,29 @@ class Strings {
 	// for supplementary characters against U+E000..U+FFFF, so compare code points at the first
 	// difference. Lone surrogates compare as their own value (Go WTF-8 bytes sort the same way).
 	public static function Compare(a:String, b:String):Int {
+		// PORT: perf — on hxmc only the identity test first: a == b compares the units of two equal-length strings,
+		// which the loop below compares anyway (equal strings end in the length test)
+		#if (target.name == "hxmc")
+		if (hxmc.rt.Repr.same(a, b))
+			return 0;
+		// two one-byte (Latin-1) strings: no surrogates and no U+FFFE, so code-point order is unit order
+		if (hxmc.rt.Str.isOne(a) && hxmc.rt.Str.isOne(b)) {
+			final ua = hxmc.rt.Str.chars1(a), ub = hxmc.rt.Str.chars1(b);
+			final la = hxmc.rt.Str.len(a), lb = hxmc.rt.Str.len(b);
+			final m = la < lb ? la : lb;
+			var k = 0;
+			while (k < m) {
+				final x = ua.get(k), y = ub.get(k);
+				if (x != y)
+					return x < y ? -1 : 1;
+				k++;
+			}
+			return la < lb ? -1 : (la > lb ? 1 : 0);
+		}
+		#else
 		if (a == b)
 			return 0;
+		#end
 		final n = a.length < b.length ? a.length : b.length;
 		var i = 0;
 		while (i < n && StringTools.fastCodeAt(a, i) == StringTools.fastCodeAt(b, i))
