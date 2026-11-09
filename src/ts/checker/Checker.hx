@@ -158,6 +158,12 @@ enum abstract CachedTypeKind(Int) from Int to Int {
 	var CachedTypeKindSimplifiedConditionalTypeForWriting = 23;
 }
 
+#if (target.name == "hxmc")
+typedef RelationKey = ts.checker.Relater.RelKey;
+#else
+typedef RelationKey = CacheHashKey;
+#end
+
 @:allow(ts.checker)
 class CachedTypeKey {
 	var kind:CachedTypeKind = 0;
@@ -1674,6 +1680,7 @@ class Checker {
 	var globalFunctionType:Type = null;
 	var globalCallableFunctionType:Type = null;
 	var globalNewableFunctionType:Type = null;
+	var membersResetEpoch = 0; // PORT: perf — counts getBaseTypes' member resets (see removeSubtypes)
 	#if (target.name == "hxmc")
 	var fallbackMemberFilter:haxe.ds.Vector<Int> = null; // PORT: perf (see CheckerPart5.mayBeFallbackMember)
 	#end
@@ -2808,18 +2815,22 @@ class Checker {
 	static var getRelationKeyConstrained:Bool = false;
 	#end
 
-	static function getRelationKey(source:Type, target:Type, intersectionState:IntersectionState, isIdentity:Bool, ignoreConstraints:Bool):CacheHashKey {
+	static function getRelationKey(source:Type, target:Type, intersectionState:IntersectionState, isIdentity:Bool, ignoreConstraints:Bool):RelationKey {
 		if (isIdentity && source.id > target.id) {
 			final tmp = source;
 			source = target;
 			target = tmp;
 		}
 		#if (target.name == "hxmc")
-		// PORT: perf — (from tsrs) the key of two types by id (Go hashes 's', the ids and the intersection state):
-		// their six 16-bit units, no hasher (KeyHasher.Sum's keys are eight units: never equal to these)
+		// PORT: perf — (from tsrs) the key of two types by id (Go hashes 's', the ids and the intersection state): a
+		// RelKey of the ids (no string, no hasher); see RelKey for larger ids and for the hashed keys below
 		if (!(isTypeReferenceWithGenericArguments(source) && isTypeReferenceWithGenericArguments(target))) {
 			getRelationKeyConstrained = false;
-			return new CacheHashKey(idsKey(source.id, target.id, intersectionState));
+			final tid = target.id;
+			if (tid < (1 << 29)) {
+				return new ts.checker.Relater.RelKey(source.id, (tid << 2) | intersectionState);
+			}
+			return new ts.checker.Relater.RelKey(-1 - source.checker.relationKeyNumber(idsKey(source.id, tid, intersectionState)), 0);
 		}
 		#end
 		final b = new KeyBuilder();
@@ -2834,8 +2845,29 @@ class Checker {
 		}
 		hashWrite32(b.h, intersectionState);
 		getRelationKeyConstrained = constrained;
+		#if (target.name == "hxmc")
+		return new ts.checker.Relater.RelKey(-1 - source.checker.relationKeyNumber(b.hash().Key()), 0);
+		#else
 		return b.hash();
+		#end
 	}
+
+	#if (target.name == "hxmc")
+	// the number of a hashed relation key (see RelKey): the keys numbered in order of first use, per checker
+	function relationKeyNumber(key:std.String):Int {
+		final m = relationKeyNumbers;
+		final n:Null<Int> = m.get(key);
+		if (n != null) {
+			return n;
+		}
+		final k = relationKeyCount++;
+		m.set(key, k);
+		return k;
+	}
+
+	final relationKeyNumbers = new ts.core.HashKeyMap<Int>(); // PORT: perf (see relationKeyNumber)
+	var relationKeyCount = 0;
+	#end
 
 	#if (target.name == "hxmc")
 	// PORT: perf — (from tsrs, checker_09.rs) the key of at most 3 types without an alias: a header unit (0xF000, the
@@ -2859,6 +2891,17 @@ class Checker {
 		}
 		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
 		return s;
+	}
+
+	// PORT: perf — the map's entry for the packed key of types (at most 3) without making the key string
+	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:Array<Type>):Type {
+		final n = types == null ? 0 : types.length;
+		return m.getPacked(0xF000 | (family << 8) | (flag << 4) | n, n, n > 0 ? types[0].id : 0, n > 1 ? types[1].id : 0, n > 2 ? types[2].id : 0);
+	}
+
+	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:haxe.ds.Vector<Type>):Type {
+		final n = types == null ? 0 : types.length;
+		return m.getPacked(0xF000 | (family << 8) | (flag << 4) | n, n, n > 0 ? types[0].id : 0, n > 1 ? types[1].id : 0, n > 2 ? types[2].id : 0);
 	}
 
 	// (the same layout: three ints a, b, c as the "ids", count 3)

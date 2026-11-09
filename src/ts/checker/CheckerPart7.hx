@@ -1174,22 +1174,58 @@ class CheckerPart7 {
 	}
 
 	static function createTypeReferenceExA(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
-		final id = Checker.getTypeListKey(typeArguments).Key();
 		final intf = target.AsInterfaceType();
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		final packed = Core.len(typeArguments) <= 3;
+		if (packed) {
+			final cached = Checker.getPackedTypes(intf.instantiations, 1, 0, typeArguments);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		final id = Checker.getTypeListKey(typeArguments).Key();
+		if (!packed) {
+			final cached = intf.instantiations.get(id);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		#else
+		final id = Checker.getTypeListKey(typeArguments).Key();
 		final cached = intf.instantiations.get(id);
 		if (cached != null) {
 			return cached;
 		}
+		#end
 		return c.newTypeReference(intf, id, VectorBuilder.freeze(typeArguments), objectFlags);
 	}
 
 	static function createTypeReferenceExV(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
-		final id = Checker.getTypeListKey(typeArguments).Key();
 		final intf = target.AsInterfaceType();
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		final packed = Core.len(typeArguments) <= 3;
+		if (packed) {
+			final cached = Checker.getPackedTypes(intf.instantiations, 1, 0, typeArguments);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		final id = Checker.getTypeListKey(typeArguments).Key();
+		if (!packed) {
+			final cached = intf.instantiations.get(id);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		#else
+		final id = Checker.getTypeListKey(typeArguments).Key();
 		final cached = intf.instantiations.get(id);
 		if (cached != null) {
 			return cached;
 		}
+		#end
 		return c.newTypeReference(intf, id, typeArguments == null ? Core.emptyVector() : typeArguments, objectFlags);
 	}
 
@@ -1934,6 +1970,15 @@ class CheckerPart7 {
 		if (types.length == 1) {
 			return types[0];
 		}
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		if (origin == null && alias == null && types.length <= 3) {
+			final t = Checker.getPackedTypes(c.unionTypes, 5, 0, types);
+			if (t != null) {
+				return t;
+			}
+		}
+		#end
 		final key = Checker.getUnionKey(types, origin, alias).Key();
 		var t = c.unionTypes.get(key);
 		if (t == null) {
@@ -1955,6 +2000,15 @@ class CheckerPart7 {
 		if (types.length == 1) {
 			return types[0];
 		}
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		if (origin == null && alias == null && types.length <= 3) {
+			final t = Checker.getPackedTypes(c.unionTypes, 5, 0, types);
+			if (t != null) {
+				return t;
+			}
+		}
+		#end
 		final key = Checker.getUnionKey(types, origin, alias).Key();
 		var t = c.unionTypes.get(key);
 		if (t == null) {
@@ -2434,6 +2488,8 @@ class CheckerPart7 {
 		return types;
 	}
 
+	static final NO_KEY_PROPERTY = @:privateAccess new Symbol(); // (see removeSubtypes)
+
 	static function removeSubtypes(c:Checker, types:Array<Type>, hasObjectTypes:Bool):Array<Type> {
 		// [] and [T] immediately reduce to [] and [T] respectively
 		if (Core.len(types) < 2) {
@@ -2452,6 +2508,13 @@ class CheckerPart7 {
 		});
 		// PORT: the Find predicate does not depend on the loop; created once (PORTING.md §7a).
 		final isUnitTypedProperty = (p:Symbol) -> Checker.isUnitType(c.getTypeOfSymbol(p));
+		// PORT: perf — (from tsrs, checker_13.rs:617) each target's property of the key property name of the last source
+		// that had one (the sources of a discriminated union share the name; else each target's property is looked up
+		// again for every source), by type id (NO_KEY_PROPERTY: none); dropped when the name changes or a type's
+		// members are reset (getBaseTypes)
+		var keyProps:haxe.ds.IntMap<Symbol> = null;
+		var keyPropsName:std.String = null;
+		var keyPropsEpoch = 0;
 		final length = types.length;
 		var i = length;
 		var count = 0;
@@ -2506,7 +2569,20 @@ class CheckerPart7 {
 						}
 						count++;
 						if (keyProperty != null && target.flags & (TypeFlagsObject | TypeFlagsIntersection | TypeFlagsInstantiableNonPrimitive) != 0) {
-							final t = c.getTypeOfPropertyOfType(target, keyProperty.Name);
+							final name = keyProperty.Name;
+							if (keyProps == null || keyPropsName != name || keyPropsEpoch != c.membersResetEpoch) {
+								keyProps = new haxe.ds.IntMap<Symbol>();
+								keyPropsName = name;
+								keyPropsEpoch = c.membersResetEpoch;
+							}
+							var prop = keyProps.get(target.id);
+							if (prop == null) {
+								prop = c.getPropertyOfType(target, name);
+								keyProps.set(target.id, prop == null ? NO_KEY_PROPERTY : prop);
+							} else if (prop == NO_KEY_PROPERTY) {
+								prop = null;
+							}
+							final t = prop == null ? null : c.getTypeOfSymbol(prop); // (getTypeOfPropertyOfType)
 							if (t != null && Checker.isUnitType(t) && c.getRegularTypeOfLiteralType(t) != keyPropertyType) {
 								continue;
 							}

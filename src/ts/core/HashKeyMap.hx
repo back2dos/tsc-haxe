@@ -79,6 +79,22 @@ class HashKeyMap<T> {
 		return e < 0 ? null : vals[e];
 	}
 
+	// get of the packed key (Checker.packedTypesKeyA: a header unit h0 and k <= 3 ids as two units each) without the
+	// key string: its unit pairs computed from the ids
+	public function getPacked(h0:Int, k:Int, id0:Int, id1:Int, id2:Int):Null<T> {
+		final n = 1 + 2 * k;
+		if (k < 3)
+			id2 = 0;
+		if (k < 2)
+			id1 = 0;
+		if (k < 1)
+			id0 = 0;
+		final a = h0 | ((id0 & 0xFFFF) << 16), b = (id0 >>> 16) | ((id1 & 0xFFFF) << 16), c = (id1 >>> 16) | ((id2 & 0xFFFF) << 16),
+			d = id2 >>> 16;
+		final e = find(n, a, b, c, d, mix(n, a, b, c, d));
+		return e < 0 ? null : vals[e];
+	}
+
 	public function exists(k:String):Bool {
 		final n = Str.len(k);
 		if (n > 8)

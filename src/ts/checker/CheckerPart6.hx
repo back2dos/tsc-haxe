@@ -2585,6 +2585,16 @@ class CheckerPart6 {
 			newAlias = c.instantiateTypeAlias(t.alias, m);
 		}
 		final data = target.AsObjectType();
+		#if (target.name == "hxmc")
+		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
+		if (data.instantiations != null && newAlias == null && typeArguments.length <= 3) {
+			final cached = Checker.getPackedTypes(data.instantiations, 2, (t.objectFlags & (Checker.ObjectFlagsSingleSignatureType : ObjectFlags)) != 0 ? 1 : 0,
+				typeArguments);
+			if (cached != null) {
+				return cached;
+			}
+		}
+		#end
 		final key = Checker.getTypeInstantiationKey(typeArguments, newAlias, (t.objectFlags & (Checker.ObjectFlagsSingleSignatureType : ObjectFlags)) != 0).Key();
 		if (data.instantiations == null) {
 			data.instantiations = new ts.core.HashKeyMap<Type>();

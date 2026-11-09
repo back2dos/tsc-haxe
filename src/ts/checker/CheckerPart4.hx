@@ -1490,7 +1490,11 @@ class CheckerPart4 {
 		} else {
 			indexInfos = c.getUnionIndexInfos(Core.vector2(left, right));
 		}
-		for (rightProp in rangeOf(c.getPropertiesOfType(right))) {
+		final rightProps = c.getPropertiesOfType(right);
+		#if (target.name == "hxmc")
+		members.reserve(Core.len(rightProps)); // PORT: perf — (as tsrs) the table sized for the right side's properties
+		#end
+		for (rightProp in rangeOf(rightProps)) {
 			if ((Checker.getDeclarationModifierFlagsFromSymbol(rightProp) & (ModifierFlagsPrivate | ModifierFlagsProtected)) != 0) {
 				skippedPrivateMembers.Add(rightProp.Name);
 			} else if (c.isSpreadableProperty(rightProp)) {
@@ -1502,8 +1506,8 @@ class CheckerPart4 {
 			if (skippedPrivateMembers.Has(leftProp.Name) || !c.isSpreadableProperty(leftProp)) {
 				continue;
 			}
-			if (members.get(leftProp.Name) != null) {
-				final rightProp = members.get(leftProp.Name);
+			final rightProp = members.get(leftProp.Name);
+			if (rightProp != null) {
 				final rightType = c.getTypeOfSymbol(rightProp);
 				if ((rightProp.Flags & SymbolFlagsOptional) != 0) {
 					final declarations = Core.Concatenate(leftProp.Declarations, rightProp.Declarations);
