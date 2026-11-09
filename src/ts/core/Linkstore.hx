@@ -92,6 +92,17 @@ class LinkStore<K, V:LinkEntry> {
 	}
 	#end
 
+	// TryGet, inline (the rare fields of AST nodes, tools/gen/ast/GenAst.hx RARE_FIELDS: the key's list most often has
+	// no entry of this store)
+	public inline function TryGetInline(key:K):Null<V> {
+		final h:LinkHolder = cast key;
+		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
+		var e = h.links;
+		while (e != null && e.linkStore != self)
+			e = e.linkNext;
+		return cast e;
+	}
+
 	public function TryGet(key:K):Null<V> {
 		final h:LinkHolder = cast key;
 		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)

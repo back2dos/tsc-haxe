@@ -148,8 +148,301 @@ class SymbolReferenceLinks extends ts.core.Linkstore.LinkEntry {
 	}
 }
 
+// PORT: perf — most transient symbols have their value links as fields, like Strada's TransientSymbol: no links
+// entry (its header, store and next entry), the rarely set fields in an entry of the symbol's links
+// (EmbeddedSymbolLinks). An instantiated symbol (Checker.instantiateSymbol, t3code-server 1.7M) is an
+// InstantiatedSymbol, a symbol made by Checker.newSymbol a TransientSymbol (vscode 0.8M), a mapped type's property a
+// MappedSymbol (t3code-server 0.75M); not the synthetic properties (Checker.newSymbolEx), which have
+// SyntheticValueSymbolLinks. ValueSymbolLinks is such a symbol
+// itself or the links entry of another symbol (ValueSymbolLinksRecord); Checker.valueSymbolLinks
+// (ValueSymbolLinkStore) returns one or the other.
 @:allow(ts.checker)
-class ValueSymbolLinks extends ts.core.Linkstore.LinkEntry {
+abstract ValueSymbolLinks(Any) {
+	var resolvedType(get, set):Type;
+	var target(get, set):Symbol;
+	var mapper(get, set):TypeMapper;
+	var functionOrConstructorChecked(get, set):Bool;
+	var writeType(get, set):Type;
+	var nameType(get, set):Type;
+	var containingType(get, set):Type;
+
+	inline function isInst():Bool {
+		return Std.isOfType(this, InstantiatedSymbol);
+	}
+
+	inline function isTrans():Bool {
+		return Std.isOfType(this, TransientSymbol);
+	}
+
+	inline function isMapped():Bool {
+		return Std.isOfType(this, MappedSymbol);
+	}
+
+	// a TransientSymbol or MappedSymbol
+	inline function isWithLinks():Bool {
+		return Std.isOfType(this, SymbolWithLinks);
+	}
+
+	inline function isEmbedded():Bool {
+		return isInst() || isWithLinks();
+	}
+
+	inline function inst():InstantiatedSymbol {
+		return cast this;
+	}
+
+	inline function trans():TransientSymbol {
+		return cast this;
+	}
+
+	inline function mapped():MappedSymbol {
+		return cast this;
+	}
+
+	inline function withLinks():SymbolWithLinks {
+		return cast this;
+	}
+
+	inline function sym():Symbol {
+		return cast this;
+	}
+
+	inline function rec():ValueSymbolLinksRecord {
+		return cast this;
+	}
+
+	// the links entry (null for a symbol with its links as fields)
+	inline function record():ValueSymbolLinksRecord {
+		return isEmbedded() ? null : cast this;
+	}
+
+	inline function get_resolvedType():Type {
+		return isInst() ? inst().vResolvedType : isWithLinks() ? withLinks().tResolvedType : rec().resolvedType;
+	}
+
+	inline function set_resolvedType(v:Type):Type {
+		return isInst() ? inst().vResolvedType = v : isWithLinks() ? withLinks().tResolvedType = v : rec().resolvedType = v;
+	}
+
+	inline function get_target():Symbol {
+		return isInst() ? inst().vTarget : isTrans() ? trans().tTarget : isMapped() ? EmbeddedSymbolLinks.getTarget(sym()) : rec().target;
+	}
+
+	inline function set_target(v:Symbol):Symbol {
+		return isInst() ? inst().vTarget = v : isTrans() ? trans().tTarget = v : isMapped() ? EmbeddedSymbolLinks.setTarget(sym(), v) : rec().target = v;
+	}
+
+	inline function get_mapper():TypeMapper {
+		return isInst() ? inst().vMapper : isWithLinks() ? EmbeddedSymbolLinks.getMapper(sym()) : rec().mapper;
+	}
+
+	inline function set_mapper(v:TypeMapper):TypeMapper {
+		return isInst() ? inst().vMapper = v : isWithLinks() ? EmbeddedSymbolLinks.setMapper(sym(), v) : rec().mapper = v;
+	}
+
+	inline function get_functionOrConstructorChecked():Bool {
+		return isEmbedded() ? EmbeddedSymbolLinks.getFunctionOrConstructorChecked(sym()) : rec().functionOrConstructorChecked;
+	}
+
+	inline function set_functionOrConstructorChecked(v:Bool):Bool {
+		return isEmbedded() ? EmbeddedSymbolLinks.setFunctionOrConstructorChecked(sym(), v) : rec().functionOrConstructorChecked = v;
+	}
+
+	inline function get_writeType():Type {
+		return isEmbedded() ? EmbeddedSymbolLinks.getWriteType(sym()) : rec().writeType;
+	}
+
+	inline function set_writeType(v:Type):Type {
+		return isEmbedded() ? EmbeddedSymbolLinks.setWriteType(sym(), v) : rec().writeType = v;
+	}
+
+	inline function get_nameType():Type {
+		return isMapped() ? mapped().mNameType : isEmbedded() ? EmbeddedSymbolLinks.getNameType(sym()) : rec().nameType;
+	}
+
+	inline function set_nameType(v:Type):Type {
+		return isMapped() ? mapped().mNameType = v : isEmbedded() ? EmbeddedSymbolLinks.setNameType(sym(), v) : rec().nameType = v;
+	}
+
+	inline function get_containingType():Type {
+		return isMapped() ? mapped().mContainingType : isEmbedded() ? EmbeddedSymbolLinks.getContainingType(sym()) : rec().containingType;
+	}
+
+	inline function set_containingType(v:Type):Type {
+		return isMapped() ? mapped().mContainingType = v : isEmbedded() ? EmbeddedSymbolLinks.setContainingType(sym(), v) : rec().containingType = v;
+	}
+}
+
+// Checker.valueSymbolLinks: an InstantiatedSymbol's, TransientSymbol's or MappedSymbol's links are the symbol (see
+// ValueSymbolLinks)
+class ValueSymbolLinkStore {
+	final store:LinkStore<Symbol, ValueSymbolLinksRecord>;
+
+	public function new(factory:() -> ValueSymbolLinksRecord, forKey:Symbol->ValueSymbolLinksRecord) {
+		store = new LinkStore<Symbol, ValueSymbolLinksRecord>(factory, forKey);
+	}
+
+	static inline function embedded(s:Symbol):Bool {
+		return Std.isOfType(s, InstantiatedSymbol) || Std.isOfType(s, SymbolWithLinks);
+	}
+
+	public inline function Get(s:Symbol):ValueSymbolLinks {
+		return embedded(s) ? cast s : cast store.Get(s);
+	}
+
+	public inline function TryGet(s:Symbol):Null<ValueSymbolLinks> {
+		return embedded(s) ? cast s : cast store.TryGet(s);
+	}
+
+	public inline function Has(s:Symbol):Bool {
+		return embedded(s) || store.Has(s);
+	}
+
+	// the links entry of a symbol without its links as fields
+	public inline function TryGetRecord(s:Symbol):Null<ValueSymbolLinksRecord> {
+		return embedded(s) ? null : store.TryGet(s);
+	}
+}
+
+// a symbol made by Checker.instantiateSymbol (Go main's newSharedDataSymbol: its target's data), with its value links
+@:allow(ts.checker)
+@:access(ts.ast.Symbol)
+class InstantiatedSymbol extends Symbol {
+	var vResolvedType:Type = null;
+	var vTarget:Symbol = null;
+	var vMapper:TypeMapper = null;
+
+	public function new(other:Symbol) {
+		super();
+		data = other.data;
+	}
+}
+
+// a transient symbol with its own data and its value links as fields (TransientSymbol, MappedSymbol)
+@:allow(ts.checker)
+class SymbolWithLinks extends SymbolWithData {
+	var tResolvedType:Type = null;
+
+	public function new() {
+		super();
+	}
+}
+
+// a symbol made by Checker.newSymbol, with its type and target (vscode: 99% / 56% have one; the mapper is rare)
+@:allow(ts.checker)
+class TransientSymbol extends SymbolWithLinks {
+	var tTarget:Symbol = null;
+
+	public function new() {
+		super();
+	}
+}
+
+// a mapped type's property (Checker.newMappedSymbol), with its value links and Go's MappedSymbolLinks
+// (Checker.getMappedKeyType, ...) as fields
+@:allow(ts.checker)
+class MappedSymbol extends SymbolWithLinks {
+	var mNameType:Type = null;
+	var mContainingType:Type = null;
+	var mKeyType:Type = null;
+	var mSyntheticOrigin:Symbol = null;
+
+	public function new() {
+		super();
+	}
+}
+
+// the rarely set value links of an InstantiatedSymbol or TransientSymbol: an entry of its links (t3code-server: 5% of
+// the instantiated symbols have one; their links are otherwise most often empty)
+@:allow(ts.checker)
+class EmbeddedSymbolLinks extends ts.core.Linkstore.LinkEntry {
+	static final store = new LinkStore<Symbol, EmbeddedSymbolLinks>(() -> new EmbeddedSymbolLinks());
+
+	var writeType:Type = null;
+	var nameType:Type = null;
+	var containingType:Type = null;
+	var mapper:TypeMapper = null; // (a TransientSymbol's or MappedSymbol's)
+	var target:Symbol = null; // (a MappedSymbol's)
+	var functionOrConstructorChecked:Bool = false;
+
+	public function new() {
+		super();
+	}
+
+	static inline function of(s:Symbol):EmbeddedSymbolLinks {
+		return s.links == null ? null : store.TryGetInline(s);
+	}
+
+	static function getFunctionOrConstructorChecked(s:Symbol):Bool {
+		final x = of(s);
+		return x != null && x.functionOrConstructorChecked;
+	}
+
+	static function getWriteType(s:Symbol):Type {
+		final x = of(s);
+		return x == null ? null : x.writeType;
+	}
+
+	static function getNameType(s:Symbol):Type {
+		final x = of(s);
+		return x == null ? null : x.nameType;
+	}
+
+	static function getContainingType(s:Symbol):Type {
+		final x = of(s);
+		return x == null ? null : x.containingType;
+	}
+
+	static function getMapper(s:Symbol):TypeMapper {
+		final x = of(s);
+		return x == null ? null : x.mapper;
+	}
+
+	static function getTarget(s:Symbol):Symbol {
+		final x = of(s);
+		return x == null ? null : x.target;
+	}
+
+	static function setTarget(s:Symbol, t:Symbol):Symbol {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.target = t;
+	}
+
+	// the entry to write v to (null when v is the zero value and there is none: nothing to write)
+	static inline function forWrite(s:Symbol, zero:Bool):EmbeddedSymbolLinks {
+		final x = of(s);
+		return x != null || zero ? x : store.Get(s);
+	}
+
+	static function setFunctionOrConstructorChecked(s:Symbol, b:Bool):Bool {
+		final x = forWrite(s, !b);
+		return x == null ? b : x.functionOrConstructorChecked = b;
+	}
+
+	static function setWriteType(s:Symbol, t:Type):Type {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.writeType = t;
+	}
+
+	static function setNameType(s:Symbol, t:Type):Type {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.nameType = t;
+	}
+
+	static function setContainingType(s:Symbol, t:Type):Type {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.containingType = t;
+	}
+
+	static function setMapper(s:Symbol, m:TypeMapper):TypeMapper {
+		final x = forWrite(s, m == null);
+		return x == null ? m : x.mapper = m;
+	}
+}
+
+// the value links entry of a symbol that is not instantiated (see ValueSymbolLinks)
+@:allow(ts.checker)
+class ValueSymbolLinksRecord extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Type of value symbol
 	// PORT: perf — target and mapper are fields of the links of a transient symbol (TransientValueSymbolLinks,
 	// Checker.valueSymbolLinks), which has them (the checker makes them: instantiated symbols, synthetic
@@ -314,7 +607,7 @@ class ValueSymbolExtra {
 
 // the value links of a transient symbol (see ValueSymbolLinks.target)
 @:allow(ts.checker)
-class TransientValueSymbolLinks extends ValueSymbolLinks {
+class TransientValueSymbolLinks extends ValueSymbolLinksRecord {
 	var instTarget:Symbol = null;
 	var instMapper:TypeMapper = null;
 
@@ -327,7 +620,7 @@ class TransientValueSymbolLinks extends ValueSymbolLinks {
 // most often a name type (see ValueSymbolLinks.get_nameType), and no target or mapper (one set would go to
 // the side record: none on t3code-server)
 @:allow(ts.checker)
-class SyntheticValueSymbolLinks extends ValueSymbolLinks {
+class SyntheticValueSymbolLinks extends ValueSymbolLinksRecord {
 	var synNameType:Type = null;
 	var synContainingType:Type = null;
 
@@ -956,6 +1249,18 @@ class TypeExtra {
 	public function new() {}
 }
 
+// PORT: perf — the TypeExtra of a type reference, union or intersection, with the fields of Go's StructuredType and
+// ObjectType that these types rarely set (an anonymous type has them as fields: AnonymousType)
+@:allow(ts.checker)
+class StructuredTypeExtra extends TypeExtra {
+	var members:SymbolTable = null; // (t3code-server: 0.1% of the type references, no union or intersection)
+	var mapper:TypeMapper = null; // (a type reference's: 0.8%)
+
+	public function new() {
+		super();
+	}
+}
+
 @:allow(ts.checker)
 class Type implements TypeSystemEntity {
 	var flags:TypeFlags = 0;
@@ -971,6 +1276,12 @@ class Type implements TypeSystemEntity {
 	var extra:TypeExtra = null;
 	var alias(get, set):TypeAlias; // (in TypeExtra: t3code-server, 4% of the types have one)
 
+	// the side record, made when a field of it is set: a StructuredTypeExtra for a type reference, union or
+	// intersection (StructuredType.members)
+	function newExtra():TypeExtra {
+		return extra = Std.isOfType(this, TypeReference) || Std.isOfType(this, UnionOrIntersectionType) ? new StructuredTypeExtra() : new TypeExtra();
+	}
+
 	inline function get_alias():TypeAlias {
 		return extra == null ? null : extra.alias;
 	}
@@ -980,7 +1291,7 @@ class Type implements TypeSystemEntity {
 			if (v == null) {
 				return v;
 			}
-			extra = new TypeExtra();
+			newExtra();
 		}
 		return extra.alias = v;
 	}
@@ -997,7 +1308,7 @@ class Type implements TypeSystemEntity {
 			if (v == null) {
 				return v;
 			}
-			extra = new TypeExtra();
+			newExtra();
 		}
 		return extra.flowType = v;
 	}
@@ -1331,7 +1642,7 @@ class ConstrainedType extends TypeBase {
 				if (v == null) {
 					return v;
 				}
-				t.extra = new TypeExtra();
+				t.newExtra();
 			}
 			return t.extra.resolvedBaseConstraint = v;
 		}
@@ -1356,7 +1667,33 @@ class InstantiableType extends ConstrainedType {
 
 @:allow(ts.checker)
 class StructuredType extends ConstrainedType {
-	var members:SymbolTable = null;
+	// PORT: perf — an anonymous type's field (AnonymousType); a type reference's, union's or intersection's (which
+	// get their members from a MemberLayout or not at all) in the side record (StructuredTypeExtra)
+	var members(get, set):SymbolTable;
+
+	inline function get_members():SymbolTable {
+		return Std.isOfType(this, AnonymousType) ? (cast this : AnonymousType).anonMembers : structuredExtraMembers();
+	}
+
+	inline function structuredExtraMembers():SymbolTable {
+		final x = (cast this : Type).extra;
+		return x == null ? null : (cast x : StructuredTypeExtra).members;
+	}
+
+	function set_members(v:SymbolTable):SymbolTable {
+		if (Std.isOfType(this, AnonymousType)) {
+			return (cast this : AnonymousType).anonMembers = v;
+		}
+		final t:Type = cast this;
+		if (t.extra == null) {
+			if (v == null) {
+				return v;
+			}
+			t.newExtra();
+		}
+		return (cast t.extra : StructuredTypeExtra).members = v;
+	}
+
 	var properties:haxe.ds.Vector<Symbol> = null; // PORT: perf — a Vector (one exact-size object; null: Go nil, which a lazy type tests)
 	var signatures:haxe.ds.Vector<Signature> = null; // Signatures (call + construct) // PORT: perf — Vectors (one exact-size object each)
 	var callSignatureCount:Int = 0; // Count of call signatures
@@ -1374,7 +1711,7 @@ class StructuredType extends ConstrainedType {
 			if (v == null) {
 				return v;
 			}
-			t.extra = new TypeExtra();
+			t.newExtra();
 		}
 		return t.extra.objectTypeWithoutAbstractConstructSignatures = v;
 	}
@@ -1402,19 +1739,12 @@ class StructuredType extends ConstrainedType {
 	// PORT: from TypeScript main (microsoft/typescript-go#64915, lazy member resolution): the members of a class or
 	// interface type and of its references are a shared MemberLayout (the uninstantiated symbols, by name) plus
 	// the type's LazyState; each member is instantiated when first read (getPropertyAt)
-	function getMember(name:std.String):Symbol {
-		if (members != null) {
-			return members.get(name);
-		}
-		final lazy = getLazyState();
-		if (lazy == null) {
-			return null;
-		}
-		final index:Null<Int> = lazy.layout.index.get(name);
-		if (index == null) {
-			return null;
-		}
-		return getPropertyAt(index);
+	// PORT: perf — inline, one expression (it was inlined by hxmc before `members` became a property)
+	inline function getMember(name:std.String):Symbol {
+		final m = members;
+		final lazy = m != null ? null : getLazyState();
+		final index:Null<Int> = lazy == null ? null : lazy.layout.index.get(name);
+		return m != null ? m.get(name) : index == null ? null : getPropertyAt(index);
 	}
 
 	function getMembers():SymbolTable {
@@ -1486,7 +1816,32 @@ class StructuredType extends ConstrainedType {
 @:allow(ts.checker)
 class ObjectType extends StructuredType {
 	var target:Type = null; // Target of instantiated type
-	var mapper:TypeMapper = null; // Type mapper for instantiated type
+	// PORT: perf — an anonymous type's field (AnonymousType); a type reference's in the side record
+	// (StructuredTypeExtra: t3code-server, 0.8% of the type references have one)
+	var mapper(get, set):TypeMapper; // Type mapper for instantiated type
+
+	inline function get_mapper():TypeMapper {
+		return Std.isOfType(this, AnonymousType) ? (cast this : AnonymousType).anonMapper : structuredExtraMapper();
+	}
+
+	inline function structuredExtraMapper():TypeMapper {
+		final x = (cast this : Type).extra;
+		return x == null ? null : (cast x : StructuredTypeExtra).mapper;
+	}
+
+	function set_mapper(v:TypeMapper):TypeMapper {
+		if (Std.isOfType(this, AnonymousType)) {
+			return (cast this : AnonymousType).anonMapper = v;
+		}
+		final t:Type = cast this;
+		if (t.extra == null) {
+			if (v == null) {
+				return v;
+			}
+			t.newExtra();
+		}
+		return (cast t.extra : StructuredTypeExtra).mapper = v;
+	}
 	var instantiations(get, set):ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */; // Map of type instantiations (in TypeExtra)
 
 	inline function get_instantiations():ts.core.HashKeyMap<Type> {
@@ -1500,7 +1855,7 @@ class ObjectType extends StructuredType {
 			if (v == null) {
 				return v;
 			}
-			t.extra = new TypeExtra();
+			t.newExtra();
 		}
 		return t.extra.instantiations = v;
 	}
@@ -1509,6 +1864,19 @@ class ObjectType extends StructuredType {
 		super();
 	}
 
+}
+
+// PORT: perf — an object type that is not a type reference (Go's ObjectType with ObjectFlagsAnonymous, mapped, reverse
+// mapped, evolving array and instantiation expression types), with the members and mapper as fields (see
+// StructuredType.members)
+@:allow(ts.checker)
+class AnonymousType extends ObjectType {
+	var anonMembers:SymbolTable = null;
+	var anonMapper:TypeMapper = null;
+
+	public function new() {
+		super();
+	}
 }
 
 @:allow(ts.checker)
@@ -1528,7 +1896,7 @@ class TypeReference extends ObjectType {
 			if (v == null) {
 				return v;
 			}
-			t.extra = new TypeExtra();
+			t.newExtra();
 		}
 		return t.extra.node = v;
 	}
@@ -1679,7 +2047,7 @@ class TupleType extends InterfaceType {
 }
 
 @:allow(ts.checker)
-class InstantiationExpressionType extends ObjectType {
+class InstantiationExpressionType extends AnonymousType {
 	var node:Node = null;
 
 	public function new() {
@@ -1688,7 +2056,7 @@ class InstantiationExpressionType extends ObjectType {
 }
 
 @:allow(ts.checker)
-class MappedType extends ObjectType {
+class MappedType extends AnonymousType {
 	var declaration:MappedTypeNode = null;
 	var typeParameter:Type = null;
 	var constraintType:Type = null;
@@ -1704,7 +2072,7 @@ class MappedType extends ObjectType {
 }
 
 @:allow(ts.checker)
-class ReverseMappedType extends ObjectType {
+class ReverseMappedType extends AnonymousType {
 	var source:Type = null;
 	var mappedType:Type = null;
 	var constraintType:Type = null;
@@ -1715,7 +2083,7 @@ class ReverseMappedType extends ObjectType {
 }
 
 @:allow(ts.checker)
-class EvolvingArrayType extends ObjectType {
+class EvolvingArrayType extends AnonymousType {
 	var elementType:Type = null;
 	var finalArrayType:Type = null;
 

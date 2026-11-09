@@ -840,7 +840,7 @@ class CheckerPart6 {
 					if (modifiersProp != null) {
 						lateFlag = modifiersProp.CheckFlags & CheckFlagsLate;
 					}
-					final prop = c.newSymbol(SymbolFlagsProperty | Core.IfElse(isOptional, SymbolFlagsOptional, SymbolFlagsNone), propName);
+					final prop = c.newMappedSymbol(SymbolFlagsProperty | Core.IfElse(isOptional, SymbolFlagsOptional, SymbolFlagsNone), propName); // PORT: perf — (ValueSymbolLinks)
 					prop.CheckFlags = lateFlag | CheckFlagsMapped | Core.IfElse(isReadonly, CheckFlagsReadonly, CheckFlagsNone) | Core.IfElse(stripOptional, CheckFlagsStripOptional, CheckFlagsNone);
 					final valueLinks = c.valueSymbolLinks.Get(prop);
 					valueLinks.containingType = t;

@@ -883,28 +883,41 @@ class Parser {
 		return result;
 	}
 
+	// PORT: perf — Go's stack temp of the lists being parsed (parseListIndex, parseDelimitedList): their elements,
+	// nested lists above the outer ones; a list is copied out at its exact size (takeList), no array grown by
+	// push and dropped (t3code-server: about 30 MB of outgrown array storage while parsing)
+	final listStack:Array<Node> = [];
+
+	// the elements above base as a list (nil when there are none: Go's arena Clone), off the stack
+	inline function takeList(base:Int):Array<Node> {
+		final n = listStack.length - base;
+		final r = n == 0 ? null : listStack.slice(base);
+		listStack.resize(base);
+		return r;
+	}
+
 	function parseListIndex(kind:ParsingContext, parseElement:(p:Parser, index:Int) -> Node):Array<Node> {
 		var saveParsingContexts = parsingContexts;
 		parsingContexts |= 1 << kind;
 		var outerReparseList = reparseList;
 		reparseList = null;
-		var list:Array<Node> = null; // PORT: arena — Go uses a stack temp + arena Clone; allocated on first append
+		final base = listStack.length; // PORT: arena — Go uses a stack temp + arena Clone (listStack, takeList)
 		// PORT: Go `for i := 0; !p.isListTerminator(kind); i++` (i is unused).
 		while (!isListTerminator(kind)) {
 			if (isListElement(kind, false /*inErrorRecovery*/)) {
-				var elt = parseElement(this, Core.len(list));
+				var elt = parseElement(this, listStack.length - base);
 				if (Core.len(reparseList) != 0) {
 					for (e in reparseList) {
 						// Propagate @typedef type alias declarations outwards to a context that permits them.
 						if ((Ast.IsJSTypeAliasDeclaration(e) || Ast.IsJSImportDeclaration(e)) && kind != PCSourceElements && kind != PCBlockStatements) {
 							outerReparseList = append(outerReparseList, e);
 						} else {
-							list = append(list, e);
+							listStack.push(e);
 						}
 					}
 					reparseList = null;
 				}
-				list = append(list, elt);
+				listStack.push(elt);
 				continue;
 			}
 			if (abortParsingListOrMoveToNextToken(kind)) {
@@ -913,7 +926,7 @@ class Parser {
 		}
 		reparseList = outerReparseList;
 		parsingContexts = saveParsingContexts;
-		return cloneNodes(list);
+		return takeList(base);
 	}
 
 	function parseList(kind:ParsingContext, parseElement:(p:Parser) -> Node):NodeList {
@@ -939,17 +952,18 @@ class Parser {
 		var pos = nodePos();
 		var saveParsingContexts = parsingContexts;
 		parsingContexts |= 1 << kind;
-		var list:Array<Node> = null; // PORT: arena — Go uses a stack temp + arena Clone; allocated on first append
+		final base = listStack.length; // PORT: arena — Go uses a stack temp + arena Clone (listStack, takeList)
 		while (true) {
 			if (isListElement(kind, false /*inErrorRecovery*/)) {
 				var startPos = nodePos();
 				var element = parseElement(this);
 				if (element == null) {
 					parsingContexts = saveParsingContexts;
+					listStack.resize(base);
 					// Return nil to indicate parseElement failed
 					return null;
 				}
-				list = append(list, element);
+				listStack.push(element);
 				if (parseOptional(KindCommaToken)) {
 					// No need to check for a zero length node since we know we parsed a comma
 					continue;
@@ -989,7 +1003,7 @@ class Parser {
 			}
 		}
 		parsingContexts = saveParsingContexts;
-		return newNodeList(Core.NewTextRange(pos, nodePos()), cloneNodes(list));
+		return newNodeList(Core.NewTextRange(pos, nodePos()), takeList(base));
 	}
 
 	// Return a non-nil (but possibly empty) NodeList if parsing was successful, a missing NodeList if the opening

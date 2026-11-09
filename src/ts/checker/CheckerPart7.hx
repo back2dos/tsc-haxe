@@ -1134,7 +1134,7 @@ class CheckerPart7 {
 		} else if (objectFlags & ObjectFlagsInstantiationExpressionType != 0) {
 			data = new InstantiationExpressionType();
 		} else if (objectFlags & ObjectFlagsAnonymous != 0) {
-			data = new ObjectType();
+			data = new AnonymousType(); // PORT: perf — (AnonymousType: members and mapper as fields)
 		} else {
 			throw "Unhandled case in newObjectType";
 		}

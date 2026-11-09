@@ -111,6 +111,44 @@ class GenAst {
 	static var kindLike:Map<String, Bool>; // Haxe types whose zero value is 0
 	static var report:Array<String> = [];
 
+	// PORT: perf — fields that almost every node of the class has nil (hxmc field census at exit: >= 97% nil on
+	// t3code-server and vscode) are no fields of the class: a node that sets one gets an entry of its links with
+	// all of them (class <Node>Rare, see generateRareRecord). Pointer fields only (their zero is null).
+	static final RARE_FIELDS:Map<String, Array<String>> = [
+		"CallExpression" => ["Symbol", "QuestionDotToken", "TypeArguments"],
+		"PropertyAccessExpression" => ["QuestionDotToken"],
+		"PropertyAssignment" => ["PostfixToken", "Type", "modifiers"],
+		"ParameterDeclaration" => ["DotDotDotToken", "Initializer"],
+		"VariableDeclaration" => ["ExclamationToken"],
+		"ArrowFunction" => ["AsteriskToken", "FullSignature", "TypeParameters"],
+		"ImportDeclaration" => ["FlowNode", "Symbol", "modifiers", "Attributes"],
+		"ImportSpecifier" => ["LocalSymbol", "PropertyName"],
+		"Block" => ["FlowNode"],
+		"PropertySignatureDeclaration" => ["Initializer"],
+		"ShorthandPropertyAssignment" => ["EqualsToken", "ObjectAssignmentInitializer", "PostfixToken", "Type", "modifiers"],
+		"MethodDeclaration" => ["FullSignature", "AsteriskToken", "PostfixToken"],
+		"QualifiedName" => ["FlowNode"],
+		"FunctionTypeNode" => ["FullSignature"],
+		"FunctionDeclaration" => ["FlowNode", "FullSignature", "ReturnFlowNode", "AsteriskToken"],
+		"BindingElement" => ["LocalSymbol", "Initializer", "DotDotDotToken"],
+		"FunctionExpression" => ["FullSignature", "ReturnFlowNode", "TypeParameters"],
+		"MethodSignatureDeclaration" => ["FullSignature"],
+		"ConstructorDeclaration" => ["AsteriskToken", "FullSignature", "Type", "TypeParameters"],
+		"GetAccessorDeclaration" => ["AsteriskToken", "FullSignature", "PostfixToken", "TypeParameters"],
+		"TypeParameterDeclaration" => ["Expression"],
+		"ImportTypeNode" => ["Attributes"],
+		"InterfaceDeclaration" => ["FlowNode"],
+		"TypeAliasDeclaration" => ["FlowNode"],
+		"EnumMember" => ["PostfixToken", "modifiers"],
+		"SpreadAssignment" => ["Symbol"],
+		"ForInOrOfStatement" => ["AwaitModifier"],
+		"NamespaceImport" => ["LocalSymbol"],
+		"ExportSpecifier" => ["LocalSymbol"],
+		"CaseClause" => ["FallthroughFlowNode"],
+		"ExportDeclaration" => ["Attributes", "FlowNode", "modifiers"],
+		"IndexSignatureDeclaration" => ["FullSignature", "TypeParameters"],
+	];
+
 	static final HAXE_KEYWORDS = [
 		"abstract", "break", "case", "cast", "catch", "class", "continue", "default", "do", "dynamic", "else", "enum", "extends", "extern", "false",
 		"final", "for", "function", "if", "implements", "import", "in", "inline", "interface", "is", "macro", "new", "null", "operator", "overload",
@@ -563,18 +601,41 @@ class GenAst {
 		final impl = [for (e in exts) ' implements $e'].join("");
 		final notes = [];
 		final fields = flattenFields(node, notes);
+		final rare = rareFields(node, fields);
 		for (n in notes)
 			w.write('// $n');
 		w.write('class ${node.name} extends NodeDefault$impl {');
 		w.push();
 		for (f in fields) {
-			if (f.origin == node.name) {
+			if (rare.contains(f)) {
+				w.write('public var ${f.name}(get, set):${f.hxType}; // (in ${node.name}Rare)');
+			} else if (f.origin == node.name) {
 				w.write('public var ${f.name}:${f.hxType} = ${zero(f.hxType)};');
 			} else {
 				w.write('@:isVar public var ${f.name}(get, set):${f.hxType} = ${zero(f.hxType)};');
 			}
 		}
+		for (f in rare) {
+			final r = '${node.name}Rare';
+			// (inline: the test of the links; the lookup is a call, so that the callers stay small)
+			w.write('inline function get_${f.name}():${f.hxType} return links == null ? null : rare_${f.name}();');
+			w.write('function rare_${f.name}():${f.hxType} {');
+			w.push();
+			w.write('final r = $r.store.TryGetInline(this);');
+			w.write('return r == null ? null : r.${f.name};');
+			w.pop();
+			w.write('}');
+			w.write('function set_${f.name}(v:${f.hxType}):${f.hxType} {');
+			w.push();
+			w.write('final r = v != null ? $r.store.Get(this) : $r.store.TryGetInline(this);');
+			w.write('if (r != null) r.${f.name} = v;');
+			w.write('return v;');
+			w.pop();
+			w.write('}');
+		}
 		for (f in fields) {
+			if (rare.contains(f))
+				continue;
 			if (f.origin != node.name) {
 				w.write('inline function get_${f.name}():${f.hxType} return ${f.name};');
 				w.write('inline function set_${f.name}(v:${f.hxType}):${f.hxType} return ${f.name} = v;');
@@ -596,6 +657,46 @@ class GenAst {
 		w.pop();
 		w.write("}");
 		w.write("");
+		if (rare.length > 0)
+			generateRareRecord(w, node, rare);
+	}
+
+	static function rareFields(node:NodeType, fields:Array<FieldInfo>):Array<FieldInfo> {
+		final names = RARE_FIELDS.get(node.name);
+		if (names == null)
+			return [];
+		return [
+			for (n in names) {
+				final f = Lambda.find(fields, f -> f.name == n);
+				if (f == null)
+					throw 'RARE_FIELDS: ${node.name} has no field $n';
+				if (zero(f.hxType) != "null")
+					throw 'RARE_FIELDS: ${node.name}.$n is not a pointer';
+				f;
+			}
+		];
+	}
+
+	// the side record of the rare fields of a node class: an entry of the node's links (core.LinkStore), made when
+	// one of them is set to a non-nil value
+	static function generateRareRecord(w:CodeWriter, node:NodeType, rare:Array<FieldInfo>) {
+		final r = '${node.name}Rare';
+		w.write('// the fields that few ${node.name} nodes set (see GenAst.RARE_FIELDS)');
+		w.write('class $r extends ts.core.Linkstore.LinkEntry {');
+		w.push();
+		w.write('public static final store = new ts.core.Linkstore.LinkStore<NodeDefault, $r>(() -> new $r());');
+		w.write("");
+		for (f in rare)
+			w.write('public var ${f.name}:${f.hxType} = null;');
+		w.write("");
+		w.write("public function new() {");
+		w.push();
+		w.write("super();");
+		w.pop();
+		w.write("}");
+		w.pop();
+		w.write("}");
+		w.write("");
 	}
 
 	static function generateForEachChild(w:CodeWriter, node:NodeType) {
@@ -607,9 +708,14 @@ class GenAst {
 		if (node.handWrittenVisitor) {
 			w.write('return Ast.forEachChild_${node.name}(this, v);');
 		} else {
+			// the rare fields' record is looked up once
+			final rare = rareFields(node, flattenFields(node, []));
+			final isRare = (n:String) -> Lambda.exists(rare, f -> f.name == n);
+			if (Lambda.exists(childMembers, m -> isRare(m.name)))
+				w.write('final r = ${node.name}Rare.store.TryGetInline(this);');
 			final parts = [
 				for (m in childMembers) {
-					final access = 'this.${m.name}';
+					final access = isRare(m.name) ? '(r == null ? null : r.${m.name})' : 'this.${m.name}';
 					switch (m.listKind) {
 						case "raw": 'Ast.visitNodes(v, $access)';
 						case "ModifierList": 'Ast.visitModifiers(v, $access)';
