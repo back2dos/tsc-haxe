@@ -158,6 +158,12 @@ enum abstract CachedTypeKind(Int) from Int to Int {
 	var CachedTypeKindSimplifiedConditionalTypeForWriting = 23;
 }
 
+#if (target.name == "hxmc")
+typedef RelationKey = ts.checker.Relater.RelKey;
+#else
+typedef RelationKey = CacheHashKey;
+#end
+
 @:allow(ts.checker)
 class CachedTypeKey {
 	var kind:CachedTypeKind = 0;
@@ -2807,18 +2813,22 @@ class Checker {
 	static var getRelationKeyConstrained:Bool = false;
 	#end
 
-	static function getRelationKey(source:Type, target:Type, intersectionState:IntersectionState, isIdentity:Bool, ignoreConstraints:Bool):CacheHashKey {
+	static function getRelationKey(source:Type, target:Type, intersectionState:IntersectionState, isIdentity:Bool, ignoreConstraints:Bool):RelationKey {
 		if (isIdentity && source.id > target.id) {
 			final tmp = source;
 			source = target;
 			target = tmp;
 		}
 		#if (target.name == "hxmc")
-		// PORT: perf — (from tsrs) the key of two types by id (Go hashes 's', the ids and the intersection state):
-		// their six 16-bit units, no hasher (KeyHasher.Sum's keys are eight units: never equal to these)
+		// PORT: perf — (from tsrs) the key of two types by id (Go hashes 's', the ids and the intersection state): a
+		// RelKey of the ids (no string, no hasher); see RelKey for larger ids and for the hashed keys below
 		if (!(isTypeReferenceWithGenericArguments(source) && isTypeReferenceWithGenericArguments(target))) {
 			getRelationKeyConstrained = false;
-			return new CacheHashKey(idsKey(source.id, target.id, intersectionState));
+			final tid = target.id;
+			if (tid < (1 << 29)) {
+				return new ts.checker.Relater.RelKey(source.id, (tid << 2) | intersectionState);
+			}
+			return new ts.checker.Relater.RelKey(-1 - source.checker.relationKeyNumber(idsKey(source.id, tid, intersectionState)), 0);
 		}
 		#end
 		final b = new KeyBuilder();
@@ -2833,8 +2843,29 @@ class Checker {
 		}
 		hashWrite32(b.h, intersectionState);
 		getRelationKeyConstrained = constrained;
+		#if (target.name == "hxmc")
+		return new ts.checker.Relater.RelKey(-1 - source.checker.relationKeyNumber(b.hash().Key()), 0);
+		#else
 		return b.hash();
+		#end
 	}
+
+	#if (target.name == "hxmc")
+	// the number of a hashed relation key (see RelKey): the keys numbered in order of first use, per checker
+	function relationKeyNumber(key:std.String):Int {
+		final m = relationKeyNumbers;
+		final n:Null<Int> = m.get(key);
+		if (n != null) {
+			return n;
+		}
+		final k = relationKeyCount++;
+		m.set(key, k);
+		return k;
+	}
+
+	final relationKeyNumbers = new ts.core.HashKeyMap<Int>(); // PORT: perf (see relationKeyNumber)
+	var relationKeyCount = 0;
+	#end
 
 	#if (target.name == "hxmc")
 	// PORT: perf — (from tsrs, checker_09.rs) the key of at most 3 types without an alias: a header unit (0xF000, the

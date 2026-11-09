@@ -114,21 +114,81 @@ abstract RecursionId(Dynamic) {
 	}
 }
 
+#if (target.name == "hxmc")
+// PORT: perf — a relation key as a value (Go's CacheHashKey is one; here a string per key before): two Ints a, b in
+// 64 bits. For two types without generic type arguments a is the source id and b the target id << 2 | the
+// intersection state (2 bits), for target ids below 2^29; otherwise a is -1 - the number of the hashed key (Go's
+// xxh3 key, here KeyHasher's 128 bits or the six-unit ids key) in the checker's relationKeyNumbers, b is 0. Two keys
+// are equal exactly when the Go keys are (up to Go's hash collisions, as before).
+abstract RelKey(hxmc.I64) {
+	public inline function new(a:Int, b:Int) {
+		this = ((b : hxmc.I64) << 32) | (((a : hxmc.I64) << 32) >>> 32);
+	}
+
+	public var a(get, never):Int;
+
+	inline function get_a():Int
+		return this.toInt();
+
+	public var b(get, never):Int;
+
+	inline function get_b():Int
+		return (this >>> 32).toInt();
+}
+
+typedef RelationKeyValue = RelKey;
+#else
+typedef RelationKeyValue = std.String;
+#end
+
 @:allow(ts.checker)
 class Relation {
+	#if (target.name == "hxmc")
+	var results:ts.core.PairIntMap = null;
+	#else
 	var results:ts.core.HashKeyMap<RelationComparisonResult> /* key: checker.CacheHashKey */ = null;
+	#end
 	var count:Int = 0; // PORT: len(map) — StringMap has no O(1) size, so set() counts new keys
 
 	public function new() {}
 
 	// PORT: struct map key — CacheHashKey encoded with its helper CacheHashKey.Key() (PORTING §4a).
+	#if (target.name == "hxmc")
+	static inline function keyString(key:RelKey):RelKey {
+		return key;
+	}
+	#else
 	static inline function keyString(key:CacheHashKey):std.String {
 		return key.Key();
 	}
+	#end
 
-	function get(key:CacheHashKey):RelationComparisonResult {
+	function get(key:RelationKey):RelationComparisonResult {
 		return getByKey(keyString(key));
 	}
+
+	#if (target.name == "hxmc")
+	function getByKey(key:RelKey):RelationComparisonResult {
+		if (results == null) {
+			return RelationComparisonResultNone;
+		}
+		final r = results.get(key.a, key.b);
+		return r < 0 ? RelationComparisonResultNone : r;
+	}
+
+	function set(key:RelKey, result:RelationComparisonResult):Void {
+		setByKey(key, result);
+	}
+
+	function setByKey(key:RelKey, result:RelationComparisonResult):Void {
+		if (results == null) {
+			results = new ts.core.PairIntMap();
+		}
+		if (results.set(key.a, key.b, result)) {
+			count++;
+		}
+	}
+	#else
 
 	// PORT: get with a key already encoded by keyString (avoids re-encoding on the hot path)
 	function getByKey(key:std.String):RelationComparisonResult {
@@ -159,6 +219,7 @@ class Relation {
 		results.set(key, result);
 		#end
 	}
+	#end
 
 	function size():Int {
 		return count;
@@ -225,8 +286,13 @@ class Relater {
 	var relatedInfo:Array<Diagnostic> = null;
 	// PORT: struct map key — the maybe keys are kept encoded (Relation.keyString); the skeleton's
 	// Set<CacheHashKey> would compare key objects by identity.
+	#if (target.name == "hxmc")
+	var maybeKeys:MaybeKeys = null; // PORT: perf — the keys' two Ints (see RelKey)
+	var maybeKeysSet:ts.core.PairIntMap = new ts.core.PairIntMap(); // (as a set: value 0)
+	#else
 	var maybeKeys:Array<std.String> = null;
 	var maybeKeysSet:Set<std.String> = new Set<std.String>();
+	#end
 	var sourceStack:Array<Type> = null;
 	var targetStack:Array<Type> = null;
 	var maybeCount:Int = 0;
@@ -2703,7 +2769,7 @@ class Relater {
 	}
 
 	static function putRelater(c:Checker, r:Relater):Void {
-		r.maybeKeysSet.Clear();
+		#if (target.name == "hxmc") r.maybeKeysSet.clear(); #else r.maybeKeysSet.Clear(); #end
 		// PORT: `*r = Relater{...}` — reset every field to its zero value, keeping the reusable buffers
 		r.c = c;
 		r.relation = null;
@@ -3299,7 +3365,7 @@ class Relater {
 			return TernaryMaybe;
 		}
 		if (maybeKeys == null) {
-			maybeKeys = [];
+			maybeKeys = #if (target.name == "hxmc") new MaybeKeys() #else [] #end;
 		}
 		final maybeStart = maybeKeys.length;
 		maybeStackPush(id);
@@ -3393,11 +3459,16 @@ class Relater {
 		// PORT: perf — maybeKeysSet mirrors the stack only while it is longer than MAYBE_STACK_SCAN_MAX
 		if (maybeStart <= MAYBE_STACK_SCAN_MAX) {
 			if (len > MAYBE_STACK_SCAN_MAX) {
-				maybeKeysSet.Clear();
+				#if (target.name == "hxmc") maybeKeysSet.clear(); #else maybeKeysSet.Clear(); #end
 			}
 		} else {
 			for (i in maybeStart...len) {
+				#if (target.name == "hxmc")
+				final k = maybeKeys[i];
+				maybeKeysSet.remove(k.a, k.b);
+				#else
 				maybeKeysSet.Delete(maybeKeys[i]);
+				#end
 			}
 		}
 		maybeKeys.resize(maybeStart);
@@ -3408,6 +3479,25 @@ class Relater {
 	// longer (no set entries made and dropped per relation)
 	static inline final MAYBE_STACK_SCAN_MAX = 32;
 
+	#if (target.name == "hxmc")
+	inline function maybeStackHas(key:RelKey):Bool {
+		final keys = maybeKeys;
+		return keys == null ? false : keys.length <= MAYBE_STACK_SCAN_MAX ? keys.indexOf(key) >= 0 : maybeKeysSet.get(key.a, key.b) >= 0;
+	}
+
+	function maybeStackPush(key:RelKey):Void {
+		final keys = maybeKeys;
+		keys.push(key);
+		if (keys.length == MAYBE_STACK_SCAN_MAX + 1) {
+			for (i in 0...keys.length) {
+				final k = keys[i];
+				maybeKeysSet.set(k.a, k.b, 0);
+			}
+		} else if (keys.length > MAYBE_STACK_SCAN_MAX) {
+			maybeKeysSet.set(key.a, key.b, 0);
+		}
+	}
+	#else
 	inline function maybeStackHas(key:std.String):Bool {
 		final keys = maybeKeys;
 		return keys == null ? false : keys.length <= MAYBE_STACK_SCAN_MAX ? keys.indexOf(key) >= 0 : maybeKeysSet.Has(key);
@@ -3424,6 +3514,7 @@ class Relater {
 			maybeKeysSet.Add(key);
 		}
 	}
+	#end
 
 	function getErrorState():ErrorState {
 		final e = new ErrorState();
@@ -5342,3 +5433,40 @@ class Relater {
 		}
 	}
 }
+
+#if (target.name == "hxmc")
+// PORT: perf — the relater's maybe stack of RelKeys as their Ints, two per key (no key objects)
+abstract MaybeKeys(Array<Int>) {
+	public inline function new() {
+		this = [];
+	}
+
+	public var length(get, never):Int;
+
+	inline function get_length():Int
+		return this.length >> 1;
+
+	@:arrayAccess public inline function at(i:Int):RelKey
+		return new RelKey(this[2 * i], this[2 * i + 1]);
+
+	public inline function push(k:RelKey):Void {
+		this.push(k.a);
+		this.push(k.b);
+	}
+
+	public function indexOf(k:RelKey):Int {
+		final a = k.a, b = k.b, ints = this;
+		var i = 0;
+		final n = ints.length;
+		while (i < n) {
+			if (ints[i] == a && ints[i + 1] == b)
+				return i >> 1;
+			i += 2;
+		}
+		return -1;
+	}
+
+	public inline function resize(n:Int):Void
+		this.resize(2 * n);
+}
+#end
