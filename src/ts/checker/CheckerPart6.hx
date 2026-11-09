@@ -1433,7 +1433,10 @@ class CheckerPart6 {
 				var modifiers:ModifierFlags = ModifierFlagsNone;
 				if (prop != null) {
 					modifiers = Checker.getDeclarationModifierFlagsFromSymbol(prop);
-					final writeModifiers = Checker.getDeclarationModifierFlagsFromSymbolEx(prop, true /*isWrite*/);
+					// PORT: perf — (from tsrs) the write modifiers differ from the read ones only for a synthetic symbol or
+					// one with a set accessor (else the same declaration is read)
+					final writeModifiers = (prop.CheckFlags & CheckFlagsSynthetic) != 0 || (prop.Flags & SymbolFlagsSetAccessor) != 0 ? Checker.getDeclarationModifierFlagsFromSymbolEx(prop,
+						true /*isWrite*/) : modifiers;
 					if ((prop.Flags & SymbolFlagsClassMember) != 0) {
 						if (isUnion) {
 							optionalFlag |= (prop.Flags & SymbolFlagsOptional);

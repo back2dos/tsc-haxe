@@ -2611,12 +2611,20 @@ class Checker {
 	}
 
 	static extern inline overload function getTypeListKey(types:Array<Type>):CacheHashKey {
+		#if (target.name == "hxmc")
+		if (Core.len(types) <= 3)
+			return new CacheHashKey(packedTypesKeyA(1, 0, types));
+		#end
 		final b = new KeyBuilder();
 		b.writeTypes(types);
 		return b.hash();
 	}
 
 	static extern inline overload function getTypeListKey(types:haxe.ds.Vector<Type>):CacheHashKey {
+		#if (target.name == "hxmc")
+		if (Core.len(types) <= 3)
+			return new CacheHashKey(packedTypesKeyV(1, 0, types));
+		#end
 		final b = new KeyBuilder();
 		b.writeTypes(types);
 		return b.hash();
@@ -2720,6 +2728,10 @@ class Checker {
 	}
 
 	static function getTypeInstantiationKey(typeArguments:Array<Type>, alias:TypeAlias, singleSignature:Bool):CacheHashKey {
+		#if (target.name == "hxmc")
+		if (alias == null && Core.len(typeArguments) <= 3)
+			return new CacheHashKey(packedTypesKeyA(2, singleSignature ? 1 : 0, typeArguments));
+		#end
 		final b = new KeyBuilder();
 		b.writeTypes(typeArguments);
 		b.writeAlias(alias);
@@ -2757,6 +2769,10 @@ class Checker {
 	}
 
 	static function getConditionalTypeKey(typeArguments:Array<Type>, alias:TypeAlias, forConstraint:Bool):CacheHashKey {
+		#if (target.name == "hxmc")
+		if (alias == null && Core.len(typeArguments) <= 3)
+			return new CacheHashKey(packedTypesKeyA(3, forConstraint ? 1 : 0, typeArguments));
+		#end
 		final b = new KeyBuilder();
 		b.writeTypes(typeArguments);
 		b.writeAlias(alias);
@@ -2804,6 +2820,46 @@ class Checker {
 	}
 
 	#if (target.name == "hxmc")
+	// PORT: perf — (from tsrs, checker_09.rs) the key of at most 3 types without an alias: a header unit (0xF000, the
+	// key's family (1 type list, 2 type instantiation, 3 conditional type), its flag and the count) and each id as two
+	// units, 1 to 7 units: never equal to a hashed key (KeyHasher.Sum: 8 units), equal to another packed key exactly
+	// when family, flag and ids are; no hasher and no hashing
+	static function packedTypesKeyA(family:Int, flag:Int, types:Array<Type>):std.String {
+		final n = Core.len(types);
+		final s = hxmc.rt.Str.make2(1 + 2 * n);
+		final d = hxmc.rt.Str.chars2(s);
+		final h0 = 0xF000 | (family << 8) | (flag << 4) | n;
+		d.set(0, h0);
+		var x = (0x811C9DC5 ^ h0) * 16777619;
+		for (i in 0...n) {
+			final id = types[i].id;
+			d.set(1 + 2 * i, id & 0xFFFF);
+			x = (x ^ (id & 0xFFFF)) * 16777619;
+			d.set(2 + 2 * i, id >>> 16);
+			x = (x ^ (id >>> 16)) * 16777619;
+		}
+		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
+		return s;
+	}
+
+	static function packedTypesKeyV(family:Int, flag:Int, types:haxe.ds.Vector<Type>):std.String {
+		final n = Core.len(types);
+		final s = hxmc.rt.Str.make2(1 + 2 * n);
+		final d = hxmc.rt.Str.chars2(s);
+		final h0 = 0xF000 | (family << 8) | (flag << 4) | n;
+		d.set(0, h0);
+		var x = (0x811C9DC5 ^ h0) * 16777619;
+		for (i in 0...n) {
+			final id = types[i].id;
+			d.set(1 + 2 * i, id & 0xFFFF);
+			x = (x ^ (id & 0xFFFF)) * 16777619;
+			d.set(2 + 2 * i, id >>> 16);
+			x = (x ^ (id >>> 16)) * 16777619;
+		}
+		hxmc.rt.Repr.storeHash(s, x == 0 ? 1 : x);
+		return s;
+	}
+
 	// three 32-bit values as a six-unit string, with its StringMap hash stored (as KeyHasher.Sum)
 	static function idsKey(a:Int, b:Int, c:Int):std.String {
 		final s = hxmc.rt.Str.make2(6);
