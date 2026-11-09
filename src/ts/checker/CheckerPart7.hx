@@ -2488,6 +2488,8 @@ class CheckerPart7 {
 		return types;
 	}
 
+	static final NO_KEY_PROPERTY = @:privateAccess new Symbol(); // (see removeSubtypes)
+
 	static function removeSubtypes(c:Checker, types:Array<Type>, hasObjectTypes:Bool):Array<Type> {
 		// [] and [T] immediately reduce to [] and [T] respectively
 		if (Core.len(types) < 2) {
@@ -2506,6 +2508,13 @@ class CheckerPart7 {
 		});
 		// PORT: the Find predicate does not depend on the loop; created once (PORTING.md §7a).
 		final isUnitTypedProperty = (p:Symbol) -> Checker.isUnitType(c.getTypeOfSymbol(p));
+		// PORT: perf — (from tsrs, checker_13.rs:617) each target's property of the key property name of the last source
+		// that had one (the sources of a discriminated union share the name; else each target's property is looked up
+		// again for every source), by type id (NO_KEY_PROPERTY: none); dropped when the name changes or a type's
+		// members are reset (getBaseTypes)
+		var keyProps:haxe.ds.IntMap<Symbol> = null;
+		var keyPropsName:std.String = null;
+		var keyPropsEpoch = 0;
 		final length = types.length;
 		var i = length;
 		var count = 0;
@@ -2560,7 +2569,20 @@ class CheckerPart7 {
 						}
 						count++;
 						if (keyProperty != null && target.flags & (TypeFlagsObject | TypeFlagsIntersection | TypeFlagsInstantiableNonPrimitive) != 0) {
-							final t = c.getTypeOfPropertyOfType(target, keyProperty.Name);
+							final name = keyProperty.Name;
+							if (keyProps == null || keyPropsName != name || keyPropsEpoch != c.membersResetEpoch) {
+								keyProps = new haxe.ds.IntMap<Symbol>();
+								keyPropsName = name;
+								keyPropsEpoch = c.membersResetEpoch;
+							}
+							var prop = keyProps.get(target.id);
+							if (prop == null) {
+								prop = c.getPropertyOfType(target, name);
+								keyProps.set(target.id, prop == null ? NO_KEY_PROPERTY : prop);
+							} else if (prop == NO_KEY_PROPERTY) {
+								prop = null;
+							}
+							final t = prop == null ? null : c.getTypeOfSymbol(prop); // (getTypeOfPropertyOfType)
 							if (t != null && Checker.isUnitType(t) && c.getRegularTypeOfLiteralType(t) != keyPropertyType) {
 								continue;
 							}

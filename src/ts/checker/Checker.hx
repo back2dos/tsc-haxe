@@ -1679,6 +1679,7 @@ class Checker {
 	var globalFunctionType:Type = null;
 	var globalCallableFunctionType:Type = null;
 	var globalNewableFunctionType:Type = null;
+	var membersResetEpoch = 0; // PORT: perf — counts getBaseTypes' member resets (see removeSubtypes)
 	#if (target.name == "hxmc")
 	var fallbackMemberFilter:haxe.ds.Vector<Int> = null; // PORT: perf (see CheckerPart5.mayBeFallbackMember)
 	#end

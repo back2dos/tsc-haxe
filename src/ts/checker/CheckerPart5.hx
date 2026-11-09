@@ -3227,6 +3227,7 @@ class CheckerPart5 {
 			// members partially resolved. Here we ensure any such partial resolution is reset.
 			// See https://github.com/microsoft/TypeScript/issues/16861 for an example.
 			t.objectFlags &= ~ObjectFlagsMembersResolved;
+			c.membersResetEpoch++;
 			#if (target.name == "hxmc")
 			if (t == c.globalFunctionType || t == c.globalCallableFunctionType || t == c.globalNewableFunctionType || t == c.globalObjectType) {
 				c.fallbackMemberFilter = null; // (built again once its members are resolved again)
