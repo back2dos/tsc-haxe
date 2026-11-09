@@ -1678,9 +1678,18 @@ class CheckerPart4 {
 		final parent = node.Parent;
 		return Ast.IsConstAssertion(parent)
 			|| c.isInlineImportAttributes(node)
-			|| c.isValidConstAssertionArgument(node) && c.isConstTypeVariable(c.getContextualType(node, ContextFlagsNone), 0)
+			|| c.isValidConstAssertionArgument(node) && c.isConstTypeVariable(c.getContextualTypeForConstContext(node), 0)
 			|| (Ast.IsParenthesizedExpression(parent) || Ast.IsArrayLiteralExpression(parent) || Ast.IsSpreadElement(parent)) && c.isConstContext(parent)
 			|| (Ast.IsPropertyAssignment(parent) || Ast.IsShorthandPropertyAssignment(parent) || Ast.IsTemplateSpan(parent)) && c.isConstContext(parent.Parent);
+	}
+
+	// getContextualType(node, None), kept for checkExpressionForMutableLocation when node is the node it asks about
+	static function getContextualTypeForConstContext(c:Checker, node:Node):Type {
+		final t = c.getContextualType(node, ContextFlagsNone);
+		if (node == c.constContextNode) {
+			c.constContextNodeType = t == null ? NO_CONTEXTUAL_TYPE : t;
+		}
+		return t;
 	}
 
 	static function isInlineImportAttributes(c:Checker, node:Node):Bool {
@@ -1967,14 +1976,45 @@ class CheckerPart4 {
 
 	static function checkExpressionForMutableLocation(c:Checker, node:Node, checkMode:CheckMode):Type {
 		final t = c.checkExpressionEx(node, checkMode);
-		if (c.isConstContext(node)) {
+		// PORT: perf — (from tsrs, checker_07.rs:1817) the contextual type of node that isConstContext computed, if it
+		// did, is the one asked for below (nothing in between changes it). TSHX_CONST_CONTEXT=0 turns the reuse off,
+		// =shadow computes it again and exits (99) on another answer.
+		c.constContextNodeType = null;
+		c.constContextNode = node;
+		final isConst = c.isConstContext(node);
+		final known = c.constContextNodeType;
+		c.constContextNode = null;
+		c.constContextNodeType = null;
+		if (isConst) {
 			return c.getRegularTypeOfLiteralType(t);
 		} else if (Checker.isTypeAssertion(node)) {
 			return t;
 		} else {
-			return c.getWidenedLiteralLikeTypeForContextualType(t,
-				c.instantiateContextualType(c.getContextualType(node, ContextFlagsNone), node, ContextFlagsNone));
+			var contextualType:Type;
+			final mode = constContextMode();
+			if (known != null && mode != 0) {
+				contextualType = known == NO_CONTEXTUAL_TYPE ? null : known;
+				if (mode == 2 && c.getContextualType(node, ContextFlagsNone) != contextualType) {
+					Sys.stderr().writeString("tshx: const context: another contextual type\n");
+					Sys.exit(99);
+				}
+			} else {
+				contextualType = c.getContextualType(node, ContextFlagsNone);
+			}
+			return c.getWidenedLiteralLikeTypeForContextualType(t, c.instantiateContextualType(contextualType, node, ContextFlagsNone));
 		}
+	}
+
+	static final NO_CONTEXTUAL_TYPE = @:privateAccess new Type(); // (see checkExpressionForMutableLocation)
+	static var constContextModeValue = -1;
+
+	static inline function constContextMode():Int {
+		var m = constContextModeValue;
+		if (m < 0) {
+			final v = Sys.getEnv("TSHX_CONST_CONTEXT");
+			m = constContextModeValue = v == "0" || v == "off" ? 0 : v == "shadow" ? 2 : 1;
+		}
+		return m;
 	}
 
 	// PORT: perf — inline fast path (resolved already), the rest out of line
