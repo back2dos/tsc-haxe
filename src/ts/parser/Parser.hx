@@ -354,6 +354,13 @@ class Parser {
 		return s == null || s.length == 0 ? null : s.copy();
 	}
 
+	// PORT: memory — Go's JSDocText/JSDocLink pieces are substrings of the source text (no copies); here each
+	// is a string of its own (a JS file's JSDoc: webpack 279K pieces, ~6 per text, many of them "\n" or a
+	// margin). The only reader joins them (Node.Text), so the node keeps the one joined piece: nil when empty.
+	static function joinStrings(s:Null<Array<String>>):Array<String> {
+		return s == null || s.length == 0 ? null : [s.length == 1 ? s[0] : s.join("")];
+	}
+
 	function isJavaScript():Bool {
 		return scriptKind == ScriptKindJS || scriptKind == ScriptKindJSX;
 	}

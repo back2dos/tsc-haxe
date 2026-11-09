@@ -298,7 +298,7 @@ class Jsdoc {
 						if (linkEnd == start) {
 							comments = Parser.removeLeadingNewlines(comments);
 						}
-						var jsdocText = p.finishNodeWithEnd(p.factory.NewJSDocText(Parser.cloneStrings(comments)), linkEnd, commentEnd);
+						var jsdocText = p.finishNodeWithEnd(p.factory.NewJSDocText(Parser.joinStrings(comments)), linkEnd, commentEnd);
 						commentParts.push(jsdocText);
 						commentParts.push(link);
 						comments.resize(0);
@@ -342,7 +342,7 @@ class Jsdoc {
 
 		if (comments.length > 0) {
 			comments[comments.length - 1] = Strings.TrimRightFunc(comments[comments.length - 1], Parser.unicodeIsSpace);
-			var jsdocText = p.finishNodeWithEnd(p.factory.NewJSDocText(Parser.cloneStrings(comments)), linkEnd, commentsPos);
+			var jsdocText = p.finishNodeWithEnd(p.factory.NewJSDocText(Parser.joinStrings(comments)), linkEnd, commentsPos);
 			commentParts.push(jsdocText);
 		}
 
@@ -592,7 +592,7 @@ class Jsdoc {
 						} else {
 							commentStart = commentsPos;
 						}
-						var text = p.finishNodeWithEnd(p.factory.NewJSDocText(Parser.cloneStrings(comments)), commentStart, commentEnd);
+						var text = p.finishNodeWithEnd(p.factory.NewJSDocText(Parser.joinStrings(comments)), commentStart, commentEnd);
 						parts.push(text);
 						parts.push(link);
 						comments.resize(0);
@@ -666,7 +666,7 @@ class Jsdoc {
 			} else {
 				commentStart = commentsPos;
 			}
-			var text = p.finishNode(p.factory.NewJSDocText(Parser.cloneStrings(comments)), commentStart);
+			var text = p.finishNode(p.factory.NewJSDocText(Parser.joinStrings(comments)), commentStart);
 			parts.push(text);
 		}
 
@@ -694,6 +694,7 @@ class Jsdoc {
 			text = Parser.append(text, p.scanner.TokenText());
 			p.nextTokenJSDoc(); // Couldn't this be nextTokenCommentJSDoc?
 		}
+		text = Parser.joinStrings(text); // PORT: memory — see joinStrings
 		var create:Node = null;
 		switch (linkType) {
 		case "link":
