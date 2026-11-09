@@ -1743,8 +1743,8 @@ class StructuredType extends ConstrainedType {
 	inline function getMember(name:std.String):Symbol {
 		final m = members;
 		final lazy = m != null ? null : getLazyState();
-		final index:Null<Int> = lazy == null ? null : lazy.layout.index.get(name);
-		return m != null ? m.get(name) : index == null ? null : getPropertyAt(index);
+		final index = lazy == null ? -1 : lazy.layout.indexOf(name);
+		return m != null ? m.get(name) : index < 0 ? null : getPropertyAt(index);
 	}
 
 	function getMembers():SymbolTable {
@@ -1923,10 +1923,86 @@ class LazyState {
 class MemberLayout {
 	var id:Int = 0; // Unique identifier for the member layout
 	var symbols:haxe.ds.Vector<Symbol> = null; // the members (uninstantiated symbols) in order: the layout properties
+	#if (target.name == "hxmc" && !hxmc.wasm_gc)
+	// PORT: memory — their indices by name as an open-addressing table of Ints over `symbols` (index + 1, 0 an empty
+	// slot; a power of two, at most half full), no StringMap: a layout copies its bases' members (lib.dom's element
+	// interfaces: hundreds each), and a StringMap entry takes 36 to 72 bytes (storybook: 23 MB of layouts' maps)
+	var slots:haxe.ds.Vector<Int> = null;
+	#else
 	var index:StringMap<Int> = null; // their indices by name
+	#end
 	var baseIndices:haxe.ds.Vector<Int> = null; // Indices of base types for each member (-1 if locally declared)
 
 	public function new() {}
+
+	// The index of the member named `name` in symbols, or -1
+	public function indexOf(name:std.String):Int {
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		final s = slots;
+		if (s == null) {
+			return -1;
+		}
+		final mask = s.length - 1;
+		var i = hashOf(name) & mask;
+		while (true) {
+			final e = s[i];
+			if (e == 0) {
+				return -1;
+			}
+			if (symbols[e - 1].Name == name) {
+				return e - 1;
+			}
+			i = (i + 1) & mask;
+		}
+		#else
+		final r:Null<Int> = index.get(name);
+		return r == null ? -1 : r;
+		#end
+	}
+
+	#if (target.name == "hxmc" && !hxmc.wasm_gc)
+	static inline function hashOf(name:std.String):Int {
+		final h = hxmc.rt.Str.strHash(name) * 0x9E3779B1;
+		return h ^ (h >>> 16);
+	}
+
+	// createMemberLayout's: whether `symbol`'s name is new to the members so far (then it is in the table at index
+	// symbols.length, which the caller pushes it at); slots grown as needed
+	static function addName(layout:MemberLayout, symbols:ts.core.VectorBuilder<Symbol>, symbol:Symbol):Bool {
+		var s = layout.slots;
+		final n = symbols.length;
+		if (s == null || 2 * (n + 1) > s.length) {
+			var cap = s == null ? 4 : 2 * s.length;
+			while (cap < 2 * (n + 1)) {
+				cap <<= 1;
+			}
+			s = new haxe.ds.Vector<Int>(cap);
+			final m = cap - 1;
+			for (j in 0...n) {
+				var i = hashOf(symbols[j].Name) & m;
+				while (s[i] != 0) {
+					i = (i + 1) & m;
+				}
+				s[i] = j + 1;
+			}
+			layout.slots = s;
+		}
+		final name = symbol.Name;
+		final mask = s.length - 1;
+		var i = hashOf(name) & mask;
+		while (true) {
+			final e = s[i];
+			if (e == 0) {
+				s[i] = n + 1;
+				return true;
+			}
+			if (symbols[e - 1].Name == name) {
+				return false;
+			}
+			i = (i + 1) & mask;
+		}
+	}
+	#end
 }
 
 @:allow(ts.checker)

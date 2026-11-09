@@ -2786,8 +2786,8 @@ class CheckerPart5 {
 			}
 			final lazy = st.getLazyState();
 			if (lazy != null) {
-				for (k in lazy.layout.index.keys()) {
-					fallbackFilterAdd(f, k);
+				for (symbol in lazy.layout.symbols) {
+					fallbackFilterAdd(f, symbol.Name);
 				}
 			}
 		}
@@ -3036,8 +3036,8 @@ class CheckerPart5 {
 		final s = r.t.AsTypeReference();
 		if (r.resolvedMembers != null) {
 			for (symbol in r.resolvedMembers) {
-				final index:Null<Int> = s.lazy.layout.index.get(symbol.Name);
-				if (index != null) {
+				final index = s.lazy.layout.indexOf(symbol.Name);
+				if (index >= 0) {
 					if (s.properties == null) {
 						s.properties = new haxe.ds.Vector<Symbol>(s.lazy.layout.symbols.length);
 					}
@@ -3121,9 +3121,18 @@ class CheckerPart5 {
 	}
 
 	static function createMemberLayout(c:Checker, t:Type, baseTypes:Array<Type>):MemberLayout {
+		final layout = new MemberLayout();
 		final symbols = new VectorBuilder<Symbol>();
-		final index = new StringMap<Int>();
 		final baseIndices = new VectorBuilder<Int>();
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		inline function addMember(symbol:Symbol, baseIndex:Int) {
+			if (MemberLayout.addName(layout, symbols, symbol)) { // PORT: memory — see MemberLayout.slots
+				symbols.push(symbol);
+				baseIndices.push(baseIndex);
+			}
+		}
+		#else
+		final index = new StringMap<Int>();
 		inline function addMember(symbol:Symbol, baseIndex:Int) {
 			if (index.get(symbol.Name) == null) {
 				index.set(symbol.Name, symbols.length);
@@ -3131,12 +3140,10 @@ class CheckerPart5 {
 				baseIndices.push(baseIndex);
 			}
 		}
+		#end
 		// Add declared members
 		final declaredMembers = t.AsInterfaceType().declaredMembers;
 		if (declaredMembers != null) {
-			#if (target.name == "hxmc")
-			index.reserve(symbolTableLen(declaredMembers)); // PORT: perf — the table sized for the declared members
-			#end
 			for (id => symbol in declaredMembers) {
 				if (c.isNamedMember(symbol, id)) {
 					addMember(symbol, -1);
@@ -3149,9 +3156,6 @@ class CheckerPart5 {
 				final baseType = baseTypes[baseIndex];
 				if ((baseType.objectFlags & (ObjectFlagsReference | ObjectFlagsClassOrInterface)) != 0) {
 					c.resolveStructuredTypeMembers(baseType);
-					#if (target.name == "hxmc")
-					index.reserve(symbols.length + Core.len(baseType.AsTypeReference().lazy.layout.symbols)); // PORT: perf — and the base's
-					#end
 					for (symbol in baseType.AsTypeReference().lazy.layout.symbols) {
 						if (!Checker.isStaticPrivateIdentifierProperty(symbol)) {
 							addMember(symbol, baseIndex);
@@ -3166,10 +3170,11 @@ class CheckerPart5 {
 				}
 			}
 		}
-		final layout = new MemberLayout();
 		layout.id = c.memberLayoutCount++;
 		layout.symbols = symbols.build();
+		#if !(target.name == "hxmc" && !hxmc.wasm_gc)
 		layout.index = index;
+		#end
 		layout.baseIndices = baseIndices.build();
 		return layout;
 	}
