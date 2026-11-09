@@ -122,6 +122,14 @@ class Os {
 	}
 
 	// os.ReadFile
+	#if (target.name == "hxmc" && !hxmc.wasm_gc && hxmc.target != "wasm32-wasi")
+	// PORT: memory — the decoded text of a file of os.DirFS (vfs's Common.ReadFile without a Bytes copy:
+	// OsHxmc.readFileText); null when fsys is another FS or the text needs the Bytes path
+	public static function ReadFileText(fsys:FS, name:String):Null<go.Tuple.ValueOk<String>> {
+		return Std.isOfType(fsys, OsDirFS) ? (cast fsys : OsDirFS).ReadFileText(name) : null;
+	}
+	#end
+
 	public static function ReadFile(name:String):ValueError<Bytes> {
 		// PORT: perf — read first, stat only to classify a failure (a directory fails at read): one stat per
 		// file read less (Go: open, fstat, read)
@@ -691,6 +699,17 @@ private class OsDirFS implements StatFS implements ReadFileFS implements ReadDir
 		}
 		return new ValueError<File>(new OsReadFile(full.value, st.value, data.value), null);
 	}
+
+	#if (target.name == "hxmc" && !hxmc.wasm_gc && hxmc.target != "wasm32-wasi")
+	// PORT: memory — see OsHxmc.readFileText
+	public function ReadFileText(name:String):Null<go.Tuple.ValueOk<String>> {
+		final full = join(name);
+		if (full.err != null) {
+			return new go.Tuple.ValueOk("", false);
+		}
+		return OsHxmc.readFileText(full.value);
+	}
+	#end
 
 	public function ReadFile(name:String):ValueError<Bytes> {
 		final full = join(name);

@@ -123,5 +123,89 @@ class OsHxmc {
 			return null;
 		return hxmc.rt.Str.ofUtf8(buf, LibC.strlen(buf).toInt());
 	}
+
+	// PORT: memory — os.ReadFile and vfs's decodeBytes in one: the file read into malloc'ed memory (as the
+	// runtime's fileContent does) and decoded from there, so no Bytes object holds the file on the heap (a copy
+	// of every source file: garbage of the nursery and, when a minor collection catches it, of the old space).
+	// ("", false) when it cannot be read; null when the caller's path is needed: a UTF-16 byte order mark or
+	// UTF-8 that is not valid (U+FFFD replacement, go.Utf8.BytesToString).
+	public static function readFileText(path:String):Null<go.Tuple.ValueOk<String>> {
+		final p = cstr(path);
+		final fd = hxmc.unsafe.Posix.open(p, 0x80000 /* O_RDONLY | O_CLOEXEC */, 0);
+		LibC.free(p);
+		if (fd < 0)
+			return new go.Tuple.ValueOk("", false);
+		var cap = 65536, n = 0;
+		final st = Mem.stack(256);
+		if (hxmc.unsafe.Posix.fstat(fd, st) == 0 && (Mem.getI32(st, 24) & 0xF000) == 0x8000)
+			cap = Mem.getI64(st, 48).toInt() + 1;
+		var buf = LibC.malloc(cap);
+		while (true) {
+			if (n == cap) {
+				cap *= 2;
+				buf = LibC.realloc(buf, cap);
+			}
+			final r = hxmc.unsafe.Posix.read(fd, buf.add(n), cap - n).toInt();
+			if (r < 0 && errno() == 4 /* EINTR */)
+				continue;
+			if (r < 0) {
+				LibC.free(buf);
+				hxmc.unsafe.Posix.close(fd);
+				return new go.Tuple.ValueOk("", false);
+			}
+			if (r == 0)
+				break;
+			n += r;
+		}
+		hxmc.unsafe.Posix.close(fd);
+		final s = decodeText(buf, n);
+		LibC.free(buf);
+		return s == null ? null : new go.Tuple.ValueOk(s, true);
+	}
+
+	// Internal.decodeBytes of the n bytes at b (outside the heap); null for the cases it leaves to its caller
+	static function decodeText(b:Ptr, n:Int):Null<String> {
+		if (n >= 2) {
+			final b0 = Mem.getU8(b, 0), b1 = Mem.getU8(b, 1);
+			if ((b0 == 0xFF && b1 == 0xFE) || (b0 == 0xFE && b1 == 0xFF))
+				return null;
+		}
+		var start = 0;
+		if (n >= 3 && Mem.getU8(b, 0) == 0xEF && Mem.getU8(b, 1) == 0xBB && Mem.getU8(b, 2) == 0xBF)
+			start = 3;
+		var i = start;
+		while (i + 8 <= n && (Mem.getI32(b, i) | Mem.getI32(b, i + 4)) & 0x80808080 == 0)
+			i += 8;
+		while (i < n && Mem.getU8(b, i) < 0x80)
+			i++;
+		final len = n - start;
+		if (i == n) {
+			final s = hxmc.rt.Str.make1(len);
+			if (len > 0)
+				LibC.memcpy(hxmc.rt.Str.unitsAddr(s), b.add(start), len);
+			return s;
+		}
+		// valid UTF-8 (go.Utf8.validAt) is what Bytes.getString(UTF8) decodes the same way
+		while (i < n) {
+			final c = Mem.getU8(b, i);
+			if (c < 0x80) {
+				i++;
+				continue;
+			}
+			final k = c < 0xC2 ? 0 : (c < 0xE0 ? 2 : (c < 0xF0 ? 3 : (c < 0xF5 ? 4 : 0)));
+			if (k == 0 || i + k > n)
+				return null;
+			final b1 = Mem.getU8(b, i + 1);
+			if (b1 < (c == 0xE0 ? 0xA0 : (c == 0xF0 ? 0x90 : 0x80)) || b1 > (c == 0xED ? 0x9F : (c == 0xF4 ? 0x8F : 0xBF)))
+				return null;
+			for (j in 2...k) {
+				final bj = Mem.getU8(b, i + j);
+				if (bj < 0x80 || bj > 0xBF)
+					return null;
+			}
+			i += k;
+		}
+		return hxmc.rt.Str.ofUtf8(b.add(start), len);
+	}
 }
 #end

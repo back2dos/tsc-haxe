@@ -219,6 +219,12 @@ class Common {
 			return new ValueOk("", false);
 		}
 
+		#if (target.name == "hxmc" && !hxmc.wasm_gc && hxmc.target != "wasm32-wasi")
+		final t = go.Os.ReadFileText(fsys, r.c); // PORT: memory — no Bytes copy of the file (OsHxmc.readFileText)
+		if (t != null) {
+			return t;
+		}
+		#end
 		final b = go.Fs.Fs.ReadFile(fsys, r.c);
 		if (b.err != null) {
 			return new ValueOk("", false);
