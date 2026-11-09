@@ -157,6 +157,7 @@ class LinkHolder {
 // The base class of a LinkStore's values: the store whose value this is and the key's next link (both set by
 // LinkStore.getSlow before the entry is published, never changed after). On hxmc the store is the number in the
 // object's header (LinkStore.index), not a field.
+@:hxmc.compact
 class LinkEntry {
 	#if !(target.name == "hxmc" && !hxmc.wasm_gc)
 	public var linkStore:LinkStore<Dynamic, Dynamic> = null;

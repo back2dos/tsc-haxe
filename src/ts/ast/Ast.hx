@@ -10444,6 +10444,7 @@ class NodeFactory implements NodeFactoryCoercible {
 }
 
 // NodeList
+@:hxmc.compact
 class NodeList {
 	// PORT: Go `Loc core.TextRange` → two Int fields with an inline Loc property (no allocation).
 	public var pos:Int = 0;
@@ -12397,6 +12398,7 @@ abstract MutableNode(NodeDefault) from NodeDefault to NodeDefault {
 // class to decide which promoted methods are overrides.
 // PORT: implements TypeSystemEntity (Go `any`, see Symbol.hx).
 // PORT: perf — extends core.LinkHolder (the links of the checker's LinkStores, see there).
+@:hxmc.compact
 class NodeDefault extends ts.core.Linkstore.LinkHolder implements ts.ast.Symbol.TypeSystemEntity {
 	public var Kind:Kind = 0;
 	public var Flags:NodeFlags = 0;

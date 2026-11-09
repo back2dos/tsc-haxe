@@ -1262,6 +1262,7 @@ class StructuredTypeExtra extends TypeExtra {
 }
 
 @:allow(ts.checker)
+@:hxmc.compact
 class Type implements TypeSystemEntity {
 	var flags:TypeFlags = 0;
 	var objectFlags:ObjectFlags = 0;
@@ -2389,6 +2390,7 @@ class SignatureExtra {
 }
 
 @:allow(ts.checker)
+@:hxmc.compact
 class Signature implements TypeSystemEntity {
 	var id:SignatureId = 0;
 	var flags:SignatureFlags = 0;

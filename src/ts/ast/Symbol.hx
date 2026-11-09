@@ -18,6 +18,7 @@ interface TypeSystemEntity {}
 // (Symbol.NewSharedData, the checker's instantiateSymbol) shares its target's and is 40 B instead of 80. Go 7.0's
 // instantiated symbol copied the four fields and had no tables: here the tables of a symbol whose data is shared
 // read as nil, and a write to any of its data fields first gives it data of its own (a copy of the four fields).
+@:hxmc.compact
 class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	public var Flags:SymbolFlags = 0;
 	public var CheckFlags:CheckFlags = 0; // Non-zero only in transient symbols created by Checker

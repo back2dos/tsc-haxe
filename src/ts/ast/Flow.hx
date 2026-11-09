@@ -27,6 +27,7 @@ enum abstract FlowFlags(Int) from Int to Int {
 }
 
 // FlowNode
+@:hxmc.compact
 class FlowNode {
 	public var Flags:FlowFlags = 0;
 	public var Node:Node = null; // Associated AST node
