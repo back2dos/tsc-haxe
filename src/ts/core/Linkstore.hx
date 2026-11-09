@@ -14,6 +14,17 @@ package ts.core;
 // entry), so a link is one object (no separate entry: 32 B less per link, one load less per lookup).
 class LinkStore<K, V:LinkEntry> {
 	final arena:Arena<V>;
+	#if (target.name == "hxmc" && !hxmc.wasm_gc)
+	// PORT: perf (hxmc) — this store's number, kept in the 32-bit identity-hash word of each entry's object header
+	// (hxmc.rt.Dyn.objHash's; nothing hashes a link by identity), so an entry has no store field (8 B less per link)
+	// (the counter and its lock have no initializer: static stores (Ast's ids) are made by static initializers,
+	// whose order is Haxe's; the first store is made by one, on the main thread, before any checker thread runs)
+	final index:Int;
+	static var nextIndex:Int;
+	#if tshx_parallel
+	static var indexMutex:sys.thread.Mutex;
+	#end
+	#end
 	// PORT: perf — the value for a key, when it depends on the key (a subclass with more fields for some keys)
 	final forKey:Null<K->V>;
 	#if tshx_parallel
@@ -23,27 +34,50 @@ class LinkStore<K, V:LinkEntry> {
 	public function new(factory:() -> V, ?forKey:K->V) {
 		this.arena = new Arena<V>(factory);
 		this.forKey = forKey;
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		#if tshx_parallel
+		if (indexMutex == null)
+			indexMutex = new sys.thread.Mutex();
+		indexMutex.acquire();
+		#end
+		index = ++nextIndex;
+		#if tshx_parallel
+		indexMutex.release();
+		#end
+		#end
+	}
+
+	// whether e is this store's entry
+	inline function owns(e:LinkEntry):Bool {
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		return hxmc.unsafe.Mem.getI32(hxmc.unsafe.Mem.addr(e), -4) == index;
+		#else
+		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
+		return e.linkStore == self;
+		#end
 	}
 
 	// PORT: perf — inline: the key's first entry (most often this store's: the last one to add a link to the key)
 	public inline function Get(key:K):V {
 		final h:LinkHolder = cast key;
 		final e = h.links;
-		final self:LinkStore<Dynamic, Dynamic> = cast this;
-		return e != null && e.linkStore == self ? cast e : getSlow(key);
+		return e != null && owns(e) ? cast e : getSlow(key);
 	}
 
 	function getSlow(key:K):V {
 		final h:LinkHolder = cast key;
-		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.linkStore == self)
+			if (owns(e))
 				return cast e;
 			e = e.linkNext;
 		}
 		final value:LinkEntry = forKey != null ? forKey(key) : arena.New();
-		value.linkStore = self;
+		#if (target.name == "hxmc" && !hxmc.wasm_gc)
+		hxmc.unsafe.Mem.setI32(hxmc.unsafe.Mem.addr(value), -4, index); // (a new object: its hash word is still 0)
+		#else
+		value.linkStore = cast this;
+		#end
 		#if tshx_parallel
 		// PORT: hxmc (-D tshx-parallel) — the key's list is shared by the stores of all checkers: the
 		// entry is complete before it is published, readers need no lock (entries never change)
@@ -69,10 +103,9 @@ class LinkStore<K, V:LinkEntry> {
 
 	public function Has(key:K):Bool {
 		final h:LinkHolder = cast key;
-		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.linkStore == self)
+			if (owns(e))
 				return true;
 			e = e.linkNext;
 		}
@@ -96,19 +129,17 @@ class LinkStore<K, V:LinkEntry> {
 	// no entry of this store)
 	public inline function TryGetInline(key:K):Null<V> {
 		final h:LinkHolder = cast key;
-		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
-		while (e != null && e.linkStore != self)
+		while (e != null && !owns(e))
 			e = e.linkNext;
 		return cast e;
 	}
 
 	public function TryGet(key:K):Null<V> {
 		final h:LinkHolder = cast key;
-		final self:LinkStore<Dynamic, Dynamic> = cast this; // (a reference comparison, not Dynamic equality)
 		var e = h.links;
 		while (e != null) {
-			if (e.linkStore == self)
+			if (owns(e))
 				return cast e;
 			e = e.linkNext;
 		}
@@ -124,9 +155,12 @@ class LinkHolder {
 }
 
 // The base class of a LinkStore's values: the store whose value this is and the key's next link (both set by
-// LinkStore.getSlow before the entry is published, never changed after).
+// LinkStore.getSlow before the entry is published, never changed after). On hxmc the store is the number in the
+// object's header (LinkStore.index), not a field.
 class LinkEntry {
+	#if !(target.name == "hxmc" && !hxmc.wasm_gc)
 	public var linkStore:LinkStore<Dynamic, Dynamic> = null;
+	#end
 	public var linkNext:LinkEntry = null;
 
 	public function new() {}
