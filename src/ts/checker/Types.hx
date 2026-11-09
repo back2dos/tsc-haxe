@@ -204,7 +204,7 @@ abstract ValueSymbolLinks(Any) {
 	}
 
 	inline function get_functionOrConstructorChecked():Bool {
-		return isInst() ? inst().vExtra != null && inst().vExtra.functionOrConstructorChecked : rec().functionOrConstructorChecked;
+		return isInst() ? inst().extraFunctionOrConstructorChecked() : rec().functionOrConstructorChecked;
 	}
 
 	inline function set_functionOrConstructorChecked(v:Bool):Bool {
@@ -212,7 +212,7 @@ abstract ValueSymbolLinks(Any) {
 	}
 
 	inline function get_writeType():Type {
-		return isInst() ? (inst().vExtra == null ? null : inst().vExtra.writeType) : rec().writeType;
+		return isInst() ? inst().extraWriteType() : rec().writeType;
 	}
 
 	inline function set_writeType(v:Type):Type {
@@ -220,7 +220,7 @@ abstract ValueSymbolLinks(Any) {
 	}
 
 	inline function get_nameType():Type {
-		return isInst() ? (inst().vExtra == null ? null : inst().vExtra.nameType) : rec().nameType;
+		return isInst() ? inst().extraNameType() : rec().nameType;
 	}
 
 	inline function set_nameType(v:Type):Type {
@@ -228,7 +228,7 @@ abstract ValueSymbolLinks(Any) {
 	}
 
 	inline function get_containingType():Type {
-		return isInst() ? (inst().vExtra == null ? null : inst().vExtra.containingType) : rec().containingType;
+		return isInst() ? inst().extraContainingType() : rec().containingType;
 	}
 
 	inline function set_containingType(v:Type):Type {
@@ -267,45 +267,90 @@ class ValueSymbolLinkStore {
 @:access(ts.ast.Symbol)
 class InstantiatedSymbol extends Symbol {
 	var vResolvedType:Type = null;
-	var vExtra:ValueSymbolExtra = null; // (Go's rarely set fields, see ValueSymbolLinksRecord.extra)
 	var vTarget:Symbol = null;
 	var vMapper:TypeMapper = null;
+	// Go's rarely set fields (see ValueSymbolLinksRecord.extra; t3code-server: 5% of the instantiated symbols) in
+	// an entry of the symbol's links (no field: 64 -> 56 B; its links are most often empty: t3code-server 100%)
+	var vExtra(get, never):InstantiatedSymbolExtra;
 
 	public function new(other:Symbol) {
 		super();
 		data = other.data;
 	}
 
-	function newExtra():ValueSymbolExtra {
-		return vExtra = new ValueSymbolExtra();
+	inline function get_vExtra():InstantiatedSymbolExtra {
+		return links == null ? null : InstantiatedSymbolExtra.store.TryGetInline(this);
+	}
+
+	function newExtra():InstantiatedSymbolExtra {
+		return InstantiatedSymbolExtra.store.Get(this);
+	}
+
+	function extraFunctionOrConstructorChecked():Bool {
+		final x = vExtra;
+		return x != null && x.functionOrConstructorChecked;
+	}
+
+	function extraWriteType():Type {
+		final x = vExtra;
+		return x == null ? null : x.writeType;
+	}
+
+	function extraNameType():Type {
+		final x = vExtra;
+		return x == null ? null : x.nameType;
+	}
+
+	function extraContainingType():Type {
+		final x = vExtra;
+		return x == null ? null : x.containingType;
 	}
 
 	function setFunctionOrConstructorChecked(b:Bool):Bool {
-		if (vExtra == null && !b) {
+		final x = vExtra;
+		if (x == null && !b) {
 			return b;
 		}
-		return (vExtra != null ? vExtra : newExtra()).functionOrConstructorChecked = b;
+		return (x != null ? x : newExtra()).functionOrConstructorChecked = b;
 	}
 
 	function setWriteType(t:Type):Type {
-		if (vExtra == null && t == null) {
+		final x = vExtra;
+		if (x == null && t == null) {
 			return t;
 		}
-		return (vExtra != null ? vExtra : newExtra()).writeType = t;
+		return (x != null ? x : newExtra()).writeType = t;
 	}
 
 	function setNameType(t:Type):Type {
-		if (vExtra == null && t == null) {
+		final x = vExtra;
+		if (x == null && t == null) {
 			return t;
 		}
-		return (vExtra != null ? vExtra : newExtra()).nameType = t;
+		return (x != null ? x : newExtra()).nameType = t;
 	}
 
 	function setContainingType(t:Type):Type {
-		if (vExtra == null && t == null) {
+		final x = vExtra;
+		if (x == null && t == null) {
 			return t;
 		}
-		return (vExtra != null ? vExtra : newExtra()).containingType = t;
+		return (x != null ? x : newExtra()).containingType = t;
+	}
+}
+
+// the rarely set value links of an instantiated symbol (InstantiatedSymbol.vExtra)
+@:allow(ts.checker)
+class InstantiatedSymbolExtra extends ts.core.Linkstore.LinkEntry {
+	static final store = new LinkStore<Symbol, InstantiatedSymbolExtra>(() -> new InstantiatedSymbolExtra());
+
+	var writeType:Type = null;
+	var nameType:Type = null;
+	var containingType:Type = null;
+	var functionOrConstructorChecked:Bool = false;
+
+	public function new() {
+		super();
 	}
 }
 
