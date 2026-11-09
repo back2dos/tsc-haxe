@@ -2182,6 +2182,15 @@ class CheckerPart4 {
 		return result;
 	}
 
+	// a mapped type's property (MappedSymbol: its value links and mapped links as fields, see ValueSymbolLinks)
+	static function newMappedSymbol(c:Checker, flags:SymbolFlags, name:std.String):Symbol {
+		c.SymbolCount++;
+		final result = new MappedSymbol();
+		result.Flags = flags | SymbolFlagsTransient;
+		result.Name = name;
+		return result;
+	}
+
 	// a transient symbol whose value links are an entry of its links: a mapped or synthetic property's
 	// (SyntheticValueSymbolLinks, see ValueSymbolLinks)
 	static function newSymbolWithLinksEntry(c:Checker, flags:SymbolFlags, name:std.String):Symbol {
@@ -2199,23 +2208,32 @@ class CheckerPart4 {
 		return result;
 	}
 
-	// PORT: perf — Go's MappedSymbolLinks of a mapped type's property are fields of its value links
-	// (MappedValueSymbolLinks, made for a transient symbol with CheckFlagsMapped, which gets the mapped links when
-	// it is made); other symbols' are in mappedSymbolLinks
+	// PORT: perf — Go's MappedSymbolLinks of a mapped type's property are fields of the symbol (MappedSymbol, made by
+	// newMappedSymbol) or of its value links (MappedValueSymbolLinks, made for another transient symbol with
+	// CheckFlagsMapped, which gets the mapped links when it is made); other symbols' are in mappedSymbolLinks
 	static inline function mappedValueLinks(c:Checker, s:Symbol):MappedValueSymbolLinks {
 		return (s.CheckFlags & CheckFlagsMapped) != 0 && (s.Flags & SymbolFlagsTransient) != 0 ? Std.downcast(c.valueSymbolLinks.TryGetRecord(s), MappedValueSymbolLinks) : null;
 	}
 
 	static function hasMappedSymbolLinks(c:Checker, s:Symbol):Bool {
-		return c.mappedValueLinks(s) != null || c.mappedSymbolLinks.Has(s);
+		return Std.isOfType(s, MappedSymbol) || c.mappedValueLinks(s) != null || c.mappedSymbolLinks.Has(s);
 	}
 
 	static function getMappedKeyType(c:Checker, s:Symbol):Type {
+		final m = Std.downcast(s, MappedSymbol);
+		if (m != null) {
+			return m.mKeyType;
+		}
 		final v = c.mappedValueLinks(s);
 		return v != null ? v.mappedKeyType : c.mappedSymbolLinks.Get(s).keyType;
 	}
 
 	static function setMappedKeyType(c:Checker, s:Symbol, t:Type):Void {
+		final m = Std.downcast(s, MappedSymbol);
+		if (m != null) {
+			m.mKeyType = t;
+			return;
+		}
 		final v = c.mappedValueLinks(s);
 		if (v != null) {
 			v.mappedKeyType = t;
@@ -2225,11 +2243,20 @@ class CheckerPart4 {
 	}
 
 	static function getSyntheticOrigin(c:Checker, s:Symbol):Symbol {
+		final m = Std.downcast(s, MappedSymbol);
+		if (m != null) {
+			return m.mSyntheticOrigin;
+		}
 		final v = c.mappedValueLinks(s);
 		return v != null ? v.mappedSyntheticOrigin : c.mappedSymbolLinks.Get(s).syntheticOrigin;
 	}
 
 	static function setSyntheticOrigin(c:Checker, s:Symbol, origin:Symbol):Void {
+		final m = Std.downcast(s, MappedSymbol);
+		if (m != null) {
+			m.mSyntheticOrigin = origin;
+			return;
+		}
 		final v = c.mappedValueLinks(s);
 		if (v != null) {
 			v.mappedSyntheticOrigin = origin;

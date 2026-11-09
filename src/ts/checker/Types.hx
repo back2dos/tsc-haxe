@@ -151,8 +151,9 @@ class SymbolReferenceLinks extends ts.core.Linkstore.LinkEntry {
 // PORT: perf — most transient symbols have their value links as fields, like Strada's TransientSymbol: no links
 // entry (its header, store and next entry), the rarely set fields in an entry of the symbol's links
 // (EmbeddedSymbolLinks). An instantiated symbol (Checker.instantiateSymbol, t3code-server 1.7M) is an
-// InstantiatedSymbol, a symbol made by Checker.newSymbol a TransientSymbol (vscode 0.8M); not the mapped and
-// synthetic properties (Checker.newSymbolEx), which have SyntheticValueSymbolLinks. ValueSymbolLinks is such a symbol
+// InstantiatedSymbol, a symbol made by Checker.newSymbol a TransientSymbol (vscode 0.8M), a mapped type's property a
+// MappedSymbol (t3code-server 0.75M); not the synthetic properties (Checker.newSymbolEx), which have
+// SyntheticValueSymbolLinks. ValueSymbolLinks is such a symbol
 // itself or the links entry of another symbol (ValueSymbolLinksRecord); Checker.valueSymbolLinks
 // (ValueSymbolLinkStore) returns one or the other.
 @:allow(ts.checker)
@@ -173,8 +174,17 @@ abstract ValueSymbolLinks(Any) {
 		return Std.isOfType(this, TransientSymbol);
 	}
 
+	inline function isMapped():Bool {
+		return Std.isOfType(this, MappedSymbol);
+	}
+
+	// a TransientSymbol or MappedSymbol
+	inline function isWithLinks():Bool {
+		return Std.isOfType(this, SymbolWithLinks);
+	}
+
 	inline function isEmbedded():Bool {
-		return isInst() || isTrans();
+		return isInst() || isWithLinks();
 	}
 
 	inline function inst():InstantiatedSymbol {
@@ -182,6 +192,14 @@ abstract ValueSymbolLinks(Any) {
 	}
 
 	inline function trans():TransientSymbol {
+		return cast this;
+	}
+
+	inline function mapped():MappedSymbol {
+		return cast this;
+	}
+
+	inline function withLinks():SymbolWithLinks {
 		return cast this;
 	}
 
@@ -199,27 +217,27 @@ abstract ValueSymbolLinks(Any) {
 	}
 
 	inline function get_resolvedType():Type {
-		return isInst() ? inst().vResolvedType : isTrans() ? trans().tResolvedType : rec().resolvedType;
+		return isInst() ? inst().vResolvedType : isWithLinks() ? withLinks().tResolvedType : rec().resolvedType;
 	}
 
 	inline function set_resolvedType(v:Type):Type {
-		return isInst() ? inst().vResolvedType = v : isTrans() ? trans().tResolvedType = v : rec().resolvedType = v;
+		return isInst() ? inst().vResolvedType = v : isWithLinks() ? withLinks().tResolvedType = v : rec().resolvedType = v;
 	}
 
 	inline function get_target():Symbol {
-		return isInst() ? inst().vTarget : isTrans() ? trans().tTarget : rec().target;
+		return isInst() ? inst().vTarget : isTrans() ? trans().tTarget : isMapped() ? EmbeddedSymbolLinks.getTarget(sym()) : rec().target;
 	}
 
 	inline function set_target(v:Symbol):Symbol {
-		return isInst() ? inst().vTarget = v : isTrans() ? trans().tTarget = v : rec().target = v;
+		return isInst() ? inst().vTarget = v : isTrans() ? trans().tTarget = v : isMapped() ? EmbeddedSymbolLinks.setTarget(sym(), v) : rec().target = v;
 	}
 
 	inline function get_mapper():TypeMapper {
-		return isInst() ? inst().vMapper : isTrans() ? EmbeddedSymbolLinks.getMapper(sym()) : rec().mapper;
+		return isInst() ? inst().vMapper : isWithLinks() ? EmbeddedSymbolLinks.getMapper(sym()) : rec().mapper;
 	}
 
 	inline function set_mapper(v:TypeMapper):TypeMapper {
-		return isInst() ? inst().vMapper = v : isTrans() ? EmbeddedSymbolLinks.setMapper(sym(), v) : rec().mapper = v;
+		return isInst() ? inst().vMapper = v : isWithLinks() ? EmbeddedSymbolLinks.setMapper(sym(), v) : rec().mapper = v;
 	}
 
 	inline function get_functionOrConstructorChecked():Bool {
@@ -239,23 +257,24 @@ abstract ValueSymbolLinks(Any) {
 	}
 
 	inline function get_nameType():Type {
-		return isEmbedded() ? EmbeddedSymbolLinks.getNameType(sym()) : rec().nameType;
+		return isMapped() ? mapped().mNameType : isEmbedded() ? EmbeddedSymbolLinks.getNameType(sym()) : rec().nameType;
 	}
 
 	inline function set_nameType(v:Type):Type {
-		return isEmbedded() ? EmbeddedSymbolLinks.setNameType(sym(), v) : rec().nameType = v;
+		return isMapped() ? mapped().mNameType = v : isEmbedded() ? EmbeddedSymbolLinks.setNameType(sym(), v) : rec().nameType = v;
 	}
 
 	inline function get_containingType():Type {
-		return isEmbedded() ? EmbeddedSymbolLinks.getContainingType(sym()) : rec().containingType;
+		return isMapped() ? mapped().mContainingType : isEmbedded() ? EmbeddedSymbolLinks.getContainingType(sym()) : rec().containingType;
 	}
 
 	inline function set_containingType(v:Type):Type {
-		return isEmbedded() ? EmbeddedSymbolLinks.setContainingType(sym(), v) : rec().containingType = v;
+		return isMapped() ? mapped().mContainingType = v : isEmbedded() ? EmbeddedSymbolLinks.setContainingType(sym(), v) : rec().containingType = v;
 	}
 }
 
-// Checker.valueSymbolLinks: an InstantiatedSymbol's or TransientSymbol's links are the symbol (see ValueSymbolLinks)
+// Checker.valueSymbolLinks: an InstantiatedSymbol's, TransientSymbol's or MappedSymbol's links are the symbol (see
+// ValueSymbolLinks)
 class ValueSymbolLinkStore {
 	final store:LinkStore<Symbol, ValueSymbolLinksRecord>;
 
@@ -264,7 +283,7 @@ class ValueSymbolLinkStore {
 	}
 
 	static inline function embedded(s:Symbol):Bool {
-		return Std.isOfType(s, InstantiatedSymbol) || Std.isOfType(s, TransientSymbol);
+		return Std.isOfType(s, InstantiatedSymbol) || Std.isOfType(s, SymbolWithLinks);
 	}
 
 	public inline function Get(s:Symbol):ValueSymbolLinks {
@@ -299,11 +318,34 @@ class InstantiatedSymbol extends Symbol {
 	}
 }
 
+// a transient symbol with its own data and its value links as fields (TransientSymbol, MappedSymbol)
+@:allow(ts.checker)
+class SymbolWithLinks extends SymbolWithData {
+	var tResolvedType:Type = null;
+
+	public function new() {
+		super();
+	}
+}
+
 // a symbol made by Checker.newSymbol, with its type and target (vscode: 99% / 56% have one; the mapper is rare)
 @:allow(ts.checker)
-class TransientSymbol extends SymbolWithData {
-	var tResolvedType:Type = null;
+class TransientSymbol extends SymbolWithLinks {
 	var tTarget:Symbol = null;
+
+	public function new() {
+		super();
+	}
+}
+
+// a mapped type's property (Checker.newMappedSymbol), with its value links and Go's MappedSymbolLinks
+// (Checker.getMappedKeyType, ...) as fields
+@:allow(ts.checker)
+class MappedSymbol extends SymbolWithLinks {
+	var mNameType:Type = null;
+	var mContainingType:Type = null;
+	var mKeyType:Type = null;
+	var mSyntheticOrigin:Symbol = null;
 
 	public function new() {
 		super();
@@ -319,7 +361,8 @@ class EmbeddedSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var writeType:Type = null;
 	var nameType:Type = null;
 	var containingType:Type = null;
-	var mapper:TypeMapper = null; // (a TransientSymbol's)
+	var mapper:TypeMapper = null; // (a TransientSymbol's or MappedSymbol's)
+	var target:Symbol = null; // (a MappedSymbol's)
 	var functionOrConstructorChecked:Bool = false;
 
 	public function new() {
@@ -353,6 +396,16 @@ class EmbeddedSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	static function getMapper(s:Symbol):TypeMapper {
 		final x = of(s);
 		return x == null ? null : x.mapper;
+	}
+
+	static function getTarget(s:Symbol):Symbol {
+		final x = of(s);
+		return x == null ? null : x.target;
+	}
+
+	static function setTarget(s:Symbol, t:Symbol):Symbol {
+		final x = forWrite(s, t == null);
+		return x == null ? t : x.target = t;
 	}
 
 	// the entry to write v to (null when v is the zero value and there is none: nothing to write)
