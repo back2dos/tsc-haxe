@@ -17,7 +17,10 @@ class Arena<T> {
 
 	// Allocate a single element in the arena and return a pointer to the element. If the arena is at capacity,
 	// a new arena of the next size up is allocated.
-	public inline function New():T {
+	// PORT: perf — not inline: hxmc calls the factory (a `() -> T`) at an inlined call site through an adapter
+	// closure made per call (`() -> Symbol`, 24 B: t3code-server binding made 1.4M of them for its symbols and flow
+	// nodes); here it is called as it is.
+	public function New():T {
 		return factory();
 	}
 
