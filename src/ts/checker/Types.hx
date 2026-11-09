@@ -1753,7 +1753,7 @@ class StructuredType extends ConstrainedType {
 			if (Core.len(properties) != 0) {
 				members = new SymbolTable();
 				for (member in properties) {
-					members.set(member.Name, member);
+					members = members.withKey(member.Name, member);
 				}
 			}
 		}

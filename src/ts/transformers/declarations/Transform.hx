@@ -2656,8 +2656,7 @@ class DeclarationTransformer {
 		final declarationData = synthesizedNamespace.DeclarationData();
 		declarationData.Symbol = host;
 		final containerData = synthesizedNamespace.LocalsContainerData();
-		containerData.Locals = new SymbolTable();
-		containerData.Locals.set(localName.Text(), symbol);
+		containerData.Locals = new SymbolTable().withKey(localName.Text(), symbol);
 
 		final oldEnclosing = enclosingDeclaration;
 		enclosingDeclaration = synthesizedNamespace;

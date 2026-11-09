@@ -115,7 +115,11 @@ class Nodebuilderscopes {
 							oldLocals.push(rec);
 						}
 					}
-					locals.set(name, symbol);
+					locals = locals.withKey(name, symbol);
+					// PORT: pointer — the existing scope's table stored back (Go changes the map it holds)
+					if (existingFakeScope != null) {
+						existingFakeScope.LocalsContainerData().Locals = locals;
+					}
 				});
 
 				if (existingFakeScope == null) {
@@ -131,11 +135,13 @@ class Nodebuilderscopes {
 				} else {
 					// We did not create the current scope, so we have to clean it up
 					final undo = () -> {
+						// PORT: pointer — on the existing scope's table
+						final data = existingFakeScope.LocalsContainerData();
 						for (s in newLocals) {
-							locals.remove(s);
+							data.Locals = data.Locals.without(s);
 						}
 						for (s in oldLocals) {
-							locals.set(s.name, s.oldSymbol);
+							data.Locals = data.Locals.withKey(s.name, s.oldSymbol);
 						}
 					};
 					return undo;

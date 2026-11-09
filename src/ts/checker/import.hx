@@ -174,6 +174,7 @@ import ts.ast.KindGenerated.Kind.*;
 import ts.ast.Modifierflags.ModifierFlags.*;
 import ts.ast.Nodeflags.NodeFlags.*;
 import ts.ast.Symbolflags.SymbolFlags.*;
+import ts.ast.Symbol.SymbolTableSlot.*;
 import ts.ast.Tokenflags.TokenFlags;
 import ts.ast.Tokenflags.TokenFlags.*;
 import ts.ast.Utilities.FindAncestorResult.*;

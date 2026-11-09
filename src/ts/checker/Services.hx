@@ -17,7 +17,7 @@ class Services {
 			return null;
 		}
 
-		final symbols = new SymbolTable();
+		var symbols = new SymbolTable();
 		var isStaticSymbol = false;
 
 		// Copy the given symbol into symbol tables if the symbol has the given meaning
@@ -29,7 +29,7 @@ class Services {
 				// symbolsToArray will check whether the key is a reserved name and
 				// it will not copy symbol with reserved name to the array
 				if (!symbols.exists(id)) {
-					symbols.set(id, symbol);
+					symbols = symbols.withKey(id, symbol);
 				}
 			}
 		};
@@ -117,7 +117,7 @@ class Services {
 
 		populateSymbols();
 
-		symbols.remove(Ast.InternalSymbolNameThis); // Not a symbol, a keyword
+		symbols = symbols.without(Ast.InternalSymbolNameThis); // Not a symbol, a keyword
 		return Checker.symbolsToArray(symbols);
 	}
 
@@ -207,7 +207,7 @@ class Services {
 			return c.getAugmentedPropertiesOfType(unionType);
 		}
 
-		final props = new SymbolTable();
+		var props = new SymbolTable();
 		if (types != null) {
 			for (memberType in types) {
 				final augmentedProps = c.getAugmentedPropertiesOfType(memberType);
@@ -217,7 +217,7 @@ class Services {
 							final prop = c.createUnionOrIntersectionProperty(unionType, p.Name, false /*skipObjectFunctionPropertyAugment*/);
 							// May be undefined if the property is private
 							if (prop != null) {
-								props.set(p.Name, prop);
+								props = props.withKey(p.Name, prop);
 							}
 						}
 					}
@@ -286,7 +286,7 @@ class Services {
 			if (functionProps != null) {
 				for (p in functionProps) {
 					if (!propsByName.exists(p.Name)) {
-						propsByName.set(p.Name, p);
+						propsByName = propsByName.withKey(p.Name, p);
 					}
 				}
 			}

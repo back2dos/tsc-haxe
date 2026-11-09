@@ -1298,7 +1298,7 @@ class CheckerPart4 {
 				links.target = member;
 				member = prop;
 				if (allPropertiesTable != null) {
-					allPropertiesTable.set(prop.Name, prop);
+					allPropertiesTable = allPropertiesTable.withKey(prop.Name, prop);
 				}
 				if (contextualType != null && (checkMode & CheckModeInferential) != 0 && (checkMode & CheckModeSkipContextSensitive) == 0
 					&& (Ast.IsPropertyAssignment(memberDecl) || Ast.IsMethodDeclaration(memberDecl)) && c.isContextSensitive(memberDecl)) {
@@ -1358,7 +1358,7 @@ class CheckerPart4 {
 					}
 				}
 			} else {
-				propertiesTable.set(member.Name, member);
+				propertiesTable = propertiesTable.withKey(member.Name, member);
 			}
 			if (propertiesArray == null) {
 				propertiesArray = [];
@@ -1482,7 +1482,7 @@ class CheckerPart4 {
 			}
 			return c.getIntersectionType([left, right]);
 		}
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		final skippedPrivateMembers = new Set<std.String>();
 		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if (left == c.emptyObjectType) {
@@ -1491,14 +1491,11 @@ class CheckerPart4 {
 			indexInfos = c.getUnionIndexInfos(Core.vector2(left, right));
 		}
 		final rightProps = c.getPropertiesOfType(right);
-		#if (target.name == "hxmc")
-		members.reserve(Core.len(rightProps)); // PORT: perf — (as tsrs) the table sized for the right side's properties
-		#end
 		for (rightProp in rangeOf(rightProps)) {
 			if ((Checker.getDeclarationModifierFlagsFromSymbol(rightProp) & (ModifierFlagsPrivate | ModifierFlagsProtected)) != 0) {
 				skippedPrivateMembers.Add(rightProp.Name);
 			} else if (c.isSpreadableProperty(rightProp)) {
-				members.set(rightProp.Name, c.getSpreadSymbol(rightProp, readonly));
+				members = members.withKey(rightProp.Name, c.getSpreadSymbol(rightProp, readonly));
 			}
 		}
 
@@ -1530,10 +1527,10 @@ class CheckerPart4 {
 					c.spreadLinks.Get(result).rightSpread = rightProp;
 					result.Declarations = declarations;
 					links.nameType = c.valueSymbolLinks.Get(leftProp).nameType;
-					members.set(leftProp.Name, result);
+					members = members.withKey(leftProp.Name, result);
 				}
 			} else {
-				members.set(leftProp.Name, c.getSpreadSymbol(leftProp, readonly));
+				members = members.withKey(leftProp.Name, c.getSpreadSymbol(leftProp, readonly));
 			}
 		}
 		final spreadIndexInfos = Core.SameMap(indexInfos, function(info:IndexInfo):IndexInfo {
@@ -1608,7 +1605,7 @@ class CheckerPart4 {
 			return t;
 		}
 		// gets the type as if it had been spread, but where everything in the spread is made optional
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		for (prop in rangeOf(c.getPropertiesOfType(firstType))) {
 			if ((Checker.getDeclarationModifierFlagsFromSymbol(prop) & (ModifierFlagsPrivate | ModifierFlagsProtected)) != 0) {
 				// do nothing, skip privates
@@ -1625,7 +1622,7 @@ class CheckerPart4 {
 				result.Declarations = prop.Declarations;
 				links.nameType = c.valueSymbolLinks.Get(prop).nameType;
 				c.setSyntheticOrigin(result, prop);
-				members.set(prop.Name, result);
+				members = members.withKey(prop.Name, result);
 			}
 		}
 		final spread = c.newAnonymousType(firstType.symbol, members, null, null, c.getIndexInfosOfType(firstType));
@@ -2341,18 +2338,25 @@ class CheckerPart4 {
 		if (symbolTableLen(second) == 0) {
 			return first;
 		}
-		final combined = new SymbolTable();
-		c.mergeSymbolTable(combined, first, false, null);
-		c.mergeSymbolTable(combined, second, false, null);
+		var combined = new SymbolTable();
+		combined = c.mergeSymbolTable(SlotMembers, null, combined, first, false, null);
+		combined = c.mergeSymbolTable(SlotMembers, null, combined, second, false, null);
 		return combined;
 	}
 
-	static function mergeSymbolTable(c:Checker, target:SymbolTable, source:SymbolTable, unidirectional:Bool, mergedParent:Symbol):Void {
+	// PORT: pointer — Go's target map is shared by every holder. Here the target table lives in (slot, owner) (see
+	// SymbolTableSlot) and every insertion is stored there at once (the merges may read it); with a null owner the
+	// table is `target` (a local table, or c.globals, a map that changes in place). Returns the table.
+	static function mergeSymbolTable(c:Checker, slot:SymbolTableSlot, owner:Dynamic, target:SymbolTable, source:SymbolTable, unidirectional:Bool,
+			mergedParent:Symbol):SymbolTable {
 		// PORT: Go map iteration order is random; upstream does not depend on it (PORTING.md §3).
 		if (source == null) {
-			return;
+			return target;
 		}
 		for (id => sourceSymbol in source) {
+			if (owner != null) {
+				target = Ast.GetSlotTable(slot, owner);
+			}
 			final targetSymbol = target.get(id);
 			var merged:Symbol = null;
 			if (targetSymbol != null) {
@@ -2380,8 +2384,15 @@ class CheckerPart4 {
 					merged.Parent = mergedParent;
 				}
 			}
-			target.set(id, merged);
+			if (owner != null) {
+				target = Ast.GetSlotTable(slot, owner);
+			}
+			target = target.withKey(id, merged);
+			if (owner != null) {
+				Ast.SetSlotTable(slot, owner, target);
+			}
 		}
+		return target;
 	}
 
 	/**
@@ -2430,11 +2441,11 @@ class CheckerPart4 {
 			}
 			if (source.Members != null) {
 				final t = target;
-				c.mergeSymbolTable(Ast.GetSymbolTable(() -> t.Members, m -> t.Members = m), source.Members, unidirectional, null);
+				c.mergeSymbolTable(SlotMembers, t, null, source.Members, unidirectional, null);
 			}
 			if (source.Exports != null) {
 				final t = target;
-				c.mergeSymbolTable(Ast.GetSymbolTable(() -> t.Exports, m -> t.Exports = m), source.Exports, unidirectional, target);
+				c.mergeSymbolTable(SlotExports, t, null, source.Exports, unidirectional, target);
 			}
 			if (!unidirectional) {
 				c.recordMergedSymbol(target, source);
@@ -3991,12 +4002,12 @@ class CheckerPart4 {
 	}
 
 	static function createDefaultPropertyWrapperForModule(c:Checker, symbol:Symbol, originalSymbol:Symbol, anonymousSymbol:Symbol):Type {
-		final memberTable:SymbolTable = new SymbolTable();
+		var memberTable:SymbolTable = new SymbolTable();
 		final newSymbol = c.newSymbol(SymbolFlagsAlias, Ast.InternalSymbolNameDefault);
 		newSymbol.Parent = originalSymbol;
 		c.valueSymbolLinks.Get(newSymbol).nameType = c.getStringLiteralType("default");
 		c.aliasSymbolLinks.Get(newSymbol).aliasTarget = c.resolveSymbol(symbol);
-		memberTable.set(Ast.InternalSymbolNameDefault, newSymbol);
+		memberTable = memberTable.withKey(Ast.InternalSymbolNameDefault, newSymbol);
 		if (anonymousSymbol == null && originalSymbol != null) {
 			anonymousSymbol = c.newSymbol(SymbolFlagsObjectLiteral, Ast.InternalSymbolNameObject);
 			anonymousSymbol.Declarations = originalSymbol.Declarations;
@@ -4238,12 +4249,12 @@ class CheckerPart4 {
 					if (isStatic == Ast.HasStaticModifier(member)) {
 						if (c.hasLateBindableName(member)) {
 							if (lateSymbols == null) {
-								lateSymbols = new SymbolTable();
+								lateSymbols = SymbolTable.newShared(); // PORT: pointer — lateBindMember adds to it
 							}
 							c.lateBindMember(symbol, earlySymbols, lateSymbols, member);
 						} else if (c.hasLateBindableIndexSignature(member)) {
 							if (lateSymbols == null) {
-								lateSymbols = new SymbolTable();
+								lateSymbols = SymbolTable.newShared(); // PORT: pointer — lateBindMember adds to it
 							}
 							c.lateBindIndexSignature(symbol, earlySymbols, lateSymbols, member /* as LateBoundDeclaration | LateBoundBinaryExpressionDeclaration */);
 						}
@@ -4256,7 +4267,7 @@ class CheckerPart4 {
 					for (member in rangeOf(assignmentSymbol.Declarations)) {
 						if (c.hasLateBindableName(member)) {
 							if (lateSymbols == null) {
-								lateSymbols = new SymbolTable();
+								lateSymbols = SymbolTable.newShared(); // PORT: pointer — lateBindMember adds to it
 							}
 							c.lateBindMember(symbol, earlySymbols, lateSymbols, member);
 						}
@@ -4320,7 +4331,7 @@ class CheckerPart4 {
 				var lateSymbol = lateSymbols.get(memberName);
 				if (lateSymbol == null) {
 					lateSymbol = c.newSymbolEx(SymbolFlagsNone, memberName, CheckFlagsLate);
-					lateSymbols.set(memberName, lateSymbol);
+					lateSymbols = lateSymbols.withKey(memberName, lateSymbol);
 				}
 				// Report an error if there's a symbol declaration with the same name and conflicting flags.
 				final earlySymbol = symbolTableGet(earlySymbols, memberName);

@@ -19,7 +19,7 @@ class CheckerPart5 {
 				indexSymbol = c.cloneSymbol(early);
 				indexSymbol.CheckFlags |= CheckFlagsLate;
 			}
-			lateSymbols.set(Ast.InternalSymbolNameIndex, indexSymbol);
+			lateSymbols = lateSymbols.withKey(Ast.InternalSymbolNameIndex, indexSymbol);
 		}
 		// Then just add the computed name as a late bound declaration
 		// (note: unlike `addDeclarationToLateBoundSymbol` we do not set up a `.lateSymbol` on `decl`'s links,
@@ -103,17 +103,17 @@ class CheckerPart5 {
 				visitedSymbols = [];
 			}
 			visitedSymbols.push(symbol);
-			final symbols = symbol.Exports.copy();
+			var symbols = symbol.Exports.copy();
 			// All export * declarations are collected in an __export symbol by the binder
 			final exportStars = symbol.Exports.get(Ast.InternalSymbolNameExportStar);
 			if (exportStars != null) {
-				final nestedSymbols = new SymbolTable();
+				var nestedSymbols = new SymbolTable();
 				final lookupTable = new ExportCollisionTable();
 				for (node in rangeOf(exportStars.Declarations)) {
 					final resolvedModule = c.resolveExternalModuleName(node, node.ModuleSpecifier(), false /*ignoreErrors*/,
 						c.getTypeFromImportAttributes(Ast.GetImportAttributes(node)));
 					final exportedSymbols = visit(resolvedModule, node, isTypeOnly || node.IsTypeOnly());
-					c.extendExportSymbols(nestedSymbols, exportedSymbols, lookupTable, node);
+					nestedSymbols = c.extendExportSymbols(nestedSymbols, exportedSymbols, lookupTable, node);
 				}
 				for (id => s in lookupTable) {
 					// It's not an error if the file with multiple `export *`s with duplicate names exports a member with that name itself
@@ -126,7 +126,7 @@ class CheckerPart5 {
 							id));
 					}
 				}
-				c.extendExportSymbols(symbols, nestedSymbols, null, null);
+				symbols = c.extendExportSymbols(symbols, nestedSymbols, null, null);
 			}
 			if (exportStar != null && exportStar.IsTypeOnly()) {
 				if (typeOnlyExportStarMap == null) {
@@ -158,7 +158,7 @@ class CheckerPart5 {
 				}
 				final flags = c.getSymbolFlags(symbol);
 				if ((flags & (SymbolFlagsType | SymbolFlagsNamespace)) != 0 && (flags & SymbolFlagsValue) == 0 && exports.get(symbol.Name) == null) {
-					exports.set(symbol.Name, symbol);
+					exports = exports.withKey(symbol.Name, symbol);
 				}
 			}
 		}
@@ -174,9 +174,10 @@ class CheckerPart5 {
 	 * Extends one symbol table with another while collecting information on name collisions for error message generation into the `lookupTable` argument
 	 * Not passing `lookupTable` and `exportNode` disables this collection, and just extends the tables
 	 */
-	static function extendExportSymbols(c:Checker, target:SymbolTable, source:SymbolTable, lookupTable:ExportCollisionTable, exportNode:Node):Void {
+	// PORT: pointer — returns the target table (its holders are locals)
+	static function extendExportSymbols(c:Checker, target:SymbolTable, source:SymbolTable, lookupTable:ExportCollisionTable, exportNode:Node):SymbolTable {
 		if (source == null) {
-			return;
+			return target;
 		}
 		for (id => sourceSymbol in source) {
 			if (id == Ast.InternalSymbolNameDefault) {
@@ -184,7 +185,7 @@ class CheckerPart5 {
 			}
 			final targetSymbol = target.get(id);
 			if (targetSymbol == null) {
-				target.set(id, sourceSymbol);
+				target = target.withKey(id, sourceSymbol);
 				if (lookupTable != null && exportNode != null) {
 					final collision = new ExportCollision();
 					collision.specifierText = Scanner.GetTextOfNode(exportNode.ModuleSpecifier());
@@ -195,6 +196,7 @@ class CheckerPart5 {
 				s.exportsWithDuplicate = appendNode(s.exportsWithDuplicate, exportNode);
 			}
 		}
+		return target;
 	}
 
 	public static function ResolveAlias(c:Checker, symbol:Symbol):ValueOk<Symbol> {
@@ -789,14 +791,14 @@ class CheckerPart5 {
 		if (Core.len(missingElements) == 0) {
 			return t;
 		}
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		for (prop in rangeOf(c.getPropertiesOfObjectType(t))) {
-			members.set(prop.Name, prop);
+			members = members.withKey(prop.Name, prop);
 		}
 		for (e in missingElements) {
 			final symbol = c.newSymbol(SymbolFlagsProperty | SymbolFlagsOptional, c.getPropertyNameFromBindingElement(e));
 			c.valueSymbolLinks.Get(symbol).resolvedType = c.getTypeFromBindingElement(e, false /*includePatternInType*/, true /*reportErrors*/);
-			members.set(symbol.Name, symbol);
+			members = members.withKey(symbol.Name, symbol);
 		}
 		final result = c.newAnonymousType(t.symbol, members, null, null, c.getIndexInfosOfType(t));
 		result.objectFlags = t.objectFlags;
@@ -1540,9 +1542,9 @@ class CheckerPart5 {
 			}
 			return c.getTypeAliasInstantiation(omitTypeAlias, [source, omitKeyType], null);
 		}
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		for (prop in rangeOf(spreadableProperties)) {
-			members.set(prop.Name, c.getSpreadSymbol(prop, false /*readonly*/));
+			members = members.withKey(prop.Name, c.getSpreadSymbol(prop, false /*readonly*/));
 		}
 		final result = c.newAnonymousType(symbol, members, null, null, c.getIndexInfosOfType(source));
 		result.objectFlags |= ObjectFlagsObjectRestType;
@@ -1639,7 +1641,7 @@ class CheckerPart5 {
 
 	// Return the type implied by an object binding pattern
 	static function getTypeFromObjectBindingPattern(c:Checker, pattern:Node, includePatternInType:Bool, reportErrors:Bool):Type {
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		var stringIndexInfo:IndexInfo = null;
 		var objectFlags:ObjectFlags = ObjectFlagsObjectLiteral | ObjectFlagsContainsObjectOrArrayLiteral;
 		for (e in rangeOf(pattern.Elements())) {
@@ -1658,7 +1660,7 @@ class CheckerPart5 {
 			final flags:SymbolFlags = SymbolFlagsProperty | Core.IfElse(e.Initializer() != null, SymbolFlagsOptional, 0);
 			final symbol = c.newSymbol(flags, text);
 			c.valueSymbolLinks.Get(symbol).resolvedType = c.getTypeFromBindingElement(e, includePatternInType, reportErrors);
-			members.set(symbol.Name, symbol);
+			members = members.withKey(symbol.Name, symbol);
 		}
 		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if (stringIndexInfo != null) {
@@ -2143,14 +2145,14 @@ class CheckerPart5 {
 				return cached;
 			}
 		}
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		for (prop in rangeOf(c.getPropertiesOfObjectType(t))) {
-			members.set(prop.Name, c.getWidenedProperty(prop, context));
+			members = members.withKey(prop.Name, c.getWidenedProperty(prop, context));
 		}
 		if (context != null) {
 			for (prop in rangeOf(c.getPropertiesOfContext(context))) {
 				if (!members.exists(prop.Name)) {
-					members.set(prop.Name, c.getUndefinedProperty(prop));
+					members = members.withKey(prop.Name, c.getUndefinedProperty(prop));
 				}
 			}
 		}
@@ -3075,7 +3077,7 @@ class CheckerPart5 {
 						if (r.resolvedMembers == null) {
 							r.resolvedMembers = new SymbolTable();
 						}
-						r.resolvedMembers.set(name, resolved);
+						r.resolvedMembers = r.resolvedMembers.withKey(name, resolved);
 					}
 				}
 				return resolved;
@@ -3684,7 +3686,7 @@ class CheckerPart5 {
 					if (symbols == null) {
 						symbols = new SymbolTable();
 					}
-					symbols.set(base.Name, base);
+					symbols = symbols.withKey(base.Name, base);
 				}
 			}
 		}

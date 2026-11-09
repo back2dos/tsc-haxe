@@ -1263,7 +1263,7 @@ class Inference {
 			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, Core.OrElse(c.inferReverseMappedType(indexInfo.valueType, r.mappedType, r.constraintType), c.unknownType),
 				readonlyMask && indexInfo.isReadonly, null, null));
 		}
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		final limitedConstraint = c.getLimitedConstraint(t);
 		final props = c.getPropertiesOfType(r.source);
 		if (props != null) {
@@ -1303,7 +1303,7 @@ class Inference {
 					links.mappedType = r.mappedType;
 					links.constraintType = r.constraintType;
 				}
-				members.set(prop.Name, inferredProp);
+				members = members.withKey(prop.Name, inferredProp);
 			}
 		}
 		c.setStructuredTypeMembers(t, members, null, null, indexInfos);
@@ -1391,7 +1391,7 @@ class Inference {
 
 	// Create an object with properties named in the string literal type. Every property has type `any`.
 	static function createEmptyObjectTypeFromStringLiteral(c:Checker, t:Type):Type {
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		for (t in t.Distributed()) {
 			if ((t.flags & TypeFlagsStringLiteral) == 0) {
 				continue;
@@ -1403,7 +1403,7 @@ class Inference {
 				literalProp.Declarations = t.symbol.Declarations;
 				literalProp.ValueDeclaration = t.symbol.ValueDeclaration;
 			}
-			members.set(name, literalProp);
+			members = members.withKey(name, literalProp);
 		}
 		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
 		if ((t.flags & TypeFlagsString) != 0) {

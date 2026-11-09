@@ -33,6 +33,7 @@ import ts.ast.Nodeflags.NodeFlags.*;
 import ts.ast.Symbol;
 import ts.ast.Symbolflags;
 import ts.ast.Symbolflags.SymbolFlags.*;
+import ts.ast.Symbol.SymbolTableSlot.*;
 import ts.ast.Utilities;
 import ts.ast.Utilities.JSDeclarationKind.*;
 import ts.ast.Utilities.ModuleInstanceState.*;

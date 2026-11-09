@@ -73,6 +73,22 @@ class ForIn {
 					var $vname:$ct = $coll.get($k);
 					$body;
 				};
+			case MSymbolTable:
+				// (ts.ast.SymbolTable: its values with their keys, no {key, value} object per entry)
+				final kname = switch k.expr {
+					case EConst(CIdent(n)): n;
+					case _: null;
+				}
+				if (kname == null)
+					return macro @:pos(pos) for ($k => $v in $coll) $body;
+				return macro @:pos(pos) {
+					final __forInEntries = $coll.entries();
+					while (__forInEntries.hasNext()) {
+						var $vname = __forInEntries.next();
+						var $kname = __forInEntries.key;
+						$body;
+					}
+				};
 			case MIdentity:
 				final kname = switch k.expr {
 					case EConst(CIdent(n)): n;
@@ -191,6 +207,23 @@ class ForIn {
 		return a;
 		#end
 	}
+	#else
+	// (JS: the loops are not rewritten; ts.ast.SymbolTable's iterators use these)
+	public static function StringValues<T>(m:haxe.ds.StringMap<T>):Array<T> {
+		final a = new Array<T>();
+		final it = m.iterator();
+		while (it.hasNext())
+			a.push(it.next());
+		return a;
+	}
+
+	public static function StringKeys<T>(m:haxe.ds.StringMap<T>):Array<String> {
+		final a = new Array<String>();
+		final it = m.keys();
+		while (it.hasNext())
+			a.push(it.next());
+		return a;
+	}
 	#end
 
 	#if macro
@@ -200,11 +233,7 @@ class ForIn {
 			case TInst(_.get() => c, [vt]) if (c.pack.join(".") == "haxe.ds" && c.name == "StringMap"): MString(vt);
 			case TInst(_.get() => c, [vt]) if (c.pack.join(".") == "haxe.ds" && c.name == "IntMap"): MInt(vt);
 			case TInst(_.get() => c, [_, _]) if (c.pack.join(".") == "go" && c.name == "IdentityMap"): MIdentity;
-			case TAbstract(_.get() => a, []) if (a.pack.join(".") == "ts.ast" && a.name == "SymbolTable"):
-				switch Context.follow(a.type) {
-					case TInst(_.get() => c, [vt]) if (c.pack.join(".") == "haxe.ds" && c.name == "StringMap"): MString(vt);
-					case _: MOther;
-				}
+			case TAbstract(_.get() => a, []) if (a.pack.join(".") == "ts.ast" && a.name == "SymbolTable"): MSymbolTable;
 			case _: MOther;
 		}
 	}
@@ -226,6 +255,7 @@ enum MapKind {
 	MString(valueType:Type);
 	MInt(valueType:Type);
 	MIdentity;
+	MSymbolTable;
 	MOther;
 }
 #end

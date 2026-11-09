@@ -736,9 +736,9 @@ class Jsx {
 					final links = c.valueSymbolLinks.Get(attributeSymbol);
 					links.resolvedType = exprType;
 					links.target = member;
-					attributesTable.set(attributeSymbol.Name, attributeSymbol);
+					attributesTable = attributesTable.withKey(attributeSymbol.Name, attributeSymbol);
 					if (allAttributesTable != null) {
-						allAttributesTable.set(attributeSymbol.Name, attributeSymbol);
+						allAttributesTable = allAttributesTable.withKey(attributeSymbol.Name, attributeSymbol);
 					}
 					if (attributeDecl.Name().Text() == jsxChildrenPropertyName) {
 						explicitlySpecifyChildrenAttribute = true;
@@ -831,8 +831,8 @@ class Jsx {
 				childrenPropSymbol.ValueDeclaration = c.factory.NewPropertySignatureDeclaration(null, c.factory.NewIdentifier(jsxChildrenPropertyName), null /*postfixToken*/, null /*type*/, null /*initializer*/);
 				childrenPropSymbol.ValueDeclaration.Parent = attributeParent;
 				childrenPropSymbol.ValueDeclaration.AsPropertySignatureDeclaration().Symbol = childrenPropSymbol;
-				final childPropMap = new SymbolTable();
-				childPropMap.set(jsxChildrenPropertyName, childrenPropSymbol);
+				var childPropMap = new SymbolTable();
+				childPropMap = childPropMap.withKey(jsxChildrenPropertyName, childrenPropSymbol);
 				spread = c.getSpreadType(spread, c.newAnonymousType(attributesSymbol, childPropMap, null, null, null), attributesSymbol, objectFlags | c.getPropagatingFlagsOfTypes(childTypes, TypeFlagsNone), false /*readonly*/);
 			}
 		}

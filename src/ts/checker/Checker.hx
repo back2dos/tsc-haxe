@@ -1973,7 +1973,8 @@ class Checker {
 		c.canCollectSymbolAliasAccessibilityData = c.compilerOptions.VerbatimModuleSyntax.IsFalseOrUnknown();
 		c.arrayVariances = [VarianceFlagsCovariant];
 		// PORT: Go passes countGlobalSymbols(c.files) as a map capacity hint only.
-		c.globals = new SymbolTable();
+		// PORT: perf — a map that changes in place: globalThisSymbol.Exports is the same table (see SymbolTable)
+		c.globals = SymbolTable.newShared();
 		c.evaluate = Evaluator.NewEvaluator((expr, location) -> c.evaluateEntity(expr, location), OEKParentheses);
 		c.stringLiteralTypes = new StringMap<Type>();
 		c.numberLiteralTypes = new StringMap<Type>();
@@ -2007,7 +2008,7 @@ class Checker {
 		c.moduleSymbols = new IdentityMap<Node, Symbol>();
 		c.globalThisSymbol = c.newSymbolEx(SymbolFlagsModule, "globalThis", CheckFlagsReadonly);
 		c.globalThisSymbol.Exports = c.globals;
-		c.globals.set(c.globalThisSymbol.Name, c.globalThisSymbol);
+		c.globals = c.globals.withKey(c.globalThisSymbol.Name, c.globalThisSymbol);
 		c.nameResolver = c.createNameResolver(); // PORT: perf (typed resolver hooks), see resolveName
 		c.suggestionNameResolver = c.createNameResolverForSuggestion();
 		c.tupleTypes = new ts.core.HashKeyMap<Type>();
@@ -5951,12 +5952,9 @@ class Checker {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}
-		final result = new SymbolTable();
-		#if (target.name == "hxmc")
-		result.reserve(symbols.length); // PORT: perf — Go's make(ast.SymbolTable, len(symbols))
-		#end
+		var result = new SymbolTable();
 		for (symbol in symbols) {
-			result.set(symbol.Name, symbol);
+			result = result.withKey(symbol.Name, symbol);
 		}
 		return result;
 	}

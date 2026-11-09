@@ -638,11 +638,11 @@ class CheckerPart6 {
 		var members = c.getExportsOfSymbol(symbol);
 		var indexInfos:Array<IndexInfo> = null;
 		if (symbol == c.globalThisSymbol) {
-			final varsOnly = new SymbolTable();
+			var varsOnly = new SymbolTable();
 			if (members != null) {
 				for (p in members) {
 					if ((p.Flags & SymbolFlagsBlockScoped) == 0 && !((p.Flags & SymbolFlagsValueModule) != 0 && Core.len(p.Declarations) != 0 && Core.Every(p.Declarations, Ast.IsAmbientModule))) {
-						varsOnly.set(p.Name, p);
+						varsOnly = varsOnly.withKey(p.Name, p);
 					}
 				}
 			}
@@ -655,7 +655,11 @@ class CheckerPart6 {
 			final baseConstructorType = c.getBaseConstructorTypeOfClass(classType);
 			if ((baseConstructorType.flags & (TypeFlagsObject | TypeFlagsIntersection | TypeFlagsTypeVariable)) != 0) {
 				members = cloneSymbolTable(members);
-				c.addInheritedMembers(members, c.getPropertiesOfType(baseConstructorType));
+				// PORT: pointer — Go's addInheritedMembers changes a non-nil map (the result is dropped: a nil one stays nil)
+				final added = c.addInheritedMembers(members, c.getPropertiesOfType(baseConstructorType));
+				if (members != null) {
+					members = added;
+				}
 				c.setStructuredTypeMembers(t, members, null, null, null);
 			} else if (baseConstructorType == c.anyType) {
 				baseConstructorIndexInfo = c.anyBaseTypeIndexInfo;
@@ -698,9 +702,9 @@ class CheckerPart6 {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}
-		final result = new SymbolTable();
+		var result = new SymbolTable();
 		for (symbol in symbols) {
-			result.set(symbol.Name, c.instantiateSymbol(symbol, m));
+			result = result.withKey(symbol.Name, c.instantiateSymbol(symbol, m));
 		}
 		return result;
 	}
@@ -709,13 +713,10 @@ class CheckerPart6 {
 		if (symbolTableLen(symbols) == 0) {
 			return null;
 		}
-		final result = new SymbolTable();
-		#if (target.name == "hxmc")
-		result.reserve(symbolTableLen(symbols)); // PORT: perf — Go 7.1's preallocated instantiated symbol table (#64306)
-		#end
+		var result = new SymbolTable();
 		for (id => symbol in symbols) {
 			if (c.isNamedMember(symbol, id)) {
-				result.set(id, c.instantiateSymbol(symbol, m));
+				result = result.withKey(id, c.instantiateSymbol(symbol, m));
 			}
 		}
 		return result;
@@ -799,7 +800,7 @@ class CheckerPart6 {
 	}
 
 	static function resolveMappedTypeMembers(c:Checker, t:Type):Void {
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		var indexInfos:Array<IndexInfo> = null;
 		// Resolve upfront such that recursive references see an empty object type.
 		c.setStructuredTypeMembers(t, null, null, null, null);
@@ -852,7 +853,7 @@ class CheckerPart6 {
 							prop.Declarations = modifiersProp.Declarations;
 						}
 					}
-					members.set(propName, prop);
+					members = members.withKey(propName, prop);
 				}
 			} else if (c.isValidIndexKeyType(propNameType) || (propNameType.flags & (TypeFlagsAny | TypeFlagsEnum)) != 0) {
 				var indexKeyType = propNameType;
@@ -1399,12 +1400,17 @@ class CheckerPart6 {
 		}
 		final prop = c.createUnionOrIntersectionProperty(t, name, skipObjectFunctionPropertyAugment);
 		if (prop != null) {
-			cache.set(name, prop);
+			// PORT: pointer — the table stored back in its field
+			if (skipObjectFunctionPropertyAugment) {
+				d.propertyCacheWithoutFunctionPropertyAugment = d.propertyCacheWithoutFunctionPropertyAugment.withKey(name, prop);
+			} else {
+				d.propertyCache = d.propertyCache.withKey(name, prop);
+			}
 			// Propagate an entry from the non-augmented cache to the augmented cache unless the property is partial.
 			if (skipObjectFunctionPropertyAugment && (prop.CheckFlags & CheckFlagsPartial) == 0) {
 				final augmentedCache = Ast.GetSymbolTable(() -> d.propertyCache, m -> d.propertyCache = m);
 				if (augmentedCache.get(name) == null) {
-					augmentedCache.set(name, prop);
+					d.propertyCache = augmentedCache.withKey(name, prop);
 				}
 			}
 		}

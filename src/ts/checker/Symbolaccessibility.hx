@@ -859,7 +859,7 @@ class Symbolaccessibility {
 								if (table == null) {
 									table = new SymbolTable();
 								}
-								table.set(key, memberSymbol);
+								table = table.withKey(key, memberSymbol);
 							}
 						}
 					}
@@ -902,8 +902,7 @@ class Symbolaccessibility {
 		if (nameText.length == 0 || classSymbol == null) {
 			return null;
 		}
-		final table = new SymbolTable();
-		table.set(nameText, classSymbol);
+		final table = new SymbolTable().withKey(nameText, classSymbol);
 		if (c.classExpressionNameTables == null) {
 			c.classExpressionNameTables = new IntMap<SymbolTable>();
 		}

@@ -7,9 +7,6 @@ class Tsgo {
 	static function main() {
 		final status = runMain();
 		ts.checker.InferMemo.finish(); // PORT: perf — (from tsrs) TSHX_INFER_MEMO_STATS
-		#if symtab_stats
-		ts.ast.Symbol.SymbolTableStats.dump();
-		#end
 		Sys.exit(status);
 	}
 

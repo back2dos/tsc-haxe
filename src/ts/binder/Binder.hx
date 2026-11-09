@@ -220,11 +220,12 @@ class Binder {
 	 * @param includes - The SymbolFlags that node has in addition to its declaration type (eg: export, ambient, etc.)
 	 * @param excludes - The flags which node cannot be declared alongside in a symbol table. Used to report forbidden declarations.
 	 */
-	function declareSymbol(symbolTable:SymbolTable, parent:Symbol, node:Node, includes:SymbolFlags, excludes:SymbolFlags):Symbol {
-		return declareSymbolEx(symbolTable, parent, node, includes, excludes, false /*isReplaceableByMethod*/, false /*isComputedName*/);
+	// PORT: pointer — Go passes the symbol table; here where it lives (slot, owner), see SymbolTableSlot
+	function declareSymbol(slot:SymbolTableSlot, owner:Dynamic, parent:Symbol, node:Node, includes:SymbolFlags, excludes:SymbolFlags):Symbol {
+		return declareSymbolEx(slot, owner, parent, node, includes, excludes, false /*isReplaceableByMethod*/, false /*isComputedName*/);
 	}
 
-	function declareSymbolEx(symbolTable:SymbolTable, parent:Symbol, node:Node, includes:SymbolFlags, excludes:SymbolFlags, isReplaceableByMethod:Bool,
+	function declareSymbolEx(slot:SymbolTableSlot, owner:Dynamic, parent:Symbol, node:Node, includes:SymbolFlags, excludes:SymbolFlags, isReplaceableByMethod:Bool,
 			isComputedName:Bool):Symbol {
 		Debug.Assert(isComputedName || !Ast.HasDynamicName(node));
 		final isDefaultExport = Ast.HasSyntacticModifier(node, ModifierFlagsDefault)
@@ -265,10 +266,11 @@ class Binder {
 			// Otherwise, we'll be merging into a compatible existing symbol (for example when
 			// you have multiple 'vars' with the same name in the same container).  In this case
 			// just add this node into the declarations list of the symbol.
+			final symbolTable = Ast.GetSlotTable(slot, owner);
 			symbol = symbolTable.get(name);
 			if (symbol == null) {
 				symbol = newSymbol(SymbolFlagsNone, name);
-				symbolTable.set(name, symbol);
+				Ast.SetSlotTable(slot, owner, symbolTable.with(symbol));
 				if (isReplaceableByMethod) {
 					symbol.Flags |= SymbolFlagsReplaceableByMethod;
 				}
@@ -280,7 +282,7 @@ class Binder {
 					// Javascript constructor-declared symbols can be discarded in favor of
 					// prototype symbols like methods.
 					symbol = newSymbol(SymbolFlagsNone, name);
-					symbolTable.set(name, symbol);
+					Ast.SetSlotTable(slot, owner, symbolTable.with(symbol));
 				} else if (!(includes & SymbolFlagsVariable != 0 && symbol.Flags & SymbolFlagsAssignment != 0
 					|| includes & SymbolFlagsAssignment != 0 && symbol.Flags & SymbolFlagsVariable != 0)) {
 					// Assignment declarations are allowed to merge with variables, no matter what other flags they have.
@@ -465,9 +467,9 @@ class Binder {
 		final hasExportModifier = Ast.GetCombinedModifierFlags(node) & ModifierFlagsExport != 0 || Ast.IsImplicitlyExportedJSDocDeclaration(node);
 		if (symbolFlags & SymbolFlagsAlias != 0) {
 			if (node.Kind == KindExportSpecifier || (node.Kind == KindImportEqualsDeclaration && hasExportModifier)) {
-				return declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
+				return declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, symbolFlags, symbolExcludes);
 			}
-			return declareSymbol(Ast.GetLocals(container), null /*parent*/, node, symbolFlags, symbolExcludes);
+			return declareSymbol(SlotLocals, container, null /*parent*/, node, symbolFlags, symbolExcludes);
 		}
 		// Exported module members are given 2 symbols: A local symbol that is classified with an ExportValue flag,
 		// and an associated export symbol with all the correct flags set on it. There are 2 main reasons:
@@ -486,87 +488,33 @@ class Binder {
 		//       and should never be merged directly with other augmentation, and the latter case would be possible if automatic merge is allowed.
 		if (!Ast.IsAmbientModule(node) && (hasExportModifier || container.Flags & NodeFlagsExportContext != 0)) {
 			if (!Ast.IsLocalsContainer(container) || (Ast.HasSyntacticModifier(node, ModifierFlagsDefault) && getDeclarationName(node) == Ast.InternalSymbolNameMissing)) {
-				return declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
+				return declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, symbolFlags, symbolExcludes);
 				// No local symbol for an unnamed default!
 			}
 			var exportKind = SymbolFlagsNone;
 			if (symbolFlags & SymbolFlagsValue != 0) {
 				exportKind = SymbolFlagsExportValue;
 			}
-			final local = declareSymbol(Ast.GetLocals(container), null /*parent*/, node, exportKind, symbolExcludes);
-			local.ExportSymbol = declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
+			final local = declareSymbol(SlotLocals, container, null /*parent*/, node, exportKind, symbolExcludes);
+			local.ExportSymbol = declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, symbolFlags, symbolExcludes);
 			node.ExportableData().LocalSymbol = local;
 			return local;
 		}
-		return declareSymbol(Ast.GetLocals(container), null /*parent*/, node, symbolFlags, symbolExcludes);
+		return declareSymbol(SlotLocals, container, null /*parent*/, node, symbolFlags, symbolExcludes);
 	}
 
 	function declareClassMember(node:Node, symbolFlags:SymbolFlags, symbolExcludes:SymbolFlags):Symbol {
 		if (Ast.IsStatic(node)) {
-			return declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, symbolFlags, symbolExcludes);
+			return declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, symbolFlags, symbolExcludes);
 		}
-		return declareSymbol(getMembersSized(container.Symbol(), container), container.Symbol(), node, symbolFlags, symbolExcludes);
+		return declareSymbol(SlotMembers, container.Symbol(), container.Symbol(), node, symbolFlags, symbolExcludes);
 	}
 
 	function declareSourceFileMember(node:Node, symbolFlags:SymbolFlags, symbolExcludes:SymbolFlags):Symbol {
 		if (Ast.IsExternalModule(file)) {
 			return declareModuleMember(node, symbolFlags, symbolExcludes);
 		}
-		return declareSymbol(Ast.GetLocals(file.AsNode()), null /*parent*/, node, symbolFlags, symbolExcludes);
-	}
-
-	// PORT: perf — Ast.GetMembers/GetExports/GetLocals of a container whose entries are mostly known from its syntax:
-	// a new table gets room for them (symbolTableHint) instead of growing 1, 2, 3, 5, 8, 16, ... entries. Same
-	// entries in the same order; the table is still created only on the first declaration.
-	static inline function getMembersSized(symbol:Symbol, container:Node):SymbolTable {
-		if (symbol.Members == null) {
-			symbol.Members = newSymbolTable(symbolTableHint(container));
-			#if symtab_stats ts.ast.Symbol.SymbolTableStats.retag(symbol.Members, "Members"); #end
-		}
-		return symbol.Members;
-	}
-
-	static inline function getExportsSized(symbol:Symbol, container:Node):SymbolTable {
-		if (symbol.Exports == null) {
-			symbol.Exports = newSymbolTable(symbolTableHint(container));
-			#if symtab_stats ts.ast.Symbol.SymbolTableStats.retag(symbol.Exports, "Exports"); #end
-		}
-		return symbol.Exports;
-	}
-
-	static inline function getLocalsSized(container:Node):SymbolTable {
-		final data = container.LocalsContainerData();
-		if (data.Locals == null) {
-			data.Locals = newSymbolTable(symbolTableHint(container));
-			#if symtab_stats ts.ast.Symbol.SymbolTableStats.retag(data.Locals, "Locals:" + container.Kind.String()); #end
-		}
-		return data.Locals;
-	}
-
-	static function newSymbolTable(hint:Int):SymbolTable {
-		final t = new SymbolTable();
-		if (hint > 1)
-			t.reserve(hint);
-		return t;
-	}
-
-	// the members of a class, interface, type literal or enum, the properties of an object literal or JSX attributes,
-	// the parameters and type parameters of a function-like node or type alias
-	static function symbolTableHint(container:Node):Int {
-		switch (container.Kind) {
-			case KindClassDeclaration | KindClassExpression | KindInterfaceDeclaration | KindTypeLiteral | KindEnumDeclaration:
-				return Core.len(container.Members());
-			case KindObjectLiteralExpression | KindJsxAttributes:
-				return Core.len(container.Properties());
-			case KindTypeAliasDeclaration | KindJSTypeAliasDeclaration:
-				return Core.len(container.TypeParameters());
-			default:
-				final f = container.FunctionLikeData();
-				if (f != null) {
-					return (f.Parameters == null ? 0 : Core.len(f.Parameters.Nodes)) + (f.TypeParameters == null ? 0 : Core.len(f.TypeParameters.Nodes));
-				}
-		}
-		return 0;
+		return declareSymbol(SlotLocals, file.AsNode(), null /*parent*/, node, symbolFlags, symbolExcludes);
 	}
 
 	function declareSymbolAndAddToSymbolTable(node:Node, symbolFlags:SymbolFlags, symbolExcludes:SymbolFlags):Symbol {
@@ -578,13 +526,13 @@ class Binder {
 			case KindClassExpression | KindClassDeclaration:
 				return declareClassMember(node, symbolFlags, symbolExcludes);
 			case KindEnumDeclaration:
-				return declareSymbol(getExportsSized(container.Symbol(), container), container.Symbol(), node, symbolFlags, symbolExcludes);
+				return declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, symbolFlags, symbolExcludes);
 			case KindTypeLiteral | KindObjectLiteralExpression | KindInterfaceDeclaration | KindJsxAttributes:
-				return declareSymbol(getMembersSized(container.Symbol(), container), container.Symbol(), node, symbolFlags, symbolExcludes);
+				return declareSymbol(SlotMembers, container.Symbol(), container.Symbol(), node, symbolFlags, symbolExcludes);
 			case KindFunctionType | KindConstructorType | KindCallSignature | KindConstructSignature | KindIndexSignature | KindMethodDeclaration |
 				KindMethodSignature | KindConstructor | KindGetAccessor | KindSetAccessor | KindFunctionDeclaration | KindFunctionExpression |
 				KindArrowFunction | KindClassStaticBlockDeclaration | KindTypeAliasDeclaration | KindJSTypeAliasDeclaration | KindMappedType:
-				return declareSymbol(getLocalsSized(container), null /*parent*/, node, symbolFlags, symbolExcludes);
+				return declareSymbol(SlotLocals, container, null /*parent*/, node, symbolFlags, symbolExcludes);
 			default:
 		}
 		throw "Unhandled case in declareSymbolAndAddToSymbolTable";
@@ -913,7 +861,7 @@ class Binder {
 			bindSourceFileAsExternalModule();
 			// Create symbol equivalent for the module.exports = {}
 			final originalSymbol = file.Symbol;
-			declareSymbol(Ast.GetExports(file.Symbol), file.Symbol, file.AsNode(), SymbolFlagsProperty, SymbolFlagsAll);
+			declareSymbol(SlotExports, file.Symbol, file.Symbol, file.AsNode(), SymbolFlagsProperty, SymbolFlagsAll);
 			file.Symbol = originalSymbol;
 		}
 	}
@@ -993,7 +941,7 @@ class Binder {
 			errorOnNode(node, Diagnostics.Global_module_exports_may_only_appear_in_declaration_files);
 		} else {
 			final f = file;
-			declareSymbol(Ast.GetSymbolTable(() -> f.GlobalExports, t -> f.GlobalExports = t), file.Symbol, node, SymbolFlagsAlias, SymbolFlagsAliasExcludes);
+			declareSymbol(SlotGlobalExports, f, file.Symbol, node, SymbolFlagsAlias, SymbolFlagsAliasExcludes);
 		}
 	}
 
@@ -1010,9 +958,9 @@ class Binder {
 			bindAnonymousDeclaration(node, SymbolFlagsExportStar, getDeclarationName(node));
 		} else if (decl.ExportClause == null) {
 			// All export * declarations are collected in an __export symbol
-			declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, SymbolFlagsExportStar, SymbolFlagsNone);
+			declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, SymbolFlagsExportStar, SymbolFlagsNone);
 		} else if (Ast.IsNamespaceExport(decl.ExportClause)) {
-			declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), decl.ExportClause, SymbolFlagsAlias, SymbolFlagsAliasExcludes);
+			declareSymbol(SlotExports, container.Symbol(), container.Symbol(), decl.ExportClause, SymbolFlagsAlias, SymbolFlagsAliasExcludes);
 		}
 	}
 
@@ -1025,7 +973,7 @@ class Binder {
 			// If there is an `export default x;` alias declaration, can't `export default` anything else.
 			// (In contrast, you can still have `export default function f() {}` and `export default interface I {}`.)
 			final flags = Core.IfElse(Ast.ExpressionIsAlias(node.Expression()), SymbolFlagsAlias, SymbolFlagsProperty);
-			final symbol = declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, flags, SymbolFlagsAll);
+			final symbol = declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, flags, SymbolFlagsAll);
 			if (node.AsExportAssignment().IsExportEquals) {
 				// Ensure export assignments have a ValueDeclaration set.
 				SetValueDeclaration(symbol, node);
@@ -1143,7 +1091,7 @@ class Binder {
 		if (symbolExport != null) {
 			errorOnNode(symbolExport.Declarations[0], Diagnostics.Duplicate_identifier_0, Ast.SymbolName(prototypeSymbol));
 		}
-		Ast.GetExports(symbol).set(prototypeSymbol.Name, prototypeSymbol);
+		symbol.Exports = Ast.GetExports(symbol).with(prototypeSymbol);
 		prototypeSymbol.Parent = symbol;
 	}
 
@@ -1172,8 +1120,7 @@ class Binder {
 		addDeclarationToSymbol(symbol, node, SymbolFlagsSignature);
 		final typeLiteralSymbol = newSymbol(SymbolFlagsTypeLiteral, Ast.InternalSymbolNameType);
 		addDeclarationToSymbol(typeLiteralSymbol, node, SymbolFlagsTypeLiteral);
-		typeLiteralSymbol.Members = new SymbolTable();
-		typeLiteralSymbol.Members.set(symbol.Name, symbol);
+		typeLiteralSymbol.Members = new SymbolTable().with(symbol);
 	}
 
 	function addLateBoundAssignmentDeclarationToSymbol(node:Node, symbol:Symbol):Void {
@@ -1181,7 +1128,7 @@ class Binder {
 		var assignmentSymbol = exports.get(Ast.InternalSymbolNameAssignmentDeclaration);
 		if (assignmentSymbol == null) {
 			assignmentSymbol = newSymbol(SymbolFlagsNone, Ast.InternalSymbolNameAssignmentDeclaration);
-			exports.set(Ast.InternalSymbolNameAssignmentDeclaration, assignmentSymbol);
+			symbol.Exports = exports.with(assignmentSymbol);
 		}
 		assignmentSymbol.Declarations = Core.appendVector(assignmentSymbol.Declarations, node);
 	}
@@ -1190,7 +1137,7 @@ class Binder {
 		if (setCommonJSModuleIndicator(node)) {
 			final container = file.AsNode();
 			final flags = Core.IfElse(Ast.ExpressionIsAlias(node.AsBinaryExpression().Right), SymbolFlagsAlias, SymbolFlagsProperty);
-			final symbol = declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, flags, 0);
+			final symbol = declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, flags, 0);
 			SetValueDeclaration(symbol, node);
 		}
 	}
@@ -1224,7 +1171,7 @@ class Binder {
 			// name is stored once into exportEquals' exports and only flags are OR-ed).
 			for (symbol in moduleExports) {
 				if (symbol.Name != Ast.InternalSymbolNameExportEquals && symbol.Flags & (SymbolFlagsType | SymbolFlagsNamespace) != 0) {
-					Ast.GetExports(exportEquals).set(symbol.Name, symbol);
+					exportEquals.Exports = Ast.GetExports(exportEquals).with(symbol);
 					exportEquals.Flags |= SymbolFlagsNamespaceModule;
 				}
 			}
@@ -1246,7 +1193,7 @@ class Binder {
 				final exports = Ast.GetExports(symbol);
 				final existing = exports.get(getDeclarationName(node));
 				if (existing == null || existing.Flags & SymbolFlagsAssignment != 0) {
-					declareSymbol(exports, symbol, node, SymbolFlagsProperty | SymbolFlagsAssignment, SymbolFlagsPropertyExcludes);
+					declareSymbol(SlotExports, symbol, symbol, node, SymbolFlagsProperty | SymbolFlagsAssignment, SymbolFlagsPropertyExcludes);
 				}
 			}
 		}
@@ -1268,7 +1215,7 @@ class Binder {
 			final container = file.AsNode();
 			final flags = Core.IfElse(Ast.IsBinaryExpression(node) && Ast.ExpressionIsAlias(node.AsBinaryExpression().Right), SymbolFlagsAlias,
 				SymbolFlagsFunctionScopedVariable);
-			declareSymbol(Ast.GetExports(container.Symbol()), container.Symbol(), node, flags, SymbolFlagsFunctionScopedVariableExcludes);
+			declareSymbol(SlotExports, container.Symbol(), container.Symbol(), node, flags, SymbolFlagsFunctionScopedVariableExcludes);
 		}
 	}
 
@@ -1309,11 +1256,13 @@ class Binder {
 		final classSymbol = classAndTable.a;
 		final symbolTable = classAndTable.b;
 		if (symbolTable != null) {
+			// PORT: pointer — the slot getThisClassAndSymbolTable took the table from
+			final slot = Ast.IsStatic(thisContainer) ? SlotExports : SlotMembers;
 			if (Ast.HasDynamicName(node)) {
-				declareSymbolEx(symbolTable, classSymbol, node, SymbolFlagsProperty, SymbolFlagsNone, true /*isReplaceableByMethod*/, true /*isComputedName*/);
+				declareSymbolEx(slot, classSymbol, classSymbol, node, SymbolFlagsProperty, SymbolFlagsNone, true /*isReplaceableByMethod*/, true /*isComputedName*/);
 				addLateBoundAssignmentDeclarationToSymbol(node, classSymbol);
 			} else {
-				declareSymbolEx(symbolTable, classSymbol, node, SymbolFlagsProperty | SymbolFlagsAssignment, SymbolFlagsNone, true /*isReplaceableByMethod*/,
+				declareSymbolEx(slot, classSymbol, classSymbol, node, SymbolFlagsProperty | SymbolFlagsAssignment, SymbolFlagsNone, true /*isReplaceableByMethod*/,
 					false /*isComputedName*/);
 			}
 		} else if (thisContainer.Kind != KindFunctionDeclaration && thisContainer.Kind != KindFunctionExpression) {
@@ -1396,7 +1345,7 @@ class Binder {
 		if (Ast.IsParameterPropertyDeclaration(node, node.Parent)) {
 			final classDeclaration = node.Parent.Parent;
 			final flags = SymbolFlagsProperty | Core.IfElse(decl.QuestionToken != null, SymbolFlagsOptional, SymbolFlagsNone);
-			declareSymbol(Ast.GetMembers(classDeclaration.Symbol()), classDeclaration.Symbol(), node, flags, SymbolFlagsPropertyExcludes);
+			declareSymbol(SlotMembers, classDeclaration.Symbol(), classDeclaration.Symbol(), node, flags, SymbolFlagsPropertyExcludes);
 		}
 	}
 
@@ -1438,10 +1387,10 @@ class Binder {
 				if (isExternalOrCommonJSModule()) {
 					declareModuleMember(node, symbolFlags, symbolExcludes);
 				} else {
-					declareSymbol(Ast.GetLocals(blockScopeContainer), null /*parent*/, node, symbolFlags, symbolExcludes);
+					declareSymbol(SlotLocals, blockScopeContainer, null /*parent*/, node, symbolFlags, symbolExcludes);
 				}
 			default:
-				declareSymbol(Ast.GetLocals(blockScopeContainer), null /*parent*/, node, symbolFlags, symbolExcludes);
+				declareSymbol(SlotLocals, blockScopeContainer, null /*parent*/, node, symbolFlags, symbolExcludes);
 		}
 	}
 
@@ -1449,7 +1398,7 @@ class Binder {
 		if (node.Parent.Kind == KindInferType) {
 			final container = getInferTypeContainer(node.Parent);
 			if (container != null) {
-				declareSymbol(Ast.GetLocals(container), null /*parent*/, node, SymbolFlagsTypeParameter, SymbolFlagsTypeParameterExcludes);
+				declareSymbol(SlotLocals, container, null /*parent*/, node, SymbolFlagsTypeParameter, SymbolFlagsTypeParameterExcludes);
 			} else {
 				bindAnonymousDeclaration(node, SymbolFlagsTypeParameter, getDeclarationName(node));
 			}
@@ -1839,10 +1788,9 @@ class Binder {
 				exportsProperty.Declarations = symbol.Declarations;
 				exportsProperty.ValueDeclaration = symbol.ValueDeclaration;
 				exportsProperty.Parent = symbol;
-				symbol.Members = new SymbolTable();
-				symbol.Members.set("exports", exportsProperty);
+				symbol.Members = new SymbolTable().with(exportsProperty);
 			}
-			locals.set(name, symbol);
+			file.AsNode().LocalsContainerData().Locals = locals.with(symbol);
 		}
 	}
 

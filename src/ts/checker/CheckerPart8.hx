@@ -102,7 +102,7 @@ class CheckerPart8 {
 	}
 
 	static function transformTypeOfMembers(c:Checker, t:Type, f:(propertyType:Type) -> Type):SymbolTable {
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		for (p in rangeOf(c.getPropertiesOfObjectType(t))) {
 			var property = p;
 			final original = c.getTypeOfSymbol(property);
@@ -110,7 +110,7 @@ class CheckerPart8 {
 			if (updated != original) {
 				property = c.createSymbolWithType(property, updated);
 			}
-			members.set(property.Name, property);
+			members = members.withKey(property.Name, property);
 		}
 		return members;
 	}
@@ -2316,10 +2316,10 @@ class CheckerPart8 {
 		if (cached != null) {
 			return cached;
 		}
-		final members = new SymbolTable();
-		members.set("name", c.newProperty("name", nameType));
-		members.set("private", c.newProperty("private", isPrivate ? c.trueType : c.falseType));
-		members.set("static", c.newProperty("static", isStatic ? c.trueType : c.falseType));
+		var members = new SymbolTable();
+		members = members.withKey("name", c.newProperty("name", nameType));
+		members = members.withKey("private", c.newProperty("private", isPrivate ? c.trueType : c.falseType));
+		members = members.withKey("static", c.newProperty("static", isStatic ? c.trueType : c.falseType));
 		final overrideType = c.newAnonymousType(null, members, null, null, null);
 		c.cachedTypes.set(key, overrideType);
 		return overrideType;

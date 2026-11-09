@@ -203,7 +203,7 @@ class CheckerPart1 {
 				if (file.GlobalExports != null) {
 					for (name => symbol in file.GlobalExports) {
 						if (!c.globals.exists(name)) {
-							c.globals.set(name, symbol);
+							c.globals = c.globals.withKey(name, symbol);
 						}
 					}
 				}
@@ -283,7 +283,7 @@ class CheckerPart1 {
 		} else {
 			merged = c.getMergedSymbol(symbol);
 		}
-		c.globals.set(symbol.Name, merged);
+		c.globals = c.globals.withKey(symbol.Name, merged);
 	}
 
 	// Pattern ambient modules are merged together if they have the same pattern and identical import attributes type.
@@ -316,7 +316,7 @@ class CheckerPart1 {
 		}
 		for (module in c.patternAmbientModules) {
 			if (c.globals.exists(module.Symbol.Name)) {
-				c.globals.set(module.Symbol.Name, c.getMergedSymbol(module.Symbol));
+				c.globals = c.globals.withKey(module.Symbol.Name, c.getMergedSymbol(module.Symbol));
 			}
 		}
 		c.patternAmbientModules = grouped;
@@ -332,7 +332,7 @@ class CheckerPart1 {
 			return;
 		}
 		if (Ast.IsGlobalScopeAugmentation(moduleNode)) {
-			c.mergeSymbolTable(c.globals, moduleAugmentation.Symbol.Exports, false /*unidirectional*/, null /*parent*/);
+			c.globals = c.mergeSymbolTable(SlotMembers, null, c.globals, moduleAugmentation.Symbol.Exports, false /*unidirectional*/, null /*parent*/);
 		} else {
 			// find a module that about to be augmented
 			// do not validate names of augmentations that are defined in ambient context
@@ -359,10 +359,8 @@ class CheckerPart1 {
 				})) {
 					final merged = c.mergeSymbol(moduleAugmentation.Symbol, mainModule, true /*unidirectional*/);
 					// moduleName will be a StringLiteral since this is not `declare global`.
-					Ast.GetSymbolTable(() -> c.patternAmbientModuleAugmentations, t -> c.patternAmbientModuleAugmentations = t)
-						.set(moduleName.Text(), merged);
-					Ast.GetSymbolTable(() -> c.patternAmbientModuleAugmentationTargets, t -> c.patternAmbientModuleAugmentationTargets = t)
-						.set(moduleName.Text(), mainModule);
+					c.patternAmbientModuleAugmentations = c.patternAmbientModuleAugmentations.withKey(moduleName.Text(), merged);
+					c.patternAmbientModuleAugmentationTargets = c.patternAmbientModuleAugmentationTargets.withKey(moduleName.Text(), mainModule);
 				} else {
 					if (mainModule.Exports != null && mainModule.Exports.get(Ast.InternalSymbolNameExportStar) != null
 						&& moduleAugmentation.Symbol.Exports != null && moduleAugmentation.Symbol.Exports.keys().hasNext()) {
@@ -395,7 +393,7 @@ class CheckerPart1 {
 				}
 			}
 		} else {
-			c.globals.set(name, c.undefinedSymbol);
+			c.globals = c.globals.withKey(name, c.undefinedSymbol);
 		}
 	}
 

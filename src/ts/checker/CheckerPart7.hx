@@ -813,7 +813,7 @@ class CheckerPart7 {
 			}
 		}
 		var typeParameters:Array<Type> = null;
-		final members = new SymbolTable();
+		var members = new SymbolTable();
 		var membersLen = 0; // PORT: Go len(members); StringMap has no O(1) size.
 		var combinedFlags = ElementFlagsNone;
 		if (arity != 0) {
@@ -831,7 +831,7 @@ class CheckerPart7 {
 					if (!members.exists(property.Name)) {
 						membersLen++;
 					}
-					members.set(property.Name, property);
+					members = members.withKey(property.Name, property);
 				}
 			}
 		}
@@ -851,7 +851,7 @@ class CheckerPart7 {
 			}
 			c.valueSymbolLinks.Get(lengthSymbol).resolvedType = c.getUnionType(literalTypes);
 		}
-		members.set(lengthSymbol.Name, lengthSymbol);
+		members = members.withKey(lengthSymbol.Name, lengthSymbol);
 		final t = c.newObjectType(ObjectFlagsTuple | ObjectFlagsReference, null);
 		final d = t.AsTupleType();
 		d.thisType = c.newTypeParameter(null);

@@ -3215,34 +3215,44 @@ class Ast {
 		return get();
 	}
 
-	public static function GetMembers(symbol:Symbol):SymbolTable {
-		#if symtab_stats
-		if (symbol.Members == null) {
-			symbol.Members = new SymbolTable();
-			ts.ast.Symbol.SymbolTableStats.retag(symbol.Members, "Members");
+	// the table in a slot (owner: see SymbolTableSlot), a non-nil empty one first if it has none (like GetMembers)
+	public static function GetSlotTable(slot:SymbolTableSlot, owner:Dynamic):SymbolTable {
+		switch slot {
+			case SlotMembers:
+				return GetMembers(cast owner);
+			case SlotExports:
+				return GetExports(cast owner);
+			case SlotLocals:
+				return GetLocals(cast owner);
+			case SlotGlobalExports:
+				final f:SourceFile = cast owner;
+				return GetSymbolTable(() -> f.GlobalExports, t -> f.GlobalExports = t);
 		}
-		#end
+	}
+
+	public static function SetSlotTable(slot:SymbolTableSlot, owner:Dynamic, t:SymbolTable):Void {
+		switch slot {
+			case SlotMembers:
+				(cast owner : Symbol).Members = t;
+			case SlotExports:
+				(cast owner : Symbol).Exports = t;
+			case SlotLocals:
+				(cast owner : Node).LocalsContainerData().Locals = t;
+			case SlotGlobalExports:
+				(cast owner : SourceFile).GlobalExports = t;
+		}
+	}
+
+	public static function GetMembers(symbol:Symbol):SymbolTable {
 		return GetSymbolTable(() -> symbol.Members, t -> symbol.Members = t);
 	}
 
 	public static function GetExports(symbol:Symbol):SymbolTable {
-		#if symtab_stats
-		if (symbol.Exports == null) {
-			symbol.Exports = new SymbolTable();
-			ts.ast.Symbol.SymbolTableStats.retag(symbol.Exports, "Exports");
-		}
-		#end
 		return GetSymbolTable(() -> symbol.Exports, t -> symbol.Exports = t);
 	}
 
 	public static function GetLocals(container:Node):SymbolTable {
 		final data = container.LocalsContainerData();
-		#if symtab_stats
-		if (data.Locals == null) {
-			data.Locals = new SymbolTable();
-			ts.ast.Symbol.SymbolTableStats.retag(data.Locals, "Locals:" + container.Kind.String());
-		}
-		#end
 		return GetSymbolTable(() -> data.Locals, t -> data.Locals = t);
 	}
 
