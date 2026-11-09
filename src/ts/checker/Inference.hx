@@ -1263,7 +1263,7 @@ class Inference {
 			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, Core.OrElse(c.inferReverseMappedType(indexInfo.valueType, r.mappedType, r.constraintType), c.unknownType),
 				readonlyMask && indexInfo.isReadonly, null, null));
 		}
-		final members:SymbolTable = new StringMap<Symbol>();
+		final members = new SymbolTable();
 		final limitedConstraint = c.getLimitedConstraint(t);
 		final props = c.getPropertiesOfType(r.source);
 		if (props != null) {
@@ -1391,7 +1391,7 @@ class Inference {
 
 	// Create an object with properties named in the string literal type. Every property has type `any`.
 	static function createEmptyObjectTypeFromStringLiteral(c:Checker, t:Type):Type {
-		final members:SymbolTable = new StringMap<Symbol>();
+		final members = new SymbolTable();
 		for (t in t.Distributed()) {
 			if ((t.flags & TypeFlagsStringLiteral) == 0) {
 				continue;

@@ -200,6 +200,11 @@ class ForIn {
 			case TInst(_.get() => c, [vt]) if (c.pack.join(".") == "haxe.ds" && c.name == "StringMap"): MString(vt);
 			case TInst(_.get() => c, [vt]) if (c.pack.join(".") == "haxe.ds" && c.name == "IntMap"): MInt(vt);
 			case TInst(_.get() => c, [_, _]) if (c.pack.join(".") == "go" && c.name == "IdentityMap"): MIdentity;
+			case TAbstract(_.get() => a, []) if (a.pack.join(".") == "ts.ast" && a.name == "SymbolTable"):
+				switch Context.follow(a.type) {
+					case TInst(_.get() => c, [vt]) if (c.pack.join(".") == "haxe.ds" && c.name == "StringMap"): MString(vt);
+					case _: MOther;
+				}
 			case _: MOther;
 		}
 	}

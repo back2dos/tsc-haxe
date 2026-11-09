@@ -217,4 +217,156 @@ class SymbolExtra {
 }
 
 // SymbolTable
-typedef SymbolTable = StringMap<Symbol>;
+// PORT: perf — an abstract over the map (step 1 of the symbol-table representation change). With
+// -D symtab_check every insertion and lookup checks that the key is the symbol's name.
+@:forward(get, exists, remove, keys, size, reserve, clear, toString)
+abstract SymbolTable(StringMap<Symbol>) from StringMap<Symbol> to StringMap<Symbol> {
+	public inline function new(#if symtab_stats ?pos:haxe.PosInfos #end) {
+		this = new StringMap<Symbol>();
+		#if symtab_stats
+		SymbolTableStats.register(this, pos.className.split(".").pop() + "." + pos.methodName);
+		#end
+	}
+
+	public inline function set(k:String, v:Symbol):Void {
+		#if symtab_check
+		SymbolTableCheck.check(k, v, "set");
+		#end
+		this.set(k, v);
+	}
+
+	#if symtab_check
+	public inline function get(k:String):Symbol {
+		final v = this.get(k);
+		if (v != null) {
+			SymbolTableCheck.check(k, v, "get");
+		}
+		return v;
+	}
+	#end
+
+	public inline function iterator():Iterator<Symbol> {
+		return this.iterator();
+	}
+
+	public inline function keyValueIterator():KeyValueIterator<String, Symbol> {
+		return this.keyValueIterator();
+	}
+
+	public inline function copy(#if symtab_stats ?pos:haxe.PosInfos #end):SymbolTable {
+		#if symtab_stats
+		final t = this.copy();
+		SymbolTableStats.register(t, "copy@" + pos.className.split(".").pop() + "." + pos.methodName);
+		return t;
+		#else
+		return this.copy();
+		#end
+	}
+}
+
+#if symtab_check
+class SymbolTableCheck {
+	static var seen:StringMap<Bool> = new StringMap();
+	static var mutex = new sys.thread.Mutex();
+
+	public static function check(k:String, v:Symbol, op:String):Void {
+		if (v == null || v.Name == k) {
+			return;
+		}
+		final key = op + " " + k + " " + v.Name + " " + (v.Flags : Int) + " " + (v.CheckFlags : Int);
+		mutex.acquire();
+		final first = !seen.exists(key);
+		if (first) {
+			seen.set(key, true);
+		}
+		mutex.release();
+		if (first) {
+			Sys.stderr().writeString("SYMTAB-MISMATCH " + op + " key=" + haxe.Json.stringify(k) + " name=" + haxe.Json.stringify(v.Name) + " flags="
+				+ StringTools.hex(v.Flags, 8) + " checkFlags=" + StringTools.hex(v.CheckFlags, 8) + "\n" + haxe.CallStack.toString(haxe.CallStack.callStack()) + "\n");
+		}
+	}
+}
+#end
+
+
+#if symtab_stats
+// -D symtab_stats: every table made through `new SymbolTable()` / copy() with a tag (its creation site or a kind
+// given by retag), and at exit (Tsgo) the histogram of the final sizes per tag on stderr
+class SymbolTableStats {
+	static var tables:Array<StringMap<Symbol>> = [];
+	static var tags:Array<String> = [];
+	static var mutex = new sys.thread.Mutex();
+
+	public static function register(t:StringMap<Symbol>, tag:String):Void {
+		mutex.acquire();
+		tables.push(t);
+		tags.push(tag);
+		mutex.release();
+	}
+
+	public static function retag(t:StringMap<Symbol>, tag:String):Void {
+		mutex.acquire();
+		var i = tables.length - 1;
+		while (i >= 0 && i >= tables.length - 64) {
+			if (tables[i] == t) {
+				tags[i] = tag;
+				break;
+			}
+			i--;
+		}
+		mutex.release();
+	}
+
+	static final bounds = [0, 1, 2, 3, 4, 5, 6, 8, 12, 16, 32, 64, 256, 1024, 0x7fffffff];
+
+	static function bucket(n:Int):Int {
+		var b = 0;
+		while (n > bounds[b])
+			b++;
+		return b;
+	}
+
+	public static function dump():Void {
+		final byTag = new StringMap<Array<Int>>();
+		final order = [];
+		final total = [for (_ in bounds) 0];
+		var entries = 0.0;
+		for (i in 0...tables.length) {
+			final n = tables[i].size();
+			entries += n;
+			final b = bucket(n);
+			var h = byTag.get(tags[i]);
+			if (h == null) {
+				h = [for (_ in 0...bounds.length + 1) 0];
+				byTag.set(tags[i], h);
+				order.push(tags[i]);
+			}
+			h[b]++;
+			h[bounds.length] += n;
+			total[b]++;
+		}
+		final head = [for (i in 0...bounds.length) i == 0 ? "0" : bounds[i] == bounds[i - 1] + 1 ? "" + bounds[i] : bounds[i] == 0x7fffffff ? ">" + bounds[i - 1] : "<=" + bounds[i]];
+		final out = new StringBuf();
+		out.add("SYMTAB-STATS tables " + tables.length + " entries " + entries + "\n");
+		out.add("tag\ttables\tentries\t" + head.join("\t") + "\n");
+		order.sort((a, b) -> {
+			final x = byTag.get(a), y = byTag.get(b);
+			var nx = 0, ny = 0;
+			for (i in 0...bounds.length) {
+				nx += x[i];
+				ny += y[i];
+			}
+			return ny - nx;
+		});
+		for (t in order) {
+			final h = byTag.get(t);
+			var n = 0;
+			for (i in 0...bounds.length)
+				n += h[i];
+			out.add(t + "\t" + n + "\t" + h[bounds.length] + "\t" + h.slice(0, bounds.length).join("\t") + "\n");
+		}
+		out.add("ALL\t" + tables.length + "\t" + entries + "\t" + total.join("\t") + "\n");
+		Sys.stderr().writeString(out.toString());
+	}
+}
+#end

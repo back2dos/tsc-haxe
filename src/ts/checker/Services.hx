@@ -17,7 +17,7 @@ class Services {
 			return null;
 		}
 
-		final symbols:SymbolTable = new StringMap<Symbol>();
+		final symbols = new SymbolTable();
 		var isStaticSymbol = false;
 
 		// Copy the given symbol into symbol tables if the symbol has the given meaning
@@ -207,7 +207,7 @@ class Services {
 			return c.getAugmentedPropertiesOfType(unionType);
 		}
 
-		final props:SymbolTable = new StringMap<Symbol>();
+		final props = new SymbolTable();
 		if (types != null) {
 			for (memberType in types) {
 				final augmentedProps = c.getAugmentedPropertiesOfType(memberType);
@@ -279,7 +279,7 @@ class Services {
 		}
 
 		if (propsByName == null) {
-			propsByName = new StringMap<Symbol>();
+			propsByName = new SymbolTable();
 		}
 		if (functionType != null) {
 			final functionProps = c.getPropertiesOfType(functionType);

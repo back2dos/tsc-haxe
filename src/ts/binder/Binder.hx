@@ -519,21 +519,27 @@ class Binder {
 	// a new table gets room for them (symbolTableHint) instead of growing 1, 2, 3, 5, 8, 16, ... entries. Same
 	// entries in the same order; the table is still created only on the first declaration.
 	static inline function getMembersSized(symbol:Symbol, container:Node):SymbolTable {
-		if (symbol.Members == null)
+		if (symbol.Members == null) {
 			symbol.Members = newSymbolTable(symbolTableHint(container));
+			#if symtab_stats ts.ast.Symbol.SymbolTableStats.retag(symbol.Members, "Members"); #end
+		}
 		return symbol.Members;
 	}
 
 	static inline function getExportsSized(symbol:Symbol, container:Node):SymbolTable {
-		if (symbol.Exports == null)
+		if (symbol.Exports == null) {
 			symbol.Exports = newSymbolTable(symbolTableHint(container));
+			#if symtab_stats ts.ast.Symbol.SymbolTableStats.retag(symbol.Exports, "Exports"); #end
+		}
 		return symbol.Exports;
 	}
 
 	static inline function getLocalsSized(container:Node):SymbolTable {
 		final data = container.LocalsContainerData();
-		if (data.Locals == null)
+		if (data.Locals == null) {
 			data.Locals = newSymbolTable(symbolTableHint(container));
+			#if symtab_stats ts.ast.Symbol.SymbolTableStats.retag(data.Locals, "Locals:" + container.Kind.String()); #end
+		}
 		return data.Locals;
 	}
 

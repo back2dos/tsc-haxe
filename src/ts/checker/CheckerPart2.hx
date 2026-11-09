@@ -1661,7 +1661,7 @@ class CheckerPart2 {
 		final links = c.typeNodeLinks.Get(node);
 		if (links.resolvedType == null) {
 			final symbol = c.newSymbol(SymbolFlagsObjectLiteral, Ast.InternalSymbolNameImportAttributes);
-			final members:SymbolTable = new StringMap<Symbol>();
+			final members = new SymbolTable();
 			for (attribute in node.AsImportAttributes().Attributes.Nodes) {
 				final member = c.newSymbol(SymbolFlagsProperty, attribute.Name().Text());
 				c.valueSymbolLinks.Get(member).resolvedType = c.getRegularTypeOfLiteralType(c.checkExpressionCached(attribute.AsImportAttribute().Value));

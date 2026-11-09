@@ -3216,15 +3216,33 @@ class Ast {
 	}
 
 	public static function GetMembers(symbol:Symbol):SymbolTable {
+		#if symtab_stats
+		if (symbol.Members == null) {
+			symbol.Members = new SymbolTable();
+			ts.ast.Symbol.SymbolTableStats.retag(symbol.Members, "Members");
+		}
+		#end
 		return GetSymbolTable(() -> symbol.Members, t -> symbol.Members = t);
 	}
 
 	public static function GetExports(symbol:Symbol):SymbolTable {
+		#if symtab_stats
+		if (symbol.Exports == null) {
+			symbol.Exports = new SymbolTable();
+			ts.ast.Symbol.SymbolTableStats.retag(symbol.Exports, "Exports");
+		}
+		#end
 		return GetSymbolTable(() -> symbol.Exports, t -> symbol.Exports = t);
 	}
 
 	public static function GetLocals(container:Node):SymbolTable {
 		final data = container.LocalsContainerData();
+		#if symtab_stats
+		if (data.Locals == null) {
+			data.Locals = new SymbolTable();
+			ts.ast.Symbol.SymbolTableStats.retag(data.Locals, "Locals:" + container.Kind.String());
+		}
+		#end
 		return GetSymbolTable(() -> data.Locals, t -> data.Locals = t);
 	}
 
