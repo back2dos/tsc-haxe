@@ -2,6 +2,7 @@ package ts.tracing;
 
 // Port of internal/tracing (tracing.go).
 // PORT: sync.Mutex / atomic.Bool are dropped (single-threaded port); traceStarted is a Bool.
+// PORT: hxmc (-D tshx-parallel) — Go's mu is restored (the parse, bind, check and emit threads push events).
 // PORT: Go marshals with go-json-experiment (json.MarshalWrite / MarshalIndent). ts.json.Json has
 // no Go-compatible ordered marshaller (PORTING.md §7), so the output is written by hand in the
 // "json output" section at the end of this class: struct fields in declaration order with
@@ -212,6 +213,22 @@ class Tracing {
 	// permission denied, etc.) don't crash the compiler.
 	var flushErr:Error = null;
 
+	#if tshx_parallel
+	final mu = new sys.thread.Mutex(); // PORT: hxmc (-D tshx-parallel) — Go's mu
+	#end
+
+	inline function lock():Void {
+		#if tshx_parallel
+		mu.acquire();
+		#end
+	}
+
+	inline function unlock():Void {
+		#if tshx_parallel
+		mu.release();
+		#end
+	}
+
 	function new() {}
 
 	// StartTracing creates a new tracing session.
@@ -317,10 +334,12 @@ class Tracing {
 			return;
 		}
 
+		lock();
 		// Re-check under the lock: StopTracing may have run between the load above
 		// and acquiring the lock. Once stopped, further writes would land in a buffer
 		// that has already been flushed and the closing "]" written.
 		if (!traceStarted) {
+			unlock();
 			return;
 		}
 
@@ -329,6 +348,7 @@ class Tracing {
 		traceContent.add(",\n");
 		writeEvent(new TraceEvent(1, tid, "I", phase, ts, name, "g", null, args));
 		maybeFlushLocked();
+		unlock();
 	}
 
 	// Push starts a trace event block on the shared trace buffer.
@@ -358,7 +378,9 @@ class Tracing {
 		}
 
 		if (separateBeginAndEnd) {
+			lock();
 			if (!traceStarted) {
+				unlock();
 				return function() {};
 			}
 			final ts = timestamp();
@@ -366,15 +388,19 @@ class Tracing {
 			traceContent.add(",\n");
 			writeEvent(new TraceEvent(1, tid, "B", phase, ts, name, null, null, args));
 			maybeFlushLocked();
+			unlock();
 
 			return function() {
+				lock();
 				if (!traceStarted) {
+					unlock();
 					return;
 				}
 				final endTs = timestamp();
 				traceContent.add(",\n");
 				writeEvent(new TraceEvent(1, tid, "E", phase, endTs, name, null, null, args));
 				maybeFlushLocked();
+				unlock();
 			};
 		}
 
@@ -393,13 +419,16 @@ class Tracing {
 			if (intervalMicros - go.Math.Mod(startMicros, intervalMicros) > dur) {
 				return;
 			}
+			lock();
 			if (!traceStarted) {
+				unlock();
 				return;
 			}
 			final tid = threadIDLocked(args);
 			traceContent.add(",\n");
 			writeEvent(new TraceEvent(1, tid, "X", phase, startMicros, name, null, dur, args));
 			maybeFlushLocked();
+			unlock();
 		};
 	}
 
@@ -489,6 +518,7 @@ class Tracing {
 	// NewTypeTracer creates a new tracer for a specific checker.
 	// The checkerIndex is used to create unique filenames for each checker's output.
 	public function NewTypeTracer(checkerIndex:Int):Tracer {
+		lock();
 		final typesPath = traceDir.ResolveFile('types_${checkerIndex}.json');
 		final tracer = new TypeTracer();
 		tracer.fs = fs;
@@ -502,6 +532,7 @@ class Tracing {
 		record.TypesPath = typesPath.AsString();
 		record.CheckerID = checkerIndex;
 		legend.push(record);
+		unlock();
 		return tracer;
 	}
 
@@ -517,6 +548,14 @@ class Tracing {
 			}
 		}
 
+		lock();
+		final err = stopTracingLocked();
+		unlock();
+		return err;
+	}
+
+	// PORT: the rest of StopTracing, under tr.mu (defer tr.mu.Unlock()).
+	function stopTracingLocked():Null<Error> {
 		// Close the trace file(s)
 		if (traceStarted) {
 			// Surface any buffered flush failure before attempting the final write.
