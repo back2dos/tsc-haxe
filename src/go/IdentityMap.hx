@@ -292,7 +292,7 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		return valuesArray().iterator();
 	}
 
-	// PORT: perf — keys and values as arrays (insertion order; see go.ForIn).
+	// PORT: perf — keys and values as arrays (insertion order; the iterators walk these snapshots).
 	public function keysArray():Array<K> {
 		#if cpp
 		final a = new Array<K>();
@@ -333,8 +333,10 @@ class IdentityMap<K, V> implements IMap<K, V> {
 		#end
 	}
 
-	public function keyValueIterator():KeyValueIterator<K, V> {
-		return new haxe.iterators.MapKeyValueIterator(copy());
+	// (snapshots of the keys and the values, walked in parallel: the map may change during the loop; no copy of
+	// the map and, inlined, no object per entry)
+	public inline function keyValueIterator():IdentityMapKeyValueIterator<K, V> {
+		return new IdentityMapKeyValueIterator(keysArray(), valuesArray());
 	}
 
 	public function copy():IdentityMap<K, V> {
@@ -463,3 +465,24 @@ private abstract IdentityIndex(#if jvm java.util.IdentityHashMap<Dynamic, Null<I
 	}
 }
 #end
+
+class IdentityMapKeyValueIterator<K, V> {
+	final ks:Array<K>;
+	final vs:Array<V>;
+	var i:Int;
+
+	public inline function new(ks:Array<K>, vs:Array<V>) {
+		this.ks = ks;
+		this.vs = vs;
+		i = 0;
+	}
+
+	public inline function hasNext():Bool {
+		return i < ks.length;
+	}
+
+	public inline function next():{key:K, value:V} {
+		final j = i++;
+		return {key: ks[j], value: vs[j]};
+	}
+}

@@ -3,11 +3,10 @@ package go;
 import haxe.ds.IntMap;
 import haxe.ds.StringMap;
 
-// go.ForIn (cpp: `for` loops over StringMap / IntMap / IdentityMap run over arrays): every loop
-// statement sees the same elements in the same order as the maps' own iterators (taken here
-// through comprehensions, which go.ForIn does not rewrite), for object and Int values, `v` and
-// `k => v` loops, `continue`/`break`, and a map changed during the loop. Also
-// go.Slices.BinarySearchFuncInline against BinarySearchFunc.
+// `for` loops over StringMap / IntMap / IdentityMap: every loop statement sees the same elements in
+// the same order as the maps' own iterators (taken through comprehensions), for object and Int values,
+// `v` and `k => v` loops, `continue`/`break`, and a map changed during the loop. Also go.Slices.BinarySearchFuncInline against
+// BinarySearchFunc.
 class ForInTest {
 	public static function run() {
 		T.run("TestForInStringMap", () -> {
