@@ -216,7 +216,7 @@ class ReferenceResolver_ implements ReferenceResolver {
 		var symbol = getReferencedValueSymbol(node, false /*startInDeclarationContainer*/);
 		if (symbol != null) {
 			symbol = getExportSymbolOfValueSymbolIfExported(symbol);
-			if (symbol.Declarations != null) {
+			if (Core.len(symbol.Declarations) != 0) {
 				for (declaration in symbol.Declarations) {
 					switch (declaration.Kind) {
 						case KindVariableDeclaration | KindParameter | KindBindingElement | KindPropertyDeclaration | KindPropertyAssignment |

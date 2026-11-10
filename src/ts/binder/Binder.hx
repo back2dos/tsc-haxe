@@ -336,7 +336,7 @@ class Binder {
 						diag.AddRelatedInfo(createDiagnosticForNode(node, Diagnostics.Did_you_mean_0,
 							"export type { " + node.AsTypeAliasDeclaration().Name().Text() + " }"));
 					}
-					if (symbol.Declarations != null) {
+					if (Core.len(symbol.Declarations) != 0) {
 						for (index in 0...symbol.Declarations.length) {
 							final declaration = symbol.Declarations[index];
 							var decl:Node = Ast.GetNameOfDeclaration(declaration);
@@ -622,7 +622,7 @@ class Binder {
 	}
 
 	// PORT: perf — a one-element Vector (Go: a slice of an arena); an append makes a new Vector
-	function newSingleDeclaration(declaration:Node):Vec<Node> {
+	function newSingleDeclaration(declaration:Node):haxe.ds.Vector<Node> {
 		return Core.vector1(declaration);
 	}
 
@@ -2721,7 +2721,7 @@ class Binder {
 		node.DeclarationData().Symbol = symbol;
 		if (node.Kind == KindBinaryExpression && file != null)
 			file.tshxBinaryExpressionSymbols = true; // PORT: perf (DeclarationTransformer.transformSourceFile)
-		if (symbol.Declarations == null) {
+		if (Core.len(symbol.Declarations) == 0) {
 			symbol.Declarations = newSingleDeclaration(node);
 		} else {
 			symbol.Declarations = Core.appendIfUniqueVector(symbol.Declarations, node);
@@ -3041,7 +3041,7 @@ class Binder {
 	}
 
 	static function isTypeParameterSymbolDeclaredInContainer(symbol:Symbol, container:Node):Bool {
-		if (symbol.Declarations != null) {
+		if (Core.len(symbol.Declarations) != 0) {
 			for (decl in symbol.Declarations) {
 				if (decl.Kind == KindTypeParameter) {
 					final parent = decl.Parent;

@@ -708,7 +708,7 @@ class Jsx {
 		var objectFlags = ObjectFlagsJsxAttributes;
 		final createJsxAttributesType = () -> {
 			objectFlags |= ObjectFlagsFreshLiteral;
-			final result = c.newAnonymousType(attributesSymbol, attributesTable, null, null, null);
+			final result = c.newAnonymousType(attributesSymbol, attributesTable, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), ts.core.Core.emptyVector());
 			result.objectFlags |= objectFlags | ObjectFlagsObjectLiteral | ObjectFlagsContainsObjectOrArrayLiteral;
 			return result;
 		};
@@ -833,7 +833,7 @@ class Jsx {
 				childrenPropSymbol.ValueDeclaration.AsPropertySignatureDeclaration().Symbol = childrenPropSymbol;
 				var childPropMap = new SymbolTable();
 				childPropMap = childPropMap.withKey(jsxChildrenPropertyName, childrenPropSymbol);
-				spread = c.getSpreadType(spread, c.newAnonymousType(attributesSymbol, childPropMap, null, null, null), attributesSymbol, objectFlags | c.getPropagatingFlagsOfTypes(childTypes, TypeFlagsNone), false /*readonly*/);
+				spread = c.getSpreadType(spread, c.newAnonymousType(attributesSymbol, childPropMap, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), ts.core.Core.emptyVector()), attributesSymbol, objectFlags | c.getPropagatingFlagsOfTypes(childTypes, TypeFlagsNone), false /*readonly*/);
 			}
 		}
 		if (hasSpreadAnyType) {
@@ -878,7 +878,7 @@ class Jsx {
 		return childTypes;
 	}
 
-	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):Vec<Signature> {
+	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):haxe.ds.Vector<Signature> {
 		if ((elementType.flags & TypeFlagsString) != 0) {
 			return Core.vector1(c.anySignature);
 		}
@@ -886,7 +886,7 @@ class Jsx {
 			final intrinsicType = c.getIntrinsicAttributesTypeFromStringLiteralType(elementType, caller);
 			if (intrinsicType == null) {
 				c.error(caller, Diagnostics.Property_0_does_not_exist_on_type_1, Checker.getStringLiteralValue(elementType), "JSX." + Checker.JsxNames.IntrinsicElements);
-				return null;
+				return ts.core.Core.emptyVector();
 			}
 			final fakeSignature = c.createSignatureForJSXIntrinsic(caller, intrinsicType);
 			return Core.vector1(fakeSignature);
@@ -950,7 +950,7 @@ class Jsx {
 		var apparentAttributesType = attributesType;
 		final intrinsicClassAttribs = c.getJsxType(Checker.JsxNames.IntrinsicClassAttributes, context);
 		if (!c.isErrorType(intrinsicClassAttribs)) {
-			final typeParams = VectorBuilder.freezeOrNull(c.getLocalTypeParametersOfClassOrInterfaceOrTypeAlias(intrinsicClassAttribs.symbol));
+			final typeParams = VectorBuilder.freeze(c.getLocalTypeParametersOfClassOrInterfaceOrTypeAlias(intrinsicClassAttribs.symbol));
 			final hostClassType = c.getReturnTypeOfSignature(sig);
 			var libraryManagedAttributeType:Type = null;
 			if (typeParams != null) {
@@ -1164,7 +1164,7 @@ class Jsx {
 		// declaration := factory.createFunctionTypeNode(nil, []ParameterDeclaration{factory.createParameterDeclaration(nil, nil /*dotDotDotToken*/, "props", nil /*questionToken*/, c.nodeBuilder.typeToTypeNode(result, node))}, ifElse(returnNode != nil, factory.createTypeReferenceNode(returnNode, nil /*typeArguments*/), factory.createKeywordTypeNode(ast.KindAnyKeyword)))
 		final parameterSymbol = c.newSymbol(SymbolFlagsFunctionScopedVariable, "props");
 		c.valueSymbolLinks.Get(parameterSymbol).resolvedType = result;
-		return c.newSignature(SignatureFlagsNone, null, null, null, Core.vector1(parameterSymbol), elementType, null, 1);
+		return c.newSignature(SignatureFlagsNone, null, ts.core.Core.emptyVector(), null, Core.vector1(parameterSymbol), elementType, null, 1);
 	}
 
 	// Get attributes type of the given intrinsic opening-like Jsx element by resolving the tag name.
@@ -1479,7 +1479,7 @@ class Jsx {
 		return s != null ? s : [];
 	}
 
-	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 

@@ -283,7 +283,7 @@ class Modulespecifiers {
 	}
 
 	static function tryGetModuleNameFromAmbientModule(moduleSymbol:Symbol, checker:CheckerShape):AmbientModuleInfo {
-		if (moduleSymbol.Declarations != null) {
+		if (Core.len(moduleSymbol.Declarations) != 0) {
 			for (decl in moduleSymbol.Declarations) {
 				if (Ast.IsModuleWithStringLiteralName(decl)
 					&& (!Ast.IsModuleAugmentationExternal(decl) || !Tspath.IsExternalModuleNameRelative(decl.Name().Text()))) {
@@ -302,7 +302,7 @@ class Modulespecifiers {
 		 * }
 		 */
 		// `import {c} from "m";` is valid, in which case, `moduleSymbol` is "ns", but the module name should be "m"
-		if (moduleSymbol.Declarations != null) {
+		if (Core.len(moduleSymbol.Declarations) != 0) {
 			for (d in moduleSymbol.Declarations) {
 				if (!Ast.IsModuleDeclaration(d)) {
 					continue;

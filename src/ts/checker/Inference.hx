@@ -159,7 +159,7 @@ class Inference {
 			return;
 		}
 		if ((target.flags & TypeFlagsUnion) != 0) {
-			var sourceTypes:Vec<Type>;
+			var sourceTypes:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sourceTypes = source.Types();
 			} else {
@@ -194,7 +194,7 @@ class Inference {
 			// infer { extra: any } for T. But when inferring to 'string[] & Iterable<T>' we want to keep the
 			// string[] on the source side and infer string for T.
 			if ((source.flags & TypeFlagsUnion) == 0) {
-				var sourceTypes:Vec<Type>;
+				var sourceTypes:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 				if ((source.flags & TypeFlagsIntersection) != 0) {
 					sourceTypes = source.Types();
 				} else {
@@ -372,7 +372,7 @@ class Inference {
 		c.inferFromTypeArguments(n, c.getTypeArguments(source), c.getTypeArguments(target), c.getVariances(source.AsTypeReference().target));
 	}
 
-	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:Vec<Type>, targetTypes:Vec<Type>, variances:Slice<VarianceFlags>):Void {
+	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:haxe.ds.Vector<Type>, targetTypes:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>):Void {
 		final count = Std.int(std.Math.min(Core.len(sourceTypes), Core.len(targetTypes)));
 		for (i in 0...count) {
 			if (i < Core.len(variances) && (variances[i] & VarianceFlagsVarianceMask) == VarianceFlagsContravariant) {
@@ -469,8 +469,8 @@ class Inference {
 		n.inferencePriority = minPriority(n.inferencePriority, saveInferencePriority);
 	}
 
-	static function inferFromMatchingTypes(c:Checker, n:InferenceState, sources:Vec<Type>, targets:Vec<Type>,
-			matches:(c:Checker, s:Type, t:Type) -> Bool, sort:Bool):Pair<Vec<Type>, Vec<Type>> {
+	static function inferFromMatchingTypes(c:Checker, n:InferenceState, sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>,
+			matches:(c:Checker, s:Type, t:Type) -> Bool, sort:Bool):Pair<haxe.ds.Vector<Type>, haxe.ds.Vector<Type>> {
 		var matchedSources:Slice<Type> = null;
 		var matchedTargets:Slice<Type> = null;
 		if (targets != null) {
@@ -551,7 +551,7 @@ class Inference {
 		return 0;
 	}
 
-	static function getTypeListDepth(types:Vec<Type>, maxDepth:Int):Int {
+	static function getTypeListDepth(types:haxe.ds.Vector<Type>, maxDepth:Int):Int {
 		var depth = 0;
 		for (t in types) {
 			depth = Std.int(std.Math.max(depth, getTypeDepth(t, maxDepth)));
@@ -559,11 +559,11 @@ class Inference {
 		return depth;
 	}
 
-	static function inferToMultipleTypes(c:Checker, n:InferenceState, source:Type, targets:Vec<Type>, targetFlags:TypeFlags):Void {
+	static function inferToMultipleTypes(c:Checker, n:InferenceState, source:Type, targets:haxe.ds.Vector<Type>, targetFlags:TypeFlags):Void {
 		var typeVariableCount = 0;
 		if ((targetFlags & TypeFlagsUnion) != 0) {
 			var nakedTypeVariable:Type = null;
-			var sources:Vec<Type>;
+			var sources:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 			if ((source.flags & TypeFlagsUnion) != 0) {
 				sources = source.Types();
 			} else {
@@ -647,7 +647,7 @@ class Inference {
 		}
 	}
 
-	static function inferToMultipleTypesWithPriority(c:Checker, n:InferenceState, source:Type, targets:Vec<Type>, targetFlags:TypeFlags, newPriority:InferencePriority):Void {
+	static function inferToMultipleTypesWithPriority(c:Checker, n:InferenceState, source:Type, targets:haxe.ds.Vector<Type>, targetFlags:TypeFlags, newPriority:InferencePriority):Void {
 		final savePriority = n.priority;
 		n.priority |= newPriority;
 		c.inferToMultipleTypes(n, source, targets, targetFlags);
@@ -1258,7 +1258,7 @@ class Inference {
 		final modifiers = Checker.getMappedTypeModifiers(r.mappedType);
 		final readonlyMask = (modifiers & MappedTypeModifiersIncludeReadonly) == 0;
 		final optionalMask:SymbolFlags = Core.IfElse((modifiers & MappedTypeModifiersIncludeOptional) != 0, 0, SymbolFlagsOptional);
-		var indexInfos:Vec<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector();
 		if (indexInfo != null) {
 			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, Core.OrElse(c.inferReverseMappedType(indexInfo.valueType, r.mappedType, r.constraintType), c.unknownType),
 				readonlyMask && indexInfo.isReadonly, null, null));
@@ -1306,7 +1306,7 @@ class Inference {
 				members = members.withKey(prop.Name, inferredProp);
 			}
 		}
-		c.setStructuredTypeMembers(t, members, null, null, indexInfos);
+		c.setStructuredTypeMembers(t, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), indexInfos);
 	}
 
 	static function getTypeOfReverseMappedSymbol(c:Checker, symbol:Symbol):Type {
@@ -1405,18 +1405,18 @@ class Inference {
 			}
 			members = members.withKey(name, literalProp);
 		}
-		var indexInfos:Vec<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector();
 		if ((t.flags & TypeFlagsString) != 0) {
 			indexInfos = Core.vector1(c.newIndexInfo(c.stringType, c.emptyObjectType, false /*isReadonly*/, null, null));
 		}
-		return c.newAnonymousType(null, members, null, null, indexInfos);
+		return c.newAnonymousType(null, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), indexInfos);
 	}
 
 	static extern inline overload function newInferenceContext(c:Checker, typeParameters:Slice<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
 		return c.newInferenceContextWorker(Core.Map(typeParameters, Checker.newInferenceInfo), signature, flags, compareTypes == null ? c.compareTypesAssignable : compareTypes);
 	}
 
-	static extern inline overload function newInferenceContext(c:Checker, typeParameters:Vec<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
+	static extern inline overload function newInferenceContext(c:Checker, typeParameters:haxe.ds.Vector<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
 		return c.newInferenceContextWorker(Core.Map(typeParameters, Checker.newInferenceInfo), signature, flags, compareTypes == null ? c.compareTypesAssignable : compareTypes);
 	}
 

@@ -74,7 +74,7 @@ class CheckerPart1 {
 		return symbol;
 	}
 
-	public static function GetTypeAliasTypeParameters(c:Checker, symbol:Symbol):Vec<Type> {
+	public static function GetTypeAliasTypeParameters(c:Checker, symbol:Symbol):haxe.ds.Vector<Type> {
 		if (symbol.Flags & SymbolFlagsTypeAlias == 0) {
 			throw "Attempted to fetch type alias parameters for non-type-alias symbol";
 		}
@@ -168,7 +168,7 @@ class CheckerPart1 {
 				// It is an error for a non-external-module (i.e. script) to declare its own `globalThis`.
 				final fileGlobalThisSymbol = file.Locals != null ? file.Locals.get("globalThis") : null;
 				if (fileGlobalThisSymbol != null) {
-					if (fileGlobalThisSymbol.Declarations != null) {
+					if (Core.len(fileGlobalThisSymbol.Declarations) != 0) {
 						for (d in fileGlobalThisSymbol.Declarations) {
 							c.addDiagnostic(Checker.NewDiagnosticForNode(d, Diagnostics.Declaration_name_conflicts_with_built_in_global_identifier_0, "globalThis"));
 						}
@@ -246,7 +246,7 @@ class CheckerPart1 {
 		c.autoArrayType = c.createArrayType(c.autoType);
 		if (c.autoArrayType == c.emptyObjectType) {
 			// autoArrayType is used as a marker, so even if global Array type is not defined, it needs to be a unique type
-			c.autoArrayType = c.newAnonymousType(null, null, null, null, null);
+			c.autoArrayType = c.newAnonymousType(null, null, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), ts.core.Core.emptyVector());
 		}
 		c.globalReadonlyArrayType = c.getGlobalType("ReadonlyArray", 1 /*arity*/, false /*reportErrors*/);
 		if (c.globalReadonlyArrayType == c.emptyGenericType) {
@@ -385,7 +385,7 @@ class CheckerPart1 {
 		final name = c.undefinedSymbol.Name;
 		final targetSymbol = c.globals.get(name);
 		if (targetSymbol != null) {
-			if (targetSymbol.Declarations != null) {
+			if (Core.len(targetSymbol.Declarations) != 0) {
 				for (declaration in targetSymbol.Declarations) {
 					if (!Ast.IsTypeDeclaration(declaration)) {
 						c.addDiagnostic(Checker.createDiagnosticForNode(declaration, Diagnostics.Declaration_name_conflicts_with_built_in_global_identifier_0, name));
@@ -1953,7 +1953,7 @@ class CheckerPart1 {
 		}
 	}
 
-	static function checkTypeArgumentConstraints(c:Checker, node:Node, typeParameters:Vec<Type>):Bool {
+	static function checkTypeArgumentConstraints(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>):Bool {
 		var typeArguments:Slice<Type> = null;
 		var mapper:TypeMapper = null;
 		var result = true;
@@ -2443,7 +2443,7 @@ class CheckerPart1 {
 		var multipleConstructorImplementation = false;
 		var hasNonAmbientClass = false;
 		var functionDeclarations:Slice<Node> = null;
-		final getCanonicalOverload = (overloads:Vec<Node>, implementation:Node) -> {
+		final getCanonicalOverload = (overloads:haxe.ds.Vector<Node>, implementation:Node) -> {
 			// Consider the canonical set of flags to be the flags of the bodyDeclaration or the first declaration
 			// Error on all deviations from this canonical set of flags
 			// The caveat is that if some overloads are defined in lib.d.ts, we don't want to
@@ -2455,7 +2455,7 @@ class CheckerPart1 {
 			}
 			return overloads[0];
 		};
-		final checkFlagAgreementBetweenOverloads = (overloads:Vec<Node>, implementation:Node, flagsToCheck:ModifierFlags,
+		final checkFlagAgreementBetweenOverloads = (overloads:haxe.ds.Vector<Node>, implementation:Node, flagsToCheck:ModifierFlags,
 				someOverloadFlags:ModifierFlags, allOverloadFlags:ModifierFlags) -> {
 			// Error if some overloads have a flag that is not shared by all overloads. To find the
 			// deviations, we XOR someOverloadFlags with allOverloadFlags
@@ -2503,7 +2503,7 @@ class CheckerPart1 {
 				}
 			}
 		};
-		final checkQuestionTokenAgreementBetweenOverloads = (overloads:Vec<Node>, implementation:Node, someHaveQuestionToken:Bool,
+		final checkQuestionTokenAgreementBetweenOverloads = (overloads:haxe.ds.Vector<Node>, implementation:Node, someHaveQuestionToken:Bool,
 				allHaveQuestionToken:Bool) -> {
 			if (someHaveQuestionToken != allHaveQuestionToken) {
 				final canonicalHasQuestionToken = Checker.isOptionalDeclaration(getCanonicalOverload(overloads, implementation));

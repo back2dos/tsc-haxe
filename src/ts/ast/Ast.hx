@@ -3675,7 +3675,7 @@ class Ast {
 	}
 
 	// PORT: perf — IsFunctionLikeKind looks the kind up in a table filled from Go's switch (isFunctionLikeKindSwitch)
-	static final functionLikeKinds:Vec<Bool> = {
+	static final functionLikeKinds:haxe.ds.Vector<Bool> = {
 		final v = new haxe.ds.Vector<Bool>(KindCount);
 		for (k in 0...KindCount)
 			v[k] = isFunctionLikeKindSwitch(cast k);
@@ -5672,7 +5672,7 @@ class Ast {
 	}
 
 	public static function GetDeclarationOfKind(symbol:Symbol, kind:Kind):Node {
-		if (symbol.Declarations != null) {
+		if (Core.len(symbol.Declarations) != 0) {
 			for (declaration in symbol.Declarations) {
 				if (declaration.Kind == kind) {
 					return declaration;
@@ -7396,7 +7396,7 @@ class Ast {
 
 	// type AllAccessorDeclarations → class AllAccessorDeclarations in Utilities.hx.
 
-	public static function GetAllAccessorDeclarationsForDeclaration(accessor:AccessorDeclaration, declarationsOfSymbol:Vec<Node>):AllAccessorDeclarations {
+	public static function GetAllAccessorDeclarationsForDeclaration(accessor:AccessorDeclaration, declarationsOfSymbol:haxe.ds.Vector<Node>):AllAccessorDeclarations {
 		var otherKind:Kind = KindUnknown;
 		if (accessor.Kind == KindSetAccessor) {
 			otherKind = KindGetAccessor;
@@ -7471,7 +7471,7 @@ class Ast {
 				}
 			}
 		}
-		return GetAllAccessorDeclarationsForDeclaration(accessor, ts.core.VectorBuilder.freezeOrNull(matches));
+		return GetAllAccessorDeclarationsForDeclaration(accessor, ts.core.VectorBuilder.freeze(matches));
 	}
 
 	public static function IsAsyncFunction(node:Node):Bool {

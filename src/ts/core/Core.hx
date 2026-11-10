@@ -43,31 +43,26 @@ class Core {
 	// empty vector a shared constant: no null). Same results as the Array versions; Filter and SameMap
 	// return the same vector when nothing changes (Same compares identity).
 
-	public static extern inline overload function len<T>(s:Vec<T>):Int {
+	public static extern inline overload function len<T>(s:haxe.ds.Vector<T>):Int {
 		return s == null ? 0 : s.length;
 	}
 
 	// A finished list as a Vector (VectorBuilder.freeze: one exact-size copy; null and empty give the empty vector).
-	public static inline function toVector<T>(a:Slice<T>):Vec<T> {
+	public static inline function toVector<T>(a:Slice<T>):haxe.ds.Vector<T> {
 		return VectorBuilder.freeze(a);
 	}
 
-	// As toVector, but null stays null (where Go tells a nil slice from an empty one).
-	public static inline function toVectorOrNull<T>(a:Slice<T>):Vec<T> {
-		return VectorBuilder.freezeOrNull(a);
-	}
-
-	public static inline function emptyVector<T>():Vec<T> {
+	public static inline function emptyVector<T>():haxe.ds.Vector<T> {
 		return new haxe.ds.Vector<T>(0);
 	}
 
-	public static inline function vector1<T>(x:T):Vec<T> {
+	public static inline function vector1<T>(x:T):haxe.ds.Vector<T> {
 		final v = new haxe.ds.Vector<T>(1);
 		v[0] = x;
 		return v;
 	}
 
-	public static inline function vector2<T>(x:T, y:T):Vec<T> {
+	public static inline function vector2<T>(x:T, y:T):haxe.ds.Vector<T> {
 		final v = new haxe.ds.Vector<T>(2);
 		v[0] = x;
 		v[1] = y;
@@ -75,12 +70,12 @@ class Core {
 	}
 
 	// A Vector's elements in a new Array (a builder: Go's append to a slice of a list that is not ours to grow).
-	public static inline function vectorToArray<T>(v:Vec<T>):Slice<T> {
-		return v == null ? null : v.toArray();
+	public static inline function vectorToArray<T>(v:haxe.ds.Vector<T>):Slice<T> {
+		return v == null || v.length == 0 ? null : v.toArray();
 	}
 
 	// Go's append(a, b...) as a new exact-size Vector
-	public static function concatVectors<T>(a:Vec<T>, b:Vec<T>):Vec<T> {
+	public static function concatVectors<T>(a:haxe.ds.Vector<T>, b:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
 		final n1 = len(a), n2 = len(b);
 		if (n2 == 0 && a != null)
 			return a;
@@ -95,7 +90,7 @@ class Core {
 	}
 
 	// Go's append(s, x) for a Vector: a new exact-size Vector (s is never changed)
-	public static function appendVector<T>(s:Vec<T>, x:T):Vec<T> {
+	public static function appendVector<T>(s:haxe.ds.Vector<T>, x:T):haxe.ds.Vector<T> {
 		final n = len(s);
 		final v = new haxe.ds.Vector<T>(n + 1);
 		if (n != 0)
@@ -105,12 +100,12 @@ class Core {
 	}
 
 	// core.AppendIfUnique for a Vector: s itself when it has x, else a new Vector with x appended
-	public static inline function appendIfUniqueVector<T>(s:Vec<T>, x:T):Vec<T> {
+	public static inline function appendIfUniqueVector<T>(s:haxe.ds.Vector<T>, x:T):haxe.ds.Vector<T> {
 		return go.Slices.Contains(s, x) ? s : appendVector(s, x);
 	}
 
 	// a[start:end] as a Vector (the same one when it is all of a)
-	public static function subVector<T>(a:Vec<T>, start:Int, end:Int):Vec<T> {
+	public static function subVector<T>(a:haxe.ds.Vector<T>, start:Int, end:Int):haxe.ds.Vector<T> {
 		if (start == 0 && end == len(a))
 			return a == null ? new haxe.ds.Vector<T>(0) : a;
 		final v = new haxe.ds.Vector<T>(end - start);
@@ -119,11 +114,11 @@ class Core {
 		return v;
 	}
 
-	public static extern inline overload function Same<T>(s1:Vec<T>, s2:Vec<T>):Bool {
+	public static extern inline overload function Same<T>(s1:haxe.ds.Vector<T>, s2:haxe.ds.Vector<T>):Bool {
 		return len(s1) == len(s2) ? (len(s1) == 0 || s1 == s2) : false;
 	}
 
-	public static extern inline overload function Some<T>(slice:Vec<T>, f:(T) -> Bool):Bool {
+	public static extern inline overload function Some<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Bool {
 		var found = false;
 		final n = len(slice);
 		var i = 0;
@@ -137,7 +132,7 @@ class Core {
 		return found;
 	}
 
-	public static extern inline overload function Every<T>(slice:Vec<T>, f:(T) -> Bool):Bool {
+	public static extern inline overload function Every<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Bool {
 		var all = true;
 		final n = len(slice);
 		var i = 0;
@@ -151,7 +146,7 @@ class Core {
 		return all;
 	}
 
-	public static extern inline overload function Find<T>(slice:Vec<T>, f:(T) -> Bool, ?zero:T):T {
+	public static extern inline overload function Find<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool, ?zero:T):T {
 		var result = zero;
 		final n = len(slice);
 		var i = 0;
@@ -166,7 +161,7 @@ class Core {
 		return result;
 	}
 
-	public static extern inline overload function FindIndex<T>(slice:Vec<T>, f:(T) -> Bool):Int {
+	public static extern inline overload function FindIndex<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Int {
 		var result = -1;
 		final n = len(slice);
 		var i = 0;
@@ -180,27 +175,27 @@ class Core {
 		return result;
 	}
 
-	public static extern inline overload function FindLastIndex<T>(slice:Vec<T>, f:(T) -> Bool):Int {
+	public static extern inline overload function FindLastIndex<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Int {
 		var i = len(slice) - 1;
 		while (i >= 0 && !f(slice[i]))
 			i--;
 		return i;
 	}
 
-	public static extern inline overload function FirstOrNil<T>(slice:Vec<T>, ?zero:T):T {
+	public static extern inline overload function FirstOrNil<T>(slice:haxe.ds.Vector<T>, ?zero:T):T {
 		return len(slice) != 0 ? slice[0] : zero;
 	}
 
-	public static extern inline overload function LastOrNil<T>(slice:Vec<T>, ?zero:T):T {
+	public static extern inline overload function LastOrNil<T>(slice:haxe.ds.Vector<T>, ?zero:T):T {
 		return len(slice) != 0 ? slice[slice.length - 1] : zero;
 	}
 
-	public static extern inline overload function ElementOrNil<T>(slice:Vec<T>, index:Int, ?zero:T):T {
+	public static extern inline overload function ElementOrNil<T>(slice:haxe.ds.Vector<T>, index:Int, ?zero:T):T {
 		return index < len(slice) ? slice[index] : zero;
 	}
 
 	// a new Array (Go's Map makes a new slice)
-	public static extern inline overload function Map<T, U>(slice:Vec<T>, f:(T) -> U):Slice<U> {
+	public static extern inline overload function Map<T, U>(slice:haxe.ds.Vector<T>, f:(T) -> U):Slice<U> {
 		var result:Slice<U> = null;
 		if (slice != null) {
 			final r = new Array<U>();
@@ -213,7 +208,7 @@ class Core {
 		return result;
 	}
 
-	public static extern inline overload function Filter<T>(slice:Vec<T>, f:(T) -> Bool):Vec<T> {
+	public static extern inline overload function Filter<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):haxe.ds.Vector<T> {
 		var result = slice;
 		final n = len(slice);
 		var i = 0;
@@ -236,10 +231,10 @@ class Core {
 		return result;
 	}
 
-	public static extern inline overload function SameMap<T>(slice:Vec<T>, f:(T) -> T):Vec<T>
+	public static extern inline overload function SameMap<T>(slice:haxe.ds.Vector<T>, f:(T) -> T):haxe.ds.Vector<T>
 		return sameMapVec(slice, f);
 
-	static function sameMapVec<T>(slice:Vec<T>, f:(T) -> T):Vec<T> {
+	static function sameMapVec<T>(slice:haxe.ds.Vector<T>, f:(T) -> T):haxe.ds.Vector<T> {
 		final n = len(slice);
 		for (i in 0...n) {
 			final value = slice[i];
@@ -624,7 +619,7 @@ class Core {
 		return new ValueError<Slice<U>>(result, null);
 	}
 
-	public static extern inline overload function MapIndex<T, U>(slice:Vec<T>, f:(T, Int) -> U):Slice<U> {
+	public static extern inline overload function MapIndex<T, U>(slice:haxe.ds.Vector<T>, f:(T, Int) -> U):Slice<U> {
 		var result:Slice<U> = null;
 		if (slice != null) {
 			final r = new Array<U>();
@@ -652,7 +647,7 @@ class Core {
 		return result;
 	}
 
-	public static extern inline overload function MapNonNil<T, U>(slice:Vec<T>, f:(T) -> U):Slice<U> {
+	public static extern inline overload function MapNonNil<T, U>(slice:haxe.ds.Vector<T>, f:(T) -> U):Slice<U> {
 		var result:Slice<U> = null;
 		for (i in 0...len(slice)) {
 			final mapped = f(slice[i]);
@@ -827,7 +822,7 @@ class Core {
 		return result;
 	}
 
-	public static extern inline overload function FindLast<T>(slice:Vec<T>, f:(T) -> Bool, ?zero:T):T {
+	public static extern inline overload function FindLast<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool, ?zero:T):T {
 		var result = zero;
 		var i = len(slice) - 1;
 		while (i >= 0) {
@@ -900,7 +895,7 @@ class Core {
 		return zero;
 	}
 
-	public static extern inline overload function FirstNonNil<T, U>(slice:Vec<T>, f:(T) -> U, ?zero:U):U {
+	public static extern inline overload function FirstNonNil<T, U>(slice:haxe.ds.Vector<T>, f:(T) -> U, ?zero:U):U {
 		var result = zero;
 		for (i in 0...len(slice)) {
 			final mapped = f(slice[i]);
@@ -941,7 +936,7 @@ class Core {
 	}
 
 	// PORT: perf — Go's Concatenate of two lists as a Vector (one of them when the other is empty, as Go)
-	public static extern inline overload function Concatenate<T>(s1:Vec<T>, s2:Vec<T>):Vec<T> {
+	public static extern inline overload function Concatenate<T>(s1:haxe.ds.Vector<T>, s2:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
 		return len(s2) == 0 ? s1 : len(s1) == 0 ? s2 : concatVectors(s1, s2);
 	}
 
@@ -995,7 +990,7 @@ class Core {
 		return concat3(s1 == null ? null : s1.slice(0, start), items.toArray(), s1 == null ? null : s1.slice(end));
 	}
 
-	public static extern inline overload function CountWhere<T>(slice:Vec<T>, f:(T) -> Bool):Int {
+	public static extern inline overload function CountWhere<T>(slice:haxe.ds.Vector<T>, f:(T) -> Bool):Int {
 		var count = 0;
 		for (i in 0...len(slice))
 			if (f(slice[i]))

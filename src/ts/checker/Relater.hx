@@ -1202,7 +1202,7 @@ class Relater {
 		return null;
 	}
 
-	static function findDiscriminantProperties(c:Checker, sourceProperties:Vec<Symbol>, target:Type):Slice<Symbol> {
+	static function findDiscriminantProperties(c:Checker, sourceProperties:haxe.ds.Vector<Symbol>, target:Type):Slice<Symbol> {
 		var result:Slice<Symbol> = null;
 		if (sourceProperties != null) {
 			for (sourceProperty in sourceProperties) {
@@ -1288,7 +1288,7 @@ class Relater {
 		return new Pair(keyPropertyName, mapByKeyProperty);
 	}
 
-	static function getKeyPropertyCandidateName(c:Checker, types:Vec<Type>):std.String {
+	static function getKeyPropertyCandidateName(c:Checker, types:haxe.ds.Vector<Type>):std.String {
 		for (t in types) {
 			if (t.flags & (TypeFlagsObject | TypeFlagsInstantiableNonPrimitive) != 0) {
 				final props = c.getPropertiesOfType(t);
@@ -1308,7 +1308,7 @@ class Relater {
 	// types of the property by that name in each constituent type. No map is returned if some key property
 	// has a non-literal type or if less than 10 or less than 50% of the constituents have a unique key.
 	// Entries with duplicate keys have unknownType as the value.
-	static function mapTypesByKeyProperty(c:Checker, types:Vec<Type>, keyPropertyName:std.String):IdentityMap<Type, Type> {
+	static function mapTypesByKeyProperty(c:Checker, types:haxe.ds.Vector<Type>, keyPropertyName:std.String):IdentityMap<Type, Type> {
 		final typesByKey = new IdentityMap<Type, Type>();
 		var count = 0;
 		for (t in types) {
@@ -1468,7 +1468,7 @@ class Relater {
 	// generic type are structurally compared. We infer the variance information by comparing
 	// instantiations of the generic type for type arguments with known relations. The function
 	// returns an empty slice when invoked recursively for the given generic type.
-	static function getVariancesWorker(c:Checker, symbol:Symbol, typeParameters:Vec<Type>):Slice<VarianceFlags> {
+	static function getVariancesWorker(c:Checker, symbol:Symbol, typeParameters:haxe.ds.Vector<Type>):Slice<VarianceFlags> {
 		final links = c.varianceLinks.Get(symbol);
 		if (links.variances == null) {
 			var traceArgs:StringMap<Any> = null;
@@ -1612,7 +1612,7 @@ class Relater {
 
 	static function getTypeParameterModifiers(c:Checker, tp:Type):ModifierFlags {
 		var flags:ModifierFlags = 0;
-		if (tp.symbol != null && tp.symbol.Declarations != null) {
+		if (tp.symbol != null && Core.len(tp.symbol.Declarations) != 0) {
 			for (d in tp.symbol.Declarations) {
 				flags |= d.ModifierFlags();
 			}
@@ -1622,7 +1622,7 @@ class Relater {
 
 	// Return true if the given type reference has a 'void' type argument for a covariant type parameter.
 	// See comment at call in recursiveTypeRelatedTo for when this case matters.
-	static function hasCovariantVoidArgument(c:Checker, typeArguments:Vec<Type>, variances:Slice<VarianceFlags>):Bool {
+	static function hasCovariantVoidArgument(c:Checker, typeArguments:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>):Bool {
 		for (i in 0...Core.len(variances)) {
 			final v = variances[i];
 			if (v & VarianceFlagsVarianceMask == VarianceFlagsCovariant && typeArguments[i].flags & TypeFlagsVoid != 0) {
@@ -2318,7 +2318,7 @@ class Relater {
 		return signature.resolvedReturnType == null && c.findResolutionCycleStartIndex((cast signature : TypeSystemEntity) /* PORT: Signature does not declare TypeSystemEntity in the skeleton */, TypeSystemPropertyNameResolvedReturnType) >= 0;
 	}
 
-	static function findMatchingSignatures(c:Checker, signatureLists:Slice<Vec<Signature>>, signature:Signature, listIndex:Int):Slice<Signature> {
+	static function findMatchingSignatures(c:Checker, signatureLists:Slice<haxe.ds.Vector<Signature>>, signature:Signature, listIndex:Int):Slice<Signature> {
 		if (Core.len(signature.typeParameters) != 0) {
 			// We require an exact match for generic signatures, so we only return signatures from the first
 			// signature list and only if they have exact matches in the other signature lists.
@@ -2367,11 +2367,11 @@ class Relater {
 		return found;
 	}
 
-	static extern inline overload function findMatchingSignature(c:Checker, signatureList:Vec<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
+	static extern inline overload function findMatchingSignature(c:Checker, signatureList:haxe.ds.Vector<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
 		return c.findMatchingSignatureV(signatureList, signature, partialMatch, ignoreThisTypes, ignoreReturnTypes);
 	}
 
-	static function findMatchingSignatureV(c:Checker, signatureList:Vec<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
+	static function findMatchingSignatureV(c:Checker, signatureList:haxe.ds.Vector<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
 		final compareTypes:(s:Type, t:Type) -> Ternary = partialMatch ? (s, t) -> c.compareTypesSubtypeOf(s, t) : (s, t) -> c.compareTypesIdentical(s, t);
 		if (signatureList != null) {
 			for (s in signatureList) {
@@ -2467,7 +2467,7 @@ class Relater {
 		return false;
 	}
 
-	static function compareTypeParametersIdentical(c:Checker, sourceParams:Vec<Type>, targetParams:Vec<Type>):Bool {
+	static function compareTypeParametersIdentical(c:Checker, sourceParams:haxe.ds.Vector<Type>, targetParams:haxe.ds.Vector<Type>):Bool {
 		if (Core.len(sourceParams) != Core.len(targetParams)) {
 			return false;
 		}
@@ -2502,7 +2502,7 @@ class Relater {
 		return TernaryFalse;
 	}
 
-	static function getEffectiveConstraintOfIntersection(c:Checker, types:Vec<Type>, targetIsUnion:Bool):Type {
+	static function getEffectiveConstraintOfIntersection(c:Checker, types:haxe.ds.Vector<Type>, targetIsUnion:Bool):Type {
 		var constraints:Slice<Type> = null;
 		var hasDisjointDomainType = false;
 		for (t in types) {
@@ -2934,7 +2934,7 @@ class Relater {
 			return false;
 		}
 		var reducedTarget = target;
-		var checkTypes:Vec<Type> = null;
+		var checkTypes:Null<haxe.ds.Vector<Type>> = null;
 		if (target.flags & TypeFlagsUnion != 0) {
 			reducedTarget = c.findMatchingDiscriminantType(source, target, isRelatedToSimple);
 			if (reducedTarget == null) {
@@ -3014,7 +3014,7 @@ class Relater {
 		return false;
 	}
 
-	static function getTypeOfPropertyInTypes(c:Checker, types:Vec<Type>, name:std.String):Type {
+	static function getTypeOfPropertyInTypes(c:Checker, types:haxe.ds.Vector<Type>, name:std.String):Type {
 		var propTypes:Slice<Type> = null;
 		for (t in types) {
 			if (propTypes == null) {
@@ -3191,7 +3191,7 @@ class Relater {
 		// We strip `undefined` from the target if the `source` trivially doesn't contain it for our correspondence-checking fastpath
 		// since `undefined` is frequently added by optionality and would otherwise spoil a potentially useful correspondence
 		final strippedTarget = getUndefinedStrippedTargetIfNeeded(source, target);
-		var strippedTypes:Vec<Type> = null;
+		var strippedTypes:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 		if (strippedTarget.flags & TypeFlagsUnion != 0) {
 			strippedTypes = strippedTarget.Types();
 		}
@@ -3547,7 +3547,7 @@ class Relater {
 			// For example, if `T extends 1 | 2` and `U extends 2 | 3` and we compare `T & U` to `T & U & (1 | 2 | 3)`
 			if (result == TernaryFalse
 				&& (source.flags & TypeFlagsIntersection != 0 || source.flags & TypeFlagsTypeParameter != 0 && target.flags & TypeFlagsUnion != 0)) {
-				var sourceTypes:Vec<Type>;
+				var sourceTypes:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 				if (source.flags & TypeFlagsIntersection != 0) {
 					sourceTypes = source.Types();
 				} else {
@@ -3618,7 +3618,7 @@ class Relater {
 		rvOriginalErrorChain = oec;
 	}
 
-	function relateVariances(sourceTypeArguments:Vec<Type>, targetTypeArguments:Vec<Type>, variances:Slice<VarianceFlags>,
+	function relateVariances(sourceTypeArguments:haxe.ds.Vector<Type>, targetTypeArguments:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>,
 			intersectionState:IntersectionState, reportErrors:Bool, saveErrorChain:ErrorChain, saveRelatedInfo:Slice<Diagnostic>):Ternary {
 		final result = typeArgumentsRelatedTo(sourceTypeArguments, targetTypeArguments, variances, reportErrors, intersectionState);
 		if (result != TernaryFalse) {
@@ -4302,7 +4302,7 @@ class Relater {
 		return TernaryFalse;
 	}
 
-	function typeArgumentsRelatedTo(sources:Vec<Type>, targets:Vec<Type>, variances:Slice<VarianceFlags>, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
+	function typeArgumentsRelatedTo(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
 		if (Core.len(sources) != Core.len(targets) && relation == c.identityRelation) {
 			return TernaryFalse;
 		}
@@ -4430,7 +4430,7 @@ class Relater {
 			}
 		}
 		// Compute the set of types for each discriminant property.
-		final sourceDiscriminantTypes:Array<Vec<Type>> = [for (_ in 0...sourcePropertiesFiltered.length) null];
+		final sourceDiscriminantTypes:Array<haxe.ds.Vector<Type>> = [for (_ in 0...sourcePropertiesFiltered.length) null];
 		final excludedProperties = new Set<std.String>();
 		for (i in 0...sourcePropertiesFiltered.length) {
 			final sourceProperty = sourcePropertiesFiltered[i];
@@ -5077,7 +5077,7 @@ class Relater {
 	function membersRelatedToIndexInfo(source:Type, targetInfo:IndexInfo, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
 		var result:Ternary = TernaryTrue;
 		final keyType = targetInfo.keyType;
-		var props:Vec<Symbol>;
+		var props:haxe.ds.Vector<Symbol> = ts.core.Core.emptyVector();
 		if (source.flags & TypeFlagsIntersection != 0) {
 			props = c.getPropertiesOfUnionOrIntersectionType(source);
 		} else {

@@ -32,7 +32,7 @@ abstract VectorBuilder<T>(Array<T>) {
 	}
 
 	// head's elements, then this builder's, as one exact-size Vector
-	public inline function buildAfter(head:VectorBuilder<T>):Vec<T> {
+	public inline function buildAfter(head:VectorBuilder<T>):haxe.ds.Vector<T> {
 		final n1 = head.length, n2 = this.length;
 		final v = new haxe.ds.Vector<T>(n1 + n2);
 		for (i in 0...n1)
@@ -43,18 +43,18 @@ abstract VectorBuilder<T>(Array<T>) {
 	}
 
 	// The list so far as an exact-size Vector (the builder can be used on).
-	public inline function build():Vec<T> {
+	public inline function build():haxe.ds.Vector<T> {
 		return haxe.ds.Vector.fromArrayCopy(this);
 	}
 
 	// A finished Array (from a function that builds one) as a Vector: the same copy as build(). Null (Go nil) and
 	// empty give the empty vector.
-	public static inline function freeze<T>(a:Slice<T>):Vec<T> {
+	public static inline function freeze<T>(a:Slice<T>):haxe.ds.Vector<T> {
 		return a == null ? new haxe.ds.Vector<T>(0) : haxe.ds.Vector.fromArrayCopy(a.nilable());
 	}
 
 	// As freeze, but null stays null (where Go tells a nil slice from an empty one).
-	public static inline function freezeOrNull<T>(a:Slice<T>):Vec<T> {
+	public static inline function freezeOrNull<T>(a:Slice<T>):haxe.ds.Vector<T> {
 		return a == null ? null : haxe.ds.Vector.fromArrayCopy(a.nilable());
 	}
 }

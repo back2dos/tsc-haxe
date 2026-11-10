@@ -728,7 +728,7 @@ class ExportTypeLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class TypeAliasLinks extends ts.core.Linkstore.LinkEntry {
 	var declaredType:Type = null;
-	var typeParameters:Vec<Type> = null; // Type parameters of type alias (undefined if non-generic) // PORT: perf — a Vector
+	var typeParameters:haxe.ds.Vector<Type> = ts.core.Core.emptyVector(); // Type parameters of type alias (undefined if non-generic) // PORT: perf — a Vector
 	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null; // Instantiations of generic type alias (undefined if non-generic)
 	var isConstructorDeclaredProperty:Bool = false;
 
@@ -1216,7 +1216,7 @@ enum abstract ObjectFlags(Int) from Int to Int {
 @:allow(ts.checker)
 class TypeAlias {
 	var symbol:Symbol = null;
-	var typeArguments:Vec<Type> = null; // PORT: perf — a Vector (one exact-size object)
+	var typeArguments:haxe.ds.Vector<Type> = ts.core.Core.emptyVector(); // PORT: perf — a Vector (one exact-size object)
 
 	public function new() {}
 
@@ -1229,9 +1229,9 @@ class TypeAlias {
 	}
 
 	// PORT: nil receiver — inline with a `this == null` check like Go.
-	public inline function TypeArguments():Vec<Type> {
+	public inline function TypeArguments():haxe.ds.Vector<Type> {
 		if (this == null) {
-			return null;
+			return ts.core.Core.emptyVector();
 		}
 		return this.typeArguments;
 	}
@@ -1431,7 +1431,7 @@ class Type implements TypeSystemEntity {
 		return Std.downcast(this, UnionOrIntersectionType);
 	}
 
-	public function Distributed():Vec<Type> {
+	public function Distributed():haxe.ds.Vector<Type> {
 		if ((flags & TypeFlagsUnion) != 0) {
 			return AsUnionType().types;
 		} else if ((flags & TypeFlagsNever) != 0) {
@@ -1469,11 +1469,11 @@ class Type implements TypeSystemEntity {
 	}
 
 	// PORT: perf — inline (no virtual call): a union's or intersection's types (its flags say its class)
-	public inline function Types():Vec<Type> {
+	public inline function Types():haxe.ds.Vector<Type> {
 		return (flags & TypeFlagsUnionOrIntersection) != 0 ? (cast this : UnionOrIntersectionType).types : TypesSlow();
 	}
 
-	function TypesSlow():Vec<Type> {
+	function TypesSlow():haxe.ds.Vector<Type> {
 		if ((flags & TypeFlagsUnionOrIntersection) != 0) {
 			return AsUnionOrIntersectionType().types;
 		} else if ((flags & TypeFlagsTemplateLiteral) != 0) {
@@ -1694,10 +1694,10 @@ class StructuredType extends ConstrainedType {
 		return (cast t.extra : StructuredTypeExtra).members = v;
 	}
 
-	var properties:Vec<Symbol> = null; // PORT: perf — a Vector (one exact-size object; null: Go nil, which a lazy type tests)
-	var signatures:Vec<Signature> = null; // Signatures (call + construct) // PORT: perf — Vectors (one exact-size object each)
+	var properties:Null<haxe.ds.Vector<Symbol>> = null; // PORT: perf — a Vector (one exact-size object; null: Go nil, which a lazy type tests)
+	var signatures:haxe.ds.Vector<Signature> = ts.core.Core.emptyVector(); // Signatures (call + construct) // PORT: perf — Vectors (one exact-size object each)
 	var callSignatureCount:Int = 0; // Count of call signatures
-	var indexInfos:Vec<IndexInfo> = null;
+	var indexInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector();
 	var objectTypeWithoutAbstractConstructSignatures(get, set):Type; // (in TypeExtra)
 
 	inline function get_objectTypeWithoutAbstractConstructSignatures():Type {
@@ -1722,16 +1722,16 @@ class StructuredType extends ConstrainedType {
 
 
 	// PORT: slices.Clip of a subslice → a copy (the same Vector when it is all of it); nil[:0] stays nil.
-	public function CallSignatures():Vec<Signature> {
+	public function CallSignatures():haxe.ds.Vector<Signature> {
 		if (signatures == null) {
-			return null;
+			return ts.core.Core.emptyVector();
 		}
 		return Core.subVector(signatures, 0, callSignatureCount);
 	}
 
-	public function ConstructSignatures():Vec<Signature> {
+	public function ConstructSignatures():haxe.ds.Vector<Signature> {
 		if (signatures == null) {
-			return null;
+			return ts.core.Core.emptyVector();
 		}
 		return Core.subVector(signatures, callSignatureCount, signatures.length);
 	}
@@ -1765,7 +1765,7 @@ class StructuredType extends ConstrainedType {
 		if (lazy == null) {
 			return properties[index];
 		}
-		if (properties == null) {
+		if (Core.len(properties) == 0) { // (nil, or the shared empty vector a resolution stored)
 			properties = new haxe.ds.Vector<Symbol>(lazy.layout.symbols.length);
 		}
 		var member = properties[index];
@@ -1782,7 +1782,7 @@ class StructuredType extends ConstrainedType {
 		return member;
 	}
 
-	function getProperties():Vec<Symbol> {
+	function getProperties():haxe.ds.Vector<Symbol> {
 		final lazy = getLazyState();
 		if (lazy != null && !lazy.propertiesResolved) {
 			for (i in 0...lazy.layout.symbols.length) {
@@ -1790,7 +1790,7 @@ class StructuredType extends ConstrainedType {
 			}
 			lazy.propertiesResolved = true;
 		}
-		return properties;
+		return properties == null ? ts.core.Core.emptyVector() : properties;
 	}
 
 	function hasProperties():Bool {
@@ -1808,7 +1808,7 @@ class StructuredType extends ConstrainedType {
 		return (cast this : Type).objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsReference) != 0 ? (cast this : TypeReference).lazy : null;
 	}
 
-	public function Properties():Vec<Symbol> {
+	public function Properties():haxe.ds.Vector<Symbol> {
 		return getProperties();
 	}
 }
@@ -1882,7 +1882,7 @@ class AnonymousType extends ObjectType {
 @:allow(ts.checker)
 class TypeReference extends ObjectType {
 	var node(get, set):Node; // TypeReferenceNode | ArrayTypeNode | TupleTypeNode when deferred, else nil (in TypeExtra)
-	var resolvedTypeArguments:Vec<Type> = null; // PORT: perf — a Vector (one exact-size object; null: not resolved yet)
+	var resolvedTypeArguments:Null<haxe.ds.Vector<Type>> = null; // PORT: perf — a Vector (one exact-size object; null: not resolved yet)
 	var lazy:LazyState = null; // Resolved member layout and instantiation state
 
 	inline function get_node():Node {
@@ -1911,7 +1911,7 @@ class TypeReference extends ObjectType {
 class LazyState {
 	var layout:MemberLayout = null;
 	var mapper:TypeMapper = null;
-	var baseTypes:Vec<Type> = null; // PORT: perf — a Vector (one object, exact size: 0.6M on t3code-server)
+	var baseTypes:haxe.ds.Vector<Type> = ts.core.Core.emptyVector(); // PORT: perf — a Vector (one object, exact size: 0.6M on t3code-server)
 	var propertiesResolved:Bool = false;
 
 	public function new() {}
@@ -1922,16 +1922,16 @@ class LazyState {
 @:allow(ts.checker)
 class MemberLayout {
 	var id:Int = 0; // Unique identifier for the member layout
-	var symbols:Vec<Symbol> = null; // the members (uninstantiated symbols) in order: the layout properties
+	var symbols:haxe.ds.Vector<Symbol> = ts.core.Core.emptyVector(); // the members (uninstantiated symbols) in order: the layout properties
 	#if (target.name == "hxmc" && !hxmc.wasm_gc)
 	// PORT: memory — their indices by name as an open-addressing table of Ints over `symbols` (index + 1, 0 an empty
 	// slot; a power of two, at most half full), no StringMap: a layout copies its bases' members (lib.dom's element
 	// interfaces: hundreds each), and a StringMap entry takes 36 to 72 bytes (storybook: 23 MB of layouts' maps)
-	var slots:Vec<Int> = null;
+	var slots:Null<haxe.ds.Vector<Int>> = null;
 	#else
 	var index:StringMap<Int> = null; // their indices by name
 	#end
-	var baseIndices:Vec<Int> = null; // Indices of base types for each member (-1 if locally declared)
+	var baseIndices:Null<haxe.ds.Vector<Int>> = null; // Indices of base types for each member (-1 if locally declared)
 
 	public function new() {}
 
@@ -2007,8 +2007,8 @@ class MemberLayout {
 
 @:allow(ts.checker)
 class InterfaceType extends TypeReference {
-	var allTypeParameters:Vec<Type> = null; // Type parameters (outer + local + thisType)
-	var typeParameters:Vec<Type> = null; // PORT: perf — TypeParameters() made once (Go's subslice of allTypeParameters is no copy either)
+	var allTypeParameters:haxe.ds.Vector<Type> = ts.core.Core.emptyVector(); // Type parameters (outer + local + thisType)
+	var typeParameters:Null<haxe.ds.Vector<Type>> = null; // PORT: perf — TypeParameters() made once (Go's subslice of allTypeParameters is no copy either)
 	var outerTypeParameterCount:Int = 0; // Count of outer type parameters
 	var thisType:Type = null; // The "this" type (nil if none)
 	var baseTypesResolved:Bool = false;
@@ -2016,9 +2016,9 @@ class InterfaceType extends TypeReference {
 	var resolvedBaseConstructorType:Type = null;
 	var resolvedBaseTypes:Slice<Type> = null;
 	var declaredMembers:SymbolTable = null; // Declared members
-	var declaredCallSignatures:Vec<Signature> = null; // Declared call signatures
-	var declaredConstructSignatures:Vec<Signature> = null; // Declared construct signatures
-	var declaredIndexInfos:Vec<IndexInfo> = null; // Declared index signatures
+	var declaredCallSignatures:haxe.ds.Vector<Signature> = ts.core.Core.emptyVector(); // Declared call signatures
+	var declaredConstructSignatures:haxe.ds.Vector<Signature> = ts.core.Core.emptyVector(); // Declared construct signatures
+	var declaredIndexInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector(); // Declared index signatures
 
 	public function new() {
 		super();
@@ -2026,26 +2026,26 @@ class InterfaceType extends TypeReference {
 
 
 	// PORT: perf — a Vector (a copy of Go's clipped subslice; the same Vector when it is all of TypeParameters())
-	public function OuterTypeParameters():Vec<Type> {
+	public function OuterTypeParameters():haxe.ds.Vector<Type> {
 		if (Core.len(allTypeParameters) == 0) {
-			return null;
+			return ts.core.Core.emptyVector();
 		}
 		return outerTypeParameterCount == allTypeParameters.length - 1 ? TypeParameters() : Core.subVector(allTypeParameters, 0, outerTypeParameterCount);
 	}
 
-	public function LocalTypeParameters():Vec<Type> {
+	public function LocalTypeParameters():haxe.ds.Vector<Type> {
 		if (Core.len(allTypeParameters) == 0) {
-			return null;
+			return ts.core.Core.emptyVector();
 		}
 		return outerTypeParameterCount == 0 ? TypeParameters() : Core.subVector(allTypeParameters, outerTypeParameterCount, allTypeParameters.length - 1);
 	}
 
 	// PORT: perf — one Vector per type (the same one on every call, as Go's subslice shares the storage)
-	public function TypeParameters():Vec<Type> {
+	public function TypeParameters():haxe.ds.Vector<Type> {
 		if (typeParameters == null) {
 			final n = Core.len(allTypeParameters) - 1;
 			if (n < 0) {
-				return null;
+				return ts.core.Core.emptyVector();
 			}
 			final v = new haxe.ds.Vector<Type>(n);
 			haxe.ds.Vector.blit(allTypeParameters, 0, v, 0, n);
@@ -2170,10 +2170,10 @@ class EvolvingArrayType extends AnonymousType {
 
 @:allow(ts.checker)
 class UnionOrIntersectionType extends StructuredType {
-	var types:Vec<Type> = null;
+	var types:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 	var propertyCache:SymbolTable = null;
 	var propertyCacheWithoutFunctionPropertyAugment:SymbolTable = null;
-	var resolvedProperties:Vec<Symbol> = null; // PORT: perf — a Vector (null: not resolved)
+	var resolvedProperties:Null<haxe.ds.Vector<Symbol>> = null; // PORT: perf — a Vector (null: not resolved)
 
 	public function new() {
 		super();
@@ -2380,7 +2380,7 @@ enum abstract SignatureFlags(Int) from Int to Int {
 
 @:allow(ts.checker)
 class SignatureExtra {
-	var typeParameters:Vec<Type> = null;
+	var typeParameters:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 	var thisParameter:Symbol = null;
 	var isolatedSignatureType:Type = null;
 	var composite:CompositeSignature = null;
@@ -2395,7 +2395,7 @@ class Signature implements TypeSystemEntity {
 	var minArgumentCount:Int = 0;
 	var resolvedMinArgumentCount:Int = 0;
 	var declaration:Node = null;
-	var parameters:Vec<Symbol> = null; // PORT: perf — a Vector (one exact-size object)
+	var parameters:haxe.ds.Vector<Symbol> = ts.core.Core.emptyVector(); // PORT: perf — a Vector (one exact-size object)
 	var resolvedReturnType:Type = null;
 	var resolvedTypePredicate:TypePredicate = null;
 	var target:Signature = null;
@@ -2403,20 +2403,20 @@ class Signature implements TypeSystemEntity {
 	// PORT: perf — the rarely set fields in a side record (allocated when one is set to a non-nil value): the type
 	// parameters and this parameter too (t3code-server: 5% and 4% of the signatures have them)
 	var extra:SignatureExtra = null;
-	var typeParameters(get, set):Vec<Type>; // PORT: perf — a Vector (one exact-size object; a mapper holds it as it is)
+	var typeParameters(get, set):haxe.ds.Vector<Type>; // PORT: perf — a Vector (one exact-size object; a mapper holds it as it is)
 	var thisParameter(get, set):Symbol;
 	var isolatedSignatureType(get, set):Type;
 	var composite(get, set):CompositeSignature;
 
 	public function new() {}
 
-	inline function get_typeParameters():Vec<Type> {
-		return extra == null ? null : extra.typeParameters;
+	inline function get_typeParameters():haxe.ds.Vector<Type> {
+		return extra == null ? ts.core.Core.emptyVector() : extra.typeParameters;
 	}
 
-	function set_typeParameters(v:Vec<Type>):Vec<Type> {
+	function set_typeParameters(v:haxe.ds.Vector<Type>):haxe.ds.Vector<Type> {
 		if (extra == null) {
-			if (v == null) {
+			if (v == null || v.length == 0) {
 				return v;
 			}
 			extra = new SignatureExtra();
@@ -2474,7 +2474,7 @@ class Signature implements TypeSystemEntity {
 		return flags;
 	}
 
-	public function TypeParameters():Vec<Type> {
+	public function TypeParameters():haxe.ds.Vector<Type> {
 		return typeParameters;
 	}
 
@@ -2490,7 +2490,7 @@ class Signature implements TypeSystemEntity {
 		return thisParameter;
 	}
 
-	public function Parameters():Vec<Symbol> {
+	public function Parameters():haxe.ds.Vector<Symbol> {
 		return parameters;
 	}
 

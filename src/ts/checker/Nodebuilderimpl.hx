@@ -743,7 +743,7 @@ class NodeBuilderImpl {
 
 		if (symbolName.length == 0) {
 			var name:Node = null;
-			if (symbol.Declarations != null) {
+			if (Core.len(symbol.Declarations) != 0) {
 				for (d in symbol.Declarations) {
 					name = Ast.GetNameOfDeclaration(d);
 					if (name != null) {
@@ -1449,7 +1449,7 @@ class NodeBuilderImpl {
 		}
 
 		// nameType and templateType nodes have to be in the new scope
-		final cleanup = b.enterNewScope(mapped.declaration.AsNode(), null, [b.ch.getTypeParameterFromMappedType(t)], null, null);
+		final cleanup = b.enterNewScope(mapped.declaration.AsNode(), null, [b.ch.getTypeParameterFromMappedType(t)], ts.core.Core.emptyVector(), null);
 		final typeParameterDeclarationNode = b.typeParameterToDeclarationWithConstraint(typeParameter, appropriateConstraintTypeNode);
 		var nameTypeNode:Node = null;
 		if (mapped.declaration.NameType != null) {
@@ -2393,7 +2393,7 @@ class NodeBuilderImpl {
 					&& Core.Find(propDeclaration.ModifierNodes(), (m:Node) -> {
 						return m.Kind == KindAccessorKeyword;
 					}) != null) {
-					final fakeGetterSignature = b.ch.newSignature(SignatureFlagsNone, null, null, null, null, propertyType, null, 0);
+					final fakeGetterSignature = b.ch.newSignature(SignatureFlagsNone, null, ts.core.Core.emptyVector(), null, ts.core.Core.emptyVector(), propertyType, null, 0);
 					final getterOpts = new SignatureToSignatureDeclarationOptions();
 					getterOpts.name = propertyName;
 					final fakeGetterDeclaration = b.signatureToSignatureDeclarationHelper(fakeGetterSignature, KindGetAccessor, getterOpts);
@@ -2402,7 +2402,7 @@ class NodeBuilderImpl {
 
 					final setterParam = b.ch.newSymbol(SymbolFlagsFunctionScopedVariable, "arg");
 					b.ch.valueSymbolLinks.Get(setterParam).resolvedType = writeType;
-					final fakeSetterSignature = b.ch.newSignature(SignatureFlagsNone, null, null, null, Core.vector1(setterParam), b.ch.voidType, null, 0);
+					final fakeSetterSignature = b.ch.newSignature(SignatureFlagsNone, null, ts.core.Core.emptyVector(), null, Core.vector1(setterParam), b.ch.voidType, null, 0);
 					final setterOpts = new SignatureToSignatureDeclarationOptions();
 					setterOpts.name = propertyName;
 					final fakeSetterDeclaration = b.signatureToSignatureDeclarationHelper(fakeSetterSignature, KindSetAccessor, setterOpts);
@@ -2628,7 +2628,7 @@ class NodeBuilderImpl {
 			if (symbol.Parent != null) {
 				isNonLocalFunctionSymbol = true;
 			} else {
-				if (symbol.Declarations != null) {
+				if (Core.len(symbol.Declarations) != 0) {
 					for (declaration in symbol.Declarations) {
 						if (declaration.Parent.Kind == KindSourceFile || declaration.Parent.Kind == KindModuleBlock) {
 							isNonLocalFunctionSymbol = true;

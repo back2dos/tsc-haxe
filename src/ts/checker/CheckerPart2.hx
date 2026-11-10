@@ -505,13 +505,13 @@ class CheckerPart2 {
 		}
 	}
 
-	static function getClassOrInterfaceDeclarationsOfSymbol(c:Checker, symbol:Symbol):Vec<Node> {
+	static function getClassOrInterfaceDeclarationsOfSymbol(c:Checker, symbol:Symbol):haxe.ds.Vector<Node> {
 		return Core.Filter(symbol.Declarations, function(d:Node):Bool {
 			return Ast.IsClassDeclaration(d) || Ast.IsInterfaceDeclaration(d);
 		});
 	}
 
-	static function areTypeParametersIdentical(c:Checker, declarations:Vec<Node>, targetParameters:Vec<Type>, getTypeParameterDeclarations:(node:Node) -> Slice<Node>):Bool {
+	static function areTypeParametersIdentical(c:Checker, declarations:haxe.ds.Vector<Node>, targetParameters:haxe.ds.Vector<Type>, getTypeParameterDeclarations:(node:Node) -> Slice<Node>):Bool {
 		final maxTypeArgumentCount = Core.len(targetParameters);
 		final minTypeArgumentCount = c.getMinTypeArgumentCount(targetParameters);
 		for (declaration in declarations) {
@@ -1667,7 +1667,7 @@ class CheckerPart2 {
 				c.valueSymbolLinks.Get(member).resolvedType = c.getRegularTypeOfLiteralType(c.checkExpressionCached(attribute.AsImportAttribute().Value));
 				members = members.withKey(member.Name, member);
 			}
-			final t = c.newAnonymousType(symbol, members, null, null, null);
+			final t = c.newAnonymousType(symbol, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), ts.core.Core.emptyVector());
 			t.objectFlags |= ObjectFlagsObjectLiteral | ObjectFlagsNonInferrableType;
 			links.resolvedType = t;
 		}
@@ -1813,7 +1813,7 @@ class CheckerPart2 {
 			final symbol = c.resolveName(exportedName, exportedName.Text(), SymbolFlagsValue | SymbolFlagsType | SymbolFlagsNamespace | SymbolFlagsAlias,
 				null /*nameNotFoundMessage*/, true /*isUse*/, false);
 			if (symbol != null && (symbol == c.undefinedSymbol || symbol == c.globalThisSymbol
-				|| symbol.Declarations != null && Ast.IsGlobalSourceFile(Ast.GetDeclarationContainer(symbol.Declarations[0])))) {
+				|| Core.len(symbol.Declarations) != 0 && Ast.IsGlobalSourceFile(Ast.GetDeclarationContainer(symbol.Declarations[0])))) {
 				c.error(exportedName, Diagnostics.Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module, exportedName.Text());
 			} else {
 				c.markLinkedReferences(node, ReferenceHintExportSpecifier, null /*propSymbol*/, null /*parentType*/);
@@ -2819,7 +2819,7 @@ class CheckerPart2 {
 			return newIterationTypes(c.anyType, c.anyType, c.anyType);
 		}
 		// Both async and non-async iterators *must* have a `next` method.
-		var methodSignatures:Vec<Signature> = null;
+		var methodSignatures:haxe.ds.Vector<Signature> = ts.core.Core.emptyVector();
 		if (methodType != null) {
 			methodSignatures = c.getSignaturesOfType(methodType, SignatureKindCall);
 		}
@@ -3142,7 +3142,7 @@ class CheckerPart2 {
 		}
 		if (Ast.IsImportSpecifier(node)) {
 			final targetSymbol = c.resolveAliasWithDeprecationCheck(symbol, node);
-			if (c.isDeprecatedSymbol(targetSymbol) && targetSymbol.Declarations != null) {
+			if (c.isDeprecatedSymbol(targetSymbol) && Core.len(targetSymbol.Declarations) != 0) {
 				c.addDeprecatedSuggestion(node, targetSymbol.Declarations, targetSymbol.Name);
 			}
 		}
@@ -4033,7 +4033,7 @@ class CheckerPart2 {
 		return result;
 	}
 
-	static function getUniqueTypeParameters(c:Checker, context:InferenceContext, typeParameters:Vec<Type>):Array<Type> {
+	static function getUniqueTypeParameters(c:Checker, context:InferenceContext, typeParameters:haxe.ds.Vector<Type>):Array<Type> {
 		var oldTypeParameters:Slice<Type> = null;
 		var newTypeParameters:Slice<Type> = null;
 		final result:Array<Type> = [];
@@ -4347,12 +4347,12 @@ class CheckerPart2 {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
-	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static extern inline overload function valuesOf<T>(s:Vec<T>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			for (i in 0...Core.len(s)) {
 				if (!yield_(s[i])) {

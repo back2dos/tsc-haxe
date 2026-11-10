@@ -9,7 +9,7 @@
 # three times the TypeScript 6 solution would reach it. Time neutral or better, peak memory -4..+8 %
 # (measured, Phase 9). Only hxcpp reads this define.
 # go.TargetSetup: fixes for the JVM, C# and Python targets (nothing on js, cpp and hxmc). Go's nil-slice
-# semantics (range/len/xs... of nil) are in the types go.Slice and go.Vec, not in a macro.
+# semantics (range/len/xs... of nil) are in the type go.Slice (Vectors are never null), not in a macro.
 # `-cp src` comes first, so a later `-cp` given by the caller still wins (Haxe takes the later one).
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 . "$ROOT/tools/env.sh" # HAXE_HOME

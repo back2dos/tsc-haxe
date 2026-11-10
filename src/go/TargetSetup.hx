@@ -6,7 +6,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 
 // Per-target fixes for the JVM, C# and Python targets (tools/haxe: `--macro go.TargetSetup.apply()`); on
-// every other target (js, cpp, hxmc) nothing. Go's nil-slice semantics are in the types (go.Slice, go.Vec),
+// every other target (js, cpp, hxmc) nothing. Go's nil-slice semantics are in the type go.Slice,
 // not in a macro.
 class TargetSetup {
 	public static function apply():Void {

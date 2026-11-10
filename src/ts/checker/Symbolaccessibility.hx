@@ -411,7 +411,7 @@ class Symbolaccessibility {
 			return c.getWithAlternativeContainers(container, symbol, enclosingDeclaration, meaning);
 		}
 		var candidates:Slice<Symbol> = null;
-		if (symbol.Declarations != null) {
+		if (Core.len(symbol.Declarations) != 0) {
 			for (d in symbol.Declarations) {
 				if (!Ast.IsAmbientModule(d) && d.Parent != null) {
 					// direct children of a module

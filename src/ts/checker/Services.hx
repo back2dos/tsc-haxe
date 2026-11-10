@@ -256,11 +256,11 @@ class Services {
 		return c.getElementTypeOfArrayType(t);
 	}
 
-	public static function GetCallSignatures(c:Checker, t:Type):Vec<Signature> {
+	public static function GetCallSignatures(c:Checker, t:Type):haxe.ds.Vector<Signature> {
 		return c.getSignaturesOfType(t, SignatureKindCall);
 	}
 
-	public static function GetConstructSignatures(c:Checker, t:Type):Vec<Signature> {
+	public static function GetConstructSignatures(c:Checker, t:Type):haxe.ds.Vector<Signature> {
 		return c.getSignaturesOfType(t, SignatureKindConstruct);
 	}
 
@@ -590,7 +590,7 @@ class Services {
 	}
 
 	// getUninstantiatedSignatures gets generic signatures from the function's/constructor's type.
-	static function getUninstantiatedSignatures(c:Checker, node:Node):Vec<Signature> {
+	static function getUninstantiatedSignatures(c:Checker, node:Node):haxe.ds.Vector<Signature> {
 		switch (node.Kind) {
 			case KindCallExpression, KindDecorator:
 				return c.getSignaturesOfType(c.getTypeOfExpression(node.Expression()), SignatureKindCall);
@@ -598,19 +598,19 @@ class Services {
 				return c.getSignaturesOfType(c.getTypeOfExpression(node.Expression()), SignatureKindConstruct);
 			case KindJsxSelfClosingElement, KindJsxOpeningElement:
 				if (Checker.isJsxIntrinsicTagName(node.TagName())) {
-					return null;
+					return ts.core.Core.emptyVector();
 				}
 				return c.getSignaturesOfType(c.getTypeOfExpression(node.TagName()), SignatureKindCall);
 			case KindTaggedTemplateExpression:
 				return c.getSignaturesOfType(c.getTypeOfExpression(node.AsTaggedTemplateExpression().Tag), SignatureKindCall);
 			case KindBinaryExpression, KindJsxOpeningFragment:
-				return null;
+				return ts.core.Core.emptyVector();
 			default:
 		}
-		return null;
+		return ts.core.Core.emptyVector();
 	}
 
-	static function getTypeParameterConstraintForPositionAcrossSignatures(c:Checker, signatures:Vec<Signature>, position:Int):Type {
+	static function getTypeParameterConstraintForPositionAcrossSignatures(c:Checker, signatures:haxe.ds.Vector<Signature>, position:Int):Type {
 		var relevantConstraints:Slice<Type> = null;
 		if (signatures != null) {
 			for (signature in signatures) {
@@ -982,7 +982,7 @@ class Services {
 		if (symbol == null) {
 			return false;
 		}
-		if (symbol.Declarations != null) {
+		if (Core.len(symbol.Declarations) != 0) {
 			for (decl in symbol.Declarations) {
 				final sf = Ast.GetSourceFileOfNode(decl);
 				if (sf != null && c.program.IsSourceFileDefaultLibrary(sf.Path())) {

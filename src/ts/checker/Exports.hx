@@ -117,7 +117,7 @@ class Exports {
 		return c.isArrayLikeType(t);
 	}
 
-	public static function GetPropertiesOfType(c:Checker, t:Type):Vec<Symbol> {
+	public static function GetPropertiesOfType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		return c.getPropertiesOfType(t);
 	}
 
@@ -149,7 +149,7 @@ class Exports {
 		return c.wasCanceled;
 	}
 
-	public static function GetSignaturesOfType(c:Checker, t:Type, kind:SignatureKind):Vec<Signature> {
+	public static function GetSignaturesOfType(c:Checker, t:Type, kind:SignatureKind):haxe.ds.Vector<Signature> {
 		return c.getSignaturesOfType(t, kind);
 	}
 
@@ -278,7 +278,7 @@ class Exports {
 		return c.getRestTypeOfSignature(sig);
 	}
 
-	public static function GetTypeArguments(c:Checker, t:Type):Vec<Type> {
+	public static function GetTypeArguments(c:Checker, t:Type):haxe.ds.Vector<Type> {
 		return c.getTypeArguments(t);
 	}
 
@@ -286,7 +286,7 @@ class Exports {
 		return c.getIndexInfoOfType(t, keyType);
 	}
 
-	public static function GetIndexInfosOfType(c:Checker, t:Type):Vec<IndexInfo> {
+	public static function GetIndexInfosOfType(c:Checker, t:Type):haxe.ds.Vector<IndexInfo> {
 		return c.getIndexInfosOfType(t);
 	}
 
@@ -294,11 +294,11 @@ class Exports {
 		return c.isContextSensitive(node);
 	}
 
-	public static function FillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:Vec<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Slice<Type> {
+	public static function FillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Slice<Type> {
 		return c.fillMissingTypeArguments(typeArguments, typeParameters, minTypeArgumentCount, isJavaScriptImplicitAny);
 	}
 
-	public static function GetMinTypeArgumentCount(c:Checker, typeParameters:Vec<Type>):Int {
+	public static function GetMinTypeArgumentCount(c:Checker, typeParameters:haxe.ds.Vector<Type>):Int {
 		return c.getMinTypeArgumentCount(typeParameters);
 	}
 

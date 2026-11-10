@@ -452,7 +452,7 @@ class CheckerPart8 {
 			final symbol = c.resolveName(exportedName, exportedName.Text(), SymbolFlagsValue | SymbolFlagsType | SymbolFlagsNamespace | SymbolFlagsAlias, null /*nameNotFoundMessage*/, true /*isUse*/, false /*excludeGlobals*/);
 			if (symbol != null
 				&& (symbol == c.undefinedSymbol || symbol == c.globalThisSymbol
-					|| symbol.Declarations != null && Ast.IsGlobalSourceFile(Ast.GetDeclarationContainer(symbol.Declarations[0])))) {
+					|| Core.len(symbol.Declarations) != 0 && Ast.IsGlobalSourceFile(Ast.GetDeclarationContainer(symbol.Declarations[0])))) {
 				// Do nothing, non-local symbol
 			} else {
 				var target = symbol;
@@ -843,7 +843,7 @@ class CheckerPart8 {
 		if (Checker.IsTypeAny(thenFunction)) {
 			return null;
 		}
-		var thenSignatures:Vec<Signature> = null;
+		var thenSignatures:haxe.ds.Vector<Signature> = ts.core.Core.emptyVector();
 		if (thenFunction != null) {
 			thenSignatures = c.getSignaturesOfType(thenFunction, SignatureKindCall);
 		}
@@ -2049,7 +2049,7 @@ class CheckerPart8 {
 					// "static" or "constructor" side of the class).
 					final targetType = c.getTypeOfSymbol(c.getSymbolOfDeclaration(node));
 					final targetParam = c.newParameter("target", targetType);
-					links.decoratorSignature = c.newCallSignature(null, null, [targetParam], c.getUnionType([targetType, c.voidType]));
+					links.decoratorSignature = c.newCallSignature(ts.core.Core.emptyVector(), null, [targetParam], c.getUnionType([targetType, c.voidType]));
 				case KindParameter:
 					if (!Ast.IsConstructorDeclaration(node.Parent)
 						&& !(Ast.IsMethodDeclaration(node.Parent) || (Ast.IsSetAccessorDeclaration(node.Parent) && Ast.IsClassLike(node.Parent.Parent)))) {
@@ -2074,7 +2074,7 @@ class CheckerPart8 {
 						final targetParam = c.newParameter("target", targetType);
 						final keyParam = c.newParameter("propertyKey", keyType);
 						final indexParam = c.newParameter("parameterIndex", indexType);
-						links.decoratorSignature = c.newCallSignature(null, null, [targetParam, keyParam, indexParam], c.voidType);
+						links.decoratorSignature = c.newCallSignature(ts.core.Core.emptyVector(), null, [targetParam, keyParam, indexParam], c.voidType);
 					}
 				case KindMethodDeclaration | KindGetAccessor | KindSetAccessor | KindPropertyDeclaration:
 					if (Ast.IsClassLike(node.Parent)) {
@@ -2092,9 +2092,9 @@ class CheckerPart8 {
 						if (hasPropDesc) {
 							final descriptorType = c.newTypedPropertyDescriptorType(c.getTypeOfNode(node));
 							final descriptorParam = c.newParameter("descriptor", descriptorType);
-							links.decoratorSignature = c.newCallSignature(null, null, [targetParam, keyParam, descriptorParam], c.getUnionType([returnType, c.voidType]));
+							links.decoratorSignature = c.newCallSignature(ts.core.Core.emptyVector(), null, [targetParam, keyParam, descriptorParam], c.getUnionType([returnType, c.voidType]));
 						} else {
-							links.decoratorSignature = c.newCallSignature(null, null, [targetParam, keyParam], c.getUnionType([returnType, c.voidType]));
+							links.decoratorSignature = c.newCallSignature(ts.core.Core.emptyVector(), null, [targetParam, keyParam], c.getUnionType([returnType, c.voidType]));
 						}
 					}
 				default:
@@ -2320,7 +2320,7 @@ class CheckerPart8 {
 		members = members.withKey("name", c.newProperty("name", nameType));
 		members = members.withKey("private", c.newProperty("private", isPrivate ? c.trueType : c.falseType));
 		members = members.withKey("static", c.newProperty("static", isStatic ? c.trueType : c.falseType));
-		final overrideType = c.newAnonymousType(null, members, null, null, null);
+		final overrideType = c.newAnonymousType(null, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), ts.core.Core.emptyVector());
 		c.cachedTypes.set(key, overrideType);
 		return overrideType;
 	}
@@ -2363,7 +2363,7 @@ class CheckerPart8 {
 	static function newClassFieldDecoratorInitializerMutatorType(c:Checker, thisType:Type, valueType:Type):Type {
 		final thisParam = c.newParameter("this", thisType);
 		final valueParam = c.newParameter("value", valueType);
-		return c.newFunctionType(null, thisParam, [valueParam], valueType);
+		return c.newFunctionType(ts.core.Core.emptyVector(), thisParam, [valueParam], valueType);
 	}
 
 	// Creates a call signature for an ES Decorator. This method is used by the semantics of
@@ -2372,28 +2372,28 @@ class CheckerPart8 {
 		final targetParam = c.newParameter("target", targetType);
 		final contextParam = c.newParameter("context", contextType);
 		final returnType = c.getUnionType([nonOptionalReturnType, c.voidType]);
-		return c.newCallSignature(null, null /*thisParameter*/, [targetParam, contextParam], returnType);
+		return c.newCallSignature(ts.core.Core.emptyVector(), null /*thisParameter*/, [targetParam, contextParam], returnType);
 	}
 
 	// Creates a synthetic `FunctionType`
-	static function newFunctionType(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Slice<Symbol>, returnType:Type):Type {
+	static function newFunctionType(c:Checker, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:Slice<Symbol>, returnType:Type):Type {
 		final signature = c.newCallSignature(typeParameters, thisParameter, parameters, returnType);
 		return c.getOrCreateTypeFromSignature(signature);
 	}
 
 	static function newGetterFunctionType(c:Checker, t:Type):Type {
-		return c.newFunctionType(null, null /*thisParameter*/, null, t);
+		return c.newFunctionType(ts.core.Core.emptyVector(), null /*thisParameter*/, null, t);
 	}
 
 	static function newSetterFunctionType(c:Checker, t:Type):Type {
 		final valueParam = c.newParameter("value", t);
-		return c.newFunctionType(null, null /*thisParameter*/, [valueParam], c.voidType);
+		return c.newFunctionType(ts.core.Core.emptyVector(), null /*thisParameter*/, [valueParam], c.voidType);
 	}
 
 	// Creates a synthetic `Signature` corresponding to a call signature.
-	static function newCallSignature(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Slice<Symbol>, returnType:Type):Signature {
+	static function newCallSignature(c:Checker, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:Slice<Symbol>, returnType:Type):Signature {
 		final decl = c.factory.NewFunctionTypeNode(null, null, c.factory.NewKeywordTypeNode(KindAnyKeyword));
-		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), returnType, null, Core.len(parameters));
+		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, VectorBuilder.freeze(parameters), returnType, null, Core.len(parameters));
 	}
 
 	static function newTypedPropertyDescriptorType(c:Checker, propertyType:Type):Type {
@@ -3965,7 +3965,7 @@ class CheckerPart8 {
 		return null;
 	}
 
-	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):Vec<IndexInfo> {
+	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):haxe.ds.Vector<IndexInfo> {
 		return Core.Filter(c.getIndexInfosOfType(t), function(info:IndexInfo):Bool {
 			return c.isApplicableIndexType(keyType, info.keyType);
 		});
@@ -4070,7 +4070,7 @@ class CheckerPart8 {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
-	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 	

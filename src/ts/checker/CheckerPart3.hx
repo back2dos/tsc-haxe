@@ -694,7 +694,7 @@ class CheckerPart3 {
 		return c.resolveErrorCall(node);
 	}
 
-	static function getConstructorAccessibilityError(c:Checker, node:Node, signatures:Vec<Signature>, modifiersMask:ModifierFlags):ConstructorAccessibilityError {
+	static function getConstructorAccessibilityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, modifiersMask:ModifierFlags):ConstructorAccessibilityError {
 		for (signature in signatures) {
 			if (signature.declaration == null) {
 				continue;
@@ -814,7 +814,7 @@ class CheckerPart3 {
 	// Sometimes, we have a decorator that could accept zero arguments,
 	// but is receiving too many arguments as part of the decorator invocation.
 	// In those cases, a user may have meant to *call* the expression before using it as a decorator.
-	static function isPotentiallyUncalledDecorator(c:Checker, decorator:Node, signatures:Vec<Signature>):Bool {
+	static function isPotentiallyUncalledDecorator(c:Checker, decorator:Node, signatures:haxe.ds.Vector<Signature>):Bool {
 		return Core.len(signatures) != 0 && Core.Every(signatures, (sig:Signature) -> {
 			return sig.minArgumentCount == 0 && !Checker.signatureHasRestParameter(sig)
 				&& Core.len(sig.parameters) < c.getDecoratorArgumentCount(decorator, sig);
@@ -868,7 +868,7 @@ class CheckerPart3 {
 		return c.anySignature;
 	}
 
-	static function resolveCall(c:Checker, node:Node, signatures:Vec<Signature>, candidatesOutArray:Slice<Signature>, checkMode:CheckMode, callChainFlags:SignatureFlags, headMessage:Message):Signature {
+	static function resolveCall(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, candidatesOutArray:Slice<Signature>, checkMode:CheckMode, callChainFlags:SignatureFlags, headMessage:Message):Signature {
 		final isTaggedTemplate = node.Kind == KindTaggedTemplateExpression;
 		final isDecorator = node.Kind == KindDecorator;
 		final isJsxOpeningOrSelfClosingElement = Ast.IsJsxOpeningLikeElement(node);
@@ -1002,7 +1002,7 @@ class CheckerPart3 {
 		return result;
 	}
 
-	static function reorderCandidates(c:Checker, signatures:Vec<Signature>, callChainFlags:SignatureFlags):Array<Signature> {
+	static function reorderCandidates(c:Checker, signatures:haxe.ds.Vector<Signature>, callChainFlags:SignatureFlags):Array<Signature> {
 		var lastParent:Node = null;
 		var lastSymbol:Symbol = null;
 		var index = 0;
@@ -1620,7 +1620,7 @@ class CheckerPart3 {
 		return maxParamsIndex;
 	}
 
-	static function getTypeArgumentsFromNodes(c:Checker, typeArgumentNodes:Slice<Node>, typeParameters:Vec<Type>):Slice<Type> {
+	static function getTypeArgumentsFromNodes(c:Checker, typeArgumentNodes:Slice<Node>, typeParameters:haxe.ds.Vector<Type>):Slice<Type> {
 		if (Core.len(typeArgumentNodes) > Core.len(typeParameters)) {
 			typeArgumentNodes = typeArgumentNodes.slice(0, Core.len(typeParameters));
 		}
@@ -1638,7 +1638,7 @@ class CheckerPart3 {
 		return typeArguments;
 	}
 
-	static function inferSignatureInstantiationForOverloadFailure(c:Checker, node:Node, typeParameters:Vec<Type>, candidate:Signature, args:Slice<Node>, checkMode:CheckMode):Signature {
+	static function inferSignatureInstantiationForOverloadFailure(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>, candidate:Signature, args:Slice<Node>, checkMode:CheckMode):Signature {
 		final inferenceContext = c.newInferenceContext(typeParameters, candidate, Core.IfElse(Ast.IsInJSFile(node), InferenceFlagsAnyDefault, InferenceFlagsNone),
 			null);
 		final typeArgumentTypes = c.inferTypeArguments(node, candidate, args, checkMode | CheckModeSkipContextSensitive | CheckModeSkipGenericFunctions,
@@ -1690,7 +1690,7 @@ class CheckerPart3 {
 		if (Core.Some(candidates, Checker.signatureHasLiteralTypes)) {
 			flags |= SignatureFlagsHasLiteralTypes;
 		}
-		return c.newSignature(flags, candidates[0].declaration, null, thisParameter, VectorBuilder.freezeOrNull(parameters), c.getIntersectionType(Core.Map(candidates, c.getReturnTypeOfSignature)),
+		return c.newSignature(flags, candidates[0].declaration, ts.core.Core.emptyVector(), thisParameter, VectorBuilder.freeze(parameters), c.getIntersectionType(Core.Map(candidates, c.getReturnTypeOfSignature)),
 			null, minArgumentCount);
 	}
 
@@ -1721,7 +1721,7 @@ class CheckerPart3 {
 		return c.getIndexTypeOfType(restType, c.numberType);
 	}
 
-	static function reportCallResolutionErrors(c:Checker, node:Node, s:CallState, signatures:Vec<Signature>, headMessage:Message):Void {
+	static function reportCallResolutionErrors(c:Checker, node:Node, s:CallState, signatures:haxe.ds.Vector<Signature>, headMessage:Message):Void {
 		if (Core.len(s.candidatesForArgumentError) != 0) {
 			final last = s.candidatesForArgumentError[s.candidatesForArgumentError.length - 1];
 			final diags:Slice<Diagnostic> = [];
@@ -1789,7 +1789,7 @@ class CheckerPart3 {
 		}
 	}
 
-	static function getArgumentArityError(c:Checker, node:Node, signatures:Vec<Signature>, args:Slice<Node>, headMessage:Message):Diagnostic {
+	static function getArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, args:Slice<Node>, headMessage:Message):Diagnostic {
 		final spreadIndex = c.getSpreadArgumentIndex(args);
 		if (spreadIndex > -1) {
 			return Checker.NewDiagnosticForNode(args[spreadIndex], Diagnostics.A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter);
@@ -1927,7 +1927,7 @@ class CheckerPart3 {
 		return constructorSymbol == globalPromiseSymbol;
 	}
 
-	static function getTypeArgumentArityError(c:Checker, node:Node, signatures:Vec<Signature>, typeArguments:Slice<Node>, headMessage:Message):Diagnostic {
+	static function getTypeArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, typeArguments:Slice<Node>, headMessage:Message):Diagnostic {
 		var diagnostic:Diagnostic = null;
 		final argCount = Core.len(typeArguments);
 		final sourceFile = Ast.GetSourceFileOfNode(node);
@@ -2230,9 +2230,9 @@ class CheckerPart3 {
 						return c.contextFreeTypes.get(node);
 					}
 					final returnType = c.getReturnTypeFromBody(node, checkMode);
-					final returnOnlySignature = c.newSignature(SignatureFlagsIsNonInferrable, null, null /*typeParameters*/, null /*thisParameter*/, null, returnType,
+					final returnOnlySignature = c.newSignature(SignatureFlagsIsNonInferrable, null, ts.core.Core.emptyVector() /*typeParameters*/, null /*thisParameter*/, ts.core.Core.emptyVector(), returnType,
 						null /*resolvedTypePredicate*/, 0);
-					final returnOnlyType = c.newAnonymousType(node.Symbol(), null, Core.vector1(returnOnlySignature), null, null);
+					final returnOnlyType = c.newAnonymousType(node.Symbol(), null, Core.vector1(returnOnlySignature), ts.core.Core.emptyVector(), ts.core.Core.emptyVector());
 					returnOnlyType.objectFlags |= ObjectFlagsNonInferrableType;
 					c.contextFreeTypes.set(node, returnOnlyType);
 					return returnOnlyType;
@@ -2433,7 +2433,7 @@ class CheckerPart3 {
 		return c.getIntersectedSignatures(applicableByArity);
 	}
 
-	static function getIntersectedSignatures(c:Checker, signatures:Vec<Signature>):Signature {
+	static function getIntersectedSignatures(c:Checker, signatures:haxe.ds.Vector<Signature>):Signature {
 		if (!c.noImplicitAny) {
 			return null;
 		}
@@ -2808,7 +2808,7 @@ class CheckerPart3 {
 		}
 		var hasSomeApplicableSignature = false;
 		var nonApplicableType:Type = null;
-		final getInstantiatedSignatures = (signatures:Vec<Signature>) -> {
+		final getInstantiatedSignatures = (signatures:haxe.ds.Vector<Signature>) -> {
 			final applicableSignatures = Core.Filter(signatures, (sig:Signature) -> {
 				return Core.len(sig.typeParameters) != 0 && c.hasCorrectTypeArgumentArity(sig, typeArguments.Nodes);
 			});
@@ -3539,7 +3539,7 @@ class CheckerPart3 {
 			}
 		} else {
 			final targetPropSymbol = c.resolveAliasWithDeprecationCheck(prop, right);
-			if (c.isDeprecatedSymbol(targetPropSymbol) && c.isUncalledFunctionReference(node, targetPropSymbol) && targetPropSymbol.Declarations != null) {
+			if (c.isDeprecatedSymbol(targetPropSymbol) && c.isUncalledFunctionReference(node, targetPropSymbol) && Core.len(targetPropSymbol.Declarations) != 0) {
 				c.addDeprecatedSuggestion(right, targetPropSymbol.Declarations, right.Text());
 			}
 			c.checkPropertyNotUsedBeforeDeclaration(prop, node, right);

@@ -726,7 +726,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 			visited.set(Ast.GetSymbolId(exportSymbol), true);
 
 			var nextSymbol:Symbol = null;
-			if (exportSymbol.Declarations != null) {
+			if (Core.len(exportSymbol.Declarations) != 0) {
 				for (declaration in exportSymbol.Declarations) {
 					declarationLinks.Get(declaration).isVisible = TSTrue;
 
@@ -799,7 +799,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 			addVisibleAlias = Checker.noopAddVisibleAlias;
 		}
 
-		if (symbol.Declarations != null) {
+		if (Core.len(symbol.Declarations) != 0) {
 			for (declaration in symbol.Declarations) {
 				if (Ast.IsIdentifier(declaration)) {
 					continue;
@@ -1405,11 +1405,11 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		final sym = container.Symbol();
 		final staticInfos = checker.getIndexInfosOfType(checker.getTypeOfSymbol(sym));
 		final instanceIndexSymbol = checker.getIndexSymbol(sym);
-		var instanceInfos:Vec<IndexInfo> = null;
+		var instanceInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector();
 		if (instanceIndexSymbol != null) {
 			final members = checker.getMembersOfSymbol(sym);
 			final siblingSymbols = members == null ? null : [for (v in members) v];
-			instanceInfos = VectorBuilder.freezeOrNull(checker.getIndexInfosOfIndexSymbol(instanceIndexSymbol, siblingSymbols)); // (declaration emit)
+			instanceInfos = VectorBuilder.freeze(checker.getIndexInfosOfIndexSymbol(instanceIndexSymbol, siblingSymbols)); // (declaration emit)
 		}
 
 		final requestNodeBuilder = Checker.NewNodeBuilder(checker, emitContext); // TODO: cache per-context

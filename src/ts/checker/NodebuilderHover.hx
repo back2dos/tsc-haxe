@@ -282,7 +282,7 @@ class NodebuilderHover {
 			b.f.NewNodeList(members));
 	}
 
-	static function hoverHeritageClauses(b:NodeBuilderImpl, declarations:Vec<Node>):Slice<Node> {
+	static function hoverHeritageClauses(b:NodeBuilderImpl, declarations:haxe.ds.Vector<Node>):Slice<Node> {
 		var extendsTypes:Slice<Node> = null;
 		var implementsTypes:Slice<Node> = null;
 		if (declarations != null) {
@@ -318,7 +318,7 @@ class NodebuilderHover {
 
 	// serializePropertiesWithTruncation iterates properties using addPropertyToElementList,
 	// with truncation checks matching Strada's createTypeNodesFromResolvedType behavior.
-	static function serializePropertiesWithTruncation(b:NodeBuilderImpl, properties:Vec<Symbol>, elements:Slice<Node>):Slice<Node> {
+	static function serializePropertiesWithTruncation(b:NodeBuilderImpl, properties:haxe.ds.Vector<Symbol>, elements:Slice<Node>):Slice<Node> {
 		properties = Core.Filter(properties, (p:Symbol) -> {
 			return p.Flags & SymbolFlagsPrototype == 0;
 		});
@@ -611,7 +611,7 @@ class NodebuilderHover {
 	}
 
 	// filterInheritedProperties removes properties already present in base types.
-	static function filterInheritedProperties(b:NodeBuilderImpl, t:Type, baseTypes:Slice<Type>, properties:Vec<Symbol>):Vec<Symbol> {
+	static function filterInheritedProperties(b:NodeBuilderImpl, t:Type, baseTypes:Slice<Type>, properties:haxe.ds.Vector<Symbol>):haxe.ds.Vector<Symbol> {
 		if (Core.len(baseTypes) == 0) {
 			return properties;
 		}

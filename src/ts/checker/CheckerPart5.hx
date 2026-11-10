@@ -556,7 +556,7 @@ class CheckerPart5 {
 			if (symbol.Name == "exports") {
 				return c.getTypeOfSymbol(c.resolveExternalModuleSymbol(symbol.ValueDeclaration.Symbol(), false /*dontResolveAlias*/));
 			}
-			return c.newAnonymousType(symbol, symbol.Members, null, null, null);
+			return c.newAnonymousType(symbol, symbol.Members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), ts.core.Core.emptyVector());
 		}
 		var result:Type = null;
 		switch (declaration.Kind) {
@@ -800,7 +800,7 @@ class CheckerPart5 {
 			c.valueSymbolLinks.Get(symbol).resolvedType = c.getTypeFromBindingElement(e, false /*includePatternInType*/, true /*reportErrors*/);
 			members = members.withKey(symbol.Name, symbol);
 		}
-		final result = c.newAnonymousType(t.symbol, members, null, null, c.getIndexInfosOfType(t));
+		final result = c.newAnonymousType(t.symbol, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), c.getIndexInfosOfType(t));
 		result.objectFlags = t.objectFlags;
 		return result;
 	}
@@ -962,7 +962,7 @@ class CheckerPart5 {
 						ctorReturn = c.getReturnTypeOfSignature(ctorSigs[0]);
 					}
 				}
-				if (baseConstructorType.symbol.Declarations != null) {
+				if (Core.len(baseConstructorType.symbol.Declarations) != 0) {
 					err.AddRelatedInfo(Checker.createDiagnosticForNode(baseConstructorType.symbol.Declarations[0],
 						Diagnostics.Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1, c.symbolToString(baseConstructorType.symbol),
 						c.TypeToString(ctorReturn)));
@@ -1164,7 +1164,7 @@ class CheckerPart5 {
 		return null;
 	}
 
-	static function getTypeParametersForTypeReferenceOrImport(c:Checker, node:Node):Vec<Type> {
+	static function getTypeParametersForTypeReferenceOrImport(c:Checker, node:Node):haxe.ds.Vector<Type> {
 		final t = c.getTypeFromTypeNode(node);
 		if (!c.isErrorType(t)) {
 			final symbol = c.getResolvedSymbolOrNil(node);
@@ -1172,10 +1172,10 @@ class CheckerPart5 {
 				return c.getTypeParametersForTypeAndSymbol(t, symbol);
 			}
 		}
-		return null;
+		return ts.core.Core.emptyVector();
 	}
 
-	static function getTypeParametersForTypeAndSymbol(c:Checker, t:Type, symbol:Symbol):Vec<Type> {
+	static function getTypeParametersForTypeAndSymbol(c:Checker, t:Type, symbol:Symbol):haxe.ds.Vector<Type> {
 		if (!c.isErrorType(t)) {
 			if ((symbol.Flags & SymbolFlagsTypeAlias) != 0) {
 				final typeParameters = c.typeAliasLinks.Get(symbol).typeParameters;
@@ -1187,10 +1187,10 @@ class CheckerPart5 {
 				return t.Target().AsInterfaceType().LocalTypeParameters();
 			}
 		}
-		return null;
+		return ts.core.Core.emptyVector();
 	}
 
-	static function getEffectiveTypeArgumentAtIndex(c:Checker, node:Node, typeParameters:Vec<Type>, index:Int):Type {
+	static function getEffectiveTypeArgumentAtIndex(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>, index:Int):Type {
 		final typeArguments = node.TypeArguments();
 		if (index < Core.len(typeArguments)) {
 			return c.getTypeFromTypeNode(typeArguments[index]);
@@ -1546,7 +1546,7 @@ class CheckerPart5 {
 		for (prop in rangeOf(spreadableProperties)) {
 			members = members.withKey(prop.Name, c.getSpreadSymbol(prop, false /*readonly*/));
 		}
-		final result = c.newAnonymousType(symbol, members, null, null, c.getIndexInfosOfType(source));
+		final result = c.newAnonymousType(symbol, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), c.getIndexInfosOfType(source));
 		result.objectFlags |= ObjectFlagsObjectRestType;
 		return result;
 	}
@@ -1662,11 +1662,11 @@ class CheckerPart5 {
 			c.valueSymbolLinks.Get(symbol).resolvedType = c.getTypeFromBindingElement(e, includePatternInType, reportErrors);
 			members = members.withKey(symbol.Name, symbol);
 		}
-		var indexInfos:Vec<IndexInfo> = null;
+		var indexInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector();
 		if (stringIndexInfo != null) {
 			indexInfos = Core.vector1(stringIndexInfo);
 		}
-		final result = c.newAnonymousType(null, members, null, null, indexInfos);
+		final result = c.newAnonymousType(null, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), indexInfos);
 		result.objectFlags |= objectFlags;
 		if (includePatternInType) {
 			c.patternForType.set(result, pattern);
@@ -2156,7 +2156,7 @@ class CheckerPart5 {
 				}
 			}
 		}
-		final result = c.newAnonymousType(t.symbol, members, null, null, Core.SameMap(c.getIndexInfosOfType(t), function(info:IndexInfo):IndexInfo {
+		final result = c.newAnonymousType(t.symbol, members, ts.core.Core.emptyVector(), ts.core.Core.emptyVector(), Core.SameMap(c.getIndexInfosOfType(t), function(info:IndexInfo):IndexInfo {
 			return c.newIndexInfo(info.keyType, c.getWidenedType(info.valueType), info.isReadonly, info.declaration, info.components);
 		}));
 		// Retain js literal flag through widening
@@ -2204,7 +2204,7 @@ class CheckerPart5 {
 		return context.resolvedProperties;
 	}
 
-	static function getSiblingsOfContext(c:Checker, context:WideningContext):Vec<Type> {
+	static function getSiblingsOfContext(c:Checker, context:WideningContext):haxe.ds.Vector<Type> {
 		if (context.siblings == null) {
 			final siblings:Array<Type> = [];
 			for (t in rangeOf(c.getSiblingsOfContext(context.parent))) {
@@ -2596,7 +2596,7 @@ class CheckerPart5 {
 		return c.anyType;
 	}
 
-	static function getPropertiesOfType(c:Checker, t:Type):Vec<Symbol> {
+	static function getPropertiesOfType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		t = c.getReducedApparentType(t);
 		if ((t.flags & TypeFlagsUnionOrIntersection) != 0) {
 			return c.getPropertiesOfUnionOrIntersectionType(t);
@@ -2604,14 +2604,14 @@ class CheckerPart5 {
 		return c.getPropertiesOfObjectType(t);
 	}
 
-	static function getPropertiesOfObjectType(c:Checker, t:Type):Vec<Symbol> {
+	static function getPropertiesOfObjectType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		if ((t.flags & TypeFlagsObject) != 0) {
 			return c.resolveStructuredTypeMembers(t).getProperties();
 		}
-		return null;
+		return ts.core.Core.emptyVector();
 	}
 
-	static function getPropertiesOfUnionOrIntersectionType(c:Checker, t:Type):Vec<Symbol> {
+	static function getPropertiesOfUnionOrIntersectionType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		final d = t.AsUnionOrIntersectionType();
 		if (d.resolvedProperties == null) {
 			final checked = new Set<std.String>();
@@ -2752,12 +2752,12 @@ class CheckerPart5 {
 		return f == null ? c.buildFallbackMemberFilter(name) : fallbackFilterHas(f, @:privateAccess hxmc.rt.Str.hash(name));
 	}
 
-	static inline function fallbackFilterHas(f:Vec<Int>, h:Int):Bool {
+	static inline function fallbackFilterHas(f:haxe.ds.Vector<Int>, h:Int):Bool {
 		final b1 = (h >>> 24) & 255, b2 = (h >>> 16) & 255;
 		return (f[b1 >>> 5] & (1 << (b1 & 31))) != 0 && (f[b2 >>> 5] & (1 << (b2 & 31))) != 0;
 	}
 
-	static inline function fallbackFilterAdd(f:Vec<Int>, name:std.String):Void {
+	static inline function fallbackFilterAdd(f:haxe.ds.Vector<Int>, name:std.String):Void {
 		final h = @:privateAccess hxmc.rt.Str.hash(name);
 		final b1 = (h >>> 24) & 255, b2 = (h >>> 16) & 255;
 		f[b1 >>> 5] |= 1 << (b1 & 31);
@@ -2807,22 +2807,22 @@ class CheckerPart5 {
 		return null;
 	}
 
-	static function getSignaturesOfType(c:Checker, t:Type, kind:SignatureKind):Vec<Signature> {
+	static function getSignaturesOfType(c:Checker, t:Type, kind:SignatureKind):haxe.ds.Vector<Signature> {
 		return c.getSignaturesOfStructuredType(c.getReducedApparentType(t), kind);
 	}
 
-	static function getSignaturesOfStructuredType(c:Checker, t:Type, kind:SignatureKind):Vec<Signature> {
+	static function getSignaturesOfStructuredType(c:Checker, t:Type, kind:SignatureKind):haxe.ds.Vector<Signature> {
 		// PORT: perf — from TypeScript main (microsoft/typescript-go#64873): mapped and reverse mapped types have no
 		// signatures; their members are not resolved to find none
 		if ((t.flags & TypeFlagsStructuredType) == 0 || (t.objectFlags & (ObjectFlagsMapped | ObjectFlagsReverseMapped)) != 0) {
-			return null;
+			return ts.core.Core.emptyVector();
 		}
 		final resolved = c.resolveStructuredTypeMembers(t);
 		// PORT: Go returns a subslice view of resolved.signatures. When the view covers the whole slice the same array
 		// is returned (as in Go, which shares the backing array); otherwise a copy of the range.
 		final signatures = resolved.signatures;
 		if (signatures == null) {
-			return null;
+			return ts.core.Core.emptyVector();
 		}
 		if (kind == SignatureKindCall) {
 			return Core.subVector(signatures, 0, resolved.callSignatureCount);
@@ -2830,15 +2830,15 @@ class CheckerPart5 {
 		return Core.subVector(signatures, resolved.callSignatureCount, signatures.length);
 	}
 
-	static function getIndexInfosOfType(c:Checker, t:Type):Vec<IndexInfo> {
+	static function getIndexInfosOfType(c:Checker, t:Type):haxe.ds.Vector<IndexInfo> {
 		return c.getIndexInfosOfStructuredType(c.getReducedApparentType(t));
 	}
 
-	static function getIndexInfosOfStructuredType(c:Checker, t:Type):Vec<IndexInfo> {
+	static function getIndexInfosOfStructuredType(c:Checker, t:Type):haxe.ds.Vector<IndexInfo> {
 		if ((t.flags & TypeFlagsStructuredType) != 0) {
 			return c.resolveStructuredTypeMembers(t).indexInfos;
 		}
-		return null;
+		return ts.core.Core.emptyVector();
 	}
 
 	// Return the indexing info of the given kind in the given type. Creates synthetic union index types when necessary and
@@ -2876,7 +2876,7 @@ class CheckerPart5 {
 		return c.getApplicableIndexInfo(t, c.getStringLiteralType(name));
 	}
 
-	static function findApplicableIndexInfo(c:Checker, indexInfos:Vec<IndexInfo>, keyType:Type):IndexInfo {
+	static function findApplicableIndexInfo(c:Checker, indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
 		// Index signatures for type 'string' are considered only when no other index signatures apply.
 		var stringIndexInfo:IndexInfo = null;
 		final applicableInfos:Array<IndexInfo> = [];
@@ -2956,11 +2956,11 @@ class CheckerPart5 {
 	// references of one target (with the same base types) and the type's LazyState
 	static function resolveObjectTypeMembers(c:Checker, t:Type):Void {
 		var mapper:TypeMapper = null;
-		var typeParameters:Vec<Type> = null;
-		var typeArguments:Vec<Type> = null;
-		var callSignatures:Vec<Signature> = null;
-		var constructSignatures:Vec<Signature> = null;
-		var indexInfos:Vec<IndexInfo> = null;
+		var typeParameters:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
+		var typeArguments:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
+		var callSignatures:haxe.ds.Vector<Signature> = ts.core.Core.emptyVector();
+		var constructSignatures:haxe.ds.Vector<Signature> = ts.core.Core.emptyVector();
+		var indexInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector();
 		final source = Checker.getTargetType(t);
 		// PORT: perf — Go appends t to typeArguments (a new slice); here appendThis says so and the slice is not made
 		// (len(typeArguments) + 1 in the comparisons, t as its last element, a ThisArgumentTypeMapper)
@@ -3000,7 +3000,7 @@ class CheckerPart5 {
 			for (instantiatedBaseType in instantiatedBaseTypes) {
 				callSignatures = Core.Concatenate(callSignatures, c.getSignaturesOfType(instantiatedBaseType, SignatureKindCall));
 				constructSignatures = Core.Concatenate(constructSignatures, c.getSignaturesOfType(instantiatedBaseType, SignatureKindConstruct));
-				var inheritedIndexInfos:Vec<IndexInfo> = null;
+				var inheritedIndexInfos:haxe.ds.Vector<IndexInfo> = ts.core.Core.emptyVector();
 				if (instantiatedBaseType != c.anyType) {
 					inheritedIndexInfos = c.getIndexInfosOfType(instantiatedBaseType);
 				} else {
@@ -3016,14 +3016,14 @@ class CheckerPart5 {
 		final lazyState = new LazyState();
 		lazyState.layout = layout;
 		lazyState.mapper = mapper;
-		lazyState.baseTypes = VectorBuilder.freezeOrNull(instantiatedBaseTypes);
+		lazyState.baseTypes = VectorBuilder.freeze(instantiatedBaseTypes);
 		t.AsTypeReference().lazy = lazyState;
 		c.propagateResolvedDeclaredMembers();
 		c.resolvingObjectTypeStack.pop();
 	}
 
 	// slices.Equal(typeParameters, append(typeArguments, t)) (len(typeParameters) == len(typeArguments) + 1)
-	static function equalWithThis(typeParameters:Vec<Type>, typeArguments:Vec<Type>, t:Type):Bool {
+	static function equalWithThis(typeParameters:haxe.ds.Vector<Type>, typeArguments:haxe.ds.Vector<Type>, t:Type):Bool {
 		final n = Core.len(typeArguments);
 		for (i in 0...n) {
 			if (typeParameters[i] != typeArguments[i]) {
@@ -3040,7 +3040,7 @@ class CheckerPart5 {
 			for (symbol in r.resolvedMembers) {
 				final index = s.lazy.layout.indexOf(symbol.Name);
 				if (index >= 0) {
-					if (s.properties == null) {
+					if (Core.len(s.properties) == 0) {
 						s.properties = new haxe.ds.Vector<Symbol>(s.lazy.layout.symbols.length);
 					}
 					s.properties[index] = symbol;
@@ -3185,7 +3185,7 @@ class CheckerPart5 {
 	// the shared member layout. When operations only process the declaration, flags, and/or name
 	// of members (and not their type), using the layout properties helps defer instantiation of
 	// the members. For example, `keyof T` can be computed entirely from layout properties.
-	static function getLayoutPropertiesOfType(c:Checker, t:Type):Vec<Symbol> {
+	static function getLayoutPropertiesOfType(c:Checker, t:Type):haxe.ds.Vector<Symbol> {
 		t = c.getReducedApparentType(t);
 		final lazy = c.getLazyStateOfType(t);
 		if (lazy == null) {
@@ -3222,7 +3222,7 @@ class CheckerPart5 {
 			} else {
 				throw "Unhandled case in getBaseTypes";
 			}
-			if (!c.popTypeResolution() && t.symbol.Declarations != null) {
+			if (!c.popTypeResolution() && Core.len(t.symbol.Declarations) != 0) {
 				for (declaration in t.symbol.Declarations) {
 					if (Ast.IsClassDeclaration(declaration) || Ast.IsInterfaceDeclaration(declaration)) {
 						c.reportCircularBaseType(declaration, t);
@@ -3310,7 +3310,7 @@ class CheckerPart5 {
 		t.AsInterfaceType().resolvedBaseTypes = [reducedBaseType];
 	}
 
-	static function getInstantiatedConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Slice<Node>, location:Node):Vec<Signature> {
+	static function getInstantiatedConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Slice<Node>, location:Node):haxe.ds.Vector<Signature> {
 		final signatures = c.getConstructorsForTypeArguments(t, typeArgumentNodes, location);
 		final typeArguments = Core.Map(typeArgumentNodes, n -> c.getTypeFromTypeNode(n));
 		return Core.SameMap(signatures, function(sig:Signature):Signature {
@@ -3321,7 +3321,7 @@ class CheckerPart5 {
 		});
 	}
 
-	static function getConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Slice<Node>, location:Node):Vec<Signature> {
+	static function getConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Slice<Node>, location:Node):haxe.ds.Vector<Signature> {
 		final typeArgCount = Core.len(typeArgumentNodes);
 		return Core.Filter(c.getSignaturesOfType(t, SignatureKindConstruct), function(sig:Signature):Bool {
 			return typeArgCount >= c.getMinTypeArgumentCount(sig.typeParameters) && typeArgCount <= Core.len(sig.typeParameters);
@@ -3360,7 +3360,7 @@ class CheckerPart5 {
 		return c.getSignatureInstantiationWithoutFillingInTypeArgumentsA(sig, typeArguments);
 	}
 
-	static extern inline overload function getSignatureInstantiationWithoutFillingInTypeArguments(c:Checker, sig:Signature, typeArguments:Vec<Type>):Signature {
+	static extern inline overload function getSignatureInstantiationWithoutFillingInTypeArguments(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):Signature {
 		return c.getSignatureInstantiationWithoutFillingInTypeArgumentsV(sig, typeArguments);
 	}
 
@@ -3374,7 +3374,7 @@ class CheckerPart5 {
 		return instantiation;
 	}
 
-	static function getSignatureInstantiationWithoutFillingInTypeArgumentsV(c:Checker, sig:Signature, typeArguments:Vec<Type>):Signature {
+	static function getSignatureInstantiationWithoutFillingInTypeArgumentsV(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):Signature {
 		final key = CachedSignatureKey.keyOf(sig, Checker.getTypeListKey(typeArguments));
 		var instantiation = c.cachedSignatures.get(key);
 		if (instantiation == null) {
@@ -3388,7 +3388,7 @@ class CheckerPart5 {
 		return c.instantiateSignatureEx(sig, Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments), true /*eraseTypeParameters*/);
 	}
 
-	static extern inline overload function createSignatureInstantiation(c:Checker, sig:Signature, typeArguments:Vec<Type>):Signature {
+	static extern inline overload function createSignatureInstantiation(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):Signature {
 		return c.instantiateSignatureEx(sig, Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments), true /*eraseTypeParameters*/);
 	}
 
@@ -3396,11 +3396,11 @@ class CheckerPart5 {
 		return Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments);
 	}
 
-	static extern inline overload function createSignatureTypeMapper(c:Checker, sig:Signature, typeArguments:Vec<Type>):TypeMapper {
+	static extern inline overload function createSignatureTypeMapper(c:Checker, sig:Signature, typeArguments:haxe.ds.Vector<Type>):TypeMapper {
 		return Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments);
 	}
 
-	static function getTypeParametersForMapper(c:Checker, sig:Signature):Vec<Type> {
+	static function getTypeParametersForMapper(c:Checker, sig:Signature):haxe.ds.Vector<Type> {
 		return Core.SameMap(sig.typeParameters, tp -> c.instantiateType(tp, tp.Mapper()));
 	}
 
@@ -3450,9 +3450,9 @@ class CheckerPart5 {
 			}
 			final t = c.newObjectType(ObjectFlagsAnonymous | ObjectFlagsSingleSignatureType, symbol);
 			if (isConstructor) {
-				c.setStructuredTypeMembers(t, null, null, Core.vector1(sig), null);
+				c.setStructuredTypeMembers(t, null, ts.core.Core.emptyVector(), Core.vector1(sig), ts.core.Core.emptyVector());
 			} else {
-				c.setStructuredTypeMembers(t, null, Core.vector1(sig), null, null);
+				c.setStructuredTypeMembers(t, null, Core.vector1(sig), ts.core.Core.emptyVector(), ts.core.Core.emptyVector());
 			}
 			sig.isolatedSignatureType = t;
 		}
@@ -3677,7 +3677,7 @@ class CheckerPart5 {
 		return t;
 	}
 
-	static function addInheritedMembers(c:Checker, symbols:SymbolTable, baseSymbols:Vec<Symbol>):SymbolTable {
+	static function addInheritedMembers(c:Checker, symbols:SymbolTable, baseSymbols:haxe.ds.Vector<Symbol>):SymbolTable {
 		for (base in rangeOf(baseSymbols)) {
 			if (!Checker.isStaticPrivateIdentifierProperty(base)) {
 				final s = symbolTableGet(symbols, base.Name);
@@ -3699,9 +3699,9 @@ class CheckerPart5 {
 			final members = c.getMembersOfSymbol(t.symbol);
 			d.declaredMembersResolved = true;
 			d.declaredMembers = members;
-			d.declaredCallSignatures = VectorBuilder.freezeOrNull(c.getSignaturesOfSymbol(symbolTableGet(d.declaredMembers, Ast.InternalSymbolNameCall)));
-			d.declaredConstructSignatures = VectorBuilder.freezeOrNull(c.getSignaturesOfSymbol(symbolTableGet(d.declaredMembers, Ast.InternalSymbolNameNew)));
-			d.declaredIndexInfos = VectorBuilder.freezeOrNull(c.getIndexInfosOfSymbol(t.symbol));
+			d.declaredCallSignatures = VectorBuilder.freeze(c.getSignaturesOfSymbol(symbolTableGet(d.declaredMembers, Ast.InternalSymbolNameCall)));
+			d.declaredConstructSignatures = VectorBuilder.freeze(c.getSignaturesOfSymbol(symbolTableGet(d.declaredMembers, Ast.InternalSymbolNameNew)));
+			d.declaredIndexInfos = VectorBuilder.freeze(c.getIndexInfosOfSymbol(t.symbol));
 		}
 		return d;
 	}
@@ -3896,7 +3896,7 @@ class CheckerPart5 {
 			|| (t.flags & TypeFlagsIntersection) != 0 && !c.isGenericType(t) && Core.Some(t.Types(), t -> c.isValidIndexKeyType(t));
 	}
 
-	static extern inline overload function findIndexInfo(c:Checker, indexInfos:Vec<IndexInfo>, keyType:Type):IndexInfo {
+	static extern inline overload function findIndexInfo(c:Checker, indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
 		return Checker.findIndexInfoV(indexInfos, keyType);
 	}
 
@@ -4012,7 +4012,7 @@ class CheckerPart5 {
 		if (Ast.IsConstructorDeclaration(declaration)) {
 			classType = c.getDeclaredTypeOfClassOrInterface(c.getMergedSymbol(declaration.Parent.Symbol()));
 		}
-		var typeParameters:Vec<Type> = null;
+		var typeParameters:haxe.ds.Vector<Type> = ts.core.Core.emptyVector();
 		if (classType != null) {
 			typeParameters = classType.AsInterfaceType().LocalTypeParameters();
 		} else {
@@ -4028,12 +4028,12 @@ class CheckerPart5 {
 			|| Ast.IsConstructorDeclaration(declaration) && Ast.HasSyntacticModifier(declaration.Parent, ModifierFlagsAbstract)) {
 			flags |= SignatureFlagsAbstract;
 		}
-		links.resolvedSignature = c.newSignature(flags, declaration, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), null /*resolvedReturnType*/,
+		links.resolvedSignature = c.newSignature(flags, declaration, typeParameters, thisParameter, VectorBuilder.freeze(parameters), null /*resolvedReturnType*/,
 			null /*resolvedTypePredicate*/, minArgumentCount);
 		return links.resolvedSignature;
 	}
 
-	static function getTypeParametersFromDeclaration(c:Checker, declaration:Node):Vec<Type> {
+	static function getTypeParametersFromDeclaration(c:Checker, declaration:Node):haxe.ds.Vector<Type> {
 		final sig = c.getSignatureOfFullSignatureType(declaration);
 		if (sig != null) {
 			return sig.TypeParameters();
@@ -4042,7 +4042,7 @@ class CheckerPart5 {
 		for (node in rangeOf(declaration.TypeParameters())) {
 			result = Core.AppendIfUnique(result, c.getDeclaredTypeOfTypeParameter(node.Symbol()));
 		}
-		return VectorBuilder.freezeOrNull(result);
+		return VectorBuilder.freeze(result);
 	}
 
 	static function getAnnotatedAccessorThisParameter(c:Checker, accessor:Node):Symbol {
@@ -4175,7 +4175,7 @@ class CheckerPart5 {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
-	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
+	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 	
@@ -4203,7 +4203,7 @@ class CheckerPart5 {
 	
 	// PORT: Go `append(symbol.Declarations, d)`: the slice may share its backing array with a cloned symbol
 	// (cloneSymbol forces reallocation in Go), so the append never shows in another holder; copy first.
-	static inline function appendDeclaration(s:Vec<Node>, x:Node):Vec<Node> {
+	static inline function appendDeclaration(s:haxe.ds.Vector<Node>, x:Node):haxe.ds.Vector<Node> {
 		return Core.appendVector(s, x);
 	}
 	
