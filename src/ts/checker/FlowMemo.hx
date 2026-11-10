@@ -82,6 +82,9 @@ class FlowMemo {
 
 	static var envMode:Int = -1;
 	static var nextFlowId:Int = 0;
+	#if tshx_parallel
+	static final flowIdMutex = new sys.thread.Mutex();
+	#end
 
 	static function modeFromEnv():Int {
 		if (envMode < 0) {
@@ -176,10 +179,22 @@ class FlowMemo {
 	}
 
 	static function newFlowId(flow:FlowNode):Int {
-		// (Racy under -D tshx-parallel: a duplicate id is only a hash collision.)
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — flow nodes are shared by the checkers: the id is assigned under a lock, so that
+		// two threads cannot both see 0 and give the node two ids one after the other (isCheckpoint, the slot index)
+		flowIdMutex.acquire();
+		var id = flow.memoId;
+		if (id == 0) {
+			id = ++nextFlowId;
+			flow.memoId = id;
+		}
+		flowIdMutex.release();
+		return id;
+		#else
 		final id = ++nextFlowId;
 		flow.memoId = id;
 		return id;
+		#end
 	}
 
 	inline function slotIndex(flow:FlowNode, hash:Int):Int {
