@@ -8,7 +8,7 @@ import haxe.macro.Expr;
 // PORT: jvm — the JVM limits a method to 64 KB of bytecode, and Haxe puts every static
 // initializer of a class into one method (<clinit>). A literal `Array<Int>` costs about 7 bytes
 // per element there, so the generated tables (go.text.internal.language.Tables, Unicode tables, …)
-// overflow it ("IO.Overflow(write_ui16)" from the Haxe JVM generator). On JVM only, go.NilRange
+// overflow it ("IO.Overflow(write_ui16)" from the Haxe JVM generator). On JVM only, go.TargetSetup
 // passes every static field initializer through `rewriteStatic`: a large literal array of Int or
 // String constants becomes a decode call of a compact string form (same elements, same order).
 // Other targets are not changed.

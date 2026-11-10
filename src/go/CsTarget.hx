@@ -6,12 +6,12 @@ import haxe.macro.Expr;
 import haxe.macro.Type;
 #end
 
-// PORT: cs — fixes for C# rules that hxcs does not handle. go.NilRange applies them on C# only.
+// PORT: cs — fixes for C# rules that hxcs does not handle. go.TargetSetup applies them on C# only.
 class CsTarget {
 	#if cs
 	// With -D erase-generics, hxcs passes a spread array `f(...a)` as its backing native array
 	// (haxe.Rest.of: `array.__a`), which is longer than `a` (capacity): the callee sees extra null
-	// elements (measured: a null EmitHelper in Printer.emitHelpers). go.NilRange passes every spread
+	// elements (measured: a null EmitHelper in Printer.emitHelpers). go.TargetSetup passes every spread
 	// array through this function on C#: the same array when its backing array has its length,
 	// else a copy of the right length.
 	public static function exactRest<T>(a:Array<T>):Array<T> {

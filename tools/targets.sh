@@ -39,7 +39,7 @@ hx_build() {
 	hxmc)
 		ulimit -s unlimited 2>/dev/null || :
 		HAXE_STD_PATH="$HXMC_HOME/haxe/upstream/std" "$HXMC_HOME/bin/hxmc/hxmc" "$_b-hxmc" -D HXCPP_CPP17 -D HXCPP_SINGLE_THREADED_APP \
-			-D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" --macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize \
+			-D HXCPP_GC_BIG_BLOCKS -cp "$ROOT/src" go.GcInit -cp src -cp test -D analyzer-optimize \
 			-main "$_m" -D hxmc.symbols -D hxmc.gc-prefault -D hxmc.inline=48,128,6,120,4 "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
 		;;
 	# hxmc-wasm: the same for wasm32-wasi (go.OsWasi), run under node by hxmc's WASI runner, which
@@ -47,7 +47,7 @@ hx_build() {
 	hxmc-wasm)
 		ulimit -s unlimited 2>/dev/null || :
 		HAXE_STD_PATH="$HXMC_HOME/haxe/upstream/std" "$HXMC_HOME/bin/hxmc/hxmc" "$_b-hxmc.wasm" -cp "$ROOT/src" \
-			--macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize -main "$_m" -D hxmc.target=wasm32-wasi \
+			go.GcInit -cp src -cp test -D analyzer-optimize -main "$_m" -D hxmc.target=wasm32-wasi \
 			-D hxmc.symbols "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
 		;;
 	# hxmc-par: hxmc's build with the checkers, parsing, binding and emit on threads (-D tshx-parallel)
@@ -59,7 +59,7 @@ hx_build() {
 	hxmc-wasmgc)
 		ulimit -s unlimited 2>/dev/null || :
 		HAXE_STD_PATH="$HXMC_HOME/haxe/upstream/std" "$HXMC_HOME/bin/hxmc/hxmc" "$_b-hxmc-gc.wasm" -cp "$ROOT/src" \
-			--macro 'go.NilRange.apply()' go.GcInit -cp src -cp test -D analyzer-optimize -main "$_m" -D hxmc.target=wasm32-wasi \
+			go.GcInit -cp src -cp test -D analyzer-optimize -main "$_m" -D hxmc.target=wasm32-wasi \
 			-D hxmc.wasm-gc -D hxmc.symbols "$@" -cp "$HXMC_HOME/bin/hxmc/std" --custom-target hxmc >/dev/null
 		;;
 	cs)

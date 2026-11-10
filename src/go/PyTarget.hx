@@ -6,7 +6,7 @@ import haxe.io.BytesBuffer;
 import haxe.macro.Compiler;
 import haxe.macro.Context;
 
-// PORT: python — build setup of the Python target, applied by go.NilRange.apply() (tools/haxe) when
+// PORT: python — build setup of the Python target, applied by go.TargetSetup.apply() (tools/haxe) when
 // the target is Python (docs/PORTING.md §7b):
 // 1. Class path std-py/ and std-py/shared/: copies of a few Haxe std modules that keep strings in
 //    UTF-16 form (see std-py/python/U16.hx), give IEEE 754 results in Math, and exit at once
