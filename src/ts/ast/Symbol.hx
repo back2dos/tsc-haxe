@@ -304,14 +304,14 @@ enum abstract SymbolTableSlot(Int) {
 }
 
 // a non-nil empty table
-class EmptySymbolTable {
+private class EmptySymbolTable {
 	public static final instance = new EmptySymbolTable();
 
 	function new() {}
 }
 
 // two entries (s0 inserted first)
-class SymbolTable2 {
+private class SymbolTable2 {
 	public final s0:Symbol;
 	public final s1:Symbol;
 
@@ -322,7 +322,7 @@ class SymbolTable2 {
 }
 
 // three entries
-class SymbolTable3 extends SymbolTable2 {
+private class SymbolTable3 extends SymbolTable2 {
 	public final s2:Symbol;
 
 	public function new(s0:Symbol, s1:Symbol, s2:Symbol) {
@@ -332,7 +332,7 @@ class SymbolTable3 extends SymbolTable2 {
 }
 
 // the operations on a non-null table
-class SymbolTableImpl {
+private class SymbolTableImpl {
 	public static function get(t:Dynamic, k:String):Symbol {
 		if (Std.isOfType(t, Symbol)) {
 			final s:Symbol = cast t;
@@ -527,7 +527,7 @@ class SymbolTableImpl {
 // key is the symbol's Name) and, past 8 entries, an open-addressing table of their indices + 1 by the name's cached
 // hash (a power of two, at most half full), as checker.MemberLayout. Changes in place.
 @:allow(ts.ast)
-class SymbolTableN {
+private class SymbolTableN {
 	var syms:haxe.ds.Vector<Symbol>;
 	var n:Int;
 	var slots:haxe.ds.Vector<Int>;
