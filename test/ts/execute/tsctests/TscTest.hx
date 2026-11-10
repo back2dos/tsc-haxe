@@ -1086,7 +1086,7 @@ class TscTest {
 				commandLineArgs: [builtType, "src", "--extendedDiagnostics"]
 			} : TscInput);
 		};
-		var getTscExtendsConfigDirTestCase = function(subScenarioSufix:String, commandLineArgs:Array<String>, edits:Array<TscEdit>):TscInput {
+		var getTscExtendsConfigDirTestCase = function(subScenarioSufix:String, commandLineArgs:Array<String>, edits:Slice<TscEdit>):TscInput {
 			return ({
 				subScenario: "configDir template" + subScenarioSufix,
 				files: ([
@@ -1322,7 +1322,7 @@ class TscTest {
 			}");
 			return files;
 		};
-		var getScenarios = function(subScenario:String, commandLineArgs:Array<String>):Array<TscInput> {
+		var getScenarios = function(subScenario:String, commandLineArgs:Slice<String>):Array<TscInput> {
 			var commandLineArgsIgnoreConfig = append(commandLineArgs, "--ignoreConfig");
 			return ([
 				{

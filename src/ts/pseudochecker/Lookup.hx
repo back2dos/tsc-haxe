@@ -434,7 +434,7 @@ class Lookup {
 	// Returns nil if the array can be typed, or a slice of error nodes that prevent typing.
 	// For non-const arrays, the error node is the array expression itself.
 	// For const arrays with spreads, the error node is the spread element.
-	static function canGetTypeFromArrayLiteral(ch:PseudoChecker, node:ArrayLiteralExpression):Array<Node> {
+	static function canGetTypeFromArrayLiteral(ch:PseudoChecker, node:ArrayLiteralExpression):Slice<Node> {
 		if (!IsInConstContext(node.AsNode())) {
 			return [node.AsNode()];
 		}
@@ -479,7 +479,7 @@ class Lookup {
 		return NewPseudoTypeSingleCallSignature(node, parameters, typeParameters, returnType);
 	}
 
-	static function cloneTypeParameters(ch:PseudoChecker, nodes:NodeList):Array<TypeParameterDeclaration> {
+	static function cloneTypeParameters(ch:PseudoChecker, nodes:NodeList):Slice<TypeParameterDeclaration> {
 		if (nodes == null) {
 			return null;
 		}
@@ -549,7 +549,7 @@ class Lookup {
 		return NewPseudoTypeNoResult(node.AsNode());
 	}
 
-	static function cloneParameters(ch:PseudoChecker, nodes:NodeList):Array<PseudoParameter> {
+	static function cloneParameters(ch:PseudoChecker, nodes:NodeList):Slice<PseudoParameter> {
 		if (nodes == null) {
 			return null;
 		}

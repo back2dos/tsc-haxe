@@ -85,7 +85,7 @@ class Diagnostics {
 		});
 	}
 
-	public static function StringifyArgs(args:Slice<Any>):Array<String> {
+	public static function StringifyArgs(args:Slice<Any>):Slice<String> {
 		if (args == null || args.length == 0)
 			return null;
 		return [for (arg in args) arg is String ? (arg : String) : Std.string(arg)];

@@ -88,7 +88,7 @@ class ProjectReferenceParser {
 		}
 	}
 
-	function initMapperWorker(tasks:Slice<ProjectReferenceParseTask>, seen:Set<ProjectReferenceParseTask>):Array<Path> {
+	function initMapperWorker(tasks:Slice<ProjectReferenceParseTask>, seen:Set<ProjectReferenceParseTask>):Slice<Path> {
 		if (Core.len(tasks) == 0) {
 			return null;
 		}

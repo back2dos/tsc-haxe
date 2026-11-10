@@ -276,7 +276,7 @@ class MetadataTransformer {
 		return decorators;
 	}
 
-	function getNewTypeMetadata(node:Node, container:Node):Array<Node> {
+	function getNewTypeMetadata(node:Node, container:Node):Slice<Node> {
 		var properties:Slice<Node> = null;
 		if (shouldAddTypeMetadata(node)) {
 			if (properties == null)

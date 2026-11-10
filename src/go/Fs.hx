@@ -68,7 +68,7 @@ interface File {
 
 // fs.ReadDirFile
 interface ReadDirFile extends File {
-	function ReadDir(n:Int):ValueError<Array<DirEntry>>;
+	function ReadDir(n:Int):ValueError<Slice<DirEntry>>;
 }
 
 // fs.FileInfo
@@ -101,7 +101,7 @@ interface ReadFileFS extends FS {
 
 // fs.ReadDirFS
 interface ReadDirFS extends FS {
-	function ReadDir(name:String):ValueError<Array<DirEntry>>;
+	function ReadDir(name:String):ValueError<Slice<DirEntry>>;
 }
 
 // fs.SubFS
@@ -233,18 +233,18 @@ class Fs {
 
 	// --- readdir.go ---
 
-	public static function ReadDir(fsys:FS, name:String):ValueError<Array<DirEntry>> {
+	public static function ReadDir(fsys:FS, name:String):ValueError<Slice<DirEntry>> {
 		if (Std.isOfType(fsys, ReadDirFS)) {
 			return (cast fsys : ReadDirFS).ReadDir(name);
 		}
 		final r = fsys.Open(name);
 		if (r.err != null) {
-			return new ValueError<Array<DirEntry>>(null, r.err);
+			return new ValueError<Slice<DirEntry>>(null, r.err);
 		}
 		final file = r.value;
 		if (!Std.isOfType(file, ReadDirFile)) {
 			file.Close();
-			return new ValueError<Array<DirEntry>>(null, new PathError("readdir", name, Errors.New("not implemented")));
+			return new ValueError<Slice<DirEntry>>(null, new PathError("readdir", name, Errors.New("not implemented")));
 		}
 		final res = (cast file : ReadDirFile).ReadDir(-1);
 		file.Close();
@@ -252,7 +252,7 @@ class Fs {
 		if (list != null) {
 			list.sort((a, b) -> Strings.Compare(a.Name(), b.Name()));
 		}
-		return new ValueError<Array<DirEntry>>(list, res.err);
+		return new ValueError<Slice<DirEntry>>(list, res.err);
 	}
 
 	// fs.FileInfoToDirEntry
@@ -406,13 +406,13 @@ private class SubFS_ implements ReadDirFS implements ReadFileFS implements SubFS
 		return new ValueError<File>(r.value, fixErr(r.err));
 	}
 
-	public function ReadDir(name:String):ValueError<Array<DirEntry>> {
+	public function ReadDir(name:String):ValueError<Slice<DirEntry>> {
 		final full = fullName("read", name);
 		if (full.err != null) {
-			return new ValueError<Array<DirEntry>>(null, full.err);
+			return new ValueError<Slice<DirEntry>>(null, full.err);
 		}
 		final r = Fs.ReadDir(fsys, full.value);
-		return new ValueError<Array<DirEntry>>(r.value, fixErr(r.err));
+		return new ValueError<Slice<DirEntry>>(r.value, fixErr(r.err));
 	}
 
 	public function ReadFile(name:String):ValueError<Bytes> {

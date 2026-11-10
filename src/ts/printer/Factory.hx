@@ -418,7 +418,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 
 	// Splits a slice of statements into two parts: standard prologue statements and the rest of the statements
 	// PORT: Go returns (prologue, rest) → Pair (a = prologue, b = rest).
-	public function SplitStandardPrologue(source:Slice<Statement>):Pair<Slice<Statement>, Array<Statement>> {
+	public function SplitStandardPrologue(source:Slice<Statement>):Pair<Slice<Statement>, Slice<Statement>> {
 		if (source != null) {
 			for (i in 0...source.length) {
 				final statement = source[i];
@@ -651,7 +651,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 	}
 
 	// Creates `target.bind(thisArg, ...args)`.
-	public function NewFunctionBindCall(target:Expression, thisArg:Expression, argumentsList:Array<Node>):Expression {
+	public function NewFunctionBindCall(target:Expression, thisArg:Expression, argumentsList:Slice<Node>):Expression {
 		final args:Array<Node> = [];
 		args.push(thisArg);
 		if (argumentsList != null) {

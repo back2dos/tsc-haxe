@@ -34,7 +34,7 @@ class TracedTypeAdapter implements TracedType {
 		return t.alias.Symbol();
 	}
 
-	public function AliasTypeArguments():Array<TracedType> {
+	public function AliasTypeArguments():Slice<TracedType> {
 		if (t.alias == null) {
 			return null;
 		}
@@ -52,14 +52,14 @@ class TracedTypeAdapter implements TracedType {
 		return data.intrinsicName;
 	}
 
-	public function UnionTypes():Array<TracedType> {
+	public function UnionTypes():Slice<TracedType> {
 		if ((t.flags & TypeFlagsUnion) == 0) {
 			return null;
 		}
 		return Checker.wrapTypes(t.AsUnionType().types.toArray()); // (tracing)
 	}
 
-	public function IntersectionTypes():Array<TracedType> {
+	public function IntersectionTypes():Slice<TracedType> {
 		if ((t.flags & TypeFlagsIntersection) == 0) {
 			return null;
 		}
@@ -176,7 +176,7 @@ class TracedTypeAdapter implements TracedType {
 		return Checker.wrapType(t);
 	}
 
-	public function ReferenceTypeArguments():Array<TracedType> {
+	public function ReferenceTypeArguments():Slice<TracedType> {
 		if ((t.flags & TypeFlagsObject) == 0 || (t.objectFlags & ObjectFlagsReference) == 0) {
 			return null;
 		}

@@ -4127,7 +4127,7 @@ class CheckerPart7 {
 		return null;
 	}
 
-	static function getResolvedBaseConstraint(c:Checker, t:Type, stack:Array<RecursionId>):Type {
+	static function getResolvedBaseConstraint(c:Checker, t:Type, stack:Slice<RecursionId>):Type {
 		final constrained = t.AsConstrainedType();
 		if (constrained == null) {
 			return t;
@@ -4177,7 +4177,7 @@ class CheckerPart7 {
 		return constraint;
 	}
 
-	static function computeBaseConstraint(c:Checker, t:Type, stack:Array<RecursionId>):Type {
+	static function computeBaseConstraint(c:Checker, t:Type, stack:Slice<RecursionId>):Type {
 		if (t.flags & TypeFlagsTypeParameter != 0) {
 			final constraint = c.getConstraintFromTypeParameter(t);
 			if (t.AsTypeParameter().isThisType) {
@@ -4279,7 +4279,7 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function getNextBaseConstraint(c:Checker, t:Type, stack:Array<RecursionId>):Type {
+	static function getNextBaseConstraint(c:Checker, t:Type, stack:Slice<RecursionId>):Type {
 		if (t == null) {
 			return null;
 		}
@@ -4845,7 +4845,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: Go `slices.Contains(stack, identity)` on []RecursionId: Go `==` compares the contained `any` values.
-	static function containsRecursionId(stack:Array<RecursionId>, identity:RecursionId):Bool {
+	static function containsRecursionId(stack:Slice<RecursionId>, identity:RecursionId):Bool {
 		if (stack != null) {
 			for (id in stack) {
 				if (RecursionId.same(id, identity)) {

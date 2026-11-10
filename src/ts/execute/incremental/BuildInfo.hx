@@ -63,7 +63,7 @@ class JsonDecode {
 		return v;
 	}
 
-	static function array(v:Dynamic):Array<Dynamic> {
+	static function array(v:Dynamic):Slice<Dynamic> {
 		if (v == null)
 			return null;
 		if (!Std.isOfType(v, Array))
@@ -71,21 +71,21 @@ class JsonDecode {
 		return v;
 	}
 
-	static function strings(v:Dynamic):Array<std.String> {
+	static function strings(v:Dynamic):Slice<std.String> {
 		final a = array(v);
 		if (a == null)
 			return null;
 		return [for (x in a) string(x)];
 	}
 
-	static function ints(v:Dynamic):Array<Int> {
+	static function ints(v:Dynamic):Slice<Int> {
 		final a = array(v);
 		if (a == null)
 			return null;
 		return [for (x in a) int(x)];
 	}
 
-	static function slice<T>(v:Dynamic, f:(Dynamic) -> T):Array<T> {
+	static function slice<T>(v:Dynamic, f:(Dynamic) -> T):Slice<T> {
 		final a = array(v);
 		if (a == null)
 			return null;
@@ -631,7 +631,7 @@ class BuildInfoResolvedRoot implements OrderedMarshaler {
 	}
 
 	public static function fromJSONValue(data:Dynamic):BuildInfoResolvedRoot {
-		var resolvedAndRoot:Array<Int>;
+		var resolvedAndRoot:Slice<Int>;
 		try {
 			resolvedAndRoot = JsonDecode.ints(data);
 		} catch (e:Dynamic) {

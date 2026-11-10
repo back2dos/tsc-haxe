@@ -24,7 +24,7 @@ class VfstestTest {
 		return go.Utf8.StringToBytes(s);
 	}
 
-	static function dirEntriesToNames(entries:Array<DirEntry>):Array<String> {
+	static function dirEntriesToNames(entries:Slice<DirEntry>):Array<String> {
 		final names = [];
 		for (entry in entries) {
 			names.push(entry.Name());

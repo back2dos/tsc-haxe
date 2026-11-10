@@ -216,7 +216,7 @@ class GeneratorTest {
 	}
 
 	static function rawSourceMap(version:Int, file:String, sourceRoot:String, sources:Array<String>, names:Array<String>, mappings:String,
-			sourcesContent:Array<Null<String>>):RawSourceMap {
+			sourcesContent:Slice<Null<String>>):RawSourceMap {
 		final m = new RawSourceMap();
 		m.Version = version;
 		m.File = file;

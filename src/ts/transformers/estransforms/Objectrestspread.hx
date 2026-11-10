@@ -589,7 +589,7 @@ class ObjectRestSpreadTransformer {
 		return Factory().NewAssignHelper(objects, compilerOptions.GetEmitScriptTarget());
 	}
 
-	function chunkObjectLiteralElements(list:NodeList):Array<Node> {
+	function chunkObjectLiteralElements(list:NodeList):Slice<Node> {
 		if (list == null || list.Nodes.length == 0) {
 			return null;
 		}

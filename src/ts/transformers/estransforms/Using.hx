@@ -300,7 +300,7 @@ class UsingDeclarationTransformer {
 		return Visitor().VisitEachChild(node.AsNode());
 	}
 
-	function transformUsingDeclarations(statementsIn:Array<Statement>, envBinding:IdentifierNode, topLevelStatements:Array<Statement>):Slice<Node> {
+	function transformUsingDeclarations(statementsIn:Slice<Statement>, envBinding:IdentifierNode, topLevelStatements:Slice<Statement>):Slice<Node> {
 		var statements:Slice<Statement> = null;
 
 		final hoist = function(node:Statement):Statement {
@@ -394,7 +394,7 @@ class UsingDeclarationTransformer {
 		return statements;
 	}
 
-	function hoistImportOrExportOrHoistedDeclaration(node:Statement, topLevelStatements:Array<Statement>):Void {
+	function hoistImportOrExportOrHoistedDeclaration(node:Statement, topLevelStatements:Slice<Statement>):Void {
 		// NOTE: `node` has already been visited
 		topLevelStatements.push(node);
 	}

@@ -216,8 +216,8 @@ class Pseudochecker {
 		return p;
 	}
 
-	public static function NewPseudoTypeSingleCallSignature(signature:Node, parameters:Array<PseudoParameter>,
-			typeParameters:Array<TypeParameterDeclaration>, returnType:PseudoType):PseudoType {
+	public static function NewPseudoTypeSingleCallSignature(signature:Node, parameters:Slice<PseudoParameter>,
+			typeParameters:Slice<TypeParameterDeclaration>, returnType:PseudoType):PseudoType {
 		final d = new PseudoTypeSingleCallSignature();
 		d.Signature = signature;
 		d.Parameters = parameters;
@@ -241,8 +241,8 @@ class Pseudochecker {
 		return e;
 	}
 
-	public static function NewPseudoObjectMethod(signature:Node, name:Node, optional:Bool, typeParameters:Array<TypeParameterDeclaration>,
-			parameters:Array<PseudoParameter>, returnType:PseudoType):PseudoObjectElement {
+	public static function NewPseudoObjectMethod(signature:Node, name:Node, optional:Bool, typeParameters:Slice<TypeParameterDeclaration>,
+			parameters:Slice<PseudoParameter>, returnType:PseudoType):PseudoObjectElement {
 		final d = new PseudoObjectMethod();
 		d.Signature = signature;
 		d.TypeParameters = typeParameters;
@@ -272,7 +272,7 @@ class Pseudochecker {
 		return newPseudoObjectElement(PseudoObjectElementKindGetAccessor, name, optional, d);
 	}
 
-	public static function NewPseudoTypeObjectLiteral(elements:Array<PseudoObjectElement>):PseudoType {
+	public static function NewPseudoTypeObjectLiteral(elements:Slice<PseudoObjectElement>):PseudoType {
 		final d = new PseudoTypeObjectLiteral();
 		d.Elements = elements;
 		return newPseudoType(PseudoTypeKindObjectLiteral, d);

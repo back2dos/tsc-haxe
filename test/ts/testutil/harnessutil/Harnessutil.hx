@@ -756,7 +756,7 @@ class Harnessutil {
 					if (variationCount > 25) {
 						t.Fatal("Provided test options exceeded the maximum number of variations");
 					}
-					optionEntries.push([option].concat(entries));
+					optionEntries.push([option].concat(entries.toArray()));
 				} else if (Core.len(entries) == 1) {
 					nonVaryingOptions.set(option, entries[0]);
 				}
@@ -794,7 +794,7 @@ class Harnessutil {
 	//	splitOptionValues("*, -true", "strict") => ["false"]
 	//
 	// ```
-	static function splitOptionValues(t:T, value:String, option:String):Array<String> {
+	static function splitOptionValues(t:T, value:String, option:String):Slice<String> {
 		if (value.length == 0) {
 			return null;
 		}
@@ -909,7 +909,7 @@ class Harnessutil {
 		return Core.Find(compilerOptions, function(optionDecl:CommandLineOption) return Strings.EqualFold(optionDecl.Name, option));
 	}
 
-	static function getAllValuesForOption(option:String):Array<String> {
+	static function getAllValuesForOption(option:String):Slice<String> {
 		final optionDecl = getCommandLineOption(option);
 		if (optionDecl == null) {
 			return null;

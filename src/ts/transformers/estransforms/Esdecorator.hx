@@ -1002,7 +1002,7 @@ class EsDecoratorTransformer {
 		return Factory().UpdateClassExpression(node, modifiers, node.Name(), null, heritageClauses, members);
 	}
 
-	function prepareConstructor(ci:ClassInfo):Array<Statement> {
+	function prepareConstructor(ci:ClassInfo):Slice<Statement> {
 		// Decorated instance members can add "extra" initializers to the instance. If a class contains any instance
 		// fields, we'll inject the `__runInitializers()` call for these extra initializers into the initializer of
 		// the first class member that will be initialized. However, if the class does not contain any fields that
@@ -2193,7 +2193,7 @@ class EsDecoratorTransformer {
 	}
 
 	// Transforms all of the decorators for a declaration into an array of expressions.
-	function transformAllDecoratorsOfDeclaration(decorators:Slice<Node>):Array<Expression> {
+	function transformAllDecoratorsOfDeclaration(decorators:Slice<Node>):Slice<Expression> {
 		if (Core.len(decorators) == 0) {
 			return null;
 		}

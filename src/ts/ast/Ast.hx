@@ -43,10 +43,10 @@ class Ast {
 
 	// parseJSDocForNode is the package-level function for lazily parsing JSDoc.
 	// It is set by the parser package via init().
-	static var parseJSDocForNode:(SourceFile, Node) -> Array<Node> = null;
+	static var parseJSDocForNode:(SourceFile, Node) -> Slice<Node> = null;
 
 	// SetParseJSDocForNode registers the lazy JSDoc parse function. Called from parser's init().
-	public static function SetParseJSDocForNode(fn:(SourceFile, Node) -> Array<Node>):Void {
+	public static function SetParseJSDocForNode(fn:(SourceFile, Node) -> Slice<Node>):Void {
 		parseJSDocForNode = fn;
 	}
 
@@ -4040,8 +4040,8 @@ class Ast {
 		return n;
 	}
 
-	public static function FindManyAncestors(node:Node, ...callbacks:(Node) -> Bool):Array<Node> {
-		final ancestors:Array<Node> = [for (_ in 0...callbacks.length) null];
+	public static function FindManyAncestors(node:Node, ...callbacks:(Node) -> Bool):Slice<Node> {
+		final ancestors:Slice<Node> = [for (_ in 0...callbacks.length) null];
 		var found = 0;
 		while (node != null) {
 			for (i in 0...callbacks.length) {
@@ -5468,7 +5468,7 @@ class Ast {
 	// PORT: Go `append` may share the backing array between the caller's slice and the result; the callers only
 	// ever extend the stack they own or a copy whose shorter prefix they keep reading, so a copy keeps Go's
 	// observable behaviour (a caller's slice never sees elements appended by a callee).
-	static function pushAncestor(ancestors:Array<Node>, parent:Node):Array<Node> {
+	static function pushAncestor(ancestors:Slice<Node>, parent:Node):Array<Node> {
 		final result = ancestors != null ? ancestors.copy() : [];
 		result.push(parent);
 		return result;
@@ -5476,7 +5476,7 @@ class Ast {
 
 	// If a virtual `Parent` exists on the stack, returns the previous stack entry and the virtual `Parent“.
 	// Otherwise, we return `nil` and the value of `node.Parent`.
-	static function popAncestor(ancestors:Array<Node>, node:Node):Pair<Array<Node>, Node> {
+	static function popAncestor(ancestors:Slice<Node>, node:Node):Pair<Slice<Node>, Node> {
 		if (Core.len(ancestors) == 0) {
 			return new Pair(null, node.Parent);
 		}
@@ -5488,7 +5488,7 @@ class Ast {
 		return getModuleInstanceState(node, null, null);
 	}
 
-	static function getModuleInstanceState(node:Node, ancestors:Array<Node>, visited:IntMap<ModuleInstanceState>):ModuleInstanceState {
+	static function getModuleInstanceState(node:Node, ancestors:Slice<Node>, visited:IntMap<ModuleInstanceState>):ModuleInstanceState {
 		final module = node.AsModuleDeclaration();
 		if (module.Body != null) {
 			return getModuleInstanceStateCached(module.Body, pushAncestor(ancestors, node), visited);
@@ -5574,7 +5574,7 @@ class Ast {
 		return ModuleInstanceStateInstantiated;
 	}
 
-	static function getModuleInstanceStateForAliasTarget(node:Node, ancestors:Array<Node>, visited:IntMap<ModuleInstanceState>):ModuleInstanceState {
+	static function getModuleInstanceStateForAliasTarget(node:Node, ancestors:Slice<Node>, visited:IntMap<ModuleInstanceState>):ModuleInstanceState {
 		final name = node.PropertyNameOrName();
 		if (name.Kind != KindIdentifier) {
 			// Skip for invalid syntax like this: export { "x" }

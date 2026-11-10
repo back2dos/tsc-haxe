@@ -813,7 +813,7 @@ class CheckerPart8 {
 	// @param type The type of the promise.
 	// @remarks The "promised type" of a type is the type of the "value" parameter of the "onfulfilled" callback.
 	// PORT: pointer. Go `thisTypeForErrorOut **Type` → a one-element array (null for Go nil); signature fixed (all callers are in this module).
-	static function getPromisedTypeOfPromiseEx(c:Checker, t:Type, errorNode:Node, thisTypeForErrorOut:Array<Type>):Type {
+	static function getPromisedTypeOfPromiseEx(c:Checker, t:Type, errorNode:Node, thisTypeForErrorOut:Slice<Type>):Type {
 		//  { // type
 		//      then( // thenFunction
 		//          onfulfilled: ( // onfulfilledParameterType
@@ -2376,7 +2376,7 @@ class CheckerPart8 {
 	}
 
 	// Creates a synthetic `FunctionType`
-	static function newFunctionType(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Type {
+	static function newFunctionType(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Slice<Symbol>, returnType:Type):Type {
 		final signature = c.newCallSignature(typeParameters, thisParameter, parameters, returnType);
 		return c.getOrCreateTypeFromSignature(signature);
 	}
@@ -2391,7 +2391,7 @@ class CheckerPart8 {
 	}
 
 	// Creates a synthetic `Signature` corresponding to a call signature.
-	static function newCallSignature(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Signature {
+	static function newCallSignature(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Slice<Symbol>, returnType:Type):Signature {
 		final decl = c.factory.NewFunctionTypeNode(null, null, c.factory.NewKeywordTypeNode(KindAnyKeyword));
 		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), returnType, null, Core.len(parameters));
 	}

@@ -207,7 +207,7 @@ abstract RootedFilePath(String) to String {
 		return Tspath.TryGetExtensionFromPath(this);
 	}
 
-	public function AnyExtension(extensions:Array<String>, caseSensitivity:CaseSensitivity):String {
+	public function AnyExtension(extensions:Slice<String>, caseSensitivity:CaseSensitivity):String {
 		if (extensions == null || extensions.length == 0) {
 			return Tspath.getAnyExtensionFromNormalizedPath(this);
 		}

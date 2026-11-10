@@ -528,7 +528,7 @@ class Jsx {
 		return links.jsxFragmentType;
 	}
 
-	static function resolveJsxOpeningLikeElement(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function resolveJsxOpeningLikeElement(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		final isJsxOpenFragment = Ast.IsJsxOpeningFragment(node);
 		var exprTypes:Type = null;
 		if (!isJsxOpenFragment) {
@@ -1010,7 +1010,7 @@ class Jsx {
 		return attributesType;
 	}
 
-	static function instantiateAliasOrInterfaceWithDefaults(c:Checker, managedSym:Symbol, typeArguments:Array<Type>, inJavaScript:Bool):Type {
+	static function instantiateAliasOrInterfaceWithDefaults(c:Checker, managedSym:Symbol, typeArguments:Slice<Type>, inJavaScript:Bool):Type {
 		final declaredManagedType = c.getDeclaredTypeOfSymbol(managedSym);
 		// fetches interface type, or initializes symbol links type parameters
 		if ((managedSym.Flags & SymbolFlagsTypeAlias) != 0) {

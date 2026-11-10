@@ -1141,7 +1141,7 @@ class Relater {
 		return props.length == 0 ? null : props;
 	}
 
-	static function getUnmatchedPropertiesWorker(c:Checker, source:Type, target:Type, requireOptionalProperties:Bool, matchDiscriminantProperties:Bool, propsOut:Array<Symbol>):Symbol {
+	static function getUnmatchedPropertiesWorker(c:Checker, source:Type, target:Type, requireOptionalProperties:Bool, matchDiscriminantProperties:Bool, propsOut:Slice<Symbol>):Symbol {
 		// PORT: from TypeScript main (microsoft/typescript-go#64915): the layout properties, a property of the target
 		// instantiated only when it is reported or its type is compared
 		final properties = c.getLayoutPropertiesOfType(target);

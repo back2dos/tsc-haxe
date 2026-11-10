@@ -550,7 +550,7 @@ class Tracing {
 		return null;
 	}
 
-	static function mapTypeIds(types:Slice<TracedType>):Array<Int> {
+	static function mapTypeIds(types:Slice<TracedType>):Slice<Int> {
 		if (Core.len(types) == 0) {
 			return null;
 		}

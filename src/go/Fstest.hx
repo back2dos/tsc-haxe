@@ -206,7 +206,7 @@ class MapFS implements ReadFileFS implements StatFS implements ReadDirFS impleme
 		return Fs.Stat(new FsOnly(this), name);
 	}
 
-	public function ReadDir(name:String):ValueError<Array<DirEntry>> {
+	public function ReadDir(name:String):ValueError<Slice<DirEntry>> {
 		return Fs.ReadDir(new FsOnly(this), name);
 	}
 
@@ -340,10 +340,10 @@ class MapDir implements ReadDirFile {
 		return new ValueError<Int>(0, new PathError("read", path, Fs.ErrInvalid));
 	}
 
-	public function ReadDir(count:Int):ValueError<Array<DirEntry>> {
+	public function ReadDir(count:Int):ValueError<Slice<DirEntry>> {
 		var n = entry.length - offset;
 		if (n == 0 && count > 0) {
-			return new ValueError<Array<DirEntry>>(null, Io.EOF);
+			return new ValueError<Slice<DirEntry>>(null, Io.EOF);
 		}
 		if (count > 0 && n > count) {
 			n = count;
@@ -353,6 +353,6 @@ class MapDir implements ReadDirFile {
 			list.push(entry[offset + i]);
 		}
 		offset += n;
-		return new ValueError<Array<DirEntry>>(list, null);
+		return new ValueError<Slice<DirEntry>>(list, null);
 	}
 }

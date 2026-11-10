@@ -432,7 +432,7 @@ class CheckerPart3 {
 	 *    the function will fill it up with appropriate candidate signatures
 	 * @return a signature of the call-like expression or undefined if one can't be found
 	 */
-	static function getResolvedSignature(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function getResolvedSignature(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		final links = c.signatureLinks.Get(node);
 		// If getResolvedSignature has already been called, we will have cached the resolvedSignature.
 		// However, it is possible that either candidatesOutArray was not passed in the first time,
@@ -483,7 +483,7 @@ class CheckerPart3 {
 		return result;
 	}
 
-	static function resolveSignature(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function resolveSignature(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		switch (node.Kind) {
 			case KindCallExpression:
 				return c.resolveCallExpression(node, candidatesOutArray, checkMode);
@@ -502,7 +502,7 @@ class CheckerPart3 {
 		throw "Unhandled case in resolveSignature";
 	}
 
-	static function resolveCallExpression(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function resolveCallExpression(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		if (node.Expression().Kind == KindSuperKeyword) {
 			final superType = c.checkSuperExpression(node.Expression());
 			if (Checker.IsTypeAny(superType)) {
@@ -612,7 +612,7 @@ class CheckerPart3 {
 		return c.resolveCall(node, callSignatures, candidatesOutArray, checkMode, callChainFlags, null);
 	}
 
-	static function resolveNewExpression(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function resolveNewExpression(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		var expressionType = c.checkNonNullExpression(node.Expression());
 		if (expressionType == c.silentNeverType) {
 			return c.silentNeverSignature;
@@ -753,7 +753,7 @@ class CheckerPart3 {
 		return c.typeHasProtectedAccessibleBase(target, firstBase);
 	}
 
-	static function resolveTaggedTemplateExpression(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function resolveTaggedTemplateExpression(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		final tag = node.AsTaggedTemplateExpression().Tag;
 		final tagType = c.checkExpression(tag);
 		final apparentType = c.getApparentType(tagType);
@@ -778,7 +778,7 @@ class CheckerPart3 {
 		return c.resolveCall(node, callSignatures, candidatesOutArray, checkMode, SignatureFlagsNone, null);
 	}
 
-	static function resolveDecorator(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function resolveDecorator(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		if (!Ast.CanHaveDecorators(node.Parent)) {
 			return c.resolveErrorCall(node);
 		}
@@ -837,7 +837,7 @@ class CheckerPart3 {
 		throw "Unhandled case in getDiagnosticHeadMessageForDecoratorResolution";
 	}
 
-	static function resolveInstanceofExpression(c:Checker, node:Node, candidatesOutArray:Array<Signature>, checkMode:CheckMode):Signature {
+	static function resolveInstanceofExpression(c:Checker, node:Node, candidatesOutArray:Slice<Signature>, checkMode:CheckMode):Signature {
 		// if rightType is an object type with a custom `[Symbol.hasInstance]` method, then it is potentially
 		// valid on the right-hand side of the `instanceof` operator. This allows normal `object` types to
 		// participate in `instanceof`, as per Step 2 of https://tc39.es/ecma262/#sec-instanceofoperator.
@@ -868,7 +868,7 @@ class CheckerPart3 {
 		return c.anySignature;
 	}
 
-	static function resolveCall(c:Checker, node:Node, signatures:Vec<Signature>, candidatesOutArray:Array<Signature>, checkMode:CheckMode, callChainFlags:SignatureFlags, headMessage:Message):Signature {
+	static function resolveCall(c:Checker, node:Node, signatures:Vec<Signature>, candidatesOutArray:Slice<Signature>, checkMode:CheckMode, callChainFlags:SignatureFlags, headMessage:Message):Signature {
 		final isTaggedTemplate = node.Kind == KindTaggedTemplateExpression;
 		final isDecorator = node.Kind == KindDecorator;
 		final isJsxOpeningOrSelfClosingElement = Ast.IsJsxOpeningLikeElement(node);

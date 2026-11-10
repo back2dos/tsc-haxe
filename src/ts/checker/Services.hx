@@ -773,7 +773,7 @@ class Services {
 		return null;
 	}
 
-	static function getResolvedSignatureWorker(c:Checker, node:Node, checkMode:CheckMode, argumentCount:Int):Pair<Signature, Array<Signature>> {
+	static function getResolvedSignatureWorker(c:Checker, node:Node, checkMode:CheckMode, argumentCount:Int):Pair<Signature, Slice<Signature>> {
 		final parsedNode = Printer.NewEmitContext().ParseNode(node);
 		c.apparentArgumentCount = argumentCount; // PORT: pointer
 		final candidatesOutArray:Array<Signature> = []; // PORT: pointer — the callee fills this array in place
@@ -785,13 +785,13 @@ class Services {
 		return new Pair(res, candidatesOutArray);
 	}
 
-	public static function GetCandidateSignaturesForStringLiteralCompletions(c:Checker, call:CallLikeExpression, editingArgument:Node):Array<Signature> {
+	public static function GetCandidateSignaturesForStringLiteralCompletions(c:Checker, call:CallLikeExpression, editingArgument:Node):Slice<Signature> {
 		// first, get candidates when inference is blocked from the source node.
 		var candidates = Checker.runWithInferenceBlockedFromSourceNode(c, editingArgument, () -> {
 			final blockedInferenceCandidates = c.getResolvedSignatureWorker(call, CheckModeNormal, 0).b;
 			return blockedInferenceCandidates;
 		});
-		final candidatesSet = Collections.NewSetFromItems(...(candidates != null ? candidates : []));
+		final candidatesSet = Collections.NewSetFromItems(...candidates.toArray());
 
 		// next, get candidates where the source node is considered for inference.
 		final otherCandidates = Checker.runWithoutResolvedSignatureCaching(c, editingArgument, () -> {

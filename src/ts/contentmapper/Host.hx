@@ -264,7 +264,7 @@ interface Project {
 	// Refresh closes opened mapper projects so they are reopened on the next transform or configuration identity query.
 	function Refresh():Null<Error>;
 	// Identities returns sorted transform identities for all configured mappers.
-	function Identities():ValueError<Array<String>>;
+	function Identities():ValueError<Slice<String>>;
 	// Identity returns the transform identity for mapper, or an empty string if mapper is not in this project.
 	function Identity(mapper:Mapper):ValueError<String>;
 	// WatchedFiles returns the absolute files reported by mappers whose package.json declares dynamicConfig.

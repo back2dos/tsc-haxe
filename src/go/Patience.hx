@@ -51,7 +51,7 @@ class Patience {
 	// --- lcs.go ---
 
 	// PORT: [][2]int → Array<Slice<Int>>.
-	public static function LCS(a:Array<String>, b:Array<String>):Array<Slice<Int>> {
+	public static function LCS(a:Slice<String>, b:Slice<String>):Array<Slice<Int>> {
 		final lcs:Array<Slice<Int>> = [for (i in 0...a.length + 1) [for (j in 0...b.length + 1) 0]];
 
 		for (i in 1...lcs.length) {
@@ -88,7 +88,7 @@ class Patience {
 		return [for (l in a) new DiffLine(l, t)];
 	}
 
-	static function uniqueElements(a:Array<String>):Pair<Array<String>, Array<Int>> {
+	static function uniqueElements(a:Array<String>):Pair<Slice<String>, Slice<Int>> {
 		final m = new haxe.ds.StringMap<Int>();
 		for (e in a) {
 			m.set(e, (m.exists(e) ? m.get(e) : 0) + 1);

@@ -201,19 +201,19 @@ class Os {
 	}
 
 	// os.ReadDir: entries sorted by filename.
-	public static function ReadDir(name:String):ValueError<Array<DirEntry>> {
+	public static function ReadDir(name:String):ValueError<Slice<DirEntry>> {
 		final st = OsNative.stat(name, true);
 		if (st.err != null) {
-			return new ValueError<Array<DirEntry>>(null, new PathError("open", name, Errno.of(st.err)));
+			return new ValueError<Slice<DirEntry>>(null, new PathError("open", name, Errno.of(st.err)));
 		}
 		if ((st.mode & S_IFMT) != S_IFDIR) {
-			return new ValueError<Array<DirEntry>>(null, new PathError("readdirent", name, Errno.of("ENOTDIR")));
+			return new ValueError<Slice<DirEntry>>(null, new PathError("readdirent", name, Errno.of("ENOTDIR")));
 		}
 		var names:Array<String>;
 		try {
 			names = sys.FileSystem.readDirectory(name);
 		} catch (e:Dynamic) {
-			return new ValueError<Array<DirEntry>>(null, new PathError("open", name, errnoFor(name, true)));
+			return new ValueError<Slice<DirEntry>>(null, new PathError("open", name, errnoFor(name, true)));
 		}
 		names.sort(Strings.Compare);
 		final dirname = StringTools.endsWith(name, "/") ? name : name + "/";
@@ -227,7 +227,7 @@ class Os {
 			}
 			entries.push(new OsDirEntry(full, n, modeFromSys(lst.mode).Type()));
 		}
-		return new ValueError<Array<DirEntry>>(entries, null);
+		return new ValueError<Slice<DirEntry>>(entries, null);
 	}
 
 	// os.Mkdir
@@ -720,13 +720,13 @@ private class OsDirFS implements StatFS implements ReadFileFS implements ReadDir
 		return new ValueError<Bytes>(b.value, fixPath(b.err, name));
 	}
 
-	public function ReadDir(name:String):ValueError<Array<DirEntry>> {
+	public function ReadDir(name:String):ValueError<Slice<DirEntry>> {
 		final full = join(name);
 		if (full.err != null) {
-			return new ValueError<Array<DirEntry>>(null, new PathError("readdir", name, full.err));
+			return new ValueError<Slice<DirEntry>>(null, new PathError("readdir", name, full.err));
 		}
 		final entries = Os.ReadDir(full.value);
-		return new ValueError<Array<DirEntry>>(entries.value, fixPath(entries.err, name));
+		return new ValueError<Slice<DirEntry>>(entries.value, fixPath(entries.err, name));
 	}
 
 	public function Stat(name:String):ValueError<FileInfo> {
@@ -796,24 +796,24 @@ private class OsDirFile implements ReadDirFile {
 		return new ValueError<Int>(0, new PathError("read", path, Errno.of("EISDIR")));
 	}
 
-	public function ReadDir(n:Int):ValueError<Array<DirEntry>> {
+	public function ReadDir(n:Int):ValueError<Slice<DirEntry>> {
 		if (entries == null) {
 			final r = Os.ReadDir(path);
 			if (r.err != null) {
-				return new ValueError<Array<DirEntry>>(null, r.err);
+				return new ValueError<Slice<DirEntry>>(null, r.err);
 			}
 			entries = r.value;
 		}
 		var count = entries.length - offset;
 		if (count == 0 && n > 0) {
-			return new ValueError<Array<DirEntry>>(null, Io.EOF);
+			return new ValueError<Slice<DirEntry>>(null, Io.EOF);
 		}
 		if (n > 0 && count > n) {
 			count = n;
 		}
 		final list = entries.slice(offset, offset + count);
 		offset += count;
-		return new ValueError<Array<DirEntry>>(list, null);
+		return new ValueError<Slice<DirEntry>>(list, null);
 	}
 
 	public function Close():Null<Error> {

@@ -1245,7 +1245,7 @@ class Tspath {
 	//	GetAnyExtensionFromPath("/path/to/file.js", ".ext", true) === ""
 	//	GetAnyExtensionFromPath("/path/to/file.js", [".ext", ".js"], true) === ".js"
 	//	GetAnyExtensionFromPath("/path/to/file.ext", ".EXT", false) === ""
-	public static function GetAnyExtensionFromPath(path:String, extensions:Array<String>, caseSensitivity:CaseSensitivity):String {
+	public static function GetAnyExtensionFromPath(path:String, extensions:Slice<String>, caseSensitivity:CaseSensitivity):String {
 		// Retrieves any string from the final "." onwards from a base file name.
 		// Unlike extensionFromPath, which throws an exception on unrecognized extensions.
 		if (extensions != null && extensions.length > 0) {
@@ -1281,7 +1281,7 @@ class Tspath {
 		return longest;
 	}
 
-	static function getAnyExtensionFromPathWorker(path:String, extensions:Array<String>, stringEqualityComparer:(a:String, b:String) -> Bool):String {
+	static function getAnyExtensionFromPathWorker(path:String, extensions:Slice<String>, stringEqualityComparer:(a:String, b:String) -> Bool):String {
 		for (extension in extensions) {
 			final result = tryGetExtensionFromPath(path, extension, stringEqualityComparer);
 			if (result != "") {
@@ -1492,13 +1492,13 @@ class Tspath {
 			throw "minComponents must be at least 1";
 		}
 		if (paths == null || paths.length == 0) {
-			return new Pair<Array<String>, StringMap<Bool>>(null, null);
+			return new Pair<Slice<String>, StringMap<Bool>>(null, null);
 		}
 		if (paths.length == 1) {
 			if (reducePathComponents(getPathComponents(paths[0])).length < minComponents) {
 				final ignored = new StringMap<Bool>();
 				ignored.set(paths[0], true);
-				return new Pair<Array<String>, StringMap<Bool>>(null, ignored);
+				return new Pair<Slice<String>, StringMap<Bool>>(null, ignored);
 			}
 			return new Pair<Slice<String>, StringMap<Bool>>(paths, null);
 		}
@@ -1522,10 +1522,10 @@ class Tspath {
 			resultPaths[i] = GetPathFromPathComponents(results[i]);
 		}
 
-		return new Pair<Array<String>, StringMap<Bool>>(resultPaths, ignored);
+		return new Pair<Slice<String>, StringMap<Bool>>(resultPaths, ignored);
 	}
 
-	static function getCommonParentsWorker(componentGroups:Slice<Slice<String>>, minComponents:Int, caseSensitivity:CaseSensitivity):Array<Slice<String>> {
+	static function getCommonParentsWorker(componentGroups:Slice<Slice<String>>, minComponents:Int, caseSensitivity:CaseSensitivity):Slice<Slice<String>> {
 		if (componentGroups == null || componentGroups.length == 0) {
 			return null;
 		}
@@ -1912,20 +1912,20 @@ class Tspath {
 	// StringMap<Bool>.
 	public static function GetCommonParentDirectories(directories:Array<RootedDirectoryPath>, minComponents:Int,
 			getComponents:(directory:RootedDirectoryPath) -> Array<String>,
-			caseSensitivity:CaseSensitivity):Pair<Array<RootedDirectoryPath>, StringMap<Bool>> {
+			caseSensitivity:CaseSensitivity):Pair<Slice<RootedDirectoryPath>, StringMap<Bool>> {
 		if (minComponents < 1) {
 			throw "minComponents must be at least 1";
 		}
 		if (directories == null || directories.length == 0) {
-			return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(null, null);
+			return new Pair<Slice<RootedDirectoryPath>, StringMap<Bool>>(null, null);
 		}
 		if (directories.length == 1) {
 			if (reducePathComponents(getComponents(directories[0])).length < minComponents) {
 				final ignored = new StringMap<Bool>();
 				ignored.set(directories[0], true);
-				return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(null, ignored);
+				return new Pair<Slice<RootedDirectoryPath>, StringMap<Bool>>(null, ignored);
 			}
-			return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(directories, null);
+			return new Pair<Slice<RootedDirectoryPath>, StringMap<Bool>>(directories, null);
 		}
 
 		final ignored = new StringMap<Bool>();
@@ -1946,7 +1946,7 @@ class Tspath {
 				parents.push(RootedDirectoryPathFromAbsolute(GetPathFromPathComponents(components)));
 			}
 		}
-		return new Pair<Array<RootedDirectoryPath>, StringMap<Bool>>(parents, ignored);
+		return new Pair<Slice<RootedDirectoryPath>, StringMap<Bool>>(parents, ignored);
 	}
 
 	static function rootedFilePathFromResolved(path:String):RootedFilePath {

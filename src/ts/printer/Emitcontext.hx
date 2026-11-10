@@ -896,7 +896,7 @@ class EmitContext {
 		return embeddedStatement;
 	}
 
-	public function SetSyntheticLeadingComments(node:Node, comments:Array<SynthesizedComment>):Node {
+	public function SetSyntheticLeadingComments(node:Node, comments:Slice<SynthesizedComment>):Node {
 		emitNodes.Get(node).leadingComments = comments;
 		return node;
 	}
@@ -926,7 +926,7 @@ class EmitContext {
 		return null;
 	}
 
-	public function SetSyntheticTrailingComments(node:Node, comments:Array<SynthesizedComment>):Node {
+	public function SetSyntheticTrailingComments(node:Node, comments:Slice<SynthesizedComment>):Node {
 		emitNodes.Get(node).trailingComments = comments;
 		return node;
 	}

@@ -780,10 +780,10 @@ class ReadDirFile implements FsReadDirFile {
 		return this.ReadDirFile.Close();
 	}
 
-	public function ReadDir(n:Int):ValueError<Array<FsDirEntry>> {
+	public function ReadDir(n:Int):ValueError<Slice<FsDirEntry>> {
 		final r = this.ReadDirFile.ReadDir(n);
 		if (r.err != null) {
-			return new ValueError<Array<FsDirEntry>>(null, r.err);
+			return new ValueError<Slice<FsDirEntry>>(null, r.err);
 		}
 		final list = r.value;
 
@@ -797,6 +797,6 @@ class ReadDirFile implements FsReadDirFile {
 			entries.push(go.Fs.Fs.FileInfoToDirEntry(newInfo));
 		}
 
-		return new ValueError<Array<FsDirEntry>>(entries, null);
+		return new ValueError<Slice<FsDirEntry>>(entries, null);
 	}
 }

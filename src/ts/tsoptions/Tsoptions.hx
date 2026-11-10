@@ -2874,9 +2874,9 @@ class Tsoptions {
 	static function parseStringMap(value:Dynamic):Null<OrderedMap<std.String, Slice<std.String>>> {
 		if (isOrderedMap(value)) {
 			final m:OrderedMap<std.String, Dynamic> = value;
-			final result = Collections.NewOrderedMapWithSizeHint(m.Size(), (null : Array<std.String>));
+			final result = Collections.NewOrderedMapWithSizeHint(m.Size(), (null : Slice<std.String>));
 			for (k => v in m.Entries()) {
-				result.Set(k, ParseStringArray(v).nilable());
+				result.Set(k, ParseStringArray(v));
 			}
 			return result;
 		}
@@ -3039,7 +3039,7 @@ class Tsoptions {
 
 	// parseStringArrayStrict returns the string slice and true only if value is an array whose
 	// elements are all strings. A missing element or wrong element type yields false.
-	static function parseStringArrayStrict(value:Dynamic):ValueOk<Array<std.String>> {
+	static function parseStringArrayStrict(value:Dynamic):ValueOk<Slice<std.String>> {
 		if (!isAnySlice(value)) {
 			return new ValueOk(null, false);
 		}
@@ -5563,7 +5563,7 @@ class Tsoptions {
 			});
 		}
 
-		final getFileNames = function(basePath:RootedDirectoryPath):Pair<Array<RootedFilePath>, Int> {
+		final getFileNames = function(basePath:RootedDirectoryPath):Pair<Slice<RootedFilePath>, Int> {
 			final parsedConfigOptions = parsedConfig.options;
 			final r = getFileNamesFromConfigSpecs(configFileSpecs, basePath, parsedConfigOptions.CompilerOptions, fs, contentMapperExtensions);
 			final fileNames = r.a;
@@ -5582,7 +5582,7 @@ class Tsoptions {
 					Ast.NewCompilerDiagnostic(Diagnostics.No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2,
 						configFileName, Json.MarshalOrdered(includeSpecs), Json.MarshalOrdered(excludeSpecs)));
 			}
-			return new Pair<Array<RootedFilePath>, Int>(fileNames, literalFileNamesLen);
+			return new Pair<Slice<RootedFilePath>, Int>(fileNames, literalFileNamesLen);
 		};
 
 		final getProjectReferences = function(basePath:RootedDirectoryPath):Slice<ProjectReference> {
@@ -6023,7 +6023,7 @@ class Tsoptions {
 	// host is the host used to resolve files and directories.
 	// extraFileExtensions optionally file extra file extension information from host
 	static function getFileNamesFromConfigSpecs(configFileSpecs:ConfigFileSpecs, basePath:RootedDirectoryPath, // considering this is the current directory
-			options:CompilerOptions, host:FS, extraExtensions:Slice<std.String>):Pair<Array<RootedFilePath>, Int> {
+			options:CompilerOptions, host:FS, extraExtensions:Slice<std.String>):Pair<Slice<RootedFilePath>, Int> {
 		final keyMapper = function(fileName:RootedFilePath):PathKey {
 			return host.CaseSensitivity().PathKey(fileName.AsPath());
 		};
@@ -6114,7 +6114,7 @@ class Tsoptions {
 		for (file in wildCardJsonFileMap.Values()) {
 			files.push(file);
 		}
-		return new Pair<Array<RootedFilePath>, Int>(files, literalFileMap.Size());
+		return new Pair<Slice<RootedFilePath>, Int>(files, literalFileMap.Size());
 	}
 
 	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraExtensions:Slice<std.String>):Slice<Slice<std.String>> {

@@ -427,7 +427,7 @@ class Transformers {
 		return indices;
 	}
 
-	static function findSuperStatementIndexPathWorker(statements:Slice<Statement>, start:Int, indices:Array<Int>):Slice<Int> {
+	static function findSuperStatementIndexPathWorker(statements:Slice<Statement>, start:Int, indices:Slice<Int>):Slice<Int> {
 		var i = start;
 		while (i < Core.len(statements)) {
 			final statement = statements[i];

@@ -210,7 +210,7 @@ private class OriginalIndex {
 	}
 
 	// segmentsAtOriginalPosition returns every mapping segment containing the original-text position pos.
-	public function segmentsAtOriginalPosition(pos:Int):ValueOk<Array<Segment>> {
+	public function segmentsAtOriginalPosition(pos:Int):ValueOk<Slice<Segment>> {
 		final start = search(index -> segments[index].OriginalStart >= pos);
 		final results = segmentsEndingAfterPosition(start, pos);
 		final end = search(index -> segments[index].OriginalStart > pos);
@@ -311,7 +311,7 @@ class Spanmap {
 	}
 
 	// Segments returns the map's segments ordered by virtual start.
-	public static function Segments(m:Null<Spanmap>):Array<Segment> {
+	public static function Segments(m:Null<Spanmap>):Slice<Segment> {
 		if (m == null) {
 			return null;
 		}
@@ -539,7 +539,7 @@ class Spanmap {
 		return results;
 	}
 
-	static function originalStartProjections(segments:Array<Segment>, start:Int, feature:Feature):Array<Int> {
+	static function originalStartProjections(segments:Slice<Segment>, start:Int, feature:Feature):Array<Int> {
 		final results:Array<Int> = [];
 		for (segment in segments) {
 			if (!supportsFeature(segment, feature)) {
@@ -554,7 +554,7 @@ class Spanmap {
 		return results;
 	}
 
-	static function originalEndProjections(segments:Array<Segment>, end:Int, feature:Feature):Array<Int> {
+	static function originalEndProjections(segments:Slice<Segment>, end:Int, feature:Feature):Array<Int> {
 		final results:Array<Int> = [];
 		for (segment in segments) {
 			if (!supportsFeature(segment, feature)) {

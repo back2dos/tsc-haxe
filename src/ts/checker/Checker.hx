@@ -1900,7 +1900,7 @@ class Checker {
 	}
 
 	// PORT: Go composite literal DiagnosticDetails{Message, Args}.
-	static function newDiagnosticDetails(message:Message, args:Array<Any>):DiagnosticDetails {
+	static function newDiagnosticDetails(message:Message, args:Slice<Any>):DiagnosticDetails {
 		final d = new DiagnosticDetails();
 		d.Message = message;
 		d.Args = args;
@@ -5290,7 +5290,7 @@ class Checker {
 		return result;
 	}
 
-	public static function GetResolvedSignatureForSignatureHelp(node:Node, argumentCount:Int, c:Checker):Pair<Signature, Array<Signature>> {
+	public static function GetResolvedSignatureForSignatureHelp(node:Node, argumentCount:Int, c:Checker):Pair<Signature, Slice<Signature>> {
 		final res = runWithoutResolvedSignatureCaching(c, node, () -> {
 			return c.getResolvedSignatureWorker(node, CheckModeIsForSignatureHelp, argumentCount);
 		});
@@ -5526,7 +5526,7 @@ class Checker {
 		return a;
 	}
 
-	static function wrapTypes(types:Slice<Type>):Array<TracedType> {
+	static function wrapTypes(types:Slice<Type>):Slice<TracedType> {
 		if (Core.len(types) == 0) {
 			return null;
 		}

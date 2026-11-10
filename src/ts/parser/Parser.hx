@@ -7337,7 +7337,7 @@ class Parser {
 
 	// parseJSDocForNode lazily parses JSDoc for a node in a TS file.
 	// Called on first access to Node.JSDoc() for non-JS source files.
-	static function parseJSDocForNode(sourceFile:SourceFile, node:Node):Array<Node> {
+	static function parseJSDocForNode(sourceFile:SourceFile, node:Node):Slice<Node> {
 		final p = getParser();
 		// PORT: defer putParser(p)
 		final r = try {
@@ -7351,7 +7351,7 @@ class Parser {
 	}
 
 	// PORT: body of parseJSDocForNode (split off for the deferred putParser).
-	static function parseJSDocForNodeWorker(p:Parser, sourceFile:SourceFile, node:Node):Array<Node> {
+	static function parseJSDocForNodeWorker(p:Parser, sourceFile:SourceFile, node:Node):Slice<Node> {
 		p.initializeState(sourceFile.ParseOptions(), sourceFile.Text(), sourceFile.ScriptKind);
 		var ranges = GetJSDocCommentRanges(p.factory, null, node, sourceFile.Text());
 		if (Core.len(ranges) == 0) {

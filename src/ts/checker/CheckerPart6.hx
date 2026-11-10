@@ -257,7 +257,7 @@ class CheckerPart6 {
 			return false;
 		});
 		if (Core.len(aggregatedTypes) == 0 && !hasReturnWithNoExpression && (hasReturnOfTypeNever || Checker.mayReturnNever(fn))) {
-			return new ValueOk<Array<Type>>(null, true);
+			return new ValueOk<Slice<Type>>(null, true);
 		}
 		if (c.strictNullChecks && Core.len(aggregatedTypes) != 0 && hasReturnWithNoExpression) {
 			aggregatedTypes = Core.AppendIfUnique(aggregatedTypes, c.undefinedType);
@@ -4311,7 +4311,7 @@ class CheckerPart6 {
 	static inline final ObjectFlagsIsNeverIntersection:ObjectFlags = 1 << 26;
 
 	// PORT: Go `slices.Clone` of a []TupleElementInfo (value elements): each element is copied.
-	static function cloneElementInfos(infos:Slice<TupleElementInfo>):Array<TupleElementInfo> {
+	static function cloneElementInfos(infos:Slice<TupleElementInfo>):Slice<TupleElementInfo> {
 		if (infos == null) {
 			return null;
 		}

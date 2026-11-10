@@ -21,7 +21,7 @@ enum abstract PropertyLikeParse(Int) from Int to Int {
 @:allow(ts.parser)
 class Jsdoc {
 
-	static function withJSDoc(p:Parser, node:Node, info:JsdocScannerInfo):Array<Node> {
+	static function withJSDoc(p:Parser, node:Node, info:JsdocScannerInfo):Slice<Node> {
 		if (info&jsdocScannerInfoHasJSDoc == 0) {
 			return null;
 		}
@@ -413,7 +413,7 @@ class Jsdoc {
 		}
 	}
 
-	static function parseTag(p:Parser, tags:Array<Node>, margin:Int):Node {
+	static function parseTag(p:Parser, tags:Slice<Node>, margin:Int):Node {
 		if (p.token != KindAtToken) {
 			throw "should be called only at the start of a tag";
 		}
@@ -837,7 +837,7 @@ class Jsdoc {
 		return null;
 	}
 
-	static function parseReturnTag(p:Parser, previousTags:Array<Node>, start:Int, tagName:IdentifierNode, indent:Int, indentText:String):Node {
+	static function parseReturnTag(p:Parser, previousTags:Slice<Node>, start:Int, tagName:IdentifierNode, indent:Int, indentText:String):Node {
 		if (Core.Some(previousTags, Parser.isJSDocReturnTagFn)) {
 			p.parseErrorAt(tagName.Pos(), p.scanner.TokenStart(), Diagnostics.X_0_tag_already_specified, tagName.Text());
 		}
@@ -847,7 +847,7 @@ class Jsdoc {
 	}
 
 	// pass indent=-1 to skip parsing trailing comments (as when a type tag is nested in a typedef)
-	static function parseTypeTag(p:Parser, previousTags:Array<Node>, start:Int, tagName:IdentifierNode, indent:Int, indentText:String):Node {
+	static function parseTypeTag(p:Parser, previousTags:Slice<Node>, start:Int, tagName:IdentifierNode, indent:Int, indentText:String):Node {
 		if (Core.Some(previousTags, Parser.isJSDocTypeTagFn)) {
 			p.parseErrorAt(tagName.Pos(), p.scanner.TokenStart(), Diagnostics.X_0_tag_already_specified, tagName.Text());
 		}

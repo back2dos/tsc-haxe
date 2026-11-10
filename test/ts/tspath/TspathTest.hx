@@ -14,7 +14,7 @@ import ts.tspath.Tspath.*;
 @:access(ts.tspath.Tspath)
 class TspathTest {
 	// assert.DeepEqual for []string (nil and empty differ, as in Go).
-	static function deq(expected:Array<String>, actual:Slice<String>, ?pos:haxe.PosInfos) {
+	static function deq(expected:Slice<String>, actual:Slice<String>, ?pos:haxe.PosInfos) {
 		T.eq(expected == null ? "nil" : "[" + expected.join("|") + "]", actual == null ? "nil" : "[" + actual.join("|") + "]", pos);
 	}
 

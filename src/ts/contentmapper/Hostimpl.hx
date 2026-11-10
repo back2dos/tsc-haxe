@@ -255,7 +255,7 @@ class Hostimpl {
 	}
 
 	static function normalizeDiagnosticDirectives(diagnosticDirectives:Null<DiagnosticDirectives>, virtualPositions:PositionNormalizer,
-			originalPositions:PositionNormalizer, diagnosticSource:String):ValueError<Array<MappedDiagnosticDirective>> {
+			originalPositions:PositionNormalizer, diagnosticSource:String):ValueError<Slice<MappedDiagnosticDirective>> {
 		if (diagnosticDirectives == null) {
 			return new ValueError(null, null);
 		}
@@ -867,7 +867,7 @@ private class ProjectLease implements Project {
 		return result;
 	}
 
-	public function Identities():ValueError<Array<String>> {
+	public function Identities():ValueError<Slice<String>> {
 		if (projects() == null) {
 			return new ValueError(null, null);
 		}
@@ -1031,7 +1031,7 @@ private class RetainedProject implements Project {
 	public function Refresh():Null<Error>
 		return lease.Refresh();
 
-	public function Identities():ValueError<Array<String>>
+	public function Identities():ValueError<Slice<String>>
 		return lease.Identities();
 
 	public function Identity(mapper:Mapper):ValueError<String>

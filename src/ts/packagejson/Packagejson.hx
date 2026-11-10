@@ -235,8 +235,8 @@ class Packagejson {
 		return null;
 	}
 
-	static function expectedStrings(member:Value):ExpectedOf<Array<String>> {
-		final r = new ExpectedOf<Array<String>>(null);
+	static function expectedStrings(member:Value):ExpectedOf<Slice<String>> {
+		final r = new ExpectedOf<Slice<String>>(null);
 		r.present = true;
 		if (member.Kind == "[".code) {
 			final a:Array<String> = [];
@@ -512,8 +512,8 @@ class ExpectedOf<T> {
 }
 
 class ContentMapperFields {
-	public var Exec:ExpectedOf<Array<String>> = new ExpectedOf<Array<String>>(null); // json:"exec"
-	public var CompilerOptions:ExpectedOf<Array<String>> = new ExpectedOf<Array<String>>(null); // json:"compilerOptions"
+	public var Exec:ExpectedOf<Slice<String>> = new ExpectedOf<Slice<String>>(null); // json:"exec"
+	public var CompilerOptions:ExpectedOf<Slice<String>> = new ExpectedOf<Slice<String>>(null); // json:"compilerOptions"
 	public var DynamicConfig:ExpectedOf<Bool> = new ExpectedOf<Bool>(false); // json:"dynamicConfig"
 	public var OutputExtensions:ExpectedOf<haxe.ds.StringMap<String>> = new ExpectedOf<haxe.ds.StringMap<String>>(null); // json:"outputExtensions"
 
