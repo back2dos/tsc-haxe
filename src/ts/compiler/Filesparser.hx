@@ -457,7 +457,7 @@ class FilesParser {
 		final sourceFilesFoundSearchingNodeModules = new Set<Path>();
 		final libFilesMap = new StringMap<LibFile>();
 
-		var redirectTargetsMap:StringMap<Array<RootedFilePath>> = null;
+		var redirectTargetsMap:StringMap<Slice<RootedFilePath>> = null;
 		var redirectFilesByPath:StringMap<RedirectsFile> = null;
 		var redirectFilesCount = 0; // PORT: len(redirectFilesByPath)
 		var packageIdToSourceFile:StringMap<SourceFile> = null; // PORT: map[module.PackageId] → key Compiler.packageIdKey

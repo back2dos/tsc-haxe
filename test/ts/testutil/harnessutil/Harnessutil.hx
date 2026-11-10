@@ -745,7 +745,7 @@ class Harnessutil {
 	}
 
 	public static function GetFileBasedTestConfigurations(t:T, settings:StringMap<String>, varyByOptions:StringMap<Bool>):Slice<NamedTestConfiguration> {
-		final optionEntries:Array<Array<String>> = []; // Each element slice has the option name as the first element, and the values as the rest
+		final optionEntries:Array<Slice<String>> = []; // Each element slice has the option name as the first element, and the values as the rest
 		var variationCount = 1;
 		final nonVaryingOptions = new StringMap<String>();
 		for (option => value in settings) {
@@ -924,13 +924,13 @@ class Harnessutil {
 		return null;
 	}
 
-	static function computeFileBasedTestConfigurationVariations(variationCount:Int, optionEntries:Array<Array<String>>):Array<TestConfiguration> {
+	static function computeFileBasedTestConfigurationVariations(variationCount:Int, optionEntries:Array<Slice<String>>):Array<TestConfiguration> {
 		final configurations:Array<TestConfiguration> = [];
 		computeFileBasedTestConfigurationVariationsWorker(configurations, optionEntries, 0, new StringMap<String>());
 		return configurations;
 	}
 
-	static function computeFileBasedTestConfigurationVariationsWorker(configurations:Array<TestConfiguration>, optionEntries:Array<Array<String>>,
+	static function computeFileBasedTestConfigurationVariationsWorker(configurations:Array<TestConfiguration>, optionEntries:Array<Slice<String>>,
 			index:Int, variationState:TestConfiguration):Void {
 		if (index >= optionEntries.length) {
 			configurations.push(variationState.copy());
@@ -1290,7 +1290,7 @@ class CompilationResult {
 		return this.inputs;
 	}
 
-	public function Outputs():Array<TestFile> {
+	public function Outputs():Slice<TestFile> {
 		return this.outputs;
 	}
 

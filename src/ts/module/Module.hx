@@ -179,7 +179,7 @@ class Module {
 		return nextSeparatorIndex + offset;
 	}
 
-	public static function TryParsePatterns(pathMappings:Null<OrderedMap<String, Array<String>>>):ParsedPatterns {
+	public static function TryParsePatterns(pathMappings:Null<OrderedMap<String, Slice<String>>>):ParsedPatterns {
 		var numPatterns = 0;
 		for (path in pathMappings.Keys()) {
 			final pattern = Core.TryParsePattern(path);

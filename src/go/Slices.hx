@@ -22,7 +22,7 @@ class Slices {
 	// PORT: perf — Contains, ContainsFunc and IndexFunc are `inline` (single exit): typed with the
 	// caller's element type (a generic hxcpp function boxes Int elements and takes a VirtualArray), and
 	// a lambda literal argument is inlined.
-	public static extern inline overload function Contains<E>(s:haxe.ds.Vector<E>, v:E):Bool {
+	public static extern inline overload function Contains<E>(s:go.Vec<E>, v:E):Bool {
 		var found = false;
 		if (s != null)
 			for (i in 0...s.length)
@@ -61,10 +61,10 @@ class Slices {
 	}
 
 	// slices.Equal: same length and elements equal with ==. A nil and an empty slice are equal.
-	public static extern inline overload function Equal<E>(s1:haxe.ds.Vector<E>, s2:haxe.ds.Vector<E>):Bool
+	public static extern inline overload function Equal<E>(s1:go.Vec<E>, s2:go.Vec<E>):Bool
 		return equalV(s1, s2);
 
-	static function equalV<E>(s1:haxe.ds.Vector<E>, s2:haxe.ds.Vector<E>):Bool {
+	static function equalV<E>(s1:go.Vec<E>, s2:go.Vec<E>):Bool {
 		final len1 = s1 == null ? 0 : s1.length;
 		final len2 = s2 == null ? 0 : s2.length;
 		if (len1 != len2)
@@ -113,7 +113,7 @@ class Slices {
 	// PORT: perf — the empty Array rangeOf returns for nil (shared: never written; its users only iterate)
 	public static final EMPTY_ARRAY:Array<Dynamic> = [];
 
-	public static extern inline overload function BinarySearchFuncInline<E, T>(x:haxe.ds.Vector<E>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
+	public static extern inline overload function BinarySearchFuncInline<E, T>(x:go.Vec<E>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
 		final n = x == null ? 0 : x.length;
 		var i = 0, j = n;
 		while (i < j) {
@@ -147,7 +147,7 @@ class Slices {
 	}
 
 	// a Vector is immutable: its clone is a copy all the same (Go's slices.Clone makes a new slice)
-	public static extern inline overload function Clone<E>(s:haxe.ds.Vector<E>):haxe.ds.Vector<E> {
+	public static extern inline overload function Clone<E>(s:go.Vec<E>):go.Vec<E> {
 		return s == null ? null : s.copy();
 	}
 
@@ -720,7 +720,7 @@ class Slices {
 	}
 
 	// slices.ContainsFunc: whether some element of s satisfies f.
-	public static extern inline overload function ContainsFunc<E>(s:haxe.ds.Vector<E>, f:(E) -> Bool):Bool {
+	public static extern inline overload function ContainsFunc<E>(s:go.Vec<E>, f:(E) -> Bool):Bool {
 		var found = false;
 		if (s != null)
 			for (i in 0...s.length)

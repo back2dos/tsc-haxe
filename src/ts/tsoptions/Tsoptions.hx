@@ -2871,7 +2871,7 @@ class Tsoptions {
 		return null;
 	}
 
-	static function parseStringMap(value:Dynamic):Null<OrderedMap<std.String, Array<std.String>>> {
+	static function parseStringMap(value:Dynamic):Null<OrderedMap<std.String, Slice<std.String>>> {
 		if (isOrderedMap(value)) {
 			final m:OrderedMap<std.String, Dynamic> = value;
 			final result = Collections.NewOrderedMapWithSizeHint(m.Size(), (null : Array<std.String>));
@@ -5875,7 +5875,7 @@ class Tsoptions {
 			return;
 		}
 		{
-			var paths:Null<OrderedMap<std.String, Array<std.String>>> = null;
+			var paths:Null<OrderedMap<std.String, Slice<std.String>>> = null;
 			for (k => v in compilerOptions.CompilerOptions.Paths.Entries()) {
 				final substitution = getSubstitutedStringArrayWithConfigDirTemplate(v, basePath);
 				if (substitution != null) {
@@ -5959,7 +5959,7 @@ class Tsoptions {
 
 	// hasFileWithHigherPriorityExtension determines whether a literal or wildcard file has already been included that has a higher extension priority.
 	// file is the path to the file.
-	static function hasFileWithHigherPriorityExtension(file:RootedFilePath, extensions:Slice<Array<std.String>>,
+	static function hasFileWithHigherPriorityExtension(file:RootedFilePath, extensions:Slice<Slice<std.String>>,
 			hasFile:(fileName:RootedFilePath) -> Bool):Bool {
 		var extensionGroup:Slice<std.String> = null;
 		for (group in extensions) {
@@ -5993,7 +5993,7 @@ class Tsoptions {
 	// Removes files included via wildcard expansion with a lower extension priority that have already been included.
 	// file is the path to the file.
 	static function removeWildcardFilesWithLowerPriorityExtension<V>(file:RootedFilePath, wildcardFiles:OrderedMap<PathKey, V>,
-			extensions:Slice<Array<std.String>>, keyMapper:(value:RootedFilePath) -> PathKey):Void {
+			extensions:Slice<Slice<std.String>>, keyMapper:(value:RootedFilePath) -> PathKey):Void {
 		var extensionGroup:Slice<std.String> = null;
 		for (group in extensions) {
 			if (file.ExtensionIsOneOf(group)) {
@@ -6117,9 +6117,9 @@ class Tsoptions {
 		return new Pair<Array<RootedFilePath>, Int>(files, literalFileMap.Size());
 	}
 
-	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraExtensions:Slice<std.String>):Slice<Array<std.String>> {
+	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraExtensions:Slice<std.String>):Slice<Slice<std.String>> {
 		final needJSExtensions = compilerOptions.GetAllowJS();
-		var builtins:Array<Array<std.String>>;
+		var builtins:Array<Slice<std.String>>;
 		if (needJSExtensions) {
 			builtins = Tspath.AllSupportedExtensions;
 		} else {
@@ -6129,7 +6129,7 @@ class Tsoptions {
 			return builtins;
 		}
 		final flatBuiltins = Core.Flatten(builtins);
-		var result:Slice<Array<std.String>> = null;
+		var result:Slice<Slice<std.String>> = null;
 		for (ext in extraExtensions) {
 			if (!Slices.Contains(flatBuiltins, ext)) {
 				if (result == null)
@@ -6144,7 +6144,7 @@ class Tsoptions {
 	}
 
 	public static function GetSupportedExtensionsWithJsonIfResolveJsonModule(compilerOptions:Null<CompilerOptions>,
-			supportedExtensions:Slice<Array<std.String>>):Slice<Array<std.String>> {
+			supportedExtensions:Slice<Slice<std.String>>):Slice<Slice<std.String>> {
 		if (compilerOptions == null || !compilerOptions.GetResolveJsonModule()) {
 			return supportedExtensions;
 		}
@@ -6538,8 +6538,8 @@ class CompilerOptionsField {
 				if (a == null || b == null) {
 					return a == null && b == null;
 				}
-				final ma:OrderedMap<std.String, Array<std.String>> = a;
-				final mb:OrderedMap<std.String, Array<std.String>> = b;
+				final ma:OrderedMap<std.String, Slice<std.String>> = a;
+				final mb:OrderedMap<std.String, Slice<std.String>> = b;
 				if (ma.Size() != mb.Size()) {
 					return false;
 				}

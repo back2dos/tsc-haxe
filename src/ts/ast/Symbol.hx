@@ -24,7 +24,7 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 	// PORT: perf — no id field: Go's `id` is an entry of the links (Ast.GetSymbolId)
 	var data:SymbolWithData = null;
 	public var Name(get, set):String;
-	public var Declarations(get, set):haxe.ds.Vector<Node>; // PORT: perf — a Vector (one exact-size object; an append makes a new one)
+	public var Declarations(get, set):Vec<Node>; // PORT: perf — a Vector (one exact-size object; an append makes a new one)
 	public var ValueDeclaration(get, set):Node;
 	public var Parent(get, set):Symbol;
 	public var Members(get, set):SymbolTable;
@@ -81,11 +81,11 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 		return own().name = v;
 	}
 
-	inline function get_Declarations():haxe.ds.Vector<Node> {
+	inline function get_Declarations():Vec<Node> {
 		return data.declarations;
 	}
 
-	function set_Declarations(v:haxe.ds.Vector<Node>):haxe.ds.Vector<Node> {
+	function set_Declarations(v:Vec<Node>):Vec<Node> {
 		return own().declarations = v;
 	}
 
@@ -184,7 +184,7 @@ class Symbol extends ts.core.Linkstore.LinkHolder implements TypeSystemEntity {
 @:allow(ts.ast.Symbol)
 class SymbolWithData extends Symbol {
 	var name:String = "";
-	var declarations:haxe.ds.Vector<Node> = null;
+	var declarations:Vec<Node> = null;
 	var valueDeclaration:Node = null;
 	var parent:Symbol = null;
 	// PORT: perf — from TypeScript main (microsoft/typescript-go#64799, symbolExtra): the optional symbol tables
@@ -284,11 +284,11 @@ abstract SymbolTable(Dynamic) {
 		return new SymbolTableKeyIterator(this);
 	}
 
-	public inline function keyValueIterator():KeyValueIterator<String, Symbol> {
+	public inline function keyValueIterator():SymbolTableKeyValueIterator {
 		return new SymbolTableKeyValueIterator(this);
 	}
 
-	// (go.ForIn's `for (k => v in table)`: the iterator of the values, whose `key` is the last value's key)
+	// (the iterator of the values, whose `key` is the last value's key: `for (k => v in table)` without an object per entry)
 	public inline function entries():SymbolTableIterator {
 		return new SymbolTableIterator(this, 2);
 	}
@@ -528,9 +528,9 @@ private class SymbolTableImpl {
 // hash (a power of two, at most half full), as checker.MemberLayout. Changes in place.
 @:allow(ts.ast)
 private class SymbolTableN {
-	var syms:haxe.ds.Vector<Symbol>;
+	var syms:Vec<Symbol>;
 	var n:Int;
-	var slots:haxe.ds.Vector<Int>;
+	var slots:Vec<Int>;
 
 	public function new(cap:Int) {
 		syms = new haxe.ds.Vector<Symbol>(cap);
@@ -654,7 +654,7 @@ class SymbolTableIterator {
 	final big:Array<Symbol>;
 	final bigKeys:Array<String>;
 	#if (target.name == "hxmc" && !hxmc.wasm_gc)
-	final nsyms:haxe.ds.Vector<Symbol>;
+	final nsyms:Vec<Symbol>;
 	#end
 	final n:Int;
 	final mode:Int;
@@ -684,8 +684,8 @@ class SymbolTableIterator {
 		#end
 		} else if (Std.isOfType(t, StringMap)) {
 			final m:StringMap<Symbol> = cast t;
-			bigKeys = mode != 0 ? go.ForIn.StringKeys(m) : null;
-			big = mode != 1 ? go.ForIn.StringValues(m) : null;
+			bigKeys = mode != 0 ? go.Maps.stringKeysArray(m) : null;
+			big = mode != 1 ? go.Maps.stringValuesArray(m) : null;
 			n = m.size();
 		} else {
 			bigKeys = null;

@@ -80,8 +80,8 @@ class SimpleTypeMapper extends TypeMapperBase {
 
 @:allow(ts.checker)
 class ArrayTypeMapper extends TypeMapperBase {
-	var sources:haxe.ds.Vector<Type> = null; // PORT: perf — Vectors (one exact-size object; never null)
-	var targets:haxe.ds.Vector<Type> = null;
+	var sources:Vec<Type> = null; // PORT: perf — Vectors (one exact-size object; never null)
+	var targets:Vec<Type> = null;
 
 	public function new() {
 		super();
@@ -147,7 +147,7 @@ class ThisArgumentTypeMapper extends ArrayTypeMapper {
 
 @:allow(ts.checker)
 class ArrayToSingleTypeMapper extends TypeMapperBase {
-	var sources:haxe.ds.Vector<Type> = null;
+	var sources:Vec<Type> = null;
 	var target:Type = null;
 
 	public function new() {
@@ -168,7 +168,7 @@ class ArrayToSingleTypeMapper extends TypeMapperBase {
 
 @:allow(ts.checker)
 class DeferredTypeMapper extends TypeMapperBase {
-	var sources:haxe.ds.Vector<Type> = null;
+	var sources:Vec<Type> = null;
 	var targets:Slice<() -> Type> = null;
 
 	public function new() {

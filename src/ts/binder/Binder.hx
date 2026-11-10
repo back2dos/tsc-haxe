@@ -622,7 +622,7 @@ class Binder {
 	}
 
 	// PORT: perf — a one-element Vector (Go: a slice of an arena); an append makes a new Vector
-	function newSingleDeclaration(declaration:Node):haxe.ds.Vector<Node> {
+	function newSingleDeclaration(declaration:Node):Vec<Node> {
 		return Core.vector1(declaration);
 	}
 

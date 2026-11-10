@@ -50,9 +50,9 @@ class UnifiedDiffOptions {
 class Patience {
 	// --- lcs.go ---
 
-	// PORT: [][2]int → Array<Array<Int>>.
-	public static function LCS(a:Array<String>, b:Array<String>):Array<Array<Int>> {
-		final lcs:Array<Array<Int>> = [for (i in 0...a.length + 1) [for (j in 0...b.length + 1) 0]];
+	// PORT: [][2]int → Array<Slice<Int>>.
+	public static function LCS(a:Array<String>, b:Array<String>):Array<Slice<Int>> {
+		final lcs:Array<Slice<Int>> = [for (i in 0...a.length + 1) [for (j in 0...b.length + 1) 0]];
 
 		for (i in 1...lcs.length) {
 			for (j in 1...lcs[i].length) {
@@ -65,7 +65,7 @@ class Patience {
 		}
 
 		var i = a.length, j = b.length;
-		final s:Array<Array<Int>> = [];
+		final s:Array<Slice<Int>> = [];
 		while (i > 0 && j > 0) {
 			if (a[i - 1] == b[j - 1]) {
 				s.push([i - 1, j - 1]);

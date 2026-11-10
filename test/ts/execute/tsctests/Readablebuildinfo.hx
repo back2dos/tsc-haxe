@@ -97,9 +97,9 @@ class ReadableBuildInfo implements OrderedMarshaler {
 	// IncrementalProgram info
 	public var FileNames:Slice<String> = null; // json:"fileNames,omitzero"
 	public var FileInfos:Slice<ReadableBuildInfoFileInfo> = null; // json:"fileInfos,omitzero"
-	public var FileIdsList:Slice<Array<String>> = null; // json:"fileIdsList,omitzero"
+	public var FileIdsList:Slice<Slice<String>> = null; // json:"fileIdsList,omitzero"
 	public var Options:OrderedMap<String, Dynamic> = null; // json:"options,omitzero"
-	public var ReferencedMap:OrderedMap<String, Array<String>> = null; // json:"referencedMap,omitzero"
+	public var ReferencedMap:OrderedMap<String, Slice<String>> = null; // json:"referencedMap,omitzero"
 	public var SemanticDiagnosticsPerFile:Slice<ReadableBuildInfoSemanticDiagnostic> = null; // json:"semanticDiagnosticsPerFile,omitzero"
 	public var EmitDiagnosticsPerFile:Slice<ReadableBuildInfoDiagnosticsOfFile> = null; // json:"emitDiagnosticsPerFile,omitzero"
 	public var ChangeFileSet:Slice<String> = null; // json:"changeFileSet,omitzero" // List of changed files in the program, not the whole set of files
@@ -168,7 +168,7 @@ class ReadableBuildInfo implements OrderedMarshaler {
 		return this.buildInfo.FileNames[fileId - 1];
 	}
 
-	function toFilePathSet(fileIdListId:BuildInfoFileIdListId):Array<String> {
+	function toFilePathSet(fileIdListId:BuildInfoFileIdListId):Slice<String> {
 		return this.FileIdsList[fileIdListId - 1];
 	}
 
@@ -245,7 +245,7 @@ class ReadableBuildInfo implements OrderedMarshaler {
 
 	public function setReferencedMap():Void {
 		if (this.buildInfo.ReferencedMap != null) {
-			this.ReferencedMap = new OrderedMap<String, Array<String>>();
+			this.ReferencedMap = new OrderedMap<String, Slice<String>>();
 			for (entry in this.buildInfo.ReferencedMap) {
 				this.ReferencedMap.Set(this.toFilePath(entry.FileId), this.toFilePathSet(entry.FileIdListId));
 			}

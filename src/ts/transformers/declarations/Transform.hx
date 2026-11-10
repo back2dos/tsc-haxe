@@ -32,7 +32,7 @@ interface DeclarationEmitHost {
 	function GetOutputPathsFor(file:SourceFile, forceDtsPaths:Bool):OutputPaths;
 	function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry;
 	function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference;
-	function GetRedirectTargets(path:PathKey):Array<RootedFilePath>;
+	function GetRedirectTargets(path:PathKey):Slice<RootedFilePath>;
 	function GetResolutionModeOverride(node:Node):ResolutionMode;
 	function GetResolvedModuleFromModuleSpecifier(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolvedModule;
 	function GetSourceFileFromReference(origin:SourceFile, ref:FileReference):SourceFile;
@@ -75,8 +75,8 @@ class DeclarationTransformer {
 	var witnessedCjsExports:Set<std.String> = new Set<std.String>();
 	var lateStatementReplacementMap:IntMap<Node> = null;
 	var expandoHosts:IntMap<Node> = null; // store the result of transforming expando hosts so they can be inserted later if the host is actually referenced
-	var expandoMembers:IntMap<Array<Node>> = null; // store any found expando _members_ after transforming them so *if* the host is referenced, they can be emitted alongside it
-	var deferredExpandoAssignments:IntMap<Array<BinaryExpression>> = null; // expando assignments whose host wasn't visible when collected, processed if the host is late-marked visible
+	var expandoMembers:IntMap<Slice<Node>> = null; // store any found expando _members_ after transforming them so *if* the host is referenced, they can be emitted alongside it
+	var deferredExpandoAssignments:IntMap<Slice<BinaryExpression>> = null; // expando assignments whose host wasn't visible when collected, processed if the host is late-marked visible
 	// PORT: struct key — Go collections.Set[thisPropertyAssignmentKey]; keys are ThisPropertyAssignmentKey.Key(tx).
 	var seenProperties:Set<std.String> = new Set<std.String>();
 	var thisPropertyAssignmentsCollected:Slice<Node> = null;
@@ -273,8 +273,8 @@ class DeclarationTransformer {
 		state.lateMarkedStatements = [];
 		lateStatementReplacementMap = new IntMap<Node>();
 		expandoHosts = new IntMap<Node>();
-		expandoMembers = new IntMap<Array<Node>>();
-		deferredExpandoAssignments = new IntMap<Array<BinaryExpression>>();
+		expandoMembers = new IntMap<Slice<Node>>();
+		deferredExpandoAssignments = new IntMap<Slice<BinaryExpression>>();
 		rawReferencedFiles = [];
 		rawTypeReferenceDirectives = [];
 		rawLibReferenceDirectives = [];

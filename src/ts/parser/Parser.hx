@@ -761,11 +761,11 @@ class Parser {
 		return Ast.IsRequireCall(node, false /*requireStringLiteralLikeArgument*/);
 	}
 
-	function createJSDocCache():IdentityMap<Node, Array<Node>> {
+	function createJSDocCache():IdentityMap<Node, Slice<Node>> {
 		if (Core.len(jsdocInfos) == 0) {
 			return null;
 		}
-		var result = new IdentityMap<Node, Array<Node>>();
+		var result = new IdentityMap<Node, Slice<Node>>();
 		for (info in jsdocInfos) {
 			result.set(info.parent, info.jsDocs.nilable());
 		}

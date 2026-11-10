@@ -3,7 +3,7 @@ package ts.collections;
 // Port of multimap.go (types and methods; NewMultiMapWithSizeHint and GroupBy are in Collections.hx).
 // A Go zero-value `MultiMap[K, V]` is `new MultiMap<K, V>()`.
 class MultiMap<K, V> {
-	public var M:Null<GoMap<K, Array<V>>> = null;
+	public var M:Null<GoMap<K, Slice<V>>> = null;
 
 	public function new() {}
 
@@ -18,7 +18,7 @@ class MultiMap<K, V> {
 
 	public function Add(key:K, value:V):Void {
 		if (M == null) {
-			M = new GoMap<K, Array<V>>();
+			M = new GoMap<K, Slice<V>>();
 		}
 		// PORT: Go `append` may reuse the backing array; here the stored array is always
 		// extended in place, so a slice obtained earlier from Get also grows.
@@ -58,7 +58,7 @@ class MultiMap<K, V> {
 		return Maps.Keys(M);
 	}
 
-	public function Values():Iterator<Array<V>> {
+	public function Values():Iterator<Slice<V>> {
 		return Maps.Values(M);
 	}
 

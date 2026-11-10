@@ -4,7 +4,7 @@ package ts.compiler;
 
 @:allow(ts.compiler)
 class IncludeProcessor {
-	var fileIncludeReasons:StringMap<Array<FileIncludeReason>> = null;
+	var fileIncludeReasons:StringMap<Slice<FileIncludeReason>> = null;
 	var processingDiagnostics:Slice<ProcessingDiagnostic> = null;
 
 	var reasonToReferenceLocation:SyncMap<FileIncludeReason, ReferenceFileLocation> = new SyncMap<FileIncludeReason, ReferenceFileLocation>();

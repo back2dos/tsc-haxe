@@ -45,4 +45,50 @@ class Maps {
 			return new GoMap<K, V>().iterator();
 		return m.iterator();
 	}
+
+	// A StringMap's keys / values as arrays, in the order of its keys() / iterator() (snapshots: the map may
+	// change while they are walked; ts.ast.SymbolTable's iterators over a big table).
+	#if cpp
+	public static inline function stringKeysArray<T>(m:haxe.ds.StringMap<T>):Array<String> {
+		return untyped __global__.__string_hash_keys(@:privateAccess m.h);
+	}
+
+	public static inline function stringValuesArray<T>(m:haxe.ds.StringMap<T>):Array<T> {
+		final a:Array<Dynamic> = untyped __global__.__string_hash_values(@:privateAccess m.h);
+		return cast a;
+	}
+	#else
+	public static function stringKeysArray<T>(m:haxe.ds.StringMap<T>):Array<String> {
+		final a = new Array<String>();
+		#if (target.name == "hxmc")
+		// PORT: perf — the snapshot at its size (no growth), hxmc: Array.resize allocates exactly
+		a.resize(m.size());
+		var i = 0;
+		final it = m.keys();
+		while (it.hasNext())
+			a[i++] = it.next();
+		#else
+		final it = m.keys();
+		while (it.hasNext())
+			a.push(it.next());
+		#end
+		return a;
+	}
+
+	public static function stringValuesArray<T>(m:haxe.ds.StringMap<T>):Array<T> {
+		final a = new Array<T>();
+		#if (target.name == "hxmc")
+		a.resize(m.size());
+		var i = 0;
+		final it = m.iterator();
+		while (it.hasNext())
+			a[i++] = it.next();
+		#else
+		final it = m.iterator();
+		while (it.hasNext())
+			a.push(it.next());
+		#end
+		return a;
+	}
+	#end
 }

@@ -47,7 +47,7 @@ abstract PathKey(String) to String {
 		return Tspath.TryGetExtensionFromPath(this);
 	}
 
-	public inline function ExtensionIsOneOf(extensions:Array<String>):Bool {
+	public inline function ExtensionIsOneOf(extensions:Slice<String>):Bool {
 		return Tspath.FileExtensionIsOneOf(this, extensions);
 	}
 

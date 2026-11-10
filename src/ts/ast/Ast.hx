@@ -3675,7 +3675,7 @@ class Ast {
 	}
 
 	// PORT: perf — IsFunctionLikeKind looks the kind up in a table filled from Go's switch (isFunctionLikeKindSwitch)
-	static final functionLikeKinds:haxe.ds.Vector<Bool> = {
+	static final functionLikeKinds:Vec<Bool> = {
 		final v = new haxe.ds.Vector<Bool>(KindCount);
 		for (k in 0...KindCount)
 			v[k] = isFunctionLikeKindSwitch(cast k);
@@ -7396,7 +7396,7 @@ class Ast {
 
 	// type AllAccessorDeclarations → class AllAccessorDeclarations in Utilities.hx.
 
-	public static function GetAllAccessorDeclarationsForDeclaration(accessor:AccessorDeclaration, declarationsOfSymbol:haxe.ds.Vector<Node>):AllAccessorDeclarations {
+	public static function GetAllAccessorDeclarationsForDeclaration(accessor:AccessorDeclaration, declarationsOfSymbol:Vec<Node>):AllAccessorDeclarations {
 		var otherKind:Kind = KindUnknown;
 		if (accessor.Kind == KindSetAccessor) {
 			otherKind = KindGetAccessor;
@@ -11360,7 +11360,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 	}
 
 	// if you provide nil for file, this code will walk to the root of the tree to find the file
-	public function JSDoc(file:SourceFile):Array<Node> {
+	public function JSDoc(file:SourceFile):Slice<Node> {
 		if (this.Flags & NodeFlagsHasJSDoc == 0) {
 			return null;
 		}
@@ -11378,7 +11378,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 
 	// EagerJSDoc returns JSDoc nodes that have already been parsed and cached,
 	// without triggering lazy JSDoc parsing.
-	public function EagerJSDoc(file:SourceFile):Array<Node> {
+	public function EagerJSDoc(file:SourceFile):Slice<Node> {
 		if (this.Flags & NodeFlagsHasJSDoc == 0) {
 			return null;
 		}
@@ -12683,7 +12683,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	public var AmbientModuleNames:Slice<String> = null;
 	public var CommentDirectives:Slice<CommentDirective> = null;
 
-	var jsdocCache:IdentityMap<Node, Array<Node>> = null;
+	var jsdocCache:IdentityMap<Node, Slice<Node>> = null;
 	var hasLazyJSDoc:Bool = false;
 	var identifiersDone:Bool = false; // PORT: sync.Once
 	var identifiers:Set<String> = new Set<String>();
@@ -12727,7 +12727,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	// PORT: Go `map[TokenCacheKey]*Node` (struct key) → parent → "pos:end" → token.
 	var tokenCache:IdentityMap<Node, StringMap<Node>> = null;
 	var tokenFactory:NodeFactory = null;
-	var declarationMap:StringMap<Array<Node>> = null;
+	var declarationMap:StringMap<Slice<Node>> = null;
 	var nameTableDone:Bool = false; // PORT: sync.Once
 	var nameTable:StringMap<Int> = null;
 
@@ -12883,7 +12883,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		jsdocDiagnostics = diags;
 	}
 
-	public function SetJSDocCache(cache:IdentityMap<Node, Array<Node>>):Void {
+	public function SetJSDocCache(cache:IdentityMap<Node, Slice<Node>>):Void {
 		jsdocCache = cache;
 	}
 
@@ -12891,7 +12891,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		hasLazyJSDoc = lazy;
 	}
 
-	function resolveJSDoc(n:Node):Array<Node> {
+	function resolveJSDoc(n:Node):Slice<Node> {
 		#if tshx_parallel
 		syncMutex.acquire();
 		final r = resolveJSDocLocked(n);
@@ -12899,7 +12899,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return r;
 	}
 
-	function resolveJSDocLocked(n:Node):Array<Node> {
+	function resolveJSDocLocked(n:Node):Slice<Node> {
 		#end
 		if (Ast.parseJSDocForNode == null) {
 			throw "resolveJSDoc called but parseJSDocForNode is not registered; ensure the parser package is imported";
@@ -12912,7 +12912,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		// Slow path: parse and cache under write lock
 		final jsdocs = Ast.parseJSDocForNode(this, n);
 		if (jsdocCache == null) {
-			jsdocCache = new IdentityMap<Node, Array<Node>>();
+			jsdocCache = new IdentityMap<Node, Slice<Node>>();
 		}
 		jsdocCache.set(n, jsdocs);
 		return jsdocs;
@@ -13140,15 +13140,15 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return token;
 	}
 
-	public function GetDeclarationMap():StringMap<Array<Node>> {
+	public function GetDeclarationMap():StringMap<Slice<Node>> {
 		if (declarationMap == null) {
 			declarationMap = computeDeclarationMap();
 		}
 		return declarationMap;
 	}
 
-	function computeDeclarationMap():StringMap<Array<Node>> {
-		final result = new StringMap<Array<Node>>();
+	function computeDeclarationMap():StringMap<Slice<Node>> {
+		final result = new StringMap<Slice<Node>>();
 
 		final addDeclaration = function(declaration:Node):Void {
 			final name = Ast.GetDeclarationName(declaration);

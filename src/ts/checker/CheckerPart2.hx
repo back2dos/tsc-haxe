@@ -505,13 +505,13 @@ class CheckerPart2 {
 		}
 	}
 
-	static function getClassOrInterfaceDeclarationsOfSymbol(c:Checker, symbol:Symbol):haxe.ds.Vector<Node> {
+	static function getClassOrInterfaceDeclarationsOfSymbol(c:Checker, symbol:Symbol):Vec<Node> {
 		return Core.Filter(symbol.Declarations, function(d:Node):Bool {
 			return Ast.IsClassDeclaration(d) || Ast.IsInterfaceDeclaration(d);
 		});
 	}
 
-	static function areTypeParametersIdentical(c:Checker, declarations:haxe.ds.Vector<Node>, targetParameters:haxe.ds.Vector<Type>, getTypeParameterDeclarations:(node:Node) -> Slice<Node>):Bool {
+	static function areTypeParametersIdentical(c:Checker, declarations:Vec<Node>, targetParameters:Vec<Type>, getTypeParameterDeclarations:(node:Node) -> Slice<Node>):Bool {
 		final maxTypeArgumentCount = Core.len(targetParameters);
 		final minTypeArgumentCount = c.getMinTypeArgumentCount(targetParameters);
 		for (declaration in declarations) {
@@ -1058,7 +1058,7 @@ class CheckerPart2 {
 		if (indexSymbol == null || Core.len(indexSymbol.Declarations) <= 1) {
 			return;
 		}
-		final indexSignatureMap = new IdentityMap<Type, Array<Node>>();
+		final indexSignatureMap = new IdentityMap<Type, Slice<Node>>();
 		for (declaration in indexSymbol.Declarations) {
 			if (Ast.IsIndexSignatureDeclaration(declaration)) {
 				final parameters = declaration.Parameters();
@@ -2819,7 +2819,7 @@ class CheckerPart2 {
 			return newIterationTypes(c.anyType, c.anyType, c.anyType);
 		}
 		// Both async and non-async iterators *must* have a `next` method.
-		var methodSignatures:haxe.ds.Vector<Signature> = null;
+		var methodSignatures:Vec<Signature> = null;
 		if (methodType != null) {
 			methodSignatures = c.getSignaturesOfType(methodType, SignatureKindCall);
 		}
@@ -3440,7 +3440,7 @@ class CheckerPart2 {
 
 	static function checkUnusedLocalsAndParameters(c:Checker, node:Node):Void {
 		final variableParents = new Set<Node>();
-		var importClauses:IdentityMap<Node, Array<Node>> = null;
+		var importClauses:IdentityMap<Node, Slice<Node>> = null;
 		final locals = node.Locals();
 		if (locals != null) {
 			for (local in locals) {
@@ -3456,7 +3456,7 @@ class CheckerPart2 {
 					} else if (Ast.IsImportClause(declaration) || Ast.IsImportSpecifier(declaration) || Ast.IsNamespaceImport(declaration)) {
 						if (!Checker.isIdentifierThatStartsWithUnderscore(declaration.Name())) {
 							if (importClauses == null) {
-								importClauses = new IdentityMap<Node, Array<Node>>();
+								importClauses = new IdentityMap<Node, Slice<Node>>();
 							}
 							final importClause = Checker.importClauseFromImported(declaration);
 							var list = importClauses.get(importClause);
@@ -3557,7 +3557,7 @@ class CheckerPart2 {
 		return true;
 	}
 
-	static function reportUnusedImports(c:Checker, node:Node, unuseds:Array<Node>):Void {
+	static function reportUnusedImports(c:Checker, node:Node, unuseds:Slice<Node>):Void {
 		var declarationCount = Core.IfElse(node.Name() != null, 1, 0);
 		final namedBindings = node.AsImportClause().NamedBindings;
 		if (namedBindings != null) {
@@ -4033,7 +4033,7 @@ class CheckerPart2 {
 		return result;
 	}
 
-	static function getUniqueTypeParameters(c:Checker, context:InferenceContext, typeParameters:haxe.ds.Vector<Type>):Array<Type> {
+	static function getUniqueTypeParameters(c:Checker, context:InferenceContext, typeParameters:Vec<Type>):Array<Type> {
 		var oldTypeParameters:Slice<Type> = null;
 		var newTypeParameters:Slice<Type> = null;
 		final result:Array<Type> = [];
@@ -4347,12 +4347,12 @@ class CheckerPart2 {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
-	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:Vec<T>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			for (i in 0...Core.len(s)) {
 				if (!yield_(s[i])) {

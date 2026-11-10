@@ -34,7 +34,7 @@ class UtilitiesTest {
 	}
 
 	static function TestBinaryOperatorPrecedence() {
-		final cases:Array<Array<Int>> = [
+		final cases:Array<Slice<Int>> = [
 			[KindQuestionQuestionToken, OperatorPrecedenceCoalesce],
 			[KindBarBarToken, OperatorPrecedenceLogicalOR],
 			[KindAmpersandAmpersandToken, OperatorPrecedenceLogicalAND],

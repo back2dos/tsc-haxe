@@ -60,9 +60,9 @@ class TypeResolution {
 @:allow(ts.checker)
 class VarianceStackEntry {
 	var symbol:Symbol = null;
-	var typeParameters:haxe.ds.Vector<Type> = null;
+	var typeParameters:Vec<Type> = null;
 
-	public function new(symbol:Symbol, typeParameters:haxe.ds.Vector<Type>) {
+	public function new(symbol:Symbol, typeParameters:Vec<Type>) {
 		this.symbol = symbol;
 		this.typeParameters = typeParameters;
 	}
@@ -785,7 +785,7 @@ class IterationTypesResolver {
 class WideningContext {
 	var parent:WideningContext = null; // Parent context
 	var propertyName:std.String = ""; // Name of property in parent
-	var siblings:haxe.ds.Vector<Type> = null; // Types of siblings
+	var siblings:Vec<Type> = null; // Types of siblings
 	var resolvedProperties:Slice<Symbol> = null; // Properties occurring in sibling object literals
 	var childContexts:StringMap<WideningContext> = null;
 	var widenedTypes:IdentityMap<Type, Type> = null;
@@ -843,7 +843,7 @@ interface Host {
 	function GetNearestAncestorDirectoryWithPackageJson(dirname:RootedDirectoryPath):RootedDirectoryPath;
 	function GetPackageJsonInfo(pkgJsonPath:RootedFilePath):InfoCacheEntry;
 	function GetProjectReferenceFromSource(path:PathKey):SourceOutputAndProjectReference;
-	function GetRedirectTargets(path:PathKey):Array<RootedFilePath>;
+	function GetRedirectTargets(path:PathKey):Slice<RootedFilePath>;
 	function GetResolvedModuleFromModuleSpecifier(file:HasFileName, moduleSpecifier:StringLiteralLike):ResolvedModule;
 	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath;
 	function GetSymlinkCache():KnownSymlinks;
@@ -1190,7 +1190,7 @@ abstract KeyBuilder(KeyHasher) {
 	extern inline overload function writeTypes(types:Slice<Type>):Void
 		writeTypesA(types);
 
-	extern inline overload function writeTypes(types:haxe.ds.Vector<Type>):Void
+	extern inline overload function writeTypes(types:Vec<Type>):Void
 		writeTypesV(types);
 
 	function writeTypesA(types:Slice<Type>):Void {
@@ -1202,7 +1202,7 @@ abstract KeyBuilder(KeyHasher) {
 		}
 	}
 
-	function writeTypesV(types:haxe.ds.Vector<Type>):Void {
+	function writeTypesV(types:Vec<Type>):Void {
 		final n = Core.len(types);
 		writeInt(n);
 		for (i in 0...n)
@@ -1411,7 +1411,7 @@ enum abstract IntersectionFlags(Int) from Int to Int {
 class ObjectLiteralDiscriminator implements Discriminator {
 	var c:Checker = null;
 	var props:Slice<Node> = null;
-	var members:haxe.ds.Vector<Symbol> = null;
+	var members:Vec<Symbol> = null;
 
 	public function new() {}
 
@@ -1684,7 +1684,7 @@ class Checker {
 	var constContextNodeType:Type = null;
 	var membersResetEpoch = 0; // PORT: perf — counts getBaseTypes' member resets (see removeSubtypes)
 	#if (target.name == "hxmc")
-	var fallbackMemberFilter:haxe.ds.Vector<Int> = null; // PORT: perf (see CheckerPart5.mayBeFallbackMember)
+	var fallbackMemberFilter:Vec<Int> = null; // PORT: perf (see CheckerPart5.mayBeFallbackMember)
 	#end
 	var globalArrayType:Type = null;
 	var globalReadonlyArrayType:Type = null;
@@ -2440,7 +2440,7 @@ class Checker {
 		return Ast.IsSpreadElement(parent) && Ast.IsCallOrNewExpression(parent.Parent);
 	}
 
-	static function someSignature(signatures:haxe.ds.Vector<Signature>, f:(s:Signature) -> Bool):Bool {
+	static function someSignature(signatures:Vec<Signature>, f:(s:Signature) -> Bool):Bool {
 		if (signatures != null) {
 			for (sig in signatures) {
 				if (sig.composite != null && sig.composite.isUnion && Core.Some(sig.composite.signatures, f) || sig.composite == null && f(sig)) {
@@ -2631,7 +2631,7 @@ class Checker {
 		return b.hash();
 	}
 
-	static extern inline overload function getTypeListKey(types:haxe.ds.Vector<Type>):CacheHashKey {
+	static extern inline overload function getTypeListKey(types:Vec<Type>):CacheHashKey {
 		#if (target.name == "hxmc")
 		if (Core.len(types) <= 3)
 			return new CacheHashKey(packedTypesKeyV(1, 0, types));
@@ -2650,7 +2650,7 @@ class Checker {
 	static extern inline overload function getUnionKey(types:Slice<Type>, origin:Type, alias:TypeAlias):CacheHashKey
 		return getUnionKeyA(types, origin, alias);
 
-	static extern inline overload function getUnionKey(types:haxe.ds.Vector<Type>, origin:Type, alias:TypeAlias):CacheHashKey
+	static extern inline overload function getUnionKey(types:Vec<Type>, origin:Type, alias:TypeAlias):CacheHashKey
 		return getUnionKeyV(types, origin, alias);
 
 	static function getUnionKeyA(types:Slice<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
@@ -2680,7 +2680,7 @@ class Checker {
 		return b.hash();
 	}
 
-	static function getUnionKeyV(types:haxe.ds.Vector<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
+	static function getUnionKeyV(types:Vec<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
 		#if (target.name == "hxmc")
 		if (origin == null && alias == null && Core.len(types) <= 3)
 			return new CacheHashKey(packedTypesKeyV(5, 0, types));
@@ -2902,7 +2902,7 @@ class Checker {
 		return m.getPacked(0xF000 | (family << 8) | (flag << 4) | n, n, n > 0 ? types[0].id : 0, n > 1 ? types[1].id : 0, n > 2 ? types[2].id : 0);
 	}
 
-	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:haxe.ds.Vector<Type>):Type {
+	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:Vec<Type>):Type {
 		final n = types == null ? 0 : types.length;
 		return m.getPacked(0xF000 | (family << 8) | (flag << 4) | n, n, n > 0 ? types[0].id : 0, n > 1 ? types[1].id : 0, n > 2 ? types[2].id : 0);
 	}
@@ -2928,7 +2928,7 @@ class Checker {
 		return s;
 	}
 
-	static function packedTypesKeyV(family:Int, flag:Int, types:haxe.ds.Vector<Type>):std.String {
+	static function packedTypesKeyV(family:Int, flag:Int, types:Vec<Type>):std.String {
 		final n = Core.len(types);
 		final s = hxmc.rt.Str.make2(1 + 2 * n);
 		final d = hxmc.rt.Str.chars2(s);
@@ -3012,11 +3012,11 @@ class Checker {
 		return true;
 	}
 
-	static extern inline overload function findIndexInfo(indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
+	static extern inline overload function findIndexInfo(indexInfos:Vec<IndexInfo>, keyType:Type):IndexInfo {
 		return findIndexInfoV(indexInfos, keyType);
 	}
 
-	static function findIndexInfoV(indexInfos:haxe.ds.Vector<IndexInfo>, keyType:Type):IndexInfo {
+	static function findIndexInfoV(indexInfos:Vec<IndexInfo>, keyType:Type):IndexInfo {
 		for (i in 0...Core.len(indexInfos)) {
 			if (indexInfos[i].keyType == keyType) {
 				return indexInfos[i];
@@ -3173,7 +3173,7 @@ class Checker {
 	}
 
 	// PORT: perf — instantiateList over a Vector: the same Vector when nothing changes, else a new exact-size one
-	static function instantiateVector<T>(c:Checker, values:haxe.ds.Vector<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):haxe.ds.Vector<T> {
+	static function instantiateVector<T>(c:Checker, values:Vec<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):Vec<T> {
 		final n = Core.len(values);
 		for (i in 0...n) {
 			final value = values[i];
@@ -3365,7 +3365,7 @@ class Checker {
 	static extern inline overload function getConstituentCountOfTypes(types:Slice<Type>):Int
 		return getConstituentCountOfTypesA(types);
 
-	static extern inline overload function getConstituentCountOfTypes(types:haxe.ds.Vector<Type>):Int
+	static extern inline overload function getConstituentCountOfTypes(types:Vec<Type>):Int
 		return getConstituentCountOfTypesV(types);
 
 	static function getConstituentCountOfTypesA(types:Slice<Type>):Int {
@@ -3378,7 +3378,7 @@ class Checker {
 		return n;
 	}
 
-	static function getConstituentCountOfTypesV(types:haxe.ds.Vector<Type>):Int {
+	static function getConstituentCountOfTypesV(types:Vec<Type>):Int {
 		var n = 0;
 		if (types != null) {
 			for (t in types) {
@@ -3413,12 +3413,12 @@ class Checker {
 		return f(t);
 	}
 
-	static extern inline overload function containsType(types:haxe.ds.Vector<Type>, t:Type):Bool
+	static extern inline overload function containsType(types:Vec<Type>, t:Type):Bool
 		return containsTypeV(types, t);
 
 	// PORT: perf — (from tsrs) a short list is scanned for the type itself first (CompareTypes is 0 only for the same
 	// type, so a found one is what the search finds); the search without a ValueOk
-	static function containsTypeV(types:haxe.ds.Vector<Type>, t:Type):Bool {
+	static function containsTypeV(types:Vec<Type>, t:Type):Bool {
 		final n = types == null ? 0 : types.length;
 		if (n <= 8) {
 			for (i in 0...n) {
@@ -3861,7 +3861,7 @@ class Checker {
 
 	// --- inference.go ---
 
-	static function getSingleTypeVariableFromIntersectionTypes(n:InferenceState, types:haxe.ds.Vector<Type>):Type {
+	static function getSingleTypeVariableFromIntersectionTypes(n:InferenceState, types:Vec<Type>):Type {
 		var typeVariable:Type = null;
 		if (types != null) {
 			for (t in types) {
@@ -4012,7 +4012,7 @@ class Checker {
 
 	// PORT: perf — an ArrayTypeMapper holds Vectors (one exact-size object each): Array arguments are copied (a
 	// builder the caller does not change afterwards), a Vector is held as it is
-	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+	static extern inline overload function newTypeMapper(sources:Vec<Type>, targets:Vec<Type>):TypeMapper {
 		return newTypeMapperV(sources, targets);
 	}
 
@@ -4020,15 +4020,15 @@ class Checker {
 		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), Core.toVector(targets));
 	}
 
-	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:Slice<Type>):TypeMapper {
+	static extern inline overload function newTypeMapper(sources:Vec<Type>, targets:Slice<Type>):TypeMapper {
 		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(sources, Core.toVector(targets));
 	}
 
-	static extern inline overload function newTypeMapper(sources:Slice<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+	static extern inline overload function newTypeMapper(sources:Slice<Type>, targets:Vec<Type>):TypeMapper {
 		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), targets);
 	}
 
-	static function newTypeMapperV(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+	static function newTypeMapperV(sources:Vec<Type>, targets:Vec<Type>):TypeMapper {
 		if (Core.len(sources) == 1) {
 			return newSimpleTypeMapper(sources[0], targets[0]);
 		}
@@ -4084,7 +4084,7 @@ class Checker {
 		return m;
 	}
 
-	static function newArrayTypeMapper(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+	static function newArrayTypeMapper(sources:Vec<Type>, targets:Vec<Type>):TypeMapper {
 		final m = new ArrayTypeMapper();
 		m.sources = sources == null ? Core.emptyVector() : sources;
 		m.targets = targets == null ? Core.emptyVector() : targets;
@@ -4093,7 +4093,7 @@ class Checker {
 
 	// PORT: perf — newTypeMapper(sources, append(typeArguments, thisArgument)) without the new slice
 	// (ThisArgumentTypeMapper); len(sources) == len(typeArguments) + 1
-	static function newThisArgumentTypeMapper(sources:haxe.ds.Vector<Type>, typeArguments:haxe.ds.Vector<Type>, thisArgument:Type):TypeMapper {
+	static function newThisArgumentTypeMapper(sources:Vec<Type>, typeArguments:Vec<Type>, thisArgument:Type):TypeMapper {
 		if (sources.length == 1) {
 			return newSimpleTypeMapper(sources[0], thisArgument);
 		}
@@ -4104,14 +4104,14 @@ class Checker {
 		return m;
 	}
 
-	static function newArrayToSingleTypeMapper(sources:haxe.ds.Vector<Type>, target:Type):TypeMapper {
+	static function newArrayToSingleTypeMapper(sources:Vec<Type>, target:Type):TypeMapper {
 		final m = new ArrayToSingleTypeMapper();
 		m.sources = sources;
 		m.target = target;
 		return m;
 	}
 
-	static function newDeferredTypeMapper(sources:haxe.ds.Vector<Type>, targets:Slice<() -> Type>):TypeMapper {
+	static function newDeferredTypeMapper(sources:Vec<Type>, targets:Slice<() -> Type>):TypeMapper {
 		final m = new DeferredTypeMapper();
 		m.sources = sources;
 		m.targets = targets;
@@ -4256,7 +4256,7 @@ class Checker {
 		return Ast.IsTypeReferenceNode(node) && Ast.IsIdentifier(node.AsTypeReferenceNode().TypeName);
 	}
 
-	static function arrayIsHomogeneous<T>(array:Array<T>, comparer:(a:T, B:T) -> Bool):Bool {
+	static function arrayIsHomogeneous<T>(array:Slice<T>, comparer:(a:T, B:T) -> Bool):Bool {
 		if (Core.len(array) < 2) {
 			return true;
 		}
@@ -5166,7 +5166,7 @@ class Checker {
 		return asRecursionId(t);
 	}
 
-	static function excludeProperties(properties:haxe.ds.Vector<Symbol>, excludedProperties:Set<std.String>):haxe.ds.Vector<Symbol> {
+	static function excludeProperties(properties:Vec<Symbol>, excludedProperties:Set<std.String>):Vec<Symbol> {
 		if (excludedProperties.Len() == 0 || Core.len(properties) == 0) {
 			return properties;
 		}
@@ -5948,7 +5948,7 @@ class Checker {
 		return Ast.IsAssertionExpression(Ast.SkipParentheses(node));
 	}
 
-	static function createSymbolTable(symbols:haxe.ds.Vector<Symbol>):SymbolTable {
+	static function createSymbolTable(symbols:Vec<Symbol>):SymbolTable {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}
@@ -6218,8 +6218,8 @@ class Checker {
 		final s2 = getTypeNameSymbol(t2);
 		if (s1 == s2) {
 			// PORT: Go's nil-safe alias.TypeArguments()
-			final a1:haxe.ds.Vector<Type> = t1.alias != null ? t1.alias.typeArguments : null;
-			final a2:haxe.ds.Vector<Type> = t2.alias != null ? t2.alias.typeArguments : null;
+			final a1:Vec<Type> = t1.alias != null ? t1.alias.typeArguments : null;
+			final a2:Vec<Type> = t2.alias != null ? t2.alias.typeArguments : null;
 			return compareTypeLists(a1, a2);
 		}
 		if (s1 == null) {
@@ -6291,10 +6291,10 @@ class Checker {
 		return Strings.Compare(n1.Name().Text(), n2.Name().Text());
 	}
 
-	static extern inline overload function compareTypeLists(s1:haxe.ds.Vector<Type>, s2:haxe.ds.Vector<Type>):Int
+	static extern inline overload function compareTypeLists(s1:Vec<Type>, s2:Vec<Type>):Int
 		return compareTypeVectors(s1, s2);
 
-	static function compareTypeVectors(s1:haxe.ds.Vector<Type>, s2:haxe.ds.Vector<Type>):Int {
+	static function compareTypeVectors(s1:Vec<Type>, s2:Vec<Type>):Int {
 		if (Core.len(s1) != Core.len(s2)) {
 			return Core.len(s1) - Core.len(s2);
 		}
@@ -6898,7 +6898,7 @@ class Checker {
 		});
 	}
 
-	static function getDeclarationsOfKind(symbol:Symbol, kind:Kind):haxe.ds.Vector<Node> {
+	static function getDeclarationsOfKind(symbol:Symbol, kind:Kind):Vec<Node> {
 		return Core.Filter(symbol.Declarations, (d:Node) -> d.Kind == kind);
 	}
 
@@ -6929,11 +6929,11 @@ class Checker {
 	}
 
 	// PORT: sync.OnceValue → a lazy static.
-	static var featureMap_:StringMap<Array<FeatureMapEntry>> = null;
+	static var featureMap_:StringMap<Slice<FeatureMapEntry>> = null;
 
-	static var getFeatureMap:() -> StringMap<Array<FeatureMapEntry>> = () -> {
+	static var getFeatureMap:() -> StringMap<Slice<FeatureMapEntry>> = () -> {
 		if (featureMap_ == null) {
-			final m = new StringMap<Array<FeatureMapEntry>>();
+			final m = new StringMap<Slice<FeatureMapEntry>>();
 			function add(name:std.String, lib:std.String, props:Array<std.String>) {
 				var list = m.get(name);
 				if (list == null) {

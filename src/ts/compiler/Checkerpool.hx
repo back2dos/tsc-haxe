@@ -201,9 +201,9 @@ class CheckerPool_ implements CheckerPool {
 
 	// groupFilesByChecker returns, per checker, the indices of the given files associated with it (TypeScript main's
 	// #64922: emit transforms the files of each checker in one task).
-	function groupFilesByChecker(files:Slice<SourceFile>):Array<Array<Int>> {
+	function groupFilesByChecker(files:Slice<SourceFile>):Array<Slice<Int>> {
 		this.createCheckers();
-		final groups:Array<Array<Int>> = [for (_ in 0...this.checkers.length) null];
+		final groups:Array<Slice<Int>> = [for (_ in 0...this.checkers.length) null];
 		for (i in 0...files.length) {
 			final idx = this.checkers.indexOf(this.fileAssociations.get(files[i]));
 			if (groups[idx] == null)
@@ -216,11 +216,11 @@ class CheckerPool_ implements CheckerPool {
 	// getImportAdjacency returns an undirected import graph represented by file
 	// index. A directed import from A to B makes both files adjacent because either
 	// file can benefit from sharing checker caches with the other.
-	function getImportAdjacency(files:Slice<SourceFile>):Array<Array<Int>> {
+	function getImportAdjacency(files:Slice<SourceFile>):Array<Slice<Int>> {
 		final fileIndices = new IdentityMap<SourceFile, Int>();
 		for (i in 0...files.length)
 			fileIndices.set(files[i], i);
-		final adjacentFiles:Array<Array<Int>> = [for (_ in 0...files.length) []];
+		final adjacentFiles:Array<Slice<Int>> = [for (_ in 0...files.length) []];
 		for (fileIndex in 0...files.length) {
 			final file = files[fileIndex];
 			final resolvedModules = @:privateAccess this.program.resolvedModules.get(file.Path());
@@ -404,7 +404,7 @@ class CheckerAssociation {
 
 	// getCheckerAssociationsInOrder: weighted FENNEL with gamma = 3/2; the preferred maximum checker weight is the
 	// larger of the largest file and roughly 101% of average; ties deterministic
-	public static function associationsInOrder(fileWeights:Array<Int>, adjacentFiles:Array<Array<Int>>, fileOrder:Slice<Int>, checkerCount:Int,
+	public static function associationsInOrder(fileWeights:Array<Int>, adjacentFiles:Array<Slice<Int>>, fileOrder:Slice<Int>, checkerCount:Int,
 			penaltyMultiplier:Int):Array<Int> {
 		final n = fileWeights.length;
 		if (n == 0)

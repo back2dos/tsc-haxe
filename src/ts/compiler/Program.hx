@@ -215,7 +215,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	inline function get_outputFileToProjectReferenceSource()
 		return processedFiles.outputFileToProjectReferenceSource;
 
-	var redirectTargetsMap(get, never):StringMap<Array<RootedFilePath>>;
+	var redirectTargetsMap(get, never):StringMap<Slice<RootedFilePath>>;
 
 	inline function get_redirectTargetsMap()
 		return processedFiles.redirectTargetsMap;
@@ -277,7 +277,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	// GetRedirectTargets returns the list of file paths that redirect to the given path.
 	// These are files from the same package (same name@version) installed in different locations.
-	public function GetRedirectTargets(path:PathKey):Array<RootedFilePath> {
+	public function GetRedirectTargets(path:PathKey):Slice<RootedFilePath> {
 		return this.redirectTargetsMap == null ? null : this.redirectTargetsMap.get(path);
 	}
 
@@ -1911,7 +1911,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		#else
 		final parts = [0];
 		#end
-		final fileEmitters:Array<Array<Emitter>> = [];
+		final fileEmitters:Array<Slice<Emitter>> = [];
 		if (sourceFiles != null) {
 			for (sourceFile in sourceFiles) {
 				final own:Array<Emitter> = [];
@@ -2064,7 +2064,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	// Testing only
-	public function GetIncludeReasons():StringMap<Array<FileIncludeReason>> {
+	public function GetIncludeReasons():StringMap<Slice<FileIncludeReason>> {
 		return this.includeProcessor.fileIncludeReasons;
 	}
 

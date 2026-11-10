@@ -74,7 +74,7 @@ class CheckerPart1 {
 		return symbol;
 	}
 
-	public static function GetTypeAliasTypeParameters(c:Checker, symbol:Symbol):haxe.ds.Vector<Type> {
+	public static function GetTypeAliasTypeParameters(c:Checker, symbol:Symbol):Vec<Type> {
 		if (symbol.Flags & SymbolFlagsTypeAlias == 0) {
 			throw "Attempted to fetch type alias parameters for non-type-alias symbol";
 		}
@@ -288,7 +288,7 @@ class CheckerPart1 {
 
 	// Pattern ambient modules are merged together if they have the same pattern and identical import attributes type.
 	static function mergePatternAmbientModules(c:Checker):Void {
-		final groupsByPattern = new haxe.ds.StringMap<Array<Int>>();
+		final groupsByPattern = new haxe.ds.StringMap<Slice<Int>>();
 		final grouped:Array<PatternAmbientModule> = [];
 		for (module in c.patternAmbientModules) {
 			final attributesType = c.getTypeOfModuleImportAttributes(module.Symbol);
@@ -1953,7 +1953,7 @@ class CheckerPart1 {
 		}
 	}
 
-	static function checkTypeArgumentConstraints(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>):Bool {
+	static function checkTypeArgumentConstraints(c:Checker, node:Node, typeParameters:Vec<Type>):Bool {
 		var typeArguments:Slice<Type> = null;
 		var mapper:TypeMapper = null;
 		var result = true;
@@ -2443,7 +2443,7 @@ class CheckerPart1 {
 		var multipleConstructorImplementation = false;
 		var hasNonAmbientClass = false;
 		var functionDeclarations:Slice<Node> = null;
-		final getCanonicalOverload = (overloads:haxe.ds.Vector<Node>, implementation:Node) -> {
+		final getCanonicalOverload = (overloads:Vec<Node>, implementation:Node) -> {
 			// Consider the canonical set of flags to be the flags of the bodyDeclaration or the first declaration
 			// Error on all deviations from this canonical set of flags
 			// The caveat is that if some overloads are defined in lib.d.ts, we don't want to
@@ -2455,7 +2455,7 @@ class CheckerPart1 {
 			}
 			return overloads[0];
 		};
-		final checkFlagAgreementBetweenOverloads = (overloads:haxe.ds.Vector<Node>, implementation:Node, flagsToCheck:ModifierFlags,
+		final checkFlagAgreementBetweenOverloads = (overloads:Vec<Node>, implementation:Node, flagsToCheck:ModifierFlags,
 				someOverloadFlags:ModifierFlags, allOverloadFlags:ModifierFlags) -> {
 			// Error if some overloads have a flag that is not shared by all overloads. To find the
 			// deviations, we XOR someOverloadFlags with allOverloadFlags
@@ -2463,7 +2463,7 @@ class CheckerPart1 {
 			if (someButNotAllOverloadFlags != 0) {
 				final canonicalFlags = c.getEffectiveDeclarationFlags(getCanonicalOverload(overloads, implementation), flagsToCheck);
 				// PORT: Go map[*ast.SourceFile][]*ast.Node; iteration order does not matter (diagnostics are sorted).
-				final groups = new IdentityMap<SourceFile, Array<Node>>();
+				final groups = new IdentityMap<SourceFile, Slice<Node>>();
 				for (overload_ in overloads) {
 					final sourceFile = Ast.GetSourceFileOfNode(overload_);
 					var group = groups.get(sourceFile);
@@ -2503,7 +2503,7 @@ class CheckerPart1 {
 				}
 			}
 		};
-		final checkQuestionTokenAgreementBetweenOverloads = (overloads:haxe.ds.Vector<Node>, implementation:Node, someHaveQuestionToken:Bool,
+		final checkQuestionTokenAgreementBetweenOverloads = (overloads:Vec<Node>, implementation:Node, someHaveQuestionToken:Bool,
 				allHaveQuestionToken:Bool) -> {
 			if (someHaveQuestionToken != allHaveQuestionToken) {
 				final canonicalHasQuestionToken = Checker.isOptionalDeclaration(getCanonicalOverload(overloads, implementation));

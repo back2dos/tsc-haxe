@@ -67,7 +67,7 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return this.program.GetProjectReferenceFromSource(path);
 	}
 
-	public function GetRedirectTargets(path:PathKey):Array<RootedFilePath> {
+	public function GetRedirectTargets(path:PathKey):Slice<RootedFilePath> {
 		return this.program.GetRedirectTargets(path);
 	}
 

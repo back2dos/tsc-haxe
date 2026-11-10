@@ -1142,7 +1142,7 @@ class CheckerPart4 {
 		});
 	}
 
-	static function getExactOptionalUnassignableProperties(c:Checker, source:Type, target:Type):haxe.ds.Vector<Symbol> {
+	static function getExactOptionalUnassignableProperties(c:Checker, source:Type, target:Type):Vec<Symbol> {
 		if (Checker.isTupleType(source) && Checker.isTupleType(target)) {
 			return null;
 		}
@@ -1484,7 +1484,7 @@ class CheckerPart4 {
 		}
 		var members = new SymbolTable();
 		final skippedPrivateMembers = new Set<std.String>();
-		var indexInfos:haxe.ds.Vector<IndexInfo> = null;
+		var indexInfos:Vec<IndexInfo> = null;
 		if (left == c.emptyObjectType) {
 			indexInfos = c.getIndexInfosOfType(right);
 		} else {
@@ -1554,7 +1554,7 @@ class CheckerPart4 {
 			|| (s.flags & TypeFlagsUnionOrIntersection) != 0 && Core.Every(s.Types(), t -> c.isValidSpreadType(t));
 	}
 
-	static function getUnionIndexInfos(c:Checker, types:haxe.ds.Vector<Type>):haxe.ds.Vector<IndexInfo> {
+	static function getUnionIndexInfos(c:Checker, types:Vec<Type>):Vec<IndexInfo> {
 		final sourceInfos = c.getIndexInfosOfType(types[0]);
 		var result:VectorBuilder<IndexInfo> = null;
 		for (info in rangeOf(sourceInfos)) {
@@ -2187,12 +2187,12 @@ class CheckerPart4 {
 		return Ast.IsDeprecatedDeclarationWithCachedFlags(declaration, c.getCombinedNodeFlagsCached(declaration));
 	}
 
-	static function addDeprecatedSuggestion(c:Checker, location:Node, declarations:haxe.ds.Vector<Node>, deprecatedEntity:std.String):Diagnostic {
+	static function addDeprecatedSuggestion(c:Checker, location:Node, declarations:Vec<Node>, deprecatedEntity:std.String):Diagnostic {
 		final diagnostic = Checker.NewDiagnosticForNode(location, Diagnostics.X_0_is_deprecated, deprecatedEntity);
 		return c.addDeprecatedSuggestionWorker(declarations, diagnostic);
 	}
 
-	static function addDeprecatedSuggestionWorker(c:Checker, declarations:haxe.ds.Vector<Node>, diagnostic:Diagnostic):Diagnostic {
+	static function addDeprecatedSuggestionWorker(c:Checker, declarations:Vec<Node>, diagnostic:Diagnostic):Diagnostic {
 		for (declaration in rangeOf(declarations)) {
 			final deprecatedTag = Ast.GetJSDocDeprecatedTag(declaration);
 			if (deprecatedTag != null) {
@@ -2494,7 +2494,7 @@ class CheckerPart4 {
 		}
 	}
 
-	static function addDuplicateDeclarationError(c:Checker, node:Node, message:Message, symbolName:std.String, relatedNodes:haxe.ds.Vector<Node>):Void {
+	static function addDuplicateDeclarationError(c:Checker, node:Node, message:Message, symbolName:std.String, relatedNodes:Vec<Node>):Void {
 		var errorNode = Checker.getAdjustedNodeForError(node);
 		if (errorNode == null) {
 			errorNode = node;
@@ -4338,7 +4338,7 @@ class CheckerPart4 {
 				if ((lateSymbol.Flags & Checker.getExcludedSymbolFlags(symbolFlags)) != 0) {
 					// If we have an existing early-bound member, combine its declarations so that we can
 					// report an error at each declaration.
-					var declarations:haxe.ds.Vector<Node>;
+					var declarations:Vec<Node>;
 					if (earlySymbol != null) {
 						declarations = Core.Concatenate(earlySymbol.Declarations, lateSymbol.Declarations);
 					} else {
@@ -4375,12 +4375,12 @@ class CheckerPart4 {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
-	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:Vec<T>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			for (i in 0...Core.len(s)) {
 				if (!yield_(s[i])) {

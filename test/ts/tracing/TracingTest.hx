@@ -161,7 +161,7 @@ class TracingTest {
 	}
 
 	static function assertDurationEventsAreWellNestedByThread(events:Array<TraceEvent>) {
-		final stacks = new IntMap<Array<TraceEvent>>();
+		final stacks = new IntMap<Slice<TraceEvent>>();
 		for (event in events) {
 			if (event.PH == "B") {
 				if (!stacks.exists(event.TID))

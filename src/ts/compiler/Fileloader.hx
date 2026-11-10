@@ -85,8 +85,8 @@ class FileLoader {
 	var resolver:Resolver = null;
 	var defaultLibraryPath:RootedDirectoryPath = cast "";
 	var caseSensitivity:CaseSensitivity = Tspath.CaseInsensitive;
-	var supportedExtensions:Slice<Array<std.String>> = null;
-	var supportedExtensionsWithJsonIfResolveJsonModule:Slice<Array<std.String>> = null;
+	var supportedExtensions:Slice<Slice<std.String>> = null;
+	var supportedExtensionsWithJsonIfResolveJsonModule:Slice<Slice<std.String>> = null;
 	var contentMapperExtensions:Slice<std.String> = null;
 
 	var filesParser:FilesParser = null;
@@ -884,7 +884,7 @@ class ProcessedFiles {
 	// this contains mapping from output to source file
 	var outputFileToProjectReferenceSource:StringMap<RootedFilePath> = null;
 	// Key is a file path. Value is the list of files that redirect to it (same package, different install location)
-	var redirectTargetsMap:StringMap<Array<RootedFilePath>> = null;
+	var redirectTargetsMap:StringMap<Slice<RootedFilePath>> = null;
 	// filesByPath for redirect files
 	var redirectFilesByPath:StringMap<RedirectsFile> = null;
 	// Program-level diagnostics reported when a content mapper fails fatally (reported once per mapper).

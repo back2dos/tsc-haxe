@@ -139,7 +139,7 @@ class InferMemo {
 	// Targets of walks that took at least minSteps steps: only walks to these are keyed, looked up and measured.
 	var longTargets:haxe.ds.IntMap<Bool> = new haxe.ds.IntMap();
 	// Key buffers, one per nesting level of memoized walks.
-	var keyPool:Array<Array<Int>> = [];
+	var keyPool:Array<Slice<Int>> = [];
 
 	public function new() {
 		mode = modeFromEnv();
@@ -290,7 +290,7 @@ class InferMemo {
 		memo.keyPool.push(key);
 	}
 
-	function find(hash:Int, key:Array<Int>):InferMemoEntry {
+	function find(hash:Int, key:Slice<Int>):InferMemoEntry {
 		var e = entries.get(hash);
 		while (e != null) {
 			if (e.hash == hash && sameKey(e.key, key)) {
@@ -301,7 +301,7 @@ class InferMemo {
 		return null;
 	}
 
-	static function sameKey(a:Slice<Int>, b:Array<Int>):Bool {
+	static function sameKey(a:Slice<Int>, b:Slice<Int>):Bool {
 		if (a.length != b.length) {
 			return false;
 		}
@@ -318,7 +318,7 @@ class InferMemo {
 	}
 
 	// Builds the walk's key in `key` and returns its hash (non-negative); -1 when the call is not memoized.
-	static function buildKey(c:Checker, key:Array<Int>, n:InferenceState, source:Type, target:Type):Int {
+	static function buildKey(c:Checker, key:Slice<Int>, n:InferenceState, source:Type, target:Type):Int {
 		if (c.skipDirectInferenceNodes.Len() != 0) {
 			return -1;
 		}
@@ -348,7 +348,7 @@ class InferMemo {
 	}
 
 	// A list's length (-1: null) and type ids.
-	static inline function pushList(key:Array<Int>, list:Slice<Type>):Void {
+	static inline function pushList(key:Slice<Int>, list:Slice<Type>):Void {
 		if (list == null) {
 			key.push(-1);
 		} else {

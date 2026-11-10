@@ -36,7 +36,7 @@ enum abstract SymbolTableID(Int) from Int to Int {
 @:allow(ts.checker)
 class ExternalModuleContainerIndex {
 	var complete:Bool = false;
-	var containersByTarget:IdentityMap<Symbol, Array<Symbol>> = new IdentityMap<Symbol, Array<Symbol>>();
+	var containersByTarget:IdentityMap<Symbol, Slice<Symbol>> = new IdentityMap<Symbol, Slice<Symbol>>();
 	var moduleOrder:IdentityMap<Symbol, Int> = new IdentityMap<Symbol, Int>();
 
 	public function new() {}

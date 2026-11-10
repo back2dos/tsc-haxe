@@ -110,7 +110,7 @@ class CompilerTest {
 		"lib.esnext.full.d.ts"
 	];
 
-	static function programTestCases():Array<{testName:String, files:Array<Array<String>>, expectedFiles:Array<String>, target:ScriptTarget}> {
+	static function programTestCases():Array<{testName:String, files:Array<Slice<String>>, expectedFiles:Array<String>, target:ScriptTarget}> {
 		return [
 			{
 				testName: "BasicFileOrdering",

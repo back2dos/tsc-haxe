@@ -1405,7 +1405,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		final sym = container.Symbol();
 		final staticInfos = checker.getIndexInfosOfType(checker.getTypeOfSymbol(sym));
 		final instanceIndexSymbol = checker.getIndexSymbol(sym);
-		var instanceInfos:haxe.ds.Vector<IndexInfo> = null;
+		var instanceInfos:Vec<IndexInfo> = null;
 		if (instanceIndexSymbol != null) {
 			final members = checker.getMembersOfSymbol(sym);
 			final siblingSymbols = members == null ? null : [for (v in members) v];

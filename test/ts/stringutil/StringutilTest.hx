@@ -9,7 +9,7 @@ class StringutilTest {
 		// --- js_case_test.go ---
 
 		T.run("TestJSCasing", () -> {
-			final tests:Array<Array<String>> = [
+			final tests:Array<Slice<String>> = [
 				["ascii lowercase", ToLowerJS("HELLO"), "hello"],
 				["ascii uppercase", ToUpperJS("hello"), "HELLO"],
 				["lowercase dotted i", ToLowerJS("İSPANYOL"), "i̇spanyol"],
@@ -56,7 +56,7 @@ class StringutilTest {
 		// --- util_test.go ---
 
 		T.run("TestEncodeURI", () -> {
-			final tests:Array<Array<String>> = [
+			final tests:Array<Slice<String>> = [
 				["encodes spaces as percent20", "a b", "a%20b"],
 				["preserves reserved uri characters", ";/?:@&=+$,#", ";/?:@&=+$,#"],
 				[
@@ -79,7 +79,7 @@ class StringutilTest {
 
 		T.run("TestIdentifierTablesSpotCheck", () -> {
 			// [code point, start, part] from Go IsUnicodeIdentifierStart/Part at the pin.
-			final cases:Array<Array<Int>> = [
+			final cases:Array<Slice<Int>> = [
 				['a'.code, 1, 1], ['Z'.code, 1, 1], ['0'.code, 0, 1], ['9'.code, 0, 1], ['$'.code, 0, 0], ['_'.code, 0, 1],
 				[' '.code, 0, 0], [0xAA, 1, 1], [0xB7, 0, 1], [0x300, 0, 1], [0x10400, 1, 1], [0x1F600, 0, 0], [0x2F800, 1, 1],
 				[0xE0100, 0, 1], [-1, 0, 0], [0x110000, 0, 0], [0x200C, 0, 1], [0x200D, 0, 1], [0x2118, 1, 1], [0x309B, 1, 1],

@@ -843,7 +843,7 @@ class CheckerPart8 {
 		if (Checker.IsTypeAny(thenFunction)) {
 			return null;
 		}
-		var thenSignatures:haxe.ds.Vector<Signature> = null;
+		var thenSignatures:Vec<Signature> = null;
 		if (thenFunction != null) {
 			thenSignatures = c.getSignaturesOfType(thenFunction, SignatureKindCall);
 		}
@@ -2376,7 +2376,7 @@ class CheckerPart8 {
 	}
 
 	// Creates a synthetic `FunctionType`
-	static function newFunctionType(c:Checker, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Type {
+	static function newFunctionType(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Type {
 		final signature = c.newCallSignature(typeParameters, thisParameter, parameters, returnType);
 		return c.getOrCreateTypeFromSignature(signature);
 	}
@@ -2391,7 +2391,7 @@ class CheckerPart8 {
 	}
 
 	// Creates a synthetic `Signature` corresponding to a call signature.
-	static function newCallSignature(c:Checker, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Signature {
+	static function newCallSignature(c:Checker, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Array<Symbol>, returnType:Type):Signature {
 		final decl = c.factory.NewFunctionTypeNode(null, null, c.factory.NewKeywordTypeNode(KindAnyKeyword));
 		return c.newSignature(SignatureFlagsNone, decl, typeParameters, thisParameter, VectorBuilder.freezeOrNull(parameters), returnType, null, Core.len(parameters));
 	}
@@ -3965,7 +3965,7 @@ class CheckerPart8 {
 		return null;
 	}
 
-	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):haxe.ds.Vector<IndexInfo> {
+	static function getApplicableIndexInfos(c:Checker, t:Type, keyType:Type):Vec<IndexInfo> {
 		return Core.Filter(c.getIndexInfosOfType(t), function(info:IndexInfo):Bool {
 			return c.isApplicableIndexType(keyType, info.keyType);
 		});
@@ -4070,7 +4070,7 @@ class CheckerPart8 {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
-	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 	

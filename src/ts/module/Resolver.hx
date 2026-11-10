@@ -1219,7 +1219,7 @@ class ResolutionState {
 	}
 
 	function tryLoadModuleUsingPaths(extensions:Extensions, moduleName:String, containingDirectory:RootedDirectoryPath,
-			paths:Null<OrderedMap<String, Array<String>>>, pathPatterns:ParsedPatterns, loader:ResolutionKindSpecificLoader):Null<Resolved> {
+			paths:Null<OrderedMap<String, Slice<String>>>, pathPatterns:ParsedPatterns, loader:ResolutionKindSpecificLoader):Null<Resolved> {
 		final r = this;
 		final matchedPattern = Module.MatchPatternOrExact(pathPatterns, moduleName);
 		if (matchedPattern.IsValid()) {

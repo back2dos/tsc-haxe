@@ -129,7 +129,7 @@ class ModuleGoldenTest {
 				o.TraceResolution = TSTrue;
 			final paths = get(ov, "paths");
 			if (paths != null) {
-				o.Paths = new OrderedMap<String, Array<String>>();
+				o.Paths = new OrderedMap<String, Slice<String>>();
 				for (i in 0...paths.Names.length)
 					o.Paths.Set(paths.Names[i], strings(paths.Members[i]).nilable());
 			}

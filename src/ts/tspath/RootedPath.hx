@@ -199,7 +199,7 @@ abstract RootedFilePath(String) to String {
 		return Tspath.FileExtensionIs(this, extension);
 	}
 
-	public inline function ExtensionIsOneOf(extensions:Array<String>):Bool {
+	public inline function ExtensionIsOneOf(extensions:Slice<String>):Bool {
 		return Tspath.FileExtensionIsOneOf(this, extensions);
 	}
 

@@ -9,7 +9,7 @@ class ProjectReferenceFileMapper {
 	var loader:FileLoader = null; // Only present during populating the mapper and parsing, released after that
 
 	var configToProjectReference:StringMap<ParsedCommandLine> = null; // All the resolved references needed
-	var referencesInConfigFile:StringMap<Array<Path>> = null; // Map of config file to its references
+	var referencesInConfigFile:StringMap<Slice<Path>> = null; // Map of config file to its references
 	var sourceToProjectReference:StringMap<SourceOutputAndProjectReference> = null;
 	var outputDtsToProjectReference:StringMap<SourceOutputAndProjectReference> = null;
 
@@ -121,7 +121,7 @@ class ProjectReferenceFileMapper {
 		return this.rangeResolvedReferenceWorker(refs, f, this.opts.Config, seenRef);
 	}
 
-	function rangeResolvedReferenceWorker(references:Array<Path>, f:(path:Path, config:ParsedCommandLine, parent:ParsedCommandLine, index:Int) -> Bool,
+	function rangeResolvedReferenceWorker(references:Slice<Path>, f:(path:Path, config:ParsedCommandLine, parent:ParsedCommandLine, index:Int) -> Bool,
 			parent:ParsedCommandLine, seenRef:Set<Path>):Bool {
 		if (references == null)
 			return true;

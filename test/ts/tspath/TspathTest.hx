@@ -20,7 +20,7 @@ class TspathTest {
 
 	// --- path_test.go helpers ---
 
-	static final getNormalizedAbsolutePathTests:Array<Array<Array<String>>> = [
+	static final getNormalizedAbsolutePathTests:Array<Slice<Slice<String>>> = [
 		// "non-normalized inputs"
 		[
 			["/.", ""], ["/./", ""], ["/../", ""], ["/a/", ""], ["/a/.", ""], ["/a/foo.", ""], ["/a/./", ""], ["/a/./b", ""], ["/a/./b/", ""], ["/a/..", ""],

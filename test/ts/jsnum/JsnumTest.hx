@@ -952,7 +952,7 @@ process.stdout.write(JSON.stringify(await script(...process.argv.slice(2))));';
 	// hxcpp implementation does not build with the pinned Haxe/hxcpp pair). They are queued here
 	// and written by a node bootstrap before the loader runs; node's stdout is written by the
 	// bootstrap to a file that Haxe reads with sys.io.File.getContent.
-	static var pendingFiles:Array<Array<String>> = [];
+	static var pendingFiles:Array<Slice<String>> = [];
 
 	// JSON string literal with every non-printable-ASCII code unit escaped (haxe.Json.stringify
 	// leaves control characters unescaped on hxcpp; ASCII-only also keeps command lines simple).

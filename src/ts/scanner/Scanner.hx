@@ -164,8 +164,8 @@ class Scanner {
 	// PORT: perf — (from tsrs) GetIdentifierToken's keywords by a perfect hash of the first two units, the last
 	// and the length (one string comparison per identifier instead of a map lookup); kwTable null when two
 	// keywords collide (then the map, as before)
-	static final kwKinds:haxe.ds.Vector<Kind> = new haxe.ds.Vector<Kind>(256);
-	static final kwTable:Null<haxe.ds.Vector<String>> = {
+	static final kwKinds:Vec<Kind> = new haxe.ds.Vector<Kind>(256);
+	static final kwTable:Null<Vec<String>> = {
 		final t = new haxe.ds.Vector<String>(256);
 		var ok = true;
 		for (k in textToKeyword.keys()) {
@@ -189,8 +189,8 @@ class Scanner {
 	// strings are equal either way.
 	static inline final ID_CACHE_BITS = 11;
 
-	var idStrings:haxe.ds.Vector<String> = null;
-	var idTags:haxe.ds.Vector<Int> = null;
+	var idStrings:Vec<String> = null;
+	var idTags:Vec<Int> = null;
 
 	// text[start:end], an ASCII identifier
 	function identifierText(start:Int, end:Int):String {
@@ -734,7 +734,7 @@ class Scanner {
 	// PORT: inline; with -D analyzer-optimize Haxe inlines the lambda literal at each call site
 	// (no function value per call), like Go's compiler does.
 	// the ASCII units an identifier continues with (a-z, A-Z, 0-9, _ and $), by unit
-	static final asciiIdentifierPart:haxe.ds.Vector<Bool> = {
+	static final asciiIdentifierPart:Vec<Bool> = {
 		final v = new haxe.ds.Vector<Bool>(128);
 		for (b in 0...128)
 			v[b] = (b >= 'a'.code && b <= 'z'.code) || (b >= 'A'.code && b <= 'Z'.code) || (b >= '0'.code && b <= '9'.code) || b == '_'.code || b == '$'.code;
@@ -750,7 +750,7 @@ class Scanner {
 	static inline final classTemplateText = 16; // not '`', '$', '\\' or '\r'
 	static inline final classDigit = 32; // 0-9
 
-	static final asciiClass:haxe.ds.Vector<Int> = {
+	static final asciiClass:Vec<Int> = {
 		final v = new haxe.ds.Vector<Int>(256); // units 128..255: no class (a one-byte text's units index it directly)
 		for (b in 0...256) {
 			var c = 0;

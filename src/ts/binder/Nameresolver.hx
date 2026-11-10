@@ -57,7 +57,7 @@ class NameResolver {
 
 	public function new() {}
 
-	static final passThrough:haxe.ds.Vector<Bool> = {
+	static final passThrough:Vec<Bool> = {
 		final v = new haxe.ds.Vector<Bool>(KindCount);
 		for (k in 0...v.length)
 			v[k] = false;

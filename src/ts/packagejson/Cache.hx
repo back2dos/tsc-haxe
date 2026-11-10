@@ -163,7 +163,7 @@ class VersionPaths {
 	public var Version:String = "";
 
 	var pathsJSON:Null<OrderedMap<String, JSONValue>> = null;
-	var paths:Null<OrderedMap<String, Array<String>>> = null;
+	var paths:Null<OrderedMap<String, Slice<String>>> = null;
 
 	public function new(Version:String = "", ?pathsJSON:OrderedMap<String, JSONValue>) {
 		this.Version = Version;
@@ -174,14 +174,14 @@ class VersionPaths {
 		return this != null && this.Version != "" && this.pathsJSON != null;
 	}
 
-	public function GetPaths():Null<OrderedMap<String, Array<String>>> {
+	public function GetPaths():Null<OrderedMap<String, Slice<String>>> {
 		if (!this.Exists()) {
 			return null;
 		}
 		if (this.paths != null) {
 			return this.paths;
 		}
-		final paths:OrderedMap<String, Array<String>> = Collections.NewOrderedMapWithSizeHint(this.pathsJSON.Size());
+		final paths:OrderedMap<String, Slice<String>> = Collections.NewOrderedMapWithSizeHint(this.pathsJSON.Size());
 		for (key => value in this.pathsJSON.Entries()) {
 			if (value.Type != JSONValueTypeArray) {
 				continue;

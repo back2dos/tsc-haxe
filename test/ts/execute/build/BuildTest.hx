@@ -30,7 +30,7 @@ class BuildOrderTestCase {
 	public function run():Void {
 		T.run(this.name + " - " + this.projects.join(","), function() {
 			final files = new Map<String, Any>();
-			final deps:Map<String, Array<String>> = [
+			final deps:Map<String, Slice<String>> = [
 				"A" => ["B", "C"],
 				"B" => ["C", "D"],
 				"C" => ["D", "E"],
@@ -40,7 +40,7 @@ class BuildOrderTestCase {
 				"J" => ["H", "E"],
 			];
 			// PORT: Go ranges over a map (random order); the lists are only used with Contains.
-			final reverseDeps = new Map<String, Array<String>>();
+			final reverseDeps = new Map<String, Slice<String>>();
 			for (project => deps in deps) {
 				for (dep in deps) {
 					if (!reverseDeps.exists(dep))

@@ -1158,7 +1158,7 @@ class Modulespecifiers {
 		return cast "";
 	}
 
-	static function tryGetModuleNameFromPaths(relativeToBaseUrl:String, fileName:RootedFilePath, paths:OrderedMap<String, Array<String>>,
+	static function tryGetModuleNameFromPaths(relativeToBaseUrl:String, fileName:RootedFilePath, paths:OrderedMap<String, Slice<String>>,
 			allowedEndings:Array<ModuleSpecifierEnding>, baseDirectory:RootedDirectoryPath, host:ModuleSpecifierGenerationHost,
 			compilerOptions:CompilerOptions):String {
 		final caseSensitivity = host.CaseSensitivity();

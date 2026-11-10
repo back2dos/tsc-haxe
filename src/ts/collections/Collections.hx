@@ -13,7 +13,7 @@ class Collections {
 
 	public static function NewMultiMapWithSizeHint<K, V>(hint:Int):MultiMap<K, V> {
 		final m = new MultiMap<K, V>();
-		m.M = new GoMap<K, Array<V>>();
+		m.M = new GoMap<K, Slice<V>>();
 		return m;
 	}
 

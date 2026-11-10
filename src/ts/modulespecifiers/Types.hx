@@ -115,7 +115,7 @@ interface ModuleSpecifierGenerationHost extends OutputPathsHost {
 	function BaseDirectory():RootedDirectoryPath;
 
 	function GetProjectReferenceFromSource(path:PathKey):ts.tsoptions.Parsedcommandline.SourceOutputAndProjectReference;
-	function GetRedirectTargets(path:PathKey):Array<RootedFilePath>;
+	function GetRedirectTargets(path:PathKey):Slice<RootedFilePath>;
 	function GetSourceOfProjectReferenceIfOutputIncluded(file:HasFileName):RootedFilePath;
 
 	function FileExists(path:RootedFilePath):Bool;

@@ -260,7 +260,7 @@ class ModulespecifiersTest {
 		});
 
 		T.run("TestModuleSpecifierContainsNodeModules", () -> {
-			final tests:Array<Array<Dynamic>> = [
+			final tests:Array<Slice<Dynamic>> = [
 				["contains node_modules", "/project/node_modules/lodash/index.js", true],
 				["does not contain node_modules", "/project/src/utils.ts", false],
 				["node_modules in middle", "/project/packages/node_modules/pkg/file.js", true],
@@ -289,7 +289,7 @@ class ModulespecifiersTest {
 		});
 
 		T.run("TestContainsIgnoredPath", () -> {
-			final tests:Array<Array<Dynamic>> = [
+			final tests:Array<Slice<Dynamic>> = [
 				["ignored path", "/project/node_modules/.pnpm/file.ts", true],
 				["not ignored path", "/project/src/file.ts", false],
 			];
@@ -302,7 +302,7 @@ class ModulespecifiersTest {
 		});
 
 		T.run("TestTryGetRealFileNameForNonJSDeclarationFileName", () -> {
-			final tests:Array<Array<String>> = [
+			final tests:Array<Slice<String>> = [
 				["json declaration file", "/project/foo.d.json.ts", "/project/foo.json"],
 				["multi-dot source extension declaration file", "/project/foo.module.d.css.ts", "/project/foo.module.css"],
 				["plain dts file ignored", "/project/foo.d.ts", ""],
@@ -356,7 +356,7 @@ class ModulespecifiersTest {
 			}
 
 			// with exports pattern
-			final tests:Array<Array<String>> = [
+			final tests:Array<Slice<String>> = [
 				["match", "/pkg/src/things/thing1/index.ts", "./src/things/thing1"],
 				["mismatch with matching leading and trailing strings", "/pkg/src/things/index.ts", ""],
 			];

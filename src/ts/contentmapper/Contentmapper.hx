@@ -77,7 +77,7 @@ class Contentmapper {
 			case FieldEnum, FieldIntPtr:
 				return Std.string((value : Int));
 			case FieldPaths:
-				final m:OrderedMap<String, Array<String>> = value;
+				final m:OrderedMap<String, Slice<String>> = value;
 				if (m == null)
 					return "null";
 				final o = new OrderedMap<String, Dynamic>();

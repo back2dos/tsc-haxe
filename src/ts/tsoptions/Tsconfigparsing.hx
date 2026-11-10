@@ -147,7 +147,7 @@ class JsonConversionNotifier {
 
 @:allow(ts.tsoptions)
 class TsConfigOptions {
-	var prop:Null<StringMap<Array<std.String>>> = null;
+	var prop:Null<StringMap<Slice<std.String>>> = null;
 	var references:Slice<ProjectReference> = null;
 	var notDefined:std.String = "";
 

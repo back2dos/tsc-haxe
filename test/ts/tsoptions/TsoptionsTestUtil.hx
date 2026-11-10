@@ -78,7 +78,7 @@ class TsoptionsTestUtil {
 				case FieldTristate:
 					m.Set(f.JsonName, (v : Int) == (TSTrue : Int));
 				case FieldPaths:
-					final paths:OrderedMap<String, Array<String>> = v;
+					final paths:OrderedMap<String, Slice<String>> = v;
 					final pm = new OrderedMap<String, Dynamic>();
 					for (k => a in paths.Entries())
 						pm.Set(k, a == null ? [] : a);
@@ -168,7 +168,7 @@ class TsoptionsTestUtil {
 						if (v.Kind == "n".code) {
 							field.Set(o, null);
 						} else {
-							final pm = new OrderedMap<String, Array<String>>();
+							final pm = new OrderedMap<String, Slice<String>>();
 							for (j in 0...v.Names.length)
 								pm.Set(v.Names[j], strings(v.Members[j]).nilable());
 							field.Set(o, pm);

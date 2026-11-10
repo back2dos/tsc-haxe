@@ -76,7 +76,7 @@ class CompilerOptions {
 	public var NoImplicitOverride:Tristate = TSUnknown; // json:"noImplicitOverride,omitzero"
 	public var NoUncheckedSideEffectImports:Tristate = TSUnknown; // json:"noUncheckedSideEffectImports,omitzero"
 	public var OutDir:RootedDirectoryPath = cast ""; // json:"outDir,omitzero"
-	public var Paths:Null<OrderedMap<String, Array<String>>> = null; // json:"paths,omitzero"
+	public var Paths:Null<OrderedMap<String, Slice<String>>> = null; // json:"paths,omitzero"
 	public var PreserveConstEnums:Tristate = TSUnknown; // json:"preserveConstEnums,omitzero"
 	public var PreserveSymlinks:Tristate = TSUnknown; // json:"preserveSymlinks,omitzero"
 	public var Project:RootedPath = cast ""; // json:"project,omitzero"

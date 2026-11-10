@@ -878,7 +878,7 @@ class Jsx {
 		return childTypes;
 	}
 
-	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):haxe.ds.Vector<Signature> {
+	static function getUninstantiatedJsxSignaturesOfType(c:Checker, elementType:Type, caller:Node):Vec<Signature> {
 		if ((elementType.flags & TypeFlagsString) != 0) {
 			return Core.vector1(c.anySignature);
 		}
@@ -1479,7 +1479,7 @@ class Jsx {
 		return s != null ? s : [];
 	}
 
-	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 

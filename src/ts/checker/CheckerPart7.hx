@@ -752,11 +752,11 @@ class CheckerPart7 {
 		return c.createTupleTypeEx(elementTypes, elementInfos, false /*readonly*/);
 	}
 
-	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
+	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:Vec<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		return c.createTupleTypeExV(elementTypes, elementInfos, readonly);
 	}
 
-	static function createTupleTypeExV(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
+	static function createTupleTypeExV(c:Checker, elementTypes:Vec<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		final tupleTarget = c.getTupleTargetType(elementInfos, readonly);
 		if (tupleTarget == c.emptyGenericType) {
 			return c.emptyObjectType;
@@ -1143,7 +1143,7 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function newAnonymousType(c:Checker, symbol:Symbol, members:SymbolTable, callSignatures:haxe.ds.Vector<Signature>, constructSignatures:haxe.ds.Vector<Signature>, indexInfos:haxe.ds.Vector<IndexInfo>):Type {
+	static function newAnonymousType(c:Checker, symbol:Symbol, members:SymbolTable, callSignatures:Vec<Signature>, constructSignatures:Vec<Signature>, indexInfos:Vec<IndexInfo>):Type {
 		final t = c.newObjectType(ObjectFlagsAnonymous, symbol);
 		c.setStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
 		return t;
@@ -1160,7 +1160,7 @@ class CheckerPart7 {
 		return c.createTypeReferenceExA(target, typeArguments, ObjectFlagsNone);
 	}
 
-	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>):Type {
+	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:Vec<Type>):Type {
 		return c.createTypeReferenceExV(target, typeArguments, ObjectFlagsNone);
 	}
 
@@ -1169,7 +1169,7 @@ class CheckerPart7 {
 		return c.createTypeReferenceExA(target, typeArguments, objectFlags);
 	}
 
-	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:Vec<Type>, objectFlags:ObjectFlags):Type {
 		return c.createTypeReferenceExV(target, typeArguments, objectFlags);
 	}
 
@@ -1201,7 +1201,7 @@ class CheckerPart7 {
 		return c.newTypeReference(intf, id, VectorBuilder.freeze(typeArguments), objectFlags);
 	}
 
-	static function createTypeReferenceExV(c:Checker, target:Type, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+	static function createTypeReferenceExV(c:Checker, target:Type, typeArguments:Vec<Type>, objectFlags:ObjectFlags):Type {
 		final intf = target.AsInterfaceType();
 		#if (target.name == "hxmc")
 		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
@@ -1229,7 +1229,7 @@ class CheckerPart7 {
 		return c.newTypeReference(intf, id, typeArguments == null ? Core.emptyVector() : typeArguments, objectFlags);
 	}
 
-	static function newTypeReference(c:Checker, intf:InterfaceType, id:std.String, typeArguments:haxe.ds.Vector<Type>, objectFlags:ObjectFlags):Type {
+	static function newTypeReference(c:Checker, intf:InterfaceType, id:std.String, typeArguments:Vec<Type>, objectFlags:ObjectFlags):Type {
 		final target:Type = intf;
 		final t = c.newObjectType(ObjectFlagsReference | objectFlags | c.getPropagatingFlagsOfTypes(typeArguments, TypeFlagsNone), target.symbol);
 		final d = t.AsTypeReference();
@@ -1268,7 +1268,7 @@ class CheckerPart7 {
 		c.setStructuredTypeMembers(t, members, VectorBuilder.freezeOrNull(callSignatures), VectorBuilder.freezeOrNull(constructSignatures), VectorBuilder.freezeOrNull(indexInfos));
 	}
 
-	static function setStructuredTypeMembers(c:Checker, t:Type, members:SymbolTable, callSignatures:haxe.ds.Vector<Signature>, constructSignatures:haxe.ds.Vector<Signature>, indexInfos:haxe.ds.Vector<IndexInfo>):Void {
+	static function setStructuredTypeMembers(c:Checker, t:Type, members:SymbolTable, callSignatures:Vec<Signature>, constructSignatures:Vec<Signature>, indexInfos:Vec<IndexInfo>):Void {
 		t.objectFlags |= ObjectFlagsMembersResolved;
 		final data = t.AsStructuredType();
 		data.members = members;
@@ -1302,7 +1302,7 @@ class CheckerPart7 {
 	// It is only necessary to do so if a constituent type might be the undefined type, the null type, the type
 	// of an object literal or a non-inferrable type. This is because there are operations in the type checker
 	// that care about the presence of such types at arbitrary depth in a containing type.
-	static extern inline overload function getPropagatingFlagsOfTypes(c:Checker, types:haxe.ds.Vector<Type>, excludeKinds:TypeFlags):ObjectFlags {
+	static extern inline overload function getPropagatingFlagsOfTypes(c:Checker, types:Vec<Type>, excludeKinds:TypeFlags):ObjectFlags {
 		var result:ObjectFlags = ObjectFlagsNone;
 		for (i in 0...Core.len(types)) {
 			final t = types[i];
@@ -1328,10 +1328,10 @@ class CheckerPart7 {
 	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Slice<Type>):Type
 		return c.newUnionTypeV(objectFlags, VectorBuilder.freeze(types)); // PORT: perf — a Vector (one copy per new type)
 
-	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:haxe.ds.Vector<Type>):Type
+	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Vec<Type>):Type
 		return c.newUnionTypeV(objectFlags, types);
 
-	static function newUnionTypeV(c:Checker, objectFlags:ObjectFlags, types:haxe.ds.Vector<Type>):Type {
+	static function newUnionTypeV(c:Checker, objectFlags:ObjectFlags, types:Vec<Type>):Type {
 		final data = new UnionType();
 		data.types = types;
 		return c.newType(TypeFlagsUnion, objectFlags, data);
@@ -1390,7 +1390,7 @@ class CheckerPart7 {
 		return c.newType(TypeFlagsSubstitution, ObjectFlagsNone, data);
 	}
 
-	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:haxe.ds.Vector<Type>, thisParameter:Symbol, parameters:haxe.ds.Vector<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
+	static function newSignature(c:Checker, flags:SignatureFlags, declaration:Node, typeParameters:Vec<Type>, thisParameter:Symbol, parameters:Vec<Symbol>, resolvedReturnType:Type, resolvedTypePredicate:TypePredicate, minArgumentCount:Int):Signature {
 		c.SignatureCount++;
 		final sig = c.signatureArena.New();
 		sig.id = c.SignatureCount;
@@ -1712,7 +1712,7 @@ class CheckerPart7 {
 		return c.getIntersectionType(types);
 	}
 
-	static extern inline overload function getUnionType(c:Checker, types:haxe.ds.Vector<Type>):Type
+	static extern inline overload function getUnionType(c:Checker, types:Vec<Type>):Type
 		return c.getUnionTypeExV(types, UnionReductionLiteral, null /*alias*/, null /*origin*/);
 
 	static extern inline overload function getUnionType(c:Checker, types:Slice<Type>):Type
@@ -1729,7 +1729,7 @@ class CheckerPart7 {
 	// expression constructs such as array literals and the || and ?: operators). Named types can
 	// circularly reference themselves and therefore cannot be subtype reduced during their declaration.
 	// For example, "type Item = string | (() => Item" is a named type that circularly references itself.
-	static extern inline overload function getUnionTypeEx(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+	static extern inline overload function getUnionTypeEx(c:Checker, types:Vec<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeExV(types, unionReduction, alias, origin);
 
 	static extern inline overload function getUnionTypeEx(c:Checker, types:Slice<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
@@ -1762,7 +1762,7 @@ class CheckerPart7 {
 		return c.getUnionTypeWorker(types, unionReduction, alias, origin);
 	}
 
-	static function getUnionTypeExV(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+	static function getUnionTypeExV(c:Checker, types:Vec<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
 		if (Core.len(types) == 0) {
 			return c.neverType;
 		}
@@ -1792,7 +1792,7 @@ class CheckerPart7 {
 	static extern inline overload function getUnionTypeWorker(c:Checker, types:Slice<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeWorkerA(types, unionReduction, alias, origin);
 
-	static extern inline overload function getUnionTypeWorker(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+	static extern inline overload function getUnionTypeWorker(c:Checker, types:Vec<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeWorkerV(types, unionReduction, alias, origin);
 
 	static function getUnionTypeWorkerA(c:Checker, types:Slice<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
@@ -1875,7 +1875,7 @@ class CheckerPart7 {
 		return c.getUnionTypeFromSortedList(typeSet, objectFlags, alias, origin);
 	}
 
-	static function getUnionTypeWorkerV(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+	static function getUnionTypeWorkerV(c:Checker, types:Vec<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
 		var typeSet = c.addTypesToUnion([], 0, types);
 		final includes = c.addTypesToUnionIncludes; // PORT: perf (second result of addTypesToUnion)
 		if (unionReduction != UnionReductionNone) {
@@ -1960,7 +1960,7 @@ class CheckerPart7 {
 	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:Slice<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeFromSortedListA(types, precomputedObjectFlags, alias, origin);
 
-	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:haxe.ds.Vector<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
+	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:Vec<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeFromSortedListV(types, precomputedObjectFlags, alias, origin);
 
 	static function getUnionTypeFromSortedListA(c:Checker, types:Slice<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
@@ -1993,7 +1993,7 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function getUnionTypeFromSortedListV(c:Checker, types:haxe.ds.Vector<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
+	static function getUnionTypeFromSortedListV(c:Checker, types:Vec<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
 		if (Core.len(types) == 0) {
 			return c.neverType;
 		}
@@ -2048,7 +2048,7 @@ class CheckerPart7 {
 	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:Slice<Type>):Slice<Type>
 		return c.addTypesToUnionA(typeSet, includes, sourceTypes);
 
-	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Slice<Type>
+	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:Vec<Type>):Slice<Type>
 		return c.addTypesToUnionV(typeSet, includes, sourceTypes);
 
 	static function addTypesToUnionA(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:Slice<Type>):Slice<Type> {
@@ -2098,7 +2098,7 @@ class CheckerPart7 {
 		return typeSet;
 	}
 
-	static function addTypesToUnionV(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Slice<Type> {
+	static function addTypesToUnionV(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:Vec<Type>):Slice<Type> {
 		if (sourceTypes != null && sourceTypes.length == 2 && typeSet.length == 0 && sourceTypes[0].flags & sourceTypes[1].flags & TypeFlagsUnion != 0)
 			return c.addTwoUnionsToUnion(typeSet, includes, sourceTypes[0], sourceTypes[1]);
 		var lastType:Type = null;
@@ -2203,7 +2203,7 @@ class CheckerPart7 {
 	}
 
 	// the first index in [lo, hi) of sorted `types` whose type is not below t
-	static extern inline overload function lowerBoundType(types:haxe.ds.Vector<Type>, lo:Int, hi:Int, t:Type):Int {
+	static extern inline overload function lowerBoundType(types:Vec<Type>, lo:Int, hi:Int, t:Type):Int {
 		while (lo < hi) {
 			final h = (lo + hi) >>> 1;
 			if (types[h] != t && Checker.CompareTypes(types[h], t) < 0)
@@ -2359,7 +2359,7 @@ class CheckerPart7 {
 	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Slice<Type>, types:Slice<Type>):Slice<Type>
 		return c.addNamedUnionsA(namedUnions, types);
 
-	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Slice<Type>, types:haxe.ds.Vector<Type>):Slice<Type>
+	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Slice<Type>, types:Vec<Type>):Slice<Type>
 		return c.addNamedUnionsV(namedUnions, types);
 
 	static function addNamedUnionsA(c:Checker, namedUnions:Slice<Type>, types:Slice<Type>):Slice<Type> {
@@ -2378,7 +2378,7 @@ class CheckerPart7 {
 		return namedUnions;
 	}
 
-	static function addNamedUnionsV(c:Checker, namedUnions:Slice<Type>, types:haxe.ds.Vector<Type>):Slice<Type> {
+	static function addNamedUnionsV(c:Checker, namedUnions:Slice<Type>, types:Vec<Type>):Slice<Type> {
 		if (types != null) {
 			for (t in types) {
 				if (t.flags & TypeFlagsUnion != 0) {
@@ -2623,7 +2623,7 @@ class CheckerPart7 {
 	// a type alias of the form "type List<T> = T & { next: List<T> }" cannot be reduced during its declaration.
 	// Also, unlike union types, the order of the constituent types is preserved in order that overload resolution
 	// for intersections of types with signatures can be deterministic.
-	static extern inline overload function getIntersectionType(c:Checker, types:haxe.ds.Vector<Type>):Type
+	static extern inline overload function getIntersectionType(c:Checker, types:Vec<Type>):Type
 		return c.getIntersectionTypeExV(types, IntersectionFlagsNone, null /*alias*/);
 
 	static extern inline overload function getIntersectionType(c:Checker, types:Slice<Type>):Type
@@ -2633,7 +2633,7 @@ class CheckerPart7 {
 		return c.getIntersectionTypeEx(types, IntersectionFlagsNone, null /*alias*/);
 	}
 
-	static extern inline overload function getIntersectionTypeEx(c:Checker, types:haxe.ds.Vector<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
+	static extern inline overload function getIntersectionTypeEx(c:Checker, types:Vec<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
 		return c.getIntersectionTypeExV(types, flags, alias);
 
 	static extern inline overload function getIntersectionTypeEx(c:Checker, types:Slice<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
@@ -2804,7 +2804,7 @@ class CheckerPart7 {
 		return result;
 	}
 
-	static function getIntersectionTypeExV(c:Checker, types:haxe.ds.Vector<Type>, flags:IntersectionFlags, alias:TypeAlias):Type {
+	static function getIntersectionTypeExV(c:Checker, types:Vec<Type>, flags:IntersectionFlags, alias:TypeAlias):Type {
 		final orderedTypes = new OrderedSet<Type>();
 		orderedTypes.values = [];
 		final includes = c.addTypesToIntersectionV(orderedTypes, 0, types);
@@ -2981,7 +2981,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: perf — of an intersection's types (a Vector)
-	static function addTypesToIntersectionV(c:Checker, typeSet:OrderedSet<Type>, includes:TypeFlags, types:haxe.ds.Vector<Type>):TypeFlags {
+	static function addTypesToIntersectionV(c:Checker, typeSet:OrderedSet<Type>, includes:TypeFlags, types:Vec<Type>):TypeFlags {
 		for (i in 0...Core.len(types)) {
 			includes = c.addTypeToIntersection(typeSet, includes, c.getRegularTypeOfLiteralType(types[i]));
 		}
@@ -4505,7 +4505,7 @@ class CheckerPart7 {
 		return false;
 	}
 
-	static function computeIsUniformUnionType(c:Checker, types:haxe.ds.Vector<Type>):Bool {
+	static function computeIsUniformUnionType(c:Checker, types:Vec<Type>):Bool {
 		var enumSymbol:Symbol = null;
 		var hasStringOrNumberLiteral = false;
 		for (t in rangeOf(types)) {
@@ -4800,7 +4800,7 @@ class CheckerPart7 {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
-	static extern inline overload function rangeOf<T>(a:haxe.ds.Vector<T>):haxe.ds.Vector<T> {
+	static extern inline overload function rangeOf<T>(a:Vec<T>):Vec<T> {
 		return a != null ? a : new haxe.ds.Vector<T>(0);
 	}
 
@@ -4822,7 +4822,7 @@ class CheckerPart7 {
 	static inline final MAX_INT:Int = 0x7FFFFFFF;
 
 	// PORT: Go `slices.Values(s)` as the checker's iter.Seq form `(yield) -> Void`.
-	static extern inline overload function valuesOf<T>(s:haxe.ds.Vector<T>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:Vec<T>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			for (i in 0...Core.len(s)) {
 				if (!yield_(s[i])) {
@@ -4863,7 +4863,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: Go `core.Some(types, c.isNoInferTargetType)` as a loop (no bound-method allocation).
-	static function someNoInferTargetType(c:Checker, types:haxe.ds.Vector<Type>):Bool {
+	static function someNoInferTargetType(c:Checker, types:Vec<Type>):Bool {
 		if (types != null) {
 			for (t in types) {
 				if (c.isNoInferTargetType(t)) {
@@ -4875,7 +4875,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: Go `core.Some(types, c.IsEmptyAnonymousObjectType)` as a loop (no bound-method allocation).
-	static function someEmptyAnonymousObjectType(c:Checker, types:haxe.ds.Vector<Type>):Bool {
+	static function someEmptyAnonymousObjectType(c:Checker, types:Vec<Type>):Bool {
 		if (types != null) {
 			for (t in types) {
 				if (c.IsEmptyAnonymousObjectType(t)) {

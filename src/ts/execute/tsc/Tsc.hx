@@ -453,7 +453,7 @@ class Tsc {
 			}
 			return output;
 		}
-		final categoryMap = new StringMap<Array<CommandLineOption>>();
+		final categoryMap = new StringMap<Slice<CommandLineOption>>();
 		final categoryOrder:Array<std.String> = [];
 		for (option in options) {
 			if (option.Category == null) {
@@ -669,7 +669,7 @@ class Tsc {
 			// Map<string, number | string>
 			// Group synonyms: es6/es2015
 			final enumMap = option.EnumMap();
-			final inverted = new OrderedMap<Dynamic, Array<std.String>>();
+			final inverted = new OrderedMap<Dynamic, Slice<std.String>>();
 			final deprecatedKeys = option.DeprecatedKeys();
 
 			for (name => value in enumMap.Entries()) {

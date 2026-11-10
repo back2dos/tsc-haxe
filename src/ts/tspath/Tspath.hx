@@ -5,9 +5,9 @@ import haxe.ds.StringMap;
 // Go anonymous struct value of newGroups in getCommonParentsWorker.
 private class CommonParentsGroup {
 	public var head:Slice<String> = null;
-	public var tails:Slice<Array<String>> = null;
+	public var tails:Slice<Slice<String>> = null;
 
-	public function new(head:Slice<String>, tails:Slice<Array<String>>) {
+	public function new(head:Slice<String>, tails:Slice<Slice<String>>) {
 		this.head = head;
 		this.tails = tails;
 	}
@@ -46,12 +46,12 @@ class Tspath {
 	static final supportedTSExtensionsForExtractExtension:Array<String> = [
 		ExtensionDts, ExtensionDcts, ExtensionDmts, ExtensionTs, ExtensionTsx, ExtensionMts, ExtensionCts
 	];
-	public static final AllSupportedExtensions:Array<Array<String>> = [
+	public static final AllSupportedExtensions:Array<Slice<String>> = [
 		[ExtensionTs, ExtensionTsx, ExtensionDts, ExtensionJs, ExtensionJsx],
 		[ExtensionCts, ExtensionDcts, ExtensionCjs],
 		[ExtensionMts, ExtensionDmts, ExtensionMjs]
 	];
-	public static final SupportedTSExtensions:Array<Array<String>> = [
+	public static final SupportedTSExtensions:Array<Slice<String>> = [
 		[ExtensionTs, ExtensionTsx, ExtensionDts],
 		[ExtensionCts, ExtensionDcts],
 		[ExtensionMts, ExtensionDmts]
@@ -59,10 +59,10 @@ class Tspath {
 	public static final SupportedTSExtensionsFlat:Array<String> = [
 		ExtensionTs, ExtensionTsx, ExtensionDts, ExtensionCts, ExtensionDcts, ExtensionMts, ExtensionDmts
 	];
-	public static final SupportedJSExtensions:Array<Array<String>> = [[ExtensionJs, ExtensionJsx], [ExtensionMjs], [ExtensionCjs]];
+	public static final SupportedJSExtensions:Array<Slice<String>> = [[ExtensionJs, ExtensionJsx], [ExtensionMjs], [ExtensionCjs]];
 	public static final SupportedJSExtensionsFlat:Array<String> = [ExtensionJs, ExtensionJsx, ExtensionMjs, ExtensionCjs];
-	public static final AllSupportedExtensionsWithJson:Array<Array<String>> = AllSupportedExtensions.concat([[ExtensionJson]]);
-	public static final SupportedTSExtensionsWithJson:Array<Array<String>> = SupportedTSExtensions.concat([[ExtensionJson]]);
+	public static final AllSupportedExtensionsWithJson:Array<Slice<String>> = AllSupportedExtensions.concat([[ExtensionJson]]);
+	public static final SupportedTSExtensionsWithJson:Array<Slice<String>> = SupportedTSExtensions.concat([[ExtensionJson]]);
 	public static final SupportedTSExtensionsWithJsonFlat:Array<String> = SupportedTSExtensionsFlat.concat([ExtensionJson]);
 	public static final ExtensionsNotSupportingExtensionlessResolution:Array<String> = [
 		ExtensionMts, ExtensionDmts, ExtensionMjs, ExtensionCts, ExtensionDcts, ExtensionCjs
@@ -154,7 +154,7 @@ class Tspath {
 		return GetDeclarationFileExtension(fileName) != "";
 	}
 
-	public static function ExtensionIsOneOf(ext:String, extensions:Array<String>):Bool {
+	public static function ExtensionIsOneOf(ext:String, extensions:Slice<String>):Bool {
 		return Slices.Contains(extensions, ext);
 	}
 
@@ -1504,7 +1504,7 @@ class Tspath {
 		}
 
 		final ignored = new StringMap<Bool>();
-		final pathComponents:Array<Array<String>> = [];
+		final pathComponents:Array<Slice<String>> = [];
 		for (path in paths) {
 			final components = reducePathComponents(getPathComponents(path));
 			if (components.length < minComponents) {
@@ -1525,7 +1525,7 @@ class Tspath {
 		return new Pair<Array<String>, StringMap<Bool>>(resultPaths, ignored);
 	}
 
-	static function getCommonParentsWorker(componentGroups:Slice<Array<String>>, minComponents:Int, caseSensitivity:CaseSensitivity):Array<Array<String>> {
+	static function getCommonParentsWorker(componentGroups:Slice<Slice<String>>, minComponents:Int, caseSensitivity:CaseSensitivity):Array<Slice<String>> {
 		if (componentGroups == null || componentGroups.length == 0) {
 			return null;
 		}
@@ -1559,14 +1559,14 @@ class Tspath {
 							newGroups.set(key, new CommonParentsGroup(g.slice(0, lastCommonIndex + 1), tails));
 						}
 						orderedGroups.sort((x, y) -> Strings.Compare(x, y));
-						final result:Array<Array<String>> = [];
+						final result:Array<Slice<String>> = [];
 						for (key in orderedGroups) {
 							final group = newGroups.get(key);
 							final subResults = getCommonParentsWorker(group.tails, minComponents - (lastCommonIndex + 1), caseSensitivity);
 							if (subResults != null) {
 								for (sr in subResults) {
 									// PORT: copy; Go's append(group.head, sr...) may write into head's backing array.
-									result.push(group.head.concat(sr));
+									result.push(group.head.concat(sr.toArray()));
 								}
 							}
 						}
@@ -1929,7 +1929,7 @@ class Tspath {
 		}
 
 		final ignored = new StringMap<Bool>();
-		final pathComponents:Array<Array<String>> = [];
+		final pathComponents:Array<Slice<String>> = [];
 		for (directory in directories) {
 			final components = reducePathComponents(getComponents(directory));
 			if (components.length < minComponents) {

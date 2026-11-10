@@ -3767,7 +3767,7 @@ class NodeBuilderSpecifierHostAdapter implements ModuleSpecifierGenerationHost {
 		return h.GetProjectReferenceFromSource(path);
 	}
 
-	public function GetRedirectTargets(path:PathKey):Array<RootedFilePath> {
+	public function GetRedirectTargets(path:PathKey):Slice<RootedFilePath> {
 		return h.GetRedirectTargets(path);
 	}
 

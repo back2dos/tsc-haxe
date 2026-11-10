@@ -54,7 +54,7 @@ class Regexp {
 		return r;
 	}
 
-	public function FindAllStringIndex(s:String, n:Int):Slice<Array<Int>> {
+	public function FindAllStringIndex(s:String, n:Int):Slice<Slice<Int>> {
 		final re = take();
 		final r = findAllStringIndex(re, s, n);
 		give(re);
@@ -87,7 +87,7 @@ class Regexp {
 		return findStringSubmatch(re, s);
 	}
 
-	public function FindAllStringIndex(s:String, n:Int):Slice<Array<Int>> {
+	public function FindAllStringIndex(s:String, n:Int):Slice<Slice<Int>> {
 		return findAllStringIndex(re, s, n);
 	}
 
@@ -117,10 +117,10 @@ class Regexp {
 	}
 
 	// Regexp.FindAllStringIndex. Returns pairs [start, end] in UTF-16 code units.
-	static function findAllStringIndex(re:EReg, s:String, n:Int):Slice<Array<Int>> {
+	static function findAllStringIndex(re:EReg, s:String, n:Int):Slice<Slice<Int>> {
 		if (n < 0)
 			n = s.length + 1;
-		var result:Slice<Array<Int>> = null;
+		var result:Slice<Slice<Int>> = null;
 		var pos = 0;
 		var i = 0;
 		var prevMatchEnd = -1;
