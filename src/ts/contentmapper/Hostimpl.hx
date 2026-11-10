@@ -366,7 +366,7 @@ interface Conn {
 
 // Spawner starts a mapper. PORT: returns the in-process Handler instead of the process's stdio.
 interface Spawner {
-	function Spawn(command:Array<String>, dir:String):ValueError<Handler>;
+	function Spawn(command:Slice<String>, dir:String):ValueError<Handler>;
 }
 
 private class InProcessConn implements Conn {
@@ -410,7 +410,7 @@ class DialResult {
 // InitializeParams is the parameter object for the initialize request.
 class InitializeParams {
 	public var Locale:String = "";
-	public var PositionEncodings:Array<String> = null;
+	public var PositionEncodings:Slice<String> = null;
 
 	public function new() {}
 }
@@ -441,15 +441,15 @@ class OpenProjectParams {
 // OpenProjectResult is the mapper's response to an openProject request.
 class OpenProjectResult {
 	public var ConfigIdentity:String = "";
-	public var WatchedFiles:Array<String> = null;
-	public var OptionDiagnostics:Array<OptionDiagnosticResult> = null;
+	public var WatchedFiles:Slice<String> = null;
+	public var OptionDiagnostics:Slice<OptionDiagnosticResult> = null;
 
 	public function new() {}
 }
 
 class OptionDiagnosticResult {
 	// json.Value segments: a JSON string (property) or number (index)
-	public var Path:Array<String> = null;
+	public var Path:Slice<String> = null;
 	public var MessageText:String = "";
 	public var Code:Int = 0;
 
@@ -501,10 +501,10 @@ class UnusedExpectDirectiveDiagnostic {
 
 // DiagnosticDirectives shares unused-expect diagnostics across compact directive tuples.
 class DiagnosticDirectives {
-	public var UnusedExpectDirectiveDiagnostics:Array<UnusedExpectDirectiveDiagnostic> = null;
-	public var Directives:Array<ProtocolDiagnosticDirective> = null;
+	public var UnusedExpectDirectiveDiagnostics:Slice<UnusedExpectDirectiveDiagnostic> = null;
+	public var Directives:Slice<ProtocolDiagnosticDirective> = null;
 
-	public function new(directives:Array<ProtocolDiagnosticDirective>, unused:Array<UnusedExpectDirectiveDiagnostic>) {
+	public function new(directives:Array<ProtocolDiagnosticDirective>, unused:Slice<UnusedExpectDirectiveDiagnostic>) {
 		this.Directives = directives;
 		this.UnusedExpectDirectiveDiagnostics = unused;
 	}
@@ -526,8 +526,8 @@ class ProtocolDiagnosticDirective {
 
 // TransformResult is the canonical output for one input file.
 class TransformResult extends MappedOutput {
-	public var Diagnostics:Array<ProtocolDiagnostic> = null;
-	public var Supplemental:Array<MappedOutput> = null;
+	public var Diagnostics:Slice<ProtocolDiagnostic> = null;
+	public var Supplemental:Slice<MappedOutput> = null;
 
 	public function new(text:String = "", extension:String = "", mappings:String = null) {
 		super(text, extension, mappings);
@@ -556,8 +556,8 @@ private class ProjectEntry {
 	public var projectHandle:String;
 	public var opened:Bool = false;
 	public var configIdentity:String = "";
-	public var watchedFiles:Array<String> = null;
-	public var optionDiagnostics:Array<OptionDiagnostic> = null;
+	public var watchedFiles:Slice<String> = null;
+	public var optionDiagnostics:Slice<OptionDiagnostic> = null;
 
 	public function new(mapper, spec, projectHandle) {
 		this.mapper = mapper;
@@ -826,12 +826,12 @@ class HostImpl implements Host {
 private class ProjectLease implements Project {
 	public final host:HostImpl;
 	public final key:String;
-	public final mappers:Array<Mapper>;
+	public final mappers:Slice<Mapper>;
 	public final entries:go.IdentityMap<Mapper, String> = new go.IdentityMap();
 	public var refs:Int = 0;
 	var closed:Bool = false;
 
-	public function new(host:HostImpl, key:String, mappers:Array<Mapper>) {
+	public function new(host:HostImpl, key:String, mappers:Slice<Mapper>) {
 		this.host = host;
 		this.key = key;
 		this.mappers = mappers;
@@ -912,7 +912,7 @@ private class ProjectLease implements Project {
 		return new ValueError(mapper.Identity() + ":" + mapper.TransformIdentity(entry.spec.CompilerOptions), null);
 	}
 
-	public function WatchedFiles():ValueError<Array<String>> {
+	public function WatchedFiles():ValueError<Slice<String>> {
 		if (projects() == null) {
 			return new ValueError(null, null);
 		}
@@ -929,17 +929,17 @@ private class ProjectLease implements Project {
 				}
 			}
 			if (entry.watchedFiles != null)
-				files = files.concat(entry.watchedFiles);
+				files = files.concat(entry.watchedFiles.toArray());
 		}
 		Slices.SortStrings(files);
 		return new ValueError(Slices.CompactFunc(files, (a, b) -> a == b), null);
 	}
 
-	public function Diagnostics():Array<OptionDiagnostic> {
+	public function Diagnostics():Slice<OptionDiagnostic> {
 		if (projects() == null) {
 			return null;
 		}
-		var diagnostics:Array<OptionDiagnostic> = null;
+		var diagnostics:Slice<OptionDiagnostic> = null;
 		for (mapper in mappers) {
 			final entry = projects().get(entries.get(mapper));
 			if (entry == null) {
@@ -1037,10 +1037,10 @@ private class RetainedProject implements Project {
 	public function Identity(mapper:Mapper):ValueError<String>
 		return lease.Identity(mapper);
 
-	public function WatchedFiles():ValueError<Array<String>>
+	public function WatchedFiles():ValueError<Slice<String>>
 		return lease.WatchedFiles();
 
-	public function Diagnostics():Array<OptionDiagnostic>
+	public function Diagnostics():Slice<OptionDiagnostic>
 		return lease.Diagnostics();
 
 	public function Transform(mapper:Mapper, request:Request):ValueError<Result>

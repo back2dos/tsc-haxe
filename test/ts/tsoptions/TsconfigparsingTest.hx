@@ -355,7 +355,7 @@ class TsconfigparsingTest {
 			final parsed = Tsoptionstest.GetParsedCommandLine("{\n  compilerOptions?: {\n    strict?: true\n  }\n}", ["/main.ts" => "export const x = 1;"],
 	Tspath.RootedDirectoryPathFromNormalized("/"), CaseSensitive /*caseSensitivity*/);
 
-			final questionTokenDiagnostics:Array<Diagnostic> = [];
+			final questionTokenDiagnostics:Slice<Diagnostic> = [];
 			for (diagnostic in parsed.GetConfigFileParsingDiagnostics()) {
 				if (diagnostic.Code() == Diagnostics.The_0_modifier_can_only_be_used_in_TypeScript_files.Code()) {
 					questionTokenDiagnostics.push(diagnostic);
@@ -756,7 +756,7 @@ class MemoCache implements ExtendedConfigCache {
 
 	public function new() {}
 
-	public function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS):ExtendedConfigCacheEntry {
+	public function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Slice<PathKey>, fs:FS):ExtendedConfigCacheEntry {
 		if (this.m == null) {
 			this.m = new Map<String, ExtendedConfigCacheEntry>();
 		}

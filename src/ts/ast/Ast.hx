@@ -59,7 +59,7 @@ class Ast {
 		return false;
 	}
 
-	static function visitNodes(v:Visitor, nodes:Array<Node>):Bool {
+	static function visitNodes(v:Visitor, nodes:Slice<Node>):Bool {
 		if (nodes != null) {
 			for (node in nodes) {
 				if (v(node)) {
@@ -2393,7 +2393,7 @@ class Ast {
 	// --- diagnostic.go ---
 
 	public static function NewDiagnosticFromSerialized(file:SourceFile, loc:TextRange, code:Int, category:Category, messageKey:Key,
-			messageArgs:Array<String>, messageChain:Array<Diagnostic>, relatedInformation:Array<Diagnostic>, reportsUnnecessary:Bool,
+			messageArgs:Slice<String>, messageChain:Slice<Diagnostic>, relatedInformation:Slice<Diagnostic>, reportsUnnecessary:Bool,
 			reportsDeprecated:Bool, skippedOnNoEmit:Bool):Diagnostic {
 		final d = new Diagnostic();
 		d.file = file;
@@ -2498,7 +2498,7 @@ class Ast {
 			&& Slices.EqualFunc(c1.MessageChain(), c2.MessageChain(), equalMessageChain);
 	}
 
-	static function compareMessageChainSize(c1:Array<Diagnostic>, c2:Array<Diagnostic>):Int {
+	static function compareMessageChainSize(c1:Slice<Diagnostic>, c2:Slice<Diagnostic>):Int {
 		var c = Core.len(c2) - Core.len(c1);
 		if (c != 0) {
 			return c;
@@ -2512,7 +2512,7 @@ class Ast {
 		return 0;
 	}
 
-	static function compareMessageChainContent(c1:Array<Diagnostic>, c2:Array<Diagnostic>):Int {
+	static function compareMessageChainContent(c1:Slice<Diagnostic>, c2:Slice<Diagnostic>):Int {
 		for (i in 0...Core.len(c1)) {
 			var c = Slices.Compare(c1[i].MessageArgs(), c2[i].MessageArgs());
 			if (c != 0) {
@@ -2528,7 +2528,7 @@ class Ast {
 		return 0;
 	}
 
-	static function compareRelatedInfo(r1:Array<Diagnostic>, r2:Array<Diagnostic>):Int {
+	static function compareRelatedInfo(r1:Slice<Diagnostic>, r2:Slice<Diagnostic>):Int {
 		var c = Core.len(r2) - Core.len(r1);
 		if (c != 0) {
 			return c;
@@ -3280,7 +3280,7 @@ class Ast {
 		return pos < 0;
 	}
 
-	public static function FindLastVisibleNode(nodes:Array<Node>):Node {
+	public static function FindLastVisibleNode(nodes:Slice<Node>):Node {
 		var fromEnd = 1;
 		while (fromEnd <= Core.len(nodes) && nodes[nodes.length - fromEnd].Flags & NodeFlagsReparsed != 0) {
 			fromEnd++;
@@ -4144,7 +4144,7 @@ class Ast {
 		return ModifierFlagsNone;
 	}
 
-	public static function ModifiersToFlags(modifiers:Array<Node>):ModifierFlags {
+	public static function ModifiersToFlags(modifiers:Slice<Node>):ModifierFlags {
 		var flags:ModifierFlags = ModifierFlagsNone;
 		if (modifiers != null) {
 			for (modifier in modifiers) {
@@ -4842,15 +4842,15 @@ class Ast {
 		return FindAncestor(node.Parent, IsClassLike);
 	}
 
-	public static function GetExtendsHeritageClauseElements(node:Node):Array<ExpressionWithTypeArgumentsNode> {
+	public static function GetExtendsHeritageClauseElements(node:Node):Slice<ExpressionWithTypeArgumentsNode> {
 		return GetHeritageElements(node, KindExtendsKeyword);
 	}
 
-	public static function GetImplementsHeritageClauseElements(node:Node):Array<ExpressionWithTypeArgumentsNode> {
+	public static function GetImplementsHeritageClauseElements(node:Node):Slice<ExpressionWithTypeArgumentsNode> {
 		return GetHeritageElements(node, KindImplementsKeyword);
 	}
 
-	public static function GetHeritageElements(node:Node, kind:Kind):Array<Node> {
+	public static function GetHeritageElements(node:Node, kind:Kind):Slice<Node> {
 		final clause = GetHeritageClause(node, kind);
 		if (clause != null) {
 			return clause.AsHeritageClause().Types.Nodes;
@@ -6460,8 +6460,8 @@ class Ast {
 		return node.AsImportEqualsDeclaration().ModuleReference.Expression();
 	}
 
-	public static function CreateModifiersFromModifierFlags(flags:ModifierFlags, createModifier:(kind:Kind) -> Node):Array<Node> {
-		var result:Array<Node> = null;
+	public static function CreateModifiersFromModifierFlags(flags:ModifierFlags, createModifier:(kind:Kind) -> Node):Slice<Node> {
+		var result:Slice<Node> = null;
 		// PORT: Go append to a nil slice → create the array on first push.
 		function append(n:Node) {
 			if (result == null) {
@@ -6791,7 +6791,7 @@ class Ast {
 		return IsCallExpression(node) || IsNewExpression(node);
 	}
 
-	public static function IndexOfNode(nodes:Array<Node>, node:Node):Int {
+	public static function IndexOfNode(nodes:Slice<Node>, node:Node):Int {
 		final r = Slices.BinarySearchFuncInline(nodes, node, (a, b) -> CompareNodePositions(a, b)) /* PORT: perf */;
 		if (r.ok) {
 			return r.value;
@@ -6830,7 +6830,7 @@ class Ast {
 		return h;
 	}
 
-	public static function GetSemanticJsxChildren(children:Array<JsxChild>):Array<JsxChild> {
+	public static function GetSemanticJsxChildren(children:Slice<JsxChild>):Slice<JsxChild> {
 		return Core.Filter(children, function(i:JsxChild):Bool {
 			switch (i.Kind) {
 				case KindJsxExpression:
@@ -6860,7 +6860,7 @@ class Ast {
 		return node.Kind == KindArrayLiteralExpression || node.Kind == KindObjectLiteralExpression;
 	}
 
-	public static function GetElementsOfBindingOrAssignmentPattern(name:Node):Array<Node> {
+	public static function GetElementsOfBindingOrAssignmentPattern(name:Node):Slice<Node> {
 		switch (name.Kind) {
 			case KindObjectBindingPattern | KindArrayBindingPattern | KindArrayLiteralExpression:
 				// `a` in `{a}`
@@ -7448,7 +7448,7 @@ class Ast {
 		return result;
 	}
 
-	public static function GetAllAccessorDeclarations(parentDeclarations:Array<Node>, accessor:AccessorDeclaration):AllAccessorDeclarations {
+	public static function GetAllAccessorDeclarations(parentDeclarations:Slice<Node>, accessor:AccessorDeclaration):AllAccessorDeclarations {
 		if (HasDynamicName(accessor)) {
 			// dynamic names can only be match up via checker symbol lookup, just return an object with just this accessor
 			return GetAllAccessorDeclarationsForDeclaration(accessor, ts.core.Core.vector1(accessor));
@@ -7456,7 +7456,7 @@ class Ast {
 
 		final accessorName = GetPropertyNameForPropertyNameNode(accessor.Name());
 		final accessorStatic = IsStatic(accessor);
-		var matches:Array<Node> = null;
+		var matches:Slice<Node> = null;
 		if (parentDeclarations != null) {
 			for (member in parentDeclarations) {
 				if (!IsAccessor(member) || IsStatic(member) != accessorStatic) {
@@ -7701,14 +7701,14 @@ class NodeFactory implements NodeFactoryCoercible {
 		return this;
 	}
 
-	public function NewNodeList(nodes:Array<Node>):NodeList {
+	public function NewNodeList(nodes:Slice<Node>):NodeList {
 		final list = new NodeList();
 		list.Loc = Core.UndefinedTextRange();
 		list.Nodes = nodes;
 		return list;
 	}
 
-	public function NewModifierList(nodes:Array<Node>):ModifierList {
+	public function NewModifierList(nodes:Slice<Node>):ModifierList {
 		final list = new ModifierList();
 		list.Loc = Core.UndefinedTextRange();
 		list.Nodes = nodes;
@@ -9806,13 +9806,13 @@ class NodeFactory implements NodeFactoryCoercible {
 		return this.newNode(KindJsxText, data);
 	}
 
-	public function NewSyntaxList(children:Array<Node>):Node {
+	public function NewSyntaxList(children:Slice<Node>):Node {
 		final data = new SyntaxList();
 		data.Children = children;
 		return this.newNode(KindSyntaxList, data);
 	}
 
-	public function UpdateSyntaxList(node:SyntaxList, children:Array<Node>):Node {
+	public function UpdateSyntaxList(node:SyntaxList, children:Slice<Node>):Node {
 		if (!Core.Same(children, node.Children)) {
 			return Ast.updateNode(this.NewSyntaxList(children), node.AsNode(), this.hooks);
 		}
@@ -10326,14 +10326,14 @@ class NodeFactory implements NodeFactoryCoercible {
 		return node.AsNode();
 	}
 
-	public function NewJSDocText(text:Array<String>):Node {
+	public function NewJSDocText(text:Slice<String>):Node {
 		final data = new JSDocText();
 		data.text = text;
 		this.textCount++;
 		return this.newNode(KindJSDocText, data);
 	}
 
-	public function NewJSDocLink(name:EntityName, text:Array<String>):Node {
+	public function NewJSDocLink(name:EntityName, text:Slice<String>):Node {
 		final data = new JSDocLink();
 		data.name = name;
 		data.text = text;
@@ -10341,14 +10341,14 @@ class NodeFactory implements NodeFactoryCoercible {
 		return this.newNode(KindJSDocLink, data);
 	}
 
-	public function UpdateJSDocLink(node:JSDocLink, name:EntityName, text:Array<String>):Node {
+	public function UpdateJSDocLink(node:JSDocLink, name:EntityName, text:Slice<String>):Node {
 		if (name != node.name || !Core.Same(text, node.text)) {
 			return Ast.updateNode(this.NewJSDocLink(name, text), node.AsNode(), this.hooks);
 		}
 		return node.AsNode();
 	}
 
-	public function NewJSDocLinkPlain(name:EntityName, text:Array<String>):Node {
+	public function NewJSDocLinkPlain(name:EntityName, text:Slice<String>):Node {
 		final data = new JSDocLinkPlain();
 		data.name = name;
 		data.text = text;
@@ -10356,14 +10356,14 @@ class NodeFactory implements NodeFactoryCoercible {
 		return this.newNode(KindJSDocLinkPlain, data);
 	}
 
-	public function UpdateJSDocLinkPlain(node:JSDocLinkPlain, name:EntityName, text:Array<String>):Node {
+	public function UpdateJSDocLinkPlain(node:JSDocLinkPlain, name:EntityName, text:Slice<String>):Node {
 		if (name != node.name || !Core.Same(text, node.text)) {
 			return Ast.updateNode(this.NewJSDocLinkPlain(name, text), node.AsNode(), this.hooks);
 		}
 		return node.AsNode();
 	}
 
-	public function NewJSDocLinkCode(name:EntityName, text:Array<String>):Node {
+	public function NewJSDocLinkCode(name:EntityName, text:Slice<String>):Node {
 		final data = new JSDocLinkCode();
 		data.name = name;
 		data.text = text;
@@ -10371,7 +10371,7 @@ class NodeFactory implements NodeFactoryCoercible {
 		return this.newNode(KindJSDocLinkCode, data);
 	}
 
-	public function UpdateJSDocLinkCode(node:JSDocLinkCode, name:EntityName, text:Array<String>):Node {
+	public function UpdateJSDocLinkCode(node:JSDocLinkCode, name:EntityName, text:Slice<String>):Node {
 		if (name != node.name || !Core.Same(text, node.text)) {
 			return Ast.updateNode(this.NewJSDocLinkCode(name, text), node.AsNode(), this.hooks);
 		}
@@ -10409,14 +10409,14 @@ class NodeFactory implements NodeFactoryCoercible {
 		return node.AsNode();
 	}
 
-	public function NewJSDocTypeLiteral(jsdocPropertyTags:Array<Node>, isArrayType:Bool):Node {
+	public function NewJSDocTypeLiteral(jsdocPropertyTags:Slice<Node>, isArrayType:Bool):Node {
 		final data = new JSDocTypeLiteral();
 		data.JSDocPropertyTags = jsdocPropertyTags;
 		data.IsArrayType = isArrayType;
 		return this.newNode(KindJSDocTypeLiteral, data);
 	}
 
-	public function UpdateJSDocTypeLiteral(node:JSDocTypeLiteral, jsdocPropertyTags:Array<Node>, isArrayType:Bool):Node {
+	public function UpdateJSDocTypeLiteral(node:JSDocTypeLiteral, jsdocPropertyTags:Slice<Node>, isArrayType:Bool):Node {
 		if (!Core.Same(jsdocPropertyTags, node.JSDocPropertyTags) || isArrayType != node.IsArrayType) {
 			return Ast.updateNode(this.NewJSDocTypeLiteral(jsdocPropertyTags, isArrayType), node.AsNode(), this.hooks);
 		}
@@ -10449,7 +10449,7 @@ class NodeList {
 	public var pos:Int = 0;
 	public var end:Int = 0;
 	public var Loc(get, set):TextRange;
-	public var Nodes:Array<Node> = null;
+	public var Nodes:go.Slice<Node> = null;
 
 	public function new() {}
 
@@ -10531,7 +10531,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		return this.FunctionLikeData().Parameters;
 	}
 
-	public function Parameters():Array<ParameterDeclarationNode> {
+	public function Parameters():Slice<ParameterDeclarationNode> {
 		return abstract.ParameterList().Nodes;
 	}
 
@@ -10543,7 +10543,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		return this.Kind;
 	}
 
-	public function Decorators():Array<Node> {
+	public function Decorators():Slice<Node> {
 		if (this.Modifiers() == null) {
 			return null;
 		}
@@ -10732,7 +10732,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.Arguments: " + this.Kind.String();
 	}
 
-	public function Arguments():Array<Node> {
+	public function Arguments():Slice<Node> {
 		final list = abstract.ArgumentList();
 		if (list != null) {
 			return list.Nodes;
@@ -10765,7 +10765,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.TypeArguments";
 	}
 
-	public function TypeArguments():Array<Node> {
+	public function TypeArguments():Slice<Node> {
 		final list = abstract.TypeArgumentList();
 		if (list != null) {
 			return list.Nodes;
@@ -10794,7 +10794,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.TypeParameterList";
 	}
 
-	public function TypeParameters():Array<Node> {
+	public function TypeParameters():Slice<Node> {
 		final list = abstract.TypeParameterList();
 		if (list != null) {
 			return list.Nodes;
@@ -10821,7 +10821,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.MemberList: " + this.Kind.String();
 	}
 
-	public function Members():Array<Node> {
+	public function Members():Slice<Node> {
 		final list = abstract.MemberList();
 		if (list != null) {
 			return list.Nodes;
@@ -10844,7 +10844,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.StatementList: " + this.Kind.String();
 	}
 
-	public function Statements():Array<Node> {
+	public function Statements():Slice<Node> {
 		final list = abstract.StatementList();
 		if (list != null) {
 			return list.Nodes;
@@ -10869,7 +10869,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		return ModifierFlagsNone;
 	}
 
-	public function ModifierNodes():Array<Node> {
+	public function ModifierNodes():Slice<Node> {
 		final modifiers = this.Modifiers();
 		if (modifiers != null) {
 			return modifiers.Nodes;
@@ -11110,7 +11110,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.CommentList: " + this.Kind.String();
 	}
 
-	public function Comments():Array<Node> {
+	public function Comments():Slice<Node> {
 		final list = abstract.CommentList();
 		if (list != null) {
 			return list.Nodes;
@@ -11209,7 +11209,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.PropertyList: " + this.Kind.String();
 	}
 
-	public function Properties():Array<Node> {
+	public function Properties():Slice<Node> {
 		final list = abstract.PropertyList();
 		if (list != null) {
 			return list.Nodes;
@@ -11234,7 +11234,7 @@ abstract Node(NodeDefault) from NodeDefault to NodeDefault {
 		throw "Unhandled case in Node.ElementList: " + this.Kind.String();
 	}
 
-	public function Elements():Array<Node> {
+	public function Elements():Slice<Node> {
 		final list = abstract.ElementList();
 		if (list != null) {
 			return list.Nodes;
@@ -12667,9 +12667,9 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	var data:IntMap<Any> = null;
 
 	// Fields set by parser
-	var diagnostics:Array<Diagnostic> = null;
-	var jsDiagnostics:Array<Diagnostic> = null;
-	var jsdocDiagnostics:Array<Diagnostic> = null;
+	var diagnostics:Slice<Diagnostic> = null;
+	var jsDiagnostics:Slice<Diagnostic> = null;
+	var jsdocDiagnostics:Slice<Diagnostic> = null;
 
 	public var LanguageVariant:LanguageVariant = 0;
 	public var ScriptKind:ScriptKind = ScriptKindUnknown;
@@ -12677,11 +12677,11 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	public var UsesUriStyleNodeCoreModules:Tristate = TSUnknown;
 	public var IdentifierCount:Int = 0;
 
-	var imports:Array<LiteralLikeNode> = null; // []LiteralLikeNode
+	var imports:Slice<LiteralLikeNode> = null; // []LiteralLikeNode
 
-	public var ModuleAugmentations:Array<ModuleName> = null; // []ModuleName
-	public var AmbientModuleNames:Array<String> = null;
-	public var CommentDirectives:Array<CommentDirective> = null;
+	public var ModuleAugmentations:Slice<ModuleName> = null; // []ModuleName
+	public var AmbientModuleNames:Slice<String> = null;
+	public var CommentDirectives:Slice<CommentDirective> = null;
 
 	var jsdocCache:IdentityMap<Node, Array<Node>> = null;
 	var hasLazyJSDoc:Bool = false;
@@ -12693,11 +12693,11 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	public final syncMutex = new sys.thread.Mutex();
 	#end
 
-	public var ReparsedClones:Array<Node> = null;
-	public var Pragmas:Array<Pragma> = null;
-	public var ReferencedFiles:Array<FileReference> = null;
-	public var TypeReferenceDirectives:Array<FileReference> = null;
-	public var LibReferenceDirectives:Array<FileReference> = null;
+	public var ReparsedClones:Slice<Node> = null;
+	public var Pragmas:Slice<Pragma> = null;
+	public var ReferencedFiles:Slice<FileReference> = null;
+	public var TypeReferenceDirectives:Slice<FileReference> = null;
+	public var LibReferenceDirectives:Slice<FileReference> = null;
 	public var CheckJsDirective:CheckJsDirective = null;
 	public var NodeCount:Int = 0;
 	public var TextCount:Int = 0;
@@ -12711,15 +12711,15 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	var isBound:Bool = false;
 	var bindOnceDone:Bool = false; // PORT: sync.Once
 
-	var bindDiagnostics:Array<Diagnostic> = null;
+	var bindDiagnostics:Slice<Diagnostic> = null;
 
 	public var SymbolCount:Int = 0;
-	public var PatternAmbientModules:Array<PatternAmbientModule> = null;
+	public var PatternAmbientModules:Slice<PatternAmbientModule> = null;
 	public var GlobalExports:SymbolTable = null;
 
 	// Fields set by ECMALineMap
 
-	var ecmaLineMap:Array<TextPos> = null;
+	var ecmaLineMap:Slice<TextPos> = null;
 
 	// Fields set by language service
 
@@ -12823,7 +12823,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		contentMapperInfo = info.copy();
 	}
 
-	public function DiagnosticDirectives():Array<MappedDiagnosticDirective> {
+	public function DiagnosticDirectives():Slice<MappedDiagnosticDirective> {
 		if (contentMapperInfo == null) {
 			return null;
 		}
@@ -12831,7 +12831,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	}
 
 	// SupplementalSourceFiles returns the additional outputs produced from this canonical source file.
-	public function SupplementalSourceFiles():Array<SourceFile> {
+	public function SupplementalSourceFiles():Slice<SourceFile> {
 		if (contentMapperInfo == null) {
 			return null;
 		}
@@ -12855,31 +12855,31 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return parseOptions.Path;
 	}
 
-	public function Imports():Array<LiteralLikeNode> {
+	public function Imports():Slice<LiteralLikeNode> {
 		return imports;
 	}
 
-	public function Diagnostics():Array<Diagnostic> {
+	public function Diagnostics():Slice<Diagnostic> {
 		return diagnostics;
 	}
 
-	public function SetDiagnostics(diags:Array<Diagnostic>):Void {
+	public function SetDiagnostics(diags:Slice<Diagnostic>):Void {
 		diagnostics = diags;
 	}
 
-	public function JSDiagnostics():Array<Diagnostic> {
+	public function JSDiagnostics():Slice<Diagnostic> {
 		return jsDiagnostics;
 	}
 
-	public function SetJSDiagnostics(diags:Array<Diagnostic>):Void {
+	public function SetJSDiagnostics(diags:Slice<Diagnostic>):Void {
 		jsDiagnostics = diags;
 	}
 
-	public function JSDocDiagnostics():Array<Diagnostic> {
+	public function JSDocDiagnostics():Slice<Diagnostic> {
 		return jsdocDiagnostics;
 	}
 
-	public function SetJSDocDiagnostics(diags:Array<Diagnostic>):Void {
+	public function SetJSDocDiagnostics(diags:Slice<Diagnostic>):Void {
 		jsdocDiagnostics = diags;
 	}
 
@@ -12918,11 +12918,11 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return jsdocs;
 	}
 
-	public function BindDiagnostics():Array<Diagnostic> {
+	public function BindDiagnostics():Slice<Diagnostic> {
 		return bindDiagnostics;
 	}
 
-	public function SetBindDiagnostics(diags:Array<Diagnostic>):Void {
+	public function SetBindDiagnostics(diags:Slice<Diagnostic>):Void {
 		bindDiagnostics = diags;
 	}
 
@@ -13016,7 +13016,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 	}
 
 	// PORT: the RWMutex double-checked locking of Go collapses to one check (single-threaded).
-	public function ECMALineMap():Array<TextPos> {
+	public function ECMALineMap():Slice<TextPos> {
 		var lineMap = ecmaLineMap;
 		if (lineMap == null) {
 			lineMap = Core.ComputeECMALineStarts(Text());
@@ -13275,7 +13275,7 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 
 interface SourceFileLike {
 	function Text():String;
-	function ECMALineMap():Array<TextPos>;
+	function ECMALineMap():Slice<TextPos>;
 }
 
 // PORT: Go embeds core.TextRange (a value): composition field `TextRange` (PORTING.md §3) plus the
@@ -13378,7 +13378,7 @@ class PragmaArgumentSpecification {
 }
 
 class PragmaSpecification {
-	public var Args:Array<PragmaArgumentSpecification> = null;
+	public var Args:Slice<PragmaArgumentSpecification> = null;
 	public var Kind:PragmaKindFlags = 0;
 
 	public function new() {}
@@ -13413,8 +13413,8 @@ class ContentMapperSourceFileInfo {
 	public var VirtualFileName:RootedFilePath = cast "";
 	public var OriginalText:String = "";
 	public var SpanMap:ts.spanmap.Spanmap = null;
-	public var DiagnosticDirectives:Array<MappedDiagnosticDirective> = null;
-	public var SupplementalSourceFiles:Array<SourceFile> = null;
+	public var DiagnosticDirectives:Slice<MappedDiagnosticDirective> = null;
+	public var SupplementalSourceFiles:Slice<SourceFile> = null;
 	public var CanonicalSourceFile:SourceFile = null;
 
 	public function new() {}

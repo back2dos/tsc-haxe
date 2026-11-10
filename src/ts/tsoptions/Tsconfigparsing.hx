@@ -7,10 +7,10 @@ class ExtendsResult {
 	var options:ParsedCompilerOptions = null;
 	// watchOptions        compiler.WatchOptions
 	var watchOptionsCopied:Bool = false;
-	var include:Null<Array<Dynamic>> = null;
-	var exclude:Null<Array<Dynamic>> = null;
-	var files:Null<Array<Dynamic>> = null;
-	var contentMappers:Null<Array<Dynamic>> = null;
+	var include:Slice<Dynamic> = null;
+	var exclude:Slice<Dynamic> = null;
+	var files:Slice<Dynamic> = null;
+	var contentMappers:Slice<Dynamic> = null;
 	var contentMappersConfigFile:RootedFilePath = cast "";
 	var compileOnSave:Bool = false;
 	var extendedSourceFiles:Set<RootedFilePath> = new Set<RootedFilePath>();
@@ -27,14 +27,14 @@ class ConfigFileSpecs {
 	var includeSpecs:Dynamic = null;
 	// Present to report errors (user specified specs), validatedExcludeSpecs are used for file name matching
 	var excludeSpecs:Dynamic = null;
-	var validatedFilesSpec:Null<Array<FileSpec>> = null;
-	var validatedFileNames:Null<Array<RootedFilePath>> = null;
+	var validatedFilesSpec:Slice<FileSpec> = null;
+	var validatedFileNames:Slice<RootedFilePath> = null;
 	// PORT: map[tspath.PathKey]tspath.FileSpec → StringMap keyed by the PathKey text.
 	var fileSpecByPath:StringMap<FileSpec> = null;
-	var validatedIncludeSpecs:Null<Array<PathPattern>> = null;
-	var validatedExcludeSpecs:Null<Array<PathPattern>> = null;
-	var validatedFilesSpecBeforeSubstitution:Null<Array<FileSpec>> = null;
-	var validatedIncludeSpecsBeforeSubstitution:Null<Array<PathPattern>> = null;
+	var validatedIncludeSpecs:Slice<PathPattern> = null;
+	var validatedExcludeSpecs:Slice<PathPattern> = null;
+	var validatedFilesSpecBeforeSubstitution:Slice<FileSpec> = null;
+	var validatedIncludeSpecsBeforeSubstitution:Slice<PathPattern> = null;
 	var isDefaultIncludeSpec:Bool = false;
 
 	public function new() {}
@@ -72,18 +72,18 @@ class FileExtensionInfo {
 }
 
 interface ExtendedConfigCache {
-	function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS):ExtendedConfigCacheEntry;
+	function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Slice<PathKey>, fs:FS):ExtendedConfigCacheEntry;
 }
 
 @:allow(ts.tsoptions)
 class ExtendedConfigCacheEntry {
 	var extendedResult:Null<TsConfigSourceFile> = null;
 	var extendedConfig:Null<ParsedTsconfig> = null;
-	var errors:Null<Array<Diagnostic>> = null;
+	var errors:Slice<Diagnostic> = null;
 
 	public function new() {}
 
-	public function ExtendedFileNames():Null<Array<RootedFilePath>> {
+	public function ExtendedFileNames():Slice<RootedFilePath> {
 		if (this.extendedResult != null) {
 			return this.extendedResult.ExtendedSourceFiles;
 		}
@@ -97,7 +97,7 @@ class ParsedTsconfig {
 	var options:Null<ParsedCompilerOptions> = null;
 	// watchOptions *core.WatchOptions
 	var typeAcquisition:Null<TypeAcquisition> = null;
-	var extendedConfigPaths:Null<Array<RootedFilePath>> = null;
+	var extendedConfigPaths:Slice<RootedFilePath> = null;
 	var contentMappersConfigFile:RootedFilePath = cast "";
 
 	public function new() {}
@@ -114,14 +114,14 @@ class ParsedCompilerOptions {
 		this.unresolvedPaths = unresolvedPaths;
 	}
 
-	public function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>> {
+	public function ParseOption(key:std.String, value:Dynamic):Slice<Diagnostic> {
 		return new CompilerOptionsParser(this.CompilerOptions, this.unresolvedPaths).ParseOption(key, value);
 	}
 }
 
 @:allow(ts.tsoptions)
 class TsConfigSourceFile {
-	public var ExtendedSourceFiles:Null<Array<RootedFilePath>> = null;
+	public var ExtendedSourceFiles:Slice<RootedFilePath> = null;
 	var configFileSpecs:Null<ConfigFileSpecs> = null;
 	public var SourceFile:Null<SourceFile> = null;
 
@@ -135,11 +135,11 @@ class TsConfigSourceFile {
 class JsonConversionNotifier {
 	var rootOptions:Null<CommandLineOption> = null;
 	var onPropertySet:(keyText:std.String, value:Dynamic, propertyAssignment:PropertyAssignment, parentOption:Null<CommandLineOption>,
-		option:Null<CommandLineOption>) -> Pair<Dynamic, Null<Array<Diagnostic>>> = null;
+		option:Null<CommandLineOption>) -> Pair<Dynamic, Slice<Diagnostic>> = null;
 
 	public function new(rootOptions:Null<CommandLineOption>,
 			onPropertySet:(keyText:std.String, value:Dynamic, propertyAssignment:PropertyAssignment, parentOption:Null<CommandLineOption>,
-				option:Null<CommandLineOption>) -> Pair<Dynamic, Null<Array<Diagnostic>>>) {
+				option:Null<CommandLineOption>) -> Pair<Dynamic, Slice<Diagnostic>>) {
 		this.rootOptions = rootOptions;
 		this.onPropertySet = onPropertySet;
 	}
@@ -148,7 +148,7 @@ class JsonConversionNotifier {
 @:allow(ts.tsoptions)
 class TsConfigOptions {
 	var prop:Null<StringMap<Array<std.String>>> = null;
-	var references:Null<Array<ProjectReference>> = null;
+	var references:Slice<ProjectReference> = null;
 	var notDefined:std.String = "";
 
 	public function new() {}
@@ -203,10 +203,10 @@ class DefaultParseConfigHost implements ParseConfigHost {
 
 @:allow(ts.tsoptions)
 class PropOfRaw {
-	var sliceValue:Null<Array<Dynamic>> = null;
+	var sliceValue:Slice<Dynamic> = null;
 	var wrongValue:std.String = "";
 
-	public function new(sliceValue:Null<Array<Dynamic>>, wrongValue:std.String = "") {
+	public function new(sliceValue:Slice<Dynamic>, wrongValue:std.String = "") {
 		this.sliceValue = sliceValue;
 		this.wrongValue = wrongValue;
 	}

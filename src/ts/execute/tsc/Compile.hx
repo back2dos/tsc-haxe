@@ -71,7 +71,7 @@ class CompileTimes {
 }
 
 class CompileAndEmitResult {
-	public var Diagnostics:Null<Array<Diagnostic>> = null;
+	public var Diagnostics:Slice<Diagnostic> = null;
 	public var EmitResult:Null<EmitResult> = null;
 	public var Status:ExitStatus = ExitStatusSuccess;
 	public var times:Null<CompileTimes> = null;

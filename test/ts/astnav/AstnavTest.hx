@@ -103,7 +103,7 @@ class AstnavTest {
 			final file = parse("/file.ts", fileText, ScriptKindTS);
 
 			final maxPos = fileText.length;
-			var runs:Array<TokenRun> = null;
+			var runs:Slice<TokenRun> = null;
 			var current:TokenRun = null;
 
 			for (pos in 0...maxPos) {
@@ -144,7 +144,7 @@ class AstnavTest {
 
 	// PORT: core.StringifyJson(runs, "", "  ") (go-json-experiment, indented) written by hand:
 	// ts.json.Json has no Go-compatible ordered marshaller (PORTING.md §7).
-	static function stringifyRuns(runs:Array<TokenRun>):String {
+	static function stringifyRuns(runs:Slice<TokenRun>):String {
 		if (runs == null)
 			return "null";
 		if (runs.length == 0)

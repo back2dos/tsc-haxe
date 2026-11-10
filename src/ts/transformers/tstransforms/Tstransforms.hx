@@ -7,8 +7,8 @@ package ts.transformers.tstransforms;
 @:allow(ts.transformers.tstransforms)
 class Tstransforms {
 	// PORT: Go `range` over a possibly-nil slice (parser lists of zero elements have nil Nodes).
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 
@@ -71,7 +71,7 @@ class Tstransforms {
 		return (decorator.SubtreeFacts() & SubtreeContainsPrivateIdentifierInExpression) != 0;
 	}
 
-	static function parameterDecoratorsContainPrivateIdentifierInExpression(parameterDecorators:Array<Node>):Bool {
+	static function parameterDecoratorsContainPrivateIdentifierInExpression(parameterDecorators:Slice<Node>):Bool {
 		return Core.Some(parameterDecorators, decoratorContainsPrivateIdentifierInExpression);
 	}
 
@@ -107,7 +107,7 @@ class Tstransforms {
 	 */
 	static function getAllDecoratorsOfClass(node:ClassDeclaration, useLegacyDecorators:Bool):AllDecorators {
 		final decorators = node.AsNode().Decorators();
-		var parameters:Array<Array<Node>> = null;
+		var parameters:Slice<Slice<Node>> = null;
 		if (useLegacyDecorators) {
 			parameters = getDecoratorsOfParameters(Ast.GetFirstConstructorWithBody(node.AsNode()));
 		}
@@ -164,7 +164,7 @@ class Tstransforms {
 		}
 
 		final decorators = firstAccessorWithDecorators.Decorators();
-		var parameters:Array<Array<Node>> = null;
+		var parameters:Slice<Slice<Node>> = null;
 		if (useLegacyDecorators && decls.SetAccessor != null) {
 			parameters = getDecoratorsOfParameters(decls.SetAccessor.AsNode());
 		}
@@ -189,7 +189,7 @@ class Tstransforms {
 			return null;
 		}
 		final decorators = method.Decorators();
-		var parameters:Array<Array<Node>> = null;
+		var parameters:Slice<Slice<Node>> = null;
 		if (useLegacyDecorators) {
 			parameters = getDecoratorsOfParameters(method);
 		}
@@ -205,8 +205,8 @@ class Tstransforms {
 	 *
 	 * @param node The function-like node.
 	 */
-	static function getDecoratorsOfParameters(node:Node):Array<Array<Node>> {
-		var decorators:Array<Array<Node>> = null;
+	static function getDecoratorsOfParameters(node:Node):Slice<Slice<Node>> {
+		var decorators:Slice<Slice<Node>> = null;
 		if (node != null) {
 			final parameters = node.Parameters();
 			final firstParameterIsThis = Core.len(parameters) > 0 && Ast.IsThisParameter(parameters[0]);
@@ -247,11 +247,11 @@ class Tstransforms {
 	* @param isStatic A value indicating whether to retrieve static or instance members of
 	*                 the class.
 	 */
-	static function getDecoratedClassElements(node:ClassDeclaration, isStatic:Bool):Array<Node> {
+	static function getDecoratedClassElements(node:ClassDeclaration, isStatic:Bool):Slice<Node> {
 		if (node.Members == null || Core.len(node.Members.Nodes) == 0) {
 			return null;
 		}
-		var members:Array<Node> = null;
+		var members:Slice<Node> = null;
 		for (member in rangeOf(node.Members.Nodes)) {
 			if (isDecoratedClassElement(member, isStatic, node)) {
 				if (members == null)

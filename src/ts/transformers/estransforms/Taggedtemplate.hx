@@ -7,7 +7,7 @@ package ts.transformers.estransforms;
 class TaggedTemplateTransformer {
 	public var Transformer:Transformer = new Transformer(); // Go: embedded
 	var currentSourceFile:SourceFile = null;
-	var taggedTemplateStringDeclarations:Array<Node> = null;
+	var taggedTemplateStringDeclarations:Slice<Node> = null;
 
 	public function new() {}
 
@@ -50,7 +50,7 @@ class TaggedTemplateTransformer {
 		// AddEmitHelper (which creates the emit node), so call it without arguments then.
 		final helpers = EmitContext().ReadEmitHelpers();
 		if (helpers != null) {
-			EmitContext().AddEmitHelper(visited, ...helpers);
+			EmitContext().AddEmitHelper(visited, ...helpers.toArray());
 		} else {
 			EmitContext().AddEmitHelper(visited);
 		}

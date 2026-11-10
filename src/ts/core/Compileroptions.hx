@@ -19,7 +19,7 @@ class CompilerOptions {
 	public var AllowUnusedLabels:Tristate = TSUnknown; // json:"allowUnusedLabels,omitzero"
 	public var AssumeChangesOnlyAffectDirectDependencies:Tristate = TSUnknown; // json:"assumeChangesOnlyAffectDirectDependencies,omitzero"
 	public var CheckJs:Tristate = TSUnknown; // json:"checkJs,omitzero"
-	public var CustomConditions:Null<Array<String>> = null; // json:"customConditions,omitzero"
+	public var CustomConditions:Slice<String> = null; // json:"customConditions,omitzero"
 	public var Composite:Tristate = TSUnknown; // json:"composite,omitzero"
 	public var EmitDeclarationOnly:Tristate = TSUnknown; // json:"emitDeclarationOnly,omitzero"
 	public var EmitBOM:Tristate = TSUnknown; // json:"emitBOM,omitzero"
@@ -49,13 +49,13 @@ class CompilerOptions {
 	public var JsxFactory:String = ""; // json:"jsxFactory,omitzero"
 	public var JsxFragmentFactory:String = ""; // json:"jsxFragmentFactory,omitzero"
 	public var JsxImportSource:String = ""; // json:"jsxImportSource,omitzero"
-	public var Lib:Null<Array<String>> = null; // json:"lib,omitzero"
+	public var Lib:Slice<String> = null; // json:"lib,omitzero"
 	public var LibReplacement:Tristate = TSUnknown; // json:"libReplacement,omitzero"
 	public var Locale:String = ""; // json:"locale,omitzero"
 	public var MapRoot:SourceMapLocation = cast ""; // json:"mapRoot,omitzero"
 	public var Module:ModuleKind = ModuleKindNone; // json:"module,omitzero"
 	public var ModuleResolution:ModuleResolutionKind = ModuleResolutionKindUnknown; // json:"moduleResolution,omitzero"
-	public var ModuleSuffixes:Null<Array<String>> = null; // json:"moduleSuffixes,omitzero"
+	public var ModuleSuffixes:Slice<String> = null; // json:"moduleSuffixes,omitzero"
 	public var ModuleDetection:ModuleDetectionKind = ModuleDetectionKindNone; // json:"moduleDetection,omitzero"
 	public var NewLine:NewLineKind = NewLineKindNone; // json:"newLine,omitzero"
 	public var NoEmit:Tristate = TSUnknown; // json:"noEmit,omitzero"
@@ -88,7 +88,7 @@ class CompilerOptions {
 	public var RewriteRelativeImportExtensions:Tristate = TSUnknown; // json:"rewriteRelativeImportExtensions,omitzero"
 	public var ReactNamespace:String = ""; // json:"reactNamespace,omitzero"
 	public var RootDir:RootedDirectoryPath = cast ""; // json:"rootDir,omitzero"
-	public var RootDirs:Null<Array<RootedDirectoryPath>> = null; // json:"rootDirs,omitzero"
+	public var RootDirs:Slice<RootedDirectoryPath> = null; // json:"rootDirs,omitzero"
 	public var SkipLibCheck:Tristate = TSUnknown; // json:"skipLibCheck,omitzero"
 	public var StableTypeOrdering:Tristate = TSUnknown; // json:"stableTypeOrdering,omitzero"
 	public var Strict:Tristate = TSUnknown; // json:"strict,omitzero"
@@ -105,8 +105,8 @@ class CompilerOptions {
 	public var Target:ScriptTarget = ScriptTargetNone; // json:"target,omitzero"
 	public var TraceResolution:Tristate = TSUnknown; // json:"traceResolution,omitzero"
 	public var TsBuildInfoFile:RootedFilePath = cast ""; // json:"tsBuildInfoFile,omitzero"
-	public var TypeRoots:Null<Array<RootedDirectoryPath>> = null; // json:"typeRoots,omitzero"
-	public var Types:Null<Array<String>> = null; // json:"types,omitzero"
+	public var TypeRoots:Slice<RootedDirectoryPath> = null; // json:"typeRoots,omitzero"
+	public var Types:Slice<String> = null; // json:"types,omitzero"
 	public var UseDefineForClassFields:Tristate = TSUnknown; // json:"useDefineForClassFields,omitzero"
 	public var UseUnknownInCatchVariables:Tristate = TSUnknown; // json:"useUnknownInCatchVariables,omitzero"
 	public var VerbatimModuleSyntax:Tristate = TSUnknown; // json:"verbatimModuleSyntax,omitzero"
@@ -405,9 +405,9 @@ class CompilerOptions {
 	}
 
 	// PORT: (result []string, fromConfig bool) → ValueOk (value = result, ok = fromConfig).
-	public function GetEffectiveTypeRoots(currentDirectory:RootedDirectoryPath):ValueOk<Null<Array<RootedDirectoryPath>>> {
+	public function GetEffectiveTypeRoots(currentDirectory:RootedDirectoryPath):ValueOk<Slice<RootedDirectoryPath>> {
 		if (this.TypeRoots != null) {
-			return new ValueOk<Null<Array<RootedDirectoryPath>>>(this.TypeRoots, true);
+			return new ValueOk<Slice<RootedDirectoryPath>>(this.TypeRoots, true);
 		}
 		var baseDir:RootedDirectoryPath;
 		if (this.ConfigFilePath != "") {
@@ -426,7 +426,7 @@ class CompilerOptions {
 			typeRoots.push(dir.ResolveDirectory("node_modules/@types"));
 			return new ValueOk<Any>(null, false);
 		});
-		return new ValueOk<Null<Array<RootedDirectoryPath>>>(typeRoots, false);
+		return new ValueOk<Slice<RootedDirectoryPath>>(typeRoots, false);
 	}
 
 	// UsesWildcardTypes returns true if this option's types array includes "*"
@@ -470,7 +470,7 @@ class CompilerOptions {
 		return true;
 	}
 
-	public function GetEffectiveRootDirs():Null<Array<RootedDirectoryPath>> {
+	public function GetEffectiveRootDirs():Slice<RootedDirectoryPath> {
 		return this.RootDirs;
 	}
 

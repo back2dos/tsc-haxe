@@ -41,13 +41,13 @@ class ProjectReferenceFileMapper {
 		return cast "";
 	}
 
-	function getResolvedProjectReferences():Array<ParsedCommandLine> {
+	function getResolvedProjectReferences():Slice<ParsedCommandLine> {
 		if (this.opts.Config.ConfigFile == null) {
 			return null;
 		}
 		final refs = this.referencesInConfigFile == null ? null : this.referencesInConfigFile.get(this.opts.Config.ConfigFile.SourceFile.Path());
 		final ok = this.referencesInConfigFile != null && this.referencesInConfigFile.exists(this.opts.Config.ConfigFile.SourceFile.Path());
-		var result:Array<ParsedCommandLine> = null;
+		var result:Slice<ParsedCommandLine> = null;
 		if (ok) {
 			result = [];
 			if (refs != null) {

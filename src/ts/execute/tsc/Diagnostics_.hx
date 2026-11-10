@@ -54,4 +54,4 @@ class Colors {
 
 typedef DiagnosticReporter = (Diagnostic) -> Void;
 
-typedef DiagnosticsReporter = (diagnostics:Null<Array<Diagnostic>>) -> Void;
+typedef DiagnosticsReporter = (diagnostics:Slice<Diagnostic>) -> Void;

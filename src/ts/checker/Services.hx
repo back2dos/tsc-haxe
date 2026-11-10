@@ -7,11 +7,11 @@ package ts.checker;
 @:allow(ts.checker)
 class Services {
 
-	public static function GetSymbolsInScope(c:Checker, location:Node, meaning:SymbolFlags):Array<Symbol> {
+	public static function GetSymbolsInScope(c:Checker, location:Node, meaning:SymbolFlags):Slice<Symbol> {
 		return c.getSymbolsInScope(location, meaning);
 	}
 
-	static function getSymbolsInScope(c:Checker, location:Node, meaning:SymbolFlags):Array<Symbol> {
+	static function getSymbolsInScope(c:Checker, location:Node, meaning:SymbolFlags):Slice<Symbol> {
 		if ((location.Flags & NodeFlagsInWithStatement) != 0) {
 			// We cannot answer semantic questions within a with block, do not proceed any further
 			return null;
@@ -121,7 +121,7 @@ class Services {
 		return Checker.symbolsToArray(symbols);
 	}
 
-	public static function GetExportsOfModule(c:Checker, symbol:Symbol):Array<Symbol> {
+	public static function GetExportsOfModule(c:Checker, symbol:Symbol):Slice<Symbol> {
 		return Checker.symbolsToArray(c.getExportsOfModule(symbol));
 	}
 
@@ -201,7 +201,7 @@ class Services {
 		// Previously we validated the 'this' type of methods but this adversely affected performance. See #31377 for more context.
 	}
 
-	public static function GetAllPossiblePropertiesOfTypes(c:Checker, types:Array<Type>):Array<Symbol> {
+	public static function GetAllPossiblePropertiesOfTypes(c:Checker, types:Array<Type>):Slice<Symbol> {
 		final unionType = c.getUnionType(types);
 		if ((unionType.flags & TypeFlagsUnion) == 0) {
 			return c.getAugmentedPropertiesOfType(unionType);
@@ -264,11 +264,11 @@ class Services {
 		return c.getSignaturesOfType(t, SignatureKindConstruct);
 	}
 
-	public static function GetApparentProperties(c:Checker, t:Type):Array<Symbol> {
+	public static function GetApparentProperties(c:Checker, t:Type):Slice<Symbol> {
 		return c.getAugmentedPropertiesOfType(t);
 	}
 
-	static function getAugmentedPropertiesOfType(c:Checker, t:Type):Array<Symbol> {
+	static function getAugmentedPropertiesOfType(c:Checker, t:Type):Slice<Symbol> {
 		t = c.getApparentType(t);
 		var propsByName = Checker.createSymbolTable(c.getPropertiesOfType(t));
 		var functionType:Type = null;
@@ -341,12 +341,12 @@ class Services {
 		return symbol;
 	}
 
-	public static function GetRootSymbols(c:Checker, symbol:Symbol):Array<Symbol> {
+	public static function GetRootSymbols(c:Checker, symbol:Symbol):Slice<Symbol> {
 		final roots = c.getImmediateRootSymbols(symbol);
 		if (Core.len(roots) == 0) {
 			return [symbol];
 		}
-		var result:Array<Symbol> = null;
+		var result:Slice<Symbol> = null;
 		for (root in roots) {
 			final rootSymbols = c.GetRootSymbols(root);
 			if (Core.len(rootSymbols) > 0) {
@@ -369,7 +369,7 @@ class Services {
 		return null;
 	}
 
-	static function getImmediateRootSymbols(c:Checker, symbol:Symbol):Array<Symbol> {
+	static function getImmediateRootSymbols(c:Checker, symbol:Symbol):Slice<Symbol> {
 		if ((symbol.CheckFlags & CheckFlagsSynthetic) != 0) {
 			return Core.MapNonNil(c.valueSymbolLinks.Get(symbol).containingType.Types(), (t:Type) -> {
 				return c.getPropertyOfType(t, symbol.Name);
@@ -526,9 +526,9 @@ class Services {
 	}
 
 	// GetReferencesToSymbolInFile returns all identifier nodes in the file that reference the given symbol.
-	public static function GetReferencesToSymbolInFile(c:Checker, sourceFile:SourceFile, symbol:Symbol):Array<Node> {
+	public static function GetReferencesToSymbolInFile(c:Checker, sourceFile:SourceFile, symbol:Symbol):Slice<Node> {
 		final identifierText = symbol.Name;
-		var result:Array<Node> = null;
+		var result:Slice<Node> = null;
 		final tokens = Checker.getPossibleSymbolReferenceNodes(sourceFile, identifierText, sourceFile.AsNode());
 		if (tokens != null) {
 			for (token in tokens) {
@@ -611,7 +611,7 @@ class Services {
 	}
 
 	static function getTypeParameterConstraintForPositionAcrossSignatures(c:Checker, signatures:haxe.ds.Vector<Signature>, position:Int):Type {
-		var relevantConstraints:Array<Type> = null;
+		var relevantConstraints:Slice<Type> = null;
 		if (signatures != null) {
 			for (signature in signatures) {
 				if (position >= Core.len(signature.typeParameters)) {
@@ -718,7 +718,7 @@ class Services {
 	}
 
 	// Unlike `getExportsOfModule`, this includes properties of an `export =` value.
-	public static function GetExportsAndPropertiesOfModule(c:Checker, moduleSymbol:Symbol):Array<Symbol> {
+	public static function GetExportsAndPropertiesOfModule(c:Checker, moduleSymbol:Symbol):Slice<Symbol> {
 		var exports = c.getExportsOfModuleAsArray(moduleSymbol);
 		final exportEquals = c.resolveExternalModuleSymbol(moduleSymbol, false /*dontResolveAlias*/);
 		if (exportEquals != moduleSymbol) {
@@ -733,12 +733,12 @@ class Services {
 		return exports;
 	}
 
-	static function getExportsOfModuleAsArray(c:Checker, moduleSymbol:Symbol):Array<Symbol> {
+	static function getExportsOfModuleAsArray(c:Checker, moduleSymbol:Symbol):Slice<Symbol> {
 		return Checker.symbolsToArray(c.getExportsOfModule(moduleSymbol));
 	}
 
 	// Returns all the properties of the Jsx.IntrinsicElements interface.
-	public static function GetJsxIntrinsicTagNamesAt(c:Checker, location:Node):Array<Symbol> {
+	public static function GetJsxIntrinsicTagNamesAt(c:Checker, location:Node):Slice<Symbol> {
 		final intrinsics = c.getJsxType(Checker.JsxNames.IntrinsicElements, location);
 		if (intrinsics == null) {
 			return null;
@@ -875,7 +875,7 @@ class Services {
 	}
 
 	// Gets all symbols for one property. Does not get symbols for every property.
-	public static function GetPropertySymbolsFromContextualType(c:Checker, node:Node, contextualType:Type, unionSymbolOk:Bool):Array<Symbol> {
+	public static function GetPropertySymbolsFromContextualType(c:Checker, node:Node, contextualType:Type, unionSymbolOk:Bool):Slice<Symbol> {
 		final name = Ast.GetTextOfPropertyName(node.Name());
 		if (name == "") {
 			return null;

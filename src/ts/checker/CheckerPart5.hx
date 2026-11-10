@@ -80,7 +80,7 @@ class CheckerPart5 {
 	static function getExportsOfModuleWorker(c:Checker, moduleSymbol:Symbol):Pair<SymbolTable, StringMap<Node>> {
 		var exports:SymbolTable = null;
 		var typeOnlyExportStarMap:StringMap<Node> = null;
-		var visitedSymbols:Array<Symbol> = null;
+		var visitedSymbols:Slice<Symbol> = null;
 		final nonTypeOnlyNames = new Set<std.String>();
 		// The ES6 spec permits export * declarations in a module to circularly reference the module itself. For example,
 		// module 'a' can 'export * from "b"' and 'b' can 'export * from "a"' without error.
@@ -778,7 +778,7 @@ class CheckerPart5 {
 	}
 
 	static function padObjectLiteralType(c:Checker, t:Type, pattern:Node):Type {
-		var missingElements:Array<Node> = null;
+		var missingElements:Slice<Node> = null;
 		for (e in rangeOf(pattern.Elements())) {
 			if (Checker.hasDotDotDotToken(e)) {
 				continue;
@@ -1080,7 +1080,7 @@ class CheckerPart5 {
 	}
 
 	static function getInferredTypeParameterConstraint(c:Checker, t:Type, omitTypeReferences:Bool):Type {
-		var inferences:Array<Type> = null;
+		var inferences:Slice<Type> = null;
 		if (t.symbol != null && Core.len(t.symbol.Declarations) != 0) {
 			for (declaration in t.symbol.Declarations) {
 				if (Ast.IsInferTypeNode(declaration.Parent)) {
@@ -1497,7 +1497,7 @@ class CheckerPart5 {
 			c.getUnionTypeEx([c.getNonUndefinedType(t), c.checkDeclarationInitializer(declaration, CheckModeNormal, null)], UnionReductionSubtype, null, null));
 	}
 
-	static function getRestType(c:Checker, source:Type, properties:Array<Node>, symbol:Symbol):Type {
+	static function getRestType(c:Checker, source:Type, properties:Slice<Node>, symbol:Symbol):Type {
 		source = c.filterType(source, t -> (t.flags & TypeFlagsNullable) == 0);
 		if ((source.flags & TypeFlagsNever) != 0) {
 			return c.emptyObjectType;
@@ -1508,8 +1508,8 @@ class CheckerPart5 {
 			});
 		}
 		var omitKeyType = c.getUnionType(Core.Map(properties, n -> c.getLiteralTypeFromPropertyName(n)));
-		var spreadableProperties:Array<Symbol> = null;
-		var unspreadableToRestKeys:Array<Type> = null;
+		var spreadableProperties:Slice<Symbol> = null;
+		var unspreadableToRestKeys:Slice<Type> = null;
 		for (prop in rangeOf(c.getPropertiesOfType(source))) {
 			final literalTypeFromProperty = c.getLiteralTypeFromProperty(prop, TypeFlagsStringOrNumberLiteralOrUnique, false);
 			if (!c.isTypeAssignableTo(literalTypeFromProperty, omitKeyType)
@@ -1531,7 +1531,7 @@ class CheckerPart5 {
 				// If the type we're spreading from has properties that cannot
 				// be spread into the rest type (e.g. getters, methods), ensure
 				// they are explicitly omitted, as they would in the non-generic case.
-				omitKeyType = c.getUnionType([omitKeyType].concat(unspreadableToRestKeys));
+				omitKeyType = c.getUnionType([omitKeyType].concat(unspreadableToRestKeys.toArray()));
 			}
 			if ((omitKeyType.flags & TypeFlagsNever) != 0) {
 				return source;
@@ -1798,7 +1798,7 @@ class CheckerPart5 {
 			default:
 		}
 		if (t == null) {
-			var types:Array<Type> = null;
+			var types:Slice<Type> = null;
 			final declarations = rangeOf(symbol.Declarations);
 			for (i in 0...declarations.length) {
 				final declaration = declarations[i];
@@ -2189,7 +2189,7 @@ class CheckerPart5 {
 		return c.createSymbolWithType(prop, widened);
 	}
 
-	static function getPropertiesOfContext(c:Checker, context:WideningContext):Array<Symbol> {
+	static function getPropertiesOfContext(c:Checker, context:WideningContext):Slice<Symbol> {
 		if (context.resolvedProperties == null) {
 			final names = new ts.collections.OrderedMap<std.String, Symbol>();
 			for (t in rangeOf(c.getSiblingsOfContext(context))) {
@@ -3087,7 +3087,7 @@ class CheckerPart5 {
 		return null;
 	}
 
-	static function getMemberLayout(c:Checker, t:Type, baseTypes:Array<Type>):MemberLayout {
+	static function getMemberLayout(c:Checker, t:Type, baseTypes:Slice<Type>):MemberLayout {
 		if ((t.objectFlags & ObjectFlagsReference) == 0) {
 			return c.createMemberLayout(t, baseTypes);
 		}
@@ -3101,7 +3101,7 @@ class CheckerPart5 {
 		return layout;
 	}
 
-	static function getMemberLayoutKey(c:Checker, t:Type, baseTypes:Array<Type>):CacheHashKey {
+	static function getMemberLayoutKey(c:Checker, t:Type, baseTypes:Slice<Type>):CacheHashKey {
 		final b = new KeyBuilder();
 		b.writeType(t);
 		// Late binding may add new declared members, so include the declared member count in the key
@@ -3122,7 +3122,7 @@ class CheckerPart5 {
 		return b.hash();
 	}
 
-	static function createMemberLayout(c:Checker, t:Type, baseTypes:Array<Type>):MemberLayout {
+	static function createMemberLayout(c:Checker, t:Type, baseTypes:Slice<Type>):MemberLayout {
 		final layout = new MemberLayout();
 		final symbols = new VectorBuilder<Symbol>();
 		final baseIndices = new VectorBuilder<Int>();
@@ -3201,7 +3201,7 @@ class CheckerPart5 {
 		return null;
 	}
 
-	static function getBaseTypes(c:Checker, t:Type):Array<Type> {
+	static function getBaseTypes(c:Checker, t:Type):Slice<Type> {
 		if ((t.objectFlags & (ObjectFlagsClassOrInterface | ObjectFlagsTuple)) == 0) {
 			return null;
 		}
@@ -3310,7 +3310,7 @@ class CheckerPart5 {
 		t.AsInterfaceType().resolvedBaseTypes = [reducedBaseType];
 	}
 
-	static function getInstantiatedConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Array<Node>, location:Node):haxe.ds.Vector<Signature> {
+	static function getInstantiatedConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Slice<Node>, location:Node):haxe.ds.Vector<Signature> {
 		final signatures = c.getConstructorsForTypeArguments(t, typeArgumentNodes, location);
 		final typeArguments = Core.Map(typeArgumentNodes, n -> c.getTypeFromTypeNode(n));
 		return Core.SameMap(signatures, function(sig:Signature):Signature {
@@ -3321,14 +3321,14 @@ class CheckerPart5 {
 		});
 	}
 
-	static function getConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Array<Node>, location:Node):haxe.ds.Vector<Signature> {
+	static function getConstructorsForTypeArguments(c:Checker, t:Type, typeArgumentNodes:Slice<Node>, location:Node):haxe.ds.Vector<Signature> {
 		final typeArgCount = Core.len(typeArgumentNodes);
 		return Core.Filter(c.getSignaturesOfType(t, SignatureKindConstruct), function(sig:Signature):Bool {
 			return typeArgCount >= c.getMinTypeArgumentCount(sig.typeParameters) && typeArgCount <= Core.len(sig.typeParameters);
 		});
 	}
 
-	static function getSignatureInstantiation(c:Checker, sig:Signature, typeArguments:Array<Type>, isJavaScript:Bool, inferredTypeParameters:Array<Type>):Signature {
+	static function getSignatureInstantiation(c:Checker, sig:Signature, typeArguments:Slice<Type>, isJavaScript:Bool, inferredTypeParameters:Slice<Type>):Signature {
 		final instantiatedSignature = c.getSignatureInstantiationWithoutFillingInTypeArguments(sig,
 			c.fillMissingTypeArguments(typeArguments, sig.typeParameters, c.getMinTypeArgumentCount(sig.typeParameters), isJavaScript));
 		if (Core.len(inferredTypeParameters) != 0) {
@@ -3356,7 +3356,7 @@ class CheckerPart5 {
 	}
 
 	// PORT: perf — Array type arguments (a fresh list: copied into the mapper's Vector on a miss) or a Vector (held as it is)
-	static extern inline overload function getSignatureInstantiationWithoutFillingInTypeArguments(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
+	static extern inline overload function getSignatureInstantiationWithoutFillingInTypeArguments(c:Checker, sig:Signature, typeArguments:Slice<Type>):Signature {
 		return c.getSignatureInstantiationWithoutFillingInTypeArgumentsA(sig, typeArguments);
 	}
 
@@ -3364,7 +3364,7 @@ class CheckerPart5 {
 		return c.getSignatureInstantiationWithoutFillingInTypeArgumentsV(sig, typeArguments);
 	}
 
-	static function getSignatureInstantiationWithoutFillingInTypeArgumentsA(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
+	static function getSignatureInstantiationWithoutFillingInTypeArgumentsA(c:Checker, sig:Signature, typeArguments:Slice<Type>):Signature {
 		final key = CachedSignatureKey.keyOf(sig, Checker.getTypeListKey(typeArguments));
 		var instantiation = c.cachedSignatures.get(key);
 		if (instantiation == null) {
@@ -3384,7 +3384,7 @@ class CheckerPart5 {
 		return instantiation;
 	}
 
-	static extern inline overload function createSignatureInstantiation(c:Checker, sig:Signature, typeArguments:Array<Type>):Signature {
+	static extern inline overload function createSignatureInstantiation(c:Checker, sig:Signature, typeArguments:Slice<Type>):Signature {
 		return c.instantiateSignatureEx(sig, Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments), true /*eraseTypeParameters*/);
 	}
 
@@ -3392,7 +3392,7 @@ class CheckerPart5 {
 		return c.instantiateSignatureEx(sig, Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments), true /*eraseTypeParameters*/);
 	}
 
-	static extern inline overload function createSignatureTypeMapper(c:Checker, sig:Signature, typeArguments:Array<Type>):TypeMapper {
+	static extern inline overload function createSignatureTypeMapper(c:Checker, sig:Signature, typeArguments:Slice<Type>):TypeMapper {
 		return Checker.newTypeMapper(c.getTypeParametersForMapper(sig), typeArguments);
 	}
 
@@ -3706,7 +3706,7 @@ class CheckerPart5 {
 		return d;
 	}
 
-	static function getIndexInfosOfSymbol(c:Checker, symbol:Symbol):Array<IndexInfo> {
+	static function getIndexInfosOfSymbol(c:Checker, symbol:Symbol):Slice<IndexInfo> {
 		final indexSymbol = c.getIndexSymbol(symbol);
 		if (indexSymbol != null) {
 			return c.getIndexInfosOfIndexSymbol(indexSymbol, symbolTableValues(c.getMembersOfSymbol(symbol)));
@@ -3715,15 +3715,15 @@ class CheckerPart5 {
 	}
 
 	// note intentional similarities to index signature building in `checkObjectLiteral` for parity
-	static function getIndexInfosOfIndexSymbol(c:Checker, indexSymbol:Symbol, siblingSymbols:Array<Symbol>):Array<IndexInfo> {
-		var indexInfos:Array<IndexInfo> = null;
+	static function getIndexInfosOfIndexSymbol(c:Checker, indexSymbol:Symbol, siblingSymbols:Slice<Symbol>):Slice<IndexInfo> {
+		var indexInfos:Slice<IndexInfo> = null;
 		var hasComputedStringProperty = false;
 		var hasComputedNumberProperty = false;
 		var hasComputedSymbolProperty = false;
 		var readonlyComputedStringProperty = true;
 		var readonlyComputedNumberProperty = true;
 		var readonlyComputedSymbolProperty = true;
-		var propertySymbols:Array<Symbol> = null;
+		var propertySymbols:Slice<Symbol> = null;
 		for (declaration in rangeOf(indexSymbol.Declarations)) {
 			if (Ast.IsIndexSignatureDeclaration(declaration)) {
 				final parameters = declaration.Parameters();
@@ -3820,9 +3820,9 @@ class CheckerPart5 {
 	}
 
 	// NOTE: currently does not make pattern literal indexers, eg `${number}px`
-	static function getObjectLiteralIndexInfo(c:Checker, isReadonly:Bool, properties:Array<Symbol>, keyType:Type):IndexInfo {
-		var propTypes:Array<Type> = null;
-		var components:Array<Node> = null;
+	static function getObjectLiteralIndexInfo(c:Checker, isReadonly:Bool, properties:Slice<Symbol>, keyType:Type):IndexInfo {
+		var propTypes:Slice<Type> = null;
+		var components:Slice<Node> = null;
 		for (prop in rangeOf(properties)) {
 			if (keyType == c.stringType && !c.isSymbolWithSymbolName(prop)
 				|| keyType == c.numberType && c.isSymbolWithNumericName(prop)
@@ -3900,7 +3900,7 @@ class CheckerPart5 {
 		return Checker.findIndexInfoV(indexInfos, keyType);
 	}
 
-	static extern inline overload function findIndexInfo(c:Checker, indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
+	static extern inline overload function findIndexInfo(c:Checker, indexInfos:Slice<IndexInfo>, keyType:Type):IndexInfo {
 		for (info in rangeOf(indexInfos)) {
 			if (info.keyType == keyType) {
 				return info;
@@ -3913,11 +3913,11 @@ class CheckerPart5 {
 		return symbolTableGet(c.getMembersOfSymbol(symbol), Ast.InternalSymbolNameIndex);
 	}
 
-	static function getSignaturesOfSymbol(c:Checker, symbol:Symbol):Array<Signature> {
+	static function getSignaturesOfSymbol(c:Checker, symbol:Symbol):Slice<Signature> {
 		if (symbol == null) {
 			return null;
 		}
-		var result:Array<Signature> = null;
+		var result:Slice<Signature> = null;
 		final declarations = rangeOf(symbol.Declarations);
 		for (i in 0...declarations.length) {
 			final decl = declarations[i];
@@ -3953,7 +3953,7 @@ class CheckerPart5 {
 		if (links.resolvedSignature != null) {
 			return links.resolvedSignature;
 		}
-		var parameters:Array<Symbol> = null;
+		var parameters:Slice<Symbol> = null;
 		var flags:SignatureFlags = SignatureFlagsNone;
 		var thisParameter:Symbol = null;
 		var minArgumentCount = 0;
@@ -4038,7 +4038,7 @@ class CheckerPart5 {
 		if (sig != null) {
 			return sig.TypeParameters();
 		}
-		var result:Array<Type> = null;
+		var result:Slice<Type> = null;
 		for (node in rangeOf(declaration.TypeParameters())) {
 			result = Core.AppendIfUnique(result, c.getDeclaredTypeOfTypeParameter(node.Symbol()));
 		}
@@ -4171,7 +4171,7 @@ class CheckerPart5 {
 		return sig.resolvedReturnType;
 	}
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Slice<T>):Slice<T> {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
@@ -4193,7 +4193,7 @@ class CheckerPart5 {
 	}
 	
 	// PORT: Go `append(s, x)` on a possibly-nil []*ast.Node owned by the caller.
-	static inline function appendNode(s:Array<Node>, x:Node):Array<Node> {
+	static inline function appendNode(s:Slice<Node>, x:Node):Slice<Node> {
 		if (s == null) {
 			return [x];
 		}
@@ -4231,11 +4231,11 @@ class CheckerPart5 {
 	static inline final ObjectFlagsUnresolvedMembers:ObjectFlags = 1 << 29;
 	
 	// PORT: Go `slices.Collect(maps.Values(table))` on a possibly-nil ast.SymbolTable (nil for an empty table).
-	static function symbolTableValues(table:SymbolTable):Array<Symbol> {
+	static function symbolTableValues(table:SymbolTable):Slice<Symbol> {
 		if (table == null) {
 			return null;
 		}
-		var result:Array<Symbol> = null;
+		var result:Slice<Symbol> = null;
 		for (s in table) {
 			if (result == null) {
 				result = [];

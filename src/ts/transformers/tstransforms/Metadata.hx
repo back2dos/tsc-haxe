@@ -48,7 +48,7 @@ class MetadataTransformer {
 				this.currentLexicalScope = node;
 				this.serializer = Tstransforms.newMetadataSerializer(resolver, Factory(), EmitContext(), languageVersion, strictNullChecks);
 				final updated = Visitor().VisitEachChild(node);
-				EmitContext().AddEmitHelper(updated, ...Core.Coalesce(EmitContext().ReadEmitHelpers(), [])); // PORT: spread of a nil slice is an empty variadic call
+				EmitContext().AddEmitHelper(updated, ...Core.Coalesce(EmitContext().ReadEmitHelpers(), []).toArray()); // PORT: spread of a nil slice is an empty variadic call
 				// PORT: defer (in reverse order)
 				setCurrentLexicalScope(null);
 				setParent(null);
@@ -156,7 +156,7 @@ class MetadataTransformer {
 	function injectClassTypeMetadata(list:ModifierList, node:Node):ModifierList {
 		final metadata = getTypeMetadata(node, node);
 		if (Core.len(metadata) > 0) {
-			var originalNodes:Array<Node> = null;
+			var originalNodes:Slice<Node> = null;
 			if (list != null) {
 				originalNodes = list.Nodes;
 			}
@@ -203,7 +203,7 @@ class MetadataTransformer {
 		}
 		final metadata = getTypeMetadata(node, container);
 		if (Core.len(metadata) > 0) {
-			var originalNodes:Array<Node> = null;
+			var originalNodes:Slice<Node> = null;
 			if (list != null) {
 				originalNodes = list.Nodes;
 			}
@@ -239,7 +239,7 @@ class MetadataTransformer {
 	 *
 	 * @param node The declaration node.
 	 */
-	function getTypeMetadata(node:Node, container:Node):Array<Node> {
+	function getTypeMetadata(node:Node, container:Node):Slice<Node> {
 		// Decorator metadata is not yet supported for ES decorators.
 		if (!legacyDecorators) {
 			return null;
@@ -250,8 +250,8 @@ class MetadataTransformer {
 		return getOldTypeMetadata(node, container);
 	}
 
-	function getOldTypeMetadata(node:Node, container:Node):Array<Node> {
-		var decorators:Array<Node> = null;
+	function getOldTypeMetadata(node:Node, container:Node):Slice<Node> {
+		var decorators:Slice<Node> = null;
 		if (shouldAddTypeMetadata(node)) {
 			final typeMetadata = Factory().NewMetadataHelper("design:type",
 				serializer.SerializeTypeOfNode(new MetadataSerializerContext(currentLexicalScope, container), node, container));
@@ -277,7 +277,7 @@ class MetadataTransformer {
 	}
 
 	function getNewTypeMetadata(node:Node, container:Node):Array<Node> {
-		var properties:Array<Node> = null;
+		var properties:Slice<Node> = null;
 		if (shouldAddTypeMetadata(node)) {
 			if (properties == null)
 				properties = [];

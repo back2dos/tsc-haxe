@@ -11,7 +11,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	public var ParsedConfig:Null<ParsedOptions> = null; // json:"parsedConfig"
 
 	public var ConfigFile:Null<TsConfigSourceFile> = null; // json:"configFile" // TsConfigSourceFile, used in Program and ExecuteCommandLine
-	public var Errors:Null<Array<Diagnostic>> = null; // json:"errors"
+	public var Errors:Slice<Diagnostic> = null; // json:"errors"
 	public var Raw:Dynamic = null; // json:"raw"
 	public var CompileOnSave:Null<Bool> = null; // json:"compileOnSave"
 
@@ -22,8 +22,8 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	// PORT: map[tspath.RootedDirectoryPath]bool → an OrderedMap (deterministic iteration).
 	var wildcardDirectories:Null<OrderedMap<RootedDirectoryPath, Bool>> = null;
 	var includeGlobsOnce:Bool = false;
-	var includeGlobs:Null<Array<Glob>> = null;
-	var contentMapperExtensionRewrites:Null<Array<ExtensionRewrite>> = null;
+	var includeGlobs:Slice<Glob> = null;
+	var contentMapperExtensionRewrites:Slice<ExtensionRewrite> = null;
 	var contentMapperExtensionRewritesOnce:Bool = false;
 
 	var sourceAndOutputMapsOnce:Bool = false;
@@ -34,11 +34,11 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	var commonSourceDirectory:RootedDirectoryPath = cast "";
 	var commonSourceDirectoryOnce:Bool = false;
 
-	var resolvedProjectReferencePaths:Null<Array<RootedFilePath>> = null;
+	var resolvedProjectReferencePaths:Slice<RootedFilePath> = null;
 	var resolvedProjectReferencePathsOnce:Bool = false;
 
 	var literalFileNamesLen:Int = 0;
-	var rootFileNamesForDiagnostics:Null<Array<std.String>> = null;
+	var rootFileNamesForDiagnostics:Slice<std.String> = null;
 	var filePaths:Null<Set<PathKey>> = null;
 	var filePathsOnce:Bool = false;
 
@@ -63,7 +63,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return new Pair(fileGlob, "**/" + fileGlob);
 	}
 
-	public function WithFileNames(fileNames:Null<Array<RootedFilePath>>):ParsedCommandLine {
+	public function WithFileNames(fileNames:Slice<RootedFilePath>):ParsedCommandLine {
 		final parsedConfig = this.ParsedConfig.copy();
 		parsedConfig.FileNames = fileNames;
 		final p = new ParsedCommandLine();
@@ -142,7 +142,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	public function CommonSourceDirectory():RootedDirectoryPath {
 		if (!this.commonSourceDirectoryOnce) {
 			this.commonSourceDirectoryOnce = true;
-			final files = function():Null<Array<RootedFilePath>> {
+			final files = function():Slice<RootedFilePath> {
 				return Core.Filter(this.ParsedConfig.FileNames, function(file:RootedFilePath):Bool {
 					return !(this.ParsedConfig.CompilerOptions.NoEmitForJsFiles.IsTrue() && file.HasJSFileExtension()) && !file.IsDeclarationFile();
 				});
@@ -251,7 +251,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return this.wildcardDirectories;
 	}
 
-	public function WildcardDirectoryGlobs():Null<Array<Glob>> {
+	public function WildcardDirectoryGlobs():Slice<Glob> {
 		final wildcardDirectories = this.WildcardDirectories();
 		if (wildcardDirectories == null) {
 			return null;
@@ -277,7 +277,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	}
 
 	// Normalized file names explicitly specified in `files`
-	public function LiteralFileNames():Null<Array<RootedFilePath>> {
+	public function LiteralFileNames():Slice<RootedFilePath> {
 		if (this != null && this.ConfigFile != null) {
 			return this.FileNames().slice(0, this.literalFileNamesLen);
 		}
@@ -308,7 +308,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	}
 
 	// All file names matched by files, include, and exclude patterns
-	public function FileNames():Null<Array<RootedFilePath>> {
+	public function FileNames():Slice<RootedFilePath> {
 		return this.ParsedConfig.FileNames;
 	}
 
@@ -333,11 +333,11 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return this.filePaths;
 	}
 
-	public function ProjectReferences():Null<Array<ProjectReference>> {
+	public function ProjectReferences():Slice<ProjectReference> {
 		return this.ParsedConfig.ProjectReferences;
 	}
 
-	public function ContentMappers():Null<Array<Mapper>> {
+	public function ContentMappers():Slice<Mapper> {
 		if (this == null || this.ParsedConfig == null) {
 			return null;
 		}
@@ -346,13 +346,13 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 
 	// ContentMapperExtensions returns the flattened list of file extensions registered by the
 	// config's content mappers.
-	public function ContentMapperExtensions():Null<Array<std.String>> {
+	public function ContentMapperExtensions():Slice<std.String> {
 		return Core.FlatMap(this.ContentMappers(), function(m:Mapper):Array<std.String> {
-			return m.Definition.Extensions;
+			return m.Definition.Extensions.nilable();
 		});
 	}
 
-	public function ContentMapperExtensionRewrites():Null<Array<ExtensionRewrite>> {
+	public function ContentMapperExtensionRewrites():Slice<ExtensionRewrite> {
 		if (!this.contentMapperExtensionRewritesOnce) {
 			this.contentMapperExtensionRewritesOnce = true;
 			this.contentMapperExtensionRewrites = this.computeContentMapperExtensionRewrites();
@@ -360,7 +360,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return this.contentMapperExtensionRewrites;
 	}
 
-	function computeContentMapperExtensionRewrites():Null<Array<ExtensionRewrite>> {
+	function computeContentMapperExtensionRewrites():Slice<ExtensionRewrite> {
 		final result:Array<ExtensionRewrite> = [];
 		var hasNonIdentityMapping = false;
 		final ignoreCase = this.CaseSensitivity().IsCaseInsensitive();
@@ -418,7 +418,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		final mappers = this.ContentMappers();
 		if (mappers != null) {
 			for (mapper in mappers) {
-				if (mapper.Definition.Extensions != null && Lambda.exists(mapper.Definition.Extensions, function(mapperExtension:std.String):Bool {
+				if (mapper.Definition.Extensions != null && Lambda.exists(mapper.Definition.Extensions.nilable(), function(mapperExtension:std.String):Bool {
 					return extension == mapperExtension || caseSensitivity.IsCaseInsensitive() && Strings.EqualFold(extension, mapperExtension);
 				})) {
 					return mapper;
@@ -428,7 +428,7 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return null;
 	}
 
-	public function ResolvedProjectReferencePaths():Null<Array<RootedFilePath>> {
+	public function ResolvedProjectReferencePaths():Slice<RootedFilePath> {
 		if (!this.resolvedProjectReferencePathsOnce) {
 			this.resolvedProjectReferencePathsOnce = true;
 			this.resolvedProjectReferencePaths = Core.Map(this.ParsedConfig.ProjectReferences, Core.ResolveProjectReferencePath);
@@ -436,14 +436,14 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 		return this.resolvedProjectReferencePaths;
 	}
 
-	public function ExtendedSourceFiles():Null<Array<RootedFilePath>> {
+	public function ExtendedSourceFiles():Slice<RootedFilePath> {
 		if (this == null || this.ConfigFile == null) {
 			return null;
 		}
 		return this.ConfigFile.ExtendedSourceFiles;
 	}
 
-	public function GetConfigFileParsingDiagnostics():Null<Array<Diagnostic>> {
+	public function GetConfigFileParsingDiagnostics():Slice<Diagnostic> {
 		if (this.ConfigFile != null) {
 			// todo: !!! should be ConfigFile.ParseDiagnostics, check if they are the same
 			return Slices.Concat(this.ConfigFile.SourceFile.Diagnostics(), this.Errors);

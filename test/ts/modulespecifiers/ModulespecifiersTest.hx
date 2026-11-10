@@ -14,7 +14,7 @@ import ts.tsoptions.Parsedcommandline.SourceOutputAndProjectReference;
 // Mock host for testing
 class MockModuleSpecifierGenerationHost implements ModuleSpecifierGenerationHost {
 	public var currentDir:RootedDirectoryPath = cast "";
-	public var contentMapperExtensions:Null<Array<String>> = null;
+	public var contentMapperExtensions:Slice<String> = null;
 	public var caseSensitivity:CaseSensitivity = CaseInsensitive;
 	public var symlinkCache:KnownSymlinks = null;
 	// PORT: Go map[tspath.RootedFilePath]bool (nil when unset).
@@ -52,11 +52,11 @@ class MockModuleSpecifierGenerationHost implements ModuleSpecifierGenerationHost
 		return this.currentDir;
 	}
 
-	public function ContentMapperExtensions():Null<Array<String>> {
+	public function ContentMapperExtensions():Slice<String> {
 		return this.contentMapperExtensions;
 	}
 
-	public function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>> {
+	public function ContentMapperExtensionRewrites():Slice<ts.tspath.Tspath.ExtensionRewrite> {
 		return null;
 	}
 
@@ -107,7 +107,7 @@ private class EachFileNameCase {
 	public final importedFile:String;
 	public final preferSymlinks:Bool;
 	public final expectedCount:Int;
-	public final expectedPaths:Null<Array<String>>;
+	public final expectedPaths:Slice<String>;
 
 	public function new(name, importingFile, importedFile, preferSymlinks, expectedCount, ?expectedPaths) {
 		this.name = name;

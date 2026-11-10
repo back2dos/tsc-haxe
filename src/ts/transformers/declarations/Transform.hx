@@ -21,7 +21,7 @@ interface DeclarationEmitHost {
 	function CommonSourceDirectory():RootedDirectoryPath;
 	function CaseSensitivity():CaseSensitivity;
 	function BaseDirectory():RootedDirectoryPath;
-	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
+	function ContentMapperExtensionRewrites():Slice<ts.tspath.Tspath.ExtensionRewrite>;
 	function FileExists(path:RootedFilePath):Bool;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;
 	function GetEffectiveDeclarationFlags(node:Node, flags:ModifierFlags):ModifierFlags;
@@ -79,17 +79,17 @@ class DeclarationTransformer {
 	var deferredExpandoAssignments:IntMap<Array<BinaryExpression>> = null; // expando assignments whose host wasn't visible when collected, processed if the host is late-marked visible
 	// PORT: struct key — Go collections.Set[thisPropertyAssignmentKey]; keys are ThisPropertyAssignmentKey.Key(tx).
 	var seenProperties:Set<std.String> = new Set<std.String>();
-	var thisPropertyAssignmentsCollected:Array<Node> = null;
-	var rawReferencedFiles:Array<ReferencedFilePair> = null;
-	var rawTypeReferenceDirectives:Array<FileReference> = null;
-	var rawLibReferenceDirectives:Array<FileReference> = null;
+	var thisPropertyAssignmentsCollected:Slice<Node> = null;
+	var rawReferencedFiles:Slice<ReferencedFilePair> = null;
+	var rawTypeReferenceDirectives:Slice<FileReference> = null;
+	var rawLibReferenceDirectives:Slice<FileReference> = null;
 	var bindingNameVisitor:NodeVisitor = null;
 	var expressionVisitor:NodeVisitor = null;
 	var cjsExportAssignmentVisitor:NodeVisitor = null;
 	var exportStrippingVisitor:NodeVisitor = null;
 	var thisPropertyVisitor:NodeVisitor = null;
 	var cjsExportAssignment:Node = null;
-	var cjsExportMembers:Array<Node> = null;
+	var cjsExportMembers:Slice<Node> = null;
 	var cjsExportAssignmentName:Node = null; // tracks the name node used for `export =` in CJS module.exports assignments
 	var declareStrippingVisitor:NodeVisitor = null;
 	var inClassExpressionDeclaration:Bool = false; // true when serializing members of a class expression kept as a class declaration
@@ -131,7 +131,7 @@ class DeclarationTransformer {
 		return new AutoGenerateOptions(ts.printer.Generatedidentifierflags.GeneratedIdentifierFlags.GeneratedIdentifierFlagsOptimistic);
 	}
 
-	public function GetDiagnostics():Array<Diagnostic> {
+	public function GetDiagnostics():Slice<Diagnostic> {
 		return state.diagnostics;
 	}
 
@@ -164,7 +164,7 @@ class DeclarationTransformer {
 			}
 
 			final text = sourceFile.Text();
-			var commentRanges:Array<CommentRange> = null;
+			var commentRanges:Slice<CommentRange> = null;
 
 			if (previousSibling != null) {
 				// to handle
@@ -461,8 +461,8 @@ class DeclarationTransformer {
 		return Factory().NewNodeList(results);
 	}
 
-	function getReferencedFiles(outputFilePath:RootedDirectoryPath):Array<FileReference> {
-		var results:Array<FileReference> = null;
+	function getReferencedFiles(outputFilePath:RootedDirectoryPath):Slice<FileReference> {
+		var results:Slice<FileReference> = null;
 		// Handle path rewrites for triple slash ref comments
 		for (pair in rawReferencedFiles) {
 			final sourceFile = pair.file;
@@ -512,8 +512,8 @@ class DeclarationTransformer {
 		return results;
 	}
 
-	function getLibReferences():Array<FileReference> {
-		var result:Array<FileReference> = null;
+	function getLibReferences():Slice<FileReference> {
+		var result:Slice<FileReference> = null;
 		// clone retained references
 		for (ref in rawLibReferenceDirectives) {
 			if (!ref.Preserve) {
@@ -532,8 +532,8 @@ class DeclarationTransformer {
 		return result;
 	}
 
-	function getTypeReferences():Array<FileReference> {
-		var result:Array<FileReference> = null;
+	function getTypeReferences():Slice<FileReference> {
+		var result:Slice<FileReference> = null;
 		// clone retained references
 		for (ref in rawTypeReferenceDirectives) {
 			if (!ref.Preserve) {
@@ -887,7 +887,7 @@ class DeclarationTransformer {
 		} else { // object binding pattern
 			// `const {x, y: z} = require("something")` -> `import {x, y as z} from "something"`
 			final b = input.Name().AsBindingPattern();
-			var importSpecifiers:Array<Node> = null;
+			var importSpecifiers:Slice<Node> = null;
 			for (elem in b.Elements.Nodes) {
 				if (!Ast.IsIdentifier(elem.Name())) {
 					continue; // nested destructuring, bail
@@ -903,7 +903,7 @@ class DeclarationTransformer {
 	}
 
 	function recreateBindingPattern(input:BindingPattern):Node {
-		var results:Array<Node> = null;
+		var results:Slice<Node> = null;
 		for (elem in input.Elements.Nodes) {
 			final result = recreateBindingElement(elem.AsBindingElement());
 			if (result == null) {
@@ -1000,7 +1000,7 @@ class DeclarationTransformer {
 	}
 
 	function updateAccessorParamList(input:Node, isPrivate:Bool):ParameterList {
-		var newParams:Array<Node> = null;
+		var newParams:Slice<Node> = null;
 		if (!isPrivate) {
 			final thisParam = Ast.GetThisParameter(input);
 			if (thisParam != null) {
@@ -1167,7 +1167,7 @@ class DeclarationTransformer {
 		final unwrapped = Ast.SkipOuterExpressions(expression, OEKExpressionTypePassthrough);
 		final newId = getNameOfExportedAssignedExpression(unwrapped, isExportEquals);
 		if (Ast.IsClassExpression(unwrapped)) {
-			var mods:Array<Node> = null;
+			var mods:Slice<Node> = null;
 			if (needsDeclare) {
 				mods = [Factory().NewModifier(KindDeclareKeyword)];
 			}
@@ -1181,7 +1181,7 @@ class DeclarationTransformer {
 			return Factory().NewSyntaxList([exportAssignment, classDecl]);
 		} else if (Ast.IsFunctionLike(unwrapped)) {
 			// Promote function or arrow function expressions to a function declaration
-			var mods:Array<Node> = null;
+			var mods:Slice<Node> = null;
 			if (needsDeclare) {
 				mods = [Factory().NewModifier(KindDeclareKeyword)];
 			}
@@ -1313,7 +1313,7 @@ class DeclarationTransformer {
 
 					if (needsIsolation) {
 						final nsName = Factory().NewUniqueNameEx("_ns", optimisticOptions());
-						var nsMods:Array<Node> = null;
+						var nsMods:Slice<Node> = null;
 						if (needsDeclare) {
 							nsMods = [Factory().NewModifier(KindDeclareKeyword)];
 						}
@@ -1340,7 +1340,7 @@ class DeclarationTransformer {
 
 					// No isolation needed: names match and no self-references.
 					// Update modifiers to include declare if needed.
-					var mods:Array<Node> = null;
+					var mods:Slice<Node> = null;
 					mods = [Factory().NewModifier(KindExportKeyword)];
 					if (needsDeclare) {
 						mods.push(Factory().NewModifier(KindDeclareKeyword));
@@ -1350,7 +1350,7 @@ class DeclarationTransformer {
 					restoreWatch();
 					return classDecl;
 				}
-				var mods:Array<Node> = null;
+				var mods:Slice<Node> = null;
 				mods = [Factory().NewModifier(KindExportKeyword)];
 				if (needsDeclare) {
 					mods.push(Factory().NewModifier(KindDeclareKeyword));
@@ -1449,13 +1449,13 @@ class DeclarationTransformer {
 		}
 		// Reuse the same name node so unique names resolve consistently with the class/export
 		final nsName = cjsExportAssignmentName;
-		var members:Array<Node>;
+		var members:Slice<Node>;
 		if (content.Kind == KindSyntaxList) {
 			members = content.AsSyntaxList().Children;
 		} else {
 			members = [content];
 		}
-		var nsMods:Array<Node> = null;
+		var nsMods:Slice<Node> = null;
 		if (needsDeclare) {
 			nsMods = [Factory().NewModifier(KindDeclareKeyword)];
 		}
@@ -1474,12 +1474,12 @@ class DeclarationTransformer {
 		inClassExpressionDeclaration = true;
 		// PORT: defer on the success path only (docs/PORTING.md §4).
 
-		var extraMembers:Array<Node> = null;
+		var extraMembers:Slice<Node> = null;
 		if (Ast.IsInJSFile(classExpr)) {
 			extraMembers = collectThisPropertyAssignments(classExpr);
 		}
 		// PORT: Go `extraMembers...` with a nil slice spreads nothing.
-		final members = buildClassMembers(classExpr, ...(extraMembers == null ? [] : extraMembers));
+		final members = buildClassMembers(classExpr, ...(extraMembers == null ? [] : extraMembers).toArray());
 		final typeParameters = ensureTypeParams(classExpr, classExpr.AsClassExpression().TypeParameters);
 		final heritageClauses = Visitor().VisitNodes(classExpr.AsClassExpression().HeritageClauses);
 
@@ -1813,7 +1813,7 @@ class DeclarationTransformer {
 	// Extra members (e.g., this-property assignments from JS files) can be passed via extraMembers.
 	function buildClassMembers(classNode:Node, ...extraMembers:Node):NodeList {
 		final ctor = Ast.GetFirstConstructorWithBody(classNode);
-		var parameterProperties:Array<Node> = null;
+		var parameterProperties:Slice<Node> = null;
 		if (ctor != null) {
 			final oldDiag = state.getSymbolAccessibilityDiagnostic;
 			for (param in ctor.AsConstructorDeclaration().Parameters.Nodes) {
@@ -1897,13 +1897,13 @@ class DeclarationTransformer {
 		final typeParameters = ensureTypeParams(input.AsNode(), input.TypeParameters);
 
 		// Collect this.x property assignments from constructors and static blocks in JS files
-		var extraMembers:Array<Node> = null;
+		var extraMembers:Slice<Node> = null;
 		if (Ast.IsInJSFile(input.AsNode())) {
 			extraMembers = collectThisPropertyAssignments(input.AsNode());
 		}
 
 		// PORT: Go `extraMembers...` with a nil slice spreads nothing.
-		final members = buildClassMembers(input.AsNode(), ...(extraMembers == null ? [] : extraMembers));
+		final members = buildClassMembers(input.AsNode(), ...(extraMembers == null ? [] : extraMembers).toArray());
 
 		final extendsClause = Ast.GetClassExtendsHeritageElement(input.AsNode());
 
@@ -2028,7 +2028,7 @@ class DeclarationTransformer {
 
 	// collectThisPropertyAssignments finds `this.x = expr` assignments in constructors, methods, and static blocks
 	// of JS classes and synthesizes PropertyDeclaration nodes for each unique property name.
-	function collectThisPropertyAssignments(classNode:Node):Array<Node> {
+	function collectThisPropertyAssignments(classNode:Node):Slice<Node> {
 		final members = classNode.ClassLikeData().Members;
 		final seen = new Set<std.String>();
 		// Pre-populate seen with existing direct member nodes to avoid duplicates
@@ -2051,8 +2051,8 @@ class DeclarationTransformer {
 		return r;
 	}
 
-	function walkBindingPattern(pattern:BindingPattern, param:Node):Array<Node> {
-		var elems:Array<Node> = null;
+	function walkBindingPattern(pattern:BindingPattern, param:Node):Slice<Node> {
+		var elems:Slice<Node> = null;
 		for (elem in pattern.Elements.Nodes) {
 			if (Ast.IsOmittedExpression(elem)) {
 				continue;
@@ -2091,10 +2091,10 @@ class DeclarationTransformer {
 		}
 
 		var inputNodes = input.DeclarationList.AsVariableDeclarationList().Declarations.Nodes;
-		var extraImports:Array<Node> = null;
+		var extraImports:Slice<Node> = null;
 		if (state.currentSourceFile.CommonJSModuleIndicator != null) {
-			var normalDeclarations:Array<Node> = null;
-			var imports:Array<Node> = null;
+			var normalDeclarations:Slice<Node> = null;
+			var imports:Slice<Node> = null;
 			for (n in inputNodes) {
 				if (Ast.IsVariableDeclarationInitializedToRequire(n)) {
 					if (imports == null) {
@@ -2791,7 +2791,7 @@ class DeclarationTransformer {
 			final addOns = expandoMembers.get(id);
 			var modifiers:ModifierList = null;
 			var name:Node = null;
-			var host:Array<Node> = null;
+			var host:Slice<Node> = null;
 			if (n != null && n.Kind == KindSyntaxList) {
 				// find the first named syntax list element and use its' name & modifiers
 				for (c in n.AsSyntaxList().AsNode().IterChildren()) {

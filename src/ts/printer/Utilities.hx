@@ -32,7 +32,7 @@ enum abstract QuoteChar(Int) from Int to Int {
 // Character offsets are measured in UTF-16 code units per the source map specification.
 // PORT: unexported Go type `lineCharacterCache` → LineCharacterCache (PORTING.md §1).
 class LineCharacterCache {
-	public var lineMap:Array<TextPos> = null;
+	public var lineMap:Slice<TextPos> = null;
 	public var text:std.String = "";
 	public var cachedLine:Int = 0;
 	public var cachedPos:Int = 0;

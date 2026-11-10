@@ -96,7 +96,7 @@ class MapFS implements ReadFileFS implements StatFS implements ReadDirFS impleme
 		// for all its files. But file can also be non-nil, in case the user wants to set metadata
 		// for the directory explicitly. Either way, we need to construct the list of children
 		// of this directory.
-		var list:Null<Array<MapFileInfo>> = null;
+		var list:Slice<MapFileInfo> = null;
 		final need = new StringMap<Bool>();
 		if (realName == ".") {
 			for (fname in keys()) {
@@ -318,10 +318,10 @@ class OpenMapFile implements File {
 class MapDir implements ReadDirFile {
 	final path:String;
 	final mapFileInfo:MapFileInfo;
-	final entry:Array<MapFileInfo>;
+	final entry:Slice<MapFileInfo>;
 	var offset:Int;
 
-	public function new(path:String, mapFileInfo:MapFileInfo, entry:Array<MapFileInfo>, offset:Int) {
+	public function new(path:String, mapFileInfo:MapFileInfo, entry:Slice<MapFileInfo>, offset:Int) {
 		this.path = path;
 		this.mapFileInfo = mapFileInfo;
 		this.entry = entry;

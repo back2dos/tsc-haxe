@@ -407,9 +407,9 @@ class TestSys implements System implements CommandLineTesting {
 // Go type `outputSanitizer` (unexported).
 class OutputSanitizer {
 	var forComparing:Bool = false;
-	var lines:Array<String> = null;
+	var lines:Slice<String> = null;
 	var index:Int = 0;
-	var outputLines:Array<String> = null;
+	var outputLines:Slice<String> = null;
 
 	public function new(forComparing:Bool, lines:Array<String>) {
 		this.forComparing = forComparing;

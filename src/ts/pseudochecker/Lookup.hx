@@ -376,11 +376,11 @@ class Lookup {
 	// canGetTypeFromObjectLiteral checks whether an object literal can be typed by the pseudochecker.
 	// Returns nil if the object can be typed, or a slice of error nodes (shorthand/spread properties,
 	// non-literal computed names) that prevent typing.
-	static function canGetTypeFromObjectLiteral(ch:PseudoChecker, node:ObjectLiteralExpression):Array<Node> {
+	static function canGetTypeFromObjectLiteral(ch:PseudoChecker, node:ObjectLiteralExpression):Slice<Node> {
 		if (node.Properties == null || node.Properties.Nodes.length == 0) {
 			return null; // empty object, ok
 		}
-		var errorNodes:Array<Node> = null;
+		var errorNodes:Slice<Node> = null;
 		// PORT: Go append to a nil slice → create the array on first push.
 		inline function append(n:Node) {
 			if (errorNodes == null)

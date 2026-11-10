@@ -17,7 +17,7 @@ class Collections {
 		return m;
 	}
 
-	public static function GroupBy<K, V>(items:Null<Array<V>>, groupId:(V) -> K):MultiMap<K, V> {
+	public static function GroupBy<K, V>(items:Slice<V>, groupId:(V) -> K):MultiMap<K, V> {
 		final m = new MultiMap<K, V>();
 		if (items != null) {
 			for (item in items) {
@@ -41,7 +41,7 @@ class Collections {
 	}
 
 	// PORT: `zero` is the Go zero value of V (see OrderedMap.hx).
-	public static function NewOrderedMapFromList<K, V>(items:Null<Array<MapEntry<K, V>>>, ?zero:V):OrderedMap<K, V> {
+	public static function NewOrderedMapFromList<K, V>(items:Slice<MapEntry<K, V>>, ?zero:V):OrderedMap<K, V> {
 		final mp:OrderedMap<K, V> = NewOrderedMapWithSizeHint(items == null ? 0 : items.length, zero);
 		if (items != null) {
 			for (item in items) {

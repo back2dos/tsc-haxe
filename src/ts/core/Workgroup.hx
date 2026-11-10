@@ -16,7 +16,7 @@ interface WorkGroup {
 
 class SingleThreadedWorkGroup implements WorkGroup {
 	var done:Bool = false;
-	var fns:Null<Array<() -> Void>> = null;
+	var fns:Slice<() -> Void> = null;
 
 	public function new() {}
 

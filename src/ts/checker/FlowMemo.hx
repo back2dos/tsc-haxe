@@ -92,7 +92,7 @@ class FlowMemo {
 	}
 
 	var mode:Int;
-	var slots:Array<FlowMemoSlot> = null;
+	var slots:Slice<FlowMemoSlot> = null;
 	var mask:Int = 0;
 	var serial:Int = 1;
 	// The registers of the innermost active frame: the oldest source of each kind it consumed so far, the largest

@@ -29,7 +29,7 @@ class Tsbaseline {
 		return formatOptsValue;
 	}
 
-	public static function DoErrorBaseline(t:T, baselinePath:String, inputFiles:Array<TestFile>, errors:Array<Diagnostic>, pretty:Bool,
+	public static function DoErrorBaseline(t:T, baselinePath:String, inputFiles:Array<TestFile>, errors:Slice<Diagnostic>, pretty:Bool,
 			opts:Options):Void {
 		baselinePath = replaceTsExtension(baselinePath, ".errors.txt");
 		var errorBaseline:String;
@@ -41,7 +41,7 @@ class Tsbaseline {
 		Baseline.Run(t, baselinePath, errorBaseline, opts);
 	}
 
-	static function minimalDiagnosticsToString(diagnostics:Array<ts.diagnosticwriter.Diagnosticwriter.Diagnostic>, pretty:Bool):String {
+	static function minimalDiagnosticsToString(diagnostics:Slice<ts.diagnosticwriter.Diagnosticwriter.Diagnostic>, pretty:Bool):String {
 		final output = new StringWriter();
 		if (pretty) {
 			Diagnosticwriter.FormatDiagnosticsWithColorAndContext(output, diagnostics, formatOpts);
@@ -52,7 +52,7 @@ class Tsbaseline {
 	}
 
 	// PORT: generic over T diagnosticwriter.Diagnostic in Go; the harness only uses *ASTDiagnostic.
-	public static function GetErrorBaseline(t:T, inputFiles:Array<TestFile>, diagnostics:Array<ASTDiagnostic>,
+	public static function GetErrorBaseline(t:T, inputFiles:Slice<TestFile>, diagnostics:Slice<ASTDiagnostic>,
 			compareDiagnostics:(ASTDiagnostic, ASTDiagnostic) -> Int, pretty:Bool):String {
 		t.Helper();
 		final outputLines = iterateErrorBaseline(t, inputFiles, diagnostics, compareDiagnostics, pretty);
@@ -66,7 +66,7 @@ class Tsbaseline {
 		return outputLines.join("");
 	}
 
-	static function iterateErrorBaseline(t:T, inputFiles:Array<TestFile>, inputDiagnostics:Array<ASTDiagnostic>,
+	static function iterateErrorBaseline(t:T, inputFiles:Slice<TestFile>, inputDiagnostics:Slice<ASTDiagnostic>,
 			compareDiagnostics:(ASTDiagnostic, ASTDiagnostic) -> Int, pretty:Bool):Array<String> {
 		t.Helper();
 		final diagnostics = Slices.Clone(inputDiagnostics);
@@ -696,7 +696,7 @@ class Tsbaseline {
 	// --- js_emit_baseline.go ---
 
 	public static function DoJSEmitBaseline(t:T, baselinePath:String, header:String, options:CompilerOptions, result:CompilationResult,
-			tsConfigFiles:Array<TestFile>, toBeCompiled:Array<TestFile>, otherFiles:Array<TestFile>, harnessSettings:HarnessOptions, opts:Options):Void {
+			tsConfigFiles:Slice<TestFile>, toBeCompiled:Slice<TestFile>, otherFiles:Slice<TestFile>, harnessSettings:HarnessOptions, opts:Options):Void {
 		if (!options.NoEmit.IsTrue() && !options.EmitDeclarationOnly.IsTrue() && result.JS.Size() == 0 && Core.len(result.Diagnostics) == 0) {
 			t.Fatal("Expected at least one js file to be emitted or at least one error to be created.");
 		}
@@ -820,7 +820,7 @@ class Tsbaseline {
 		return "//// [" + fileName + "]\r\n" + file.Content;
 	}
 
-	static function prepareDeclarationCompilationContext(inputFiles:Array<TestFile>, otherFiles:Array<TestFile>, result:CompilationResult,
+	static function prepareDeclarationCompilationContext(inputFiles:Slice<TestFile>, otherFiles:Slice<TestFile>, result:CompilationResult,
 			harnessSettings:HarnessOptions, options:CompilerOptions,
 			// Current directory is needed for rwcRunner to be able to use currentDirectory defined in json file
 			currentDirectory:String):DeclarationCompilationContext {
@@ -838,10 +838,10 @@ class Tsbaseline {
 			}
 		}
 
-		var declInputFiles:Array<TestFile> = null;
-		var declOtherFiles:Array<TestFile> = null;
+		var declInputFiles:Slice<TestFile> = null;
+		var declOtherFiles:Slice<TestFile> = null;
 
-		final findUnit = function(fileName:String, units:Array<TestFile>):TestFile {
+		final findUnit = function(fileName:String, units:Slice<TestFile>):TestFile {
 			if (units != null) {
 				for (unit in units) {
 					if (unit.UnitName == fileName) {
@@ -871,7 +871,7 @@ class Tsbaseline {
 			return result.DTS.GetOrZero(dTsFileName);
 		};
 
-		final addDtsFile = function(file:TestFile, dtsFiles:Array<TestFile>):Array<TestFile> {
+		final addDtsFile = function(file:TestFile, dtsFiles:Slice<TestFile>):Slice<TestFile> {
 			if (Tspath.IsDeclarationFileName(file.UnitName) || Tspath.HasJSONFileExtension(file.UnitName)) {
 				dtsFiles = appendFile(dtsFiles, file);
 			} else if (result.Program.GetSourceFile(Tspath.ToRootedFilePath(file.UnitName, result.CurrentDirectory())) != null
@@ -909,7 +909,7 @@ class Tsbaseline {
 	}
 
 	// PORT: `append(s, x)` on a possibly-nil slice owned by the caller.
-	static function appendFile(s:Array<TestFile>, x:TestFile):Array<TestFile> {
+	static function appendFile(s:Slice<TestFile>, x:TestFile):Slice<TestFile> {
 		if (s == null)
 			s = [];
 		s.push(x);
@@ -927,8 +927,8 @@ class Tsbaseline {
 			tsconfig.ParsedConfig.ContentMappers = context.config.ContentMappers();
 			tsconfig.ConfigFile = context.config.ConfigFile;
 		}
-		final declFileCompilationResult = Harnessutil.CompileFilesEx(t, context.declInputFiles == null ? [] : context.declInputFiles,
-			context.declOtherFiles == null ? [] : context.declOtherFiles, context.harnessSettings, context.options, context.currentDirectory, symlinks,
+		final declFileCompilationResult = Harnessutil.CompileFilesEx(t, context.declInputFiles.toArray(),
+			context.declOtherFiles.toArray(), context.harnessSettings, context.options, context.currentDirectory, symlinks,
 			tsconfig);
 		final r = new DeclarationCompilationResult();
 		r.declInputFiles = context.declInputFiles;
@@ -1083,7 +1083,7 @@ class Tsbaseline {
 	// DoContentMapperBaseline writes a baseline for content-mapped files that shows the original source, the
 	// transformed source the compiler actually checks, and the file's diagnostics. If the program has no
 	// content-mapped files, no baseline is written.
-	public static function DoContentMapperBaseline(t:T, baselinePath:String, program:ProgramLike, diagnostics:Array<Diagnostic>, opts:Options):Void {
+	public static function DoContentMapperBaseline(t:T, baselinePath:String, program:ProgramLike, diagnostics:Slice<Diagnostic>, opts:Options):Void {
 		final content = getContentMapperBaseline(program, diagnostics);
 		if (content == "") {
 			return;
@@ -1091,7 +1091,7 @@ class Tsbaseline {
 		Baseline.Run(t, replaceTsExtension(baselinePath, ".contentmapper"), content, opts);
 	}
 
-	static function getContentMapperBaseline(program:ProgramLike, diagnostics:Array<Diagnostic>):String {
+	static function getContentMapperBaseline(program:ProgramLike, diagnostics:Slice<Diagnostic>):String {
 		final prog = program.Program();
 		final mapped = new StringMap<ts.contentmapper.Contentmapper.Mapper>();
 		final files:Array<SourceFile> = [];
@@ -1117,7 +1117,7 @@ class Tsbaseline {
 			b.add("\n");
 		}
 
-		final fileDiagnostics:Array<Diagnostic> = [];
+		final fileDiagnostics:Slice<Diagnostic> = [];
 		if (diagnostics != null) {
 			for (d in diagnostics) {
 				if (d.File() != null && mapped.exists(d.File().FileName())) {

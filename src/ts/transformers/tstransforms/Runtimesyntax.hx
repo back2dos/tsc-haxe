@@ -8,8 +8,8 @@ package ts.transformers.tstransforms;
 @:allow(ts.transformers.tstransforms)
 class RuntimeSyntaxTransformer {
 	// PORT: Go `range` over a possibly-nil slice (parser lists of zero elements have nil Nodes).
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 	public var Transformer:Transformer = new Transformer(); // Go: embedded
@@ -248,7 +248,7 @@ class RuntimeSyntaxTransformer {
 	}
 
 	// PORT: Go returns ([]*ast.Statement, bool) → ValueOk (value = statements, ok = added).
-	function addVarForDeclaration(statements:Array<Statement>, node:Declaration):ValueOk<Array<Statement>> {
+	function addVarForDeclaration(statements:Slice<Statement>, node:Declaration):ValueOk<Slice<Statement>> {
 		recordDeclarationInScope(node);
 		if (!isFirstDeclarationInScope(node)) {
 			return new ValueOk(statements, false);
@@ -306,7 +306,7 @@ class RuntimeSyntaxTransformer {
 			return EmitContext().NewNotEmittedStatement(node.AsNode());
 		}
 
-		var statements:Array<Statement> = [];
+		var statements:Slice<Statement> = [];
 
 		// If needed, we should emit a variable declaration for the enum:
 		//  var name;
@@ -360,7 +360,7 @@ class RuntimeSyntaxTransformer {
 		// visit the children of `node` in advance to capture any references to enum members
 		node = Visitor().VisitEachChild(node.AsNode()).AsEnumDeclaration();
 
-		var statements:Array<Statement> = [];
+		var statements:Slice<Statement> = [];
 		for (i in 0...Core.len(node.Members.Nodes)) {
 			//  E[E["A"] = 0] = "A";
 			statements = transformEnumMember(statements, node, i);
@@ -374,7 +374,7 @@ class RuntimeSyntaxTransformer {
 	}
 
 	// Transforms an enum member into a statement. It is expected that `enum` has already been visited.
-	function transformEnumMember(statements:Array<Statement>, enum_:EnumDeclaration, index:Int):Array<Statement> {
+	function transformEnumMember(statements:Slice<Statement>, enum_:EnumDeclaration, index:Int):Slice<Statement> {
 		final memberNode = enum_.Members.Nodes[index];
 		final member = memberNode.AsEnumMember();
 
@@ -432,7 +432,7 @@ class RuntimeSyntaxTransformer {
 			return EmitContext().NewNotEmittedStatement(node.AsNode());
 		}
 
-		var statements:Array<Statement> = [];
+		var statements:Slice<Statement> = [];
 
 		// If needed, we should emit a variable declaration for the module:
 		//  var name;
@@ -486,7 +486,7 @@ class RuntimeSyntaxTransformer {
 		currentNamespace = node.AsNode();
 		currentScopeFirstDeclarationsOfName = null;
 
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		EmitContext().StartVariableEnvironment();
 
 		var statementsLocation = new TextRange(0, 0);
@@ -640,8 +640,8 @@ class RuntimeSyntaxTransformer {
 		return Visitor().VisitEachChild(node.AsNode());
 	}
 
-	function getParameterProperties(constructor:Node):Array<ParameterDeclaration> {
-		var parameterProperties:Array<ParameterDeclaration> = null;
+	function getParameterProperties(constructor:Node):Slice<ParameterDeclaration> {
+		var parameterProperties:Slice<ParameterDeclaration> = null;
 		if (constructor != null) {
 			for (parameter in rangeOf(constructor.Parameters())) {
 				if (Ast.IsParameterPropertyDeclaration(parameter, constructor)) {
@@ -676,7 +676,7 @@ class RuntimeSyntaxTransformer {
 		final parameterProperties = getParameterProperties(Core.Find(node.Members.Nodes, Ast.IsConstructorDeclaration));
 
 		if (Core.len(parameterProperties) > 0) {
-			var newMembers:Array<ClassElement> = null;
+			var newMembers:Slice<ClassElement> = null;
 			for (parameter in parameterProperties) {
 				if (Ast.IsIdentifier(parameter.Name())) {
 					final parameterProperty = Factory().NewPropertyDeclaration(null, /*modifiers*/ parameter.Name().Clone(Factory()), null,
@@ -715,7 +715,7 @@ class RuntimeSyntaxTransformer {
 		final parameterProperties = getParameterProperties(Core.Find(node.Members.Nodes, Ast.IsConstructorDeclaration));
 
 		if (Core.len(parameterProperties) > 0) {
-			var newMembers:Array<ClassElement> = null;
+			var newMembers:Slice<ClassElement> = null;
 			for (parameter in parameterProperties) {
 				if (Ast.IsIdentifier(parameter.Name())) {
 					final parameterProperty = Factory().NewPropertyDeclaration(null, /*modifiers*/ parameter.Name().Clone(Factory()), null,
@@ -759,7 +759,7 @@ class RuntimeSyntaxTransformer {
 		final split = Factory().SplitStandardPrologue(body.Statements.Nodes);
 		final prologue = split.a;
 		final rest = split.b;
-		var statements:Array<Statement> = Slices.Clone(prologue);
+		var statements:Slice<Statement> = Slices.Clone(prologue);
 
 		// Transform parameters into property assignments. Transforms this:
 		//
@@ -774,7 +774,7 @@ class RuntimeSyntaxTransformer {
 		//  }
 		//
 
-		var parameterPropertyAssignments:Array<Statement> = null;
+		var parameterPropertyAssignments:Slice<Statement> = null;
 		for (parameter in parameterProperties) {
 			if (Ast.IsIdentifier(parameter.Name())) {
 				final propertyName = parameter.Name().Clone(Factory());
@@ -819,7 +819,7 @@ class RuntimeSyntaxTransformer {
 	}
 
 	// PORT: Go `append(s, xs...)` where this function owns `s` (nil → new array; nil/empty xs → s).
-	static function appendAll(s:Array<Statement>, xs:Array<Statement>):Array<Statement> {
+	static function appendAll(s:Slice<Statement>, xs:Slice<Statement>):Slice<Statement> {
 		if (xs == null || xs.length == 0) {
 			return s;
 		}
@@ -832,8 +832,8 @@ class RuntimeSyntaxTransformer {
 		return s;
 	}
 
-	function transformConstructorBodyWorker(statementsIn:Array<Statement>, superPath:Array<Int>, initializerStatements:Array<Statement>):Array<Statement> {
-		var statementsOut:Array<Statement> = null;
+	function transformConstructorBodyWorker(statementsIn:Slice<Statement>, superPath:Slice<Int>, initializerStatements:Slice<Statement>):Slice<Statement> {
+		var statementsOut:Slice<Statement> = null;
 		final superStatementIndex = superPath[0];
 		final superStatement = statementsIn[superStatementIndex];
 

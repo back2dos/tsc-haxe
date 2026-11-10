@@ -7,8 +7,8 @@ package ts.transformers.moduletransforms;
 @:allow(ts.transformers.moduletransforms)
 class Moduletransforms {
 	// PORT: Go `range` over a possibly-nil slice (parser lists of zero elements have nil Nodes).
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 
@@ -77,7 +77,7 @@ class Moduletransforms {
 			} else {
 				// When we emit as an ES module, generate an `import` declaration that uses named imports for helpers.
 				// If we cannot determine the implied module kind under `module: preserve` we assume ESM.
-				var helperNames:Array<std.String> = null;
+				var helperNames:Slice<std.String> = null;
 				if (helpers != null)
 					for (helper in helpers) {
 						final importName = helper.ImportName;
@@ -114,8 +114,8 @@ class Moduletransforms {
 		return null;
 	}
 
-	static function getImportedHelpers(emitContext:EmitContext, sourceFile:SourceFile):Array<EmitHelper> {
-		var helpers:Array<EmitHelper> = null;
+	static function getImportedHelpers(emitContext:EmitContext, sourceFile:SourceFile):Slice<EmitHelper> {
+		var helpers:Slice<EmitHelper> = null;
 		final all = emitContext.GetEmitHelpers(sourceFile.AsNode());
 		if (all != null)
 			for (helper in all) {
@@ -128,7 +128,7 @@ class Moduletransforms {
 		return helpers;
 	}
 
-	static function getOrCreateExternalHelpersModuleNameIfNeeded(emitContext:EmitContext, node:SourceFile, compilerOptions:CompilerOptions, helpers:Array<EmitHelper>, hasExportStarsToExportValues:Bool, hasImportStarOrImportDefault:Bool, fileModuleKind:ModuleKind):IdentifierNode {
+	static function getOrCreateExternalHelpersModuleNameIfNeeded(emitContext:EmitContext, node:SourceFile, compilerOptions:CompilerOptions, helpers:Slice<EmitHelper>, hasExportStarsToExportValues:Bool, hasImportStarOrImportDefault:Bool, fileModuleKind:ModuleKind):IdentifierNode {
 		var externalHelpersModuleName = emitContext.GetExternalHelpersModuleName(node);
 		if (externalHelpersModuleName != null) {
 			return externalHelpersModuleName;
@@ -214,7 +214,7 @@ class Moduletransforms {
 	}
 
 	static function rewriteModuleSpecifier(emitContext:EmitContext, node:Expression, compilerOptions:CompilerOptions,
-			rewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>>, ignoreCase:Bool):Expression {
+			rewrites:Slice<ts.tspath.Tspath.ExtensionRewrite>, ignoreCase:Bool):Expression {
 		if (node == null || !Ast.IsStringLiteralLike(node) || !compilerOptions.RewriteRelativeImportExtensions.IsTrue()) {
 			return node;
 		}

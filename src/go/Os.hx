@@ -780,7 +780,7 @@ private class OsReadFile implements File {
 private class OsDirFile implements ReadDirFile {
 	final path:String;
 	final info:FileInfo;
-	var entries:Null<Array<DirEntry>> = null;
+	var entries:Slice<DirEntry> = null;
 	var offset = 0;
 
 	public function new(path:String, info:FileInfo) {

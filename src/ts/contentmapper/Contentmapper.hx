@@ -143,7 +143,7 @@ class Contentmapper {
 		return n == 0;
 	}
 
-	static function stringsEqual(a:Null<Array<String>>, b:Null<Array<String>>):Bool {
+	static function stringsEqual(a:Slice<String>, b:Slice<String>):Bool {
 		if ((a == null) != (b == null))
 			return false;
 		return Slices.Equal(a, b);
@@ -154,7 +154,7 @@ class Contentmapper {
 // implements the mapper and the otherwise unsupported file extensions it registers.
 class Definition {
 	public var Package:String = "";
-	public var Extensions:Array<String> = null;
+	public var Extensions:Slice<String> = null;
 	// OutputExtensions contains the resolved mapping after applying manifest defaults and project overrides.
 	public var OutputExtensions:StringMap<String> = null;
 	// PORT: json.Value (raw JSON text); "" is Go's nil.
@@ -167,8 +167,8 @@ class Definition {
 class Manifest {
 	public var Name:String = "";
 	public var Version:String = "";
-	public var Exec:Array<String> = null;
-	public var CompilerOptions:Array<String> = null;
+	public var Exec:Slice<String> = null;
+	public var CompilerOptions:Slice<String> = null;
 	public var DynamicConfig:Bool = false;
 	public var DefaultOutputExtensions:StringMap<String> = null;
 
@@ -274,7 +274,7 @@ class Mapper {
 		}
 		final fields = @:privateAccess ts.tsoptions.Tsoptions.compilerOptionsFields;
 		for (name in Manifest.CompilerOptions) {
-			final field = Lambda.find(fields, f -> f.JsonName == name);
+			final field = Lambda.find(fields.nilable(), f -> f.JsonName == name);
 			if (field == null) {
 				continue;
 			}
@@ -287,7 +287,7 @@ class Mapper {
 		return out;
 	}
 
-	static inline function Core_len(a:Null<Array<String>>):Int {
+	static inline function Core_len(a:Slice<String>):Int {
 		return a == null ? 0 : a.length;
 	}
 }

@@ -181,7 +181,7 @@ abstract RootedFilePath(String) to String {
 
 	// --- extensionrewrite.go ---
 	// PORT: (RootedFilePath, bool) -> ValueOk.
-	public function RewriteExtension(rewrites:Null<Array<Tspath.ExtensionRewrite>>, caseSensitivity:CaseSensitivity):ValueOk<RootedFilePath> {
+	public function RewriteExtension(rewrites:Slice<Tspath.ExtensionRewrite>, caseSensitivity:CaseSensitivity):ValueOk<RootedFilePath> {
 		final ignoreCase = caseSensitivity.IsCaseInsensitive();
 		final rewrite = Tspath.ExtensionRewrites.GetExtensionRewrite(this, rewrites, ignoreCase);
 		if (!rewrite.ok || rewrite.value.isIdentity(ignoreCase)) {
@@ -214,7 +214,7 @@ abstract RootedFilePath(String) to String {
 		return Tspath.GetAnyExtensionFromPath(this, extensions, caseSensitivity);
 	}
 
-	public inline function LongestExtension(extensions:Array<String>, caseSensitivity:CaseSensitivity):String {
+	public inline function LongestExtension(extensions:Slice<String>, caseSensitivity:CaseSensitivity):String {
 		return Tspath.GetLongestExtensionFromPath(this, extensions, caseSensitivity);
 	}
 

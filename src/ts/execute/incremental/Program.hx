@@ -62,7 +62,7 @@ class Program implements ProgramLike {
 	}
 
 	// GetSourceFiles implements compiler.AnyProgram interface.
-	public function GetSourceFiles():Array<SourceFile> {
+	public function GetSourceFiles():Slice<SourceFile> {
 		this.panicIfNoProgram("GetSourceFiles");
 		return this.program.GetSourceFiles();
 	}
@@ -74,35 +74,35 @@ class Program implements ProgramLike {
 	}
 
 	// GetConfigFileParsingDiagnostics implements compiler.AnyProgram interface.
-	public function GetConfigFileParsingDiagnostics():Array<Diagnostic> {
+	public function GetConfigFileParsingDiagnostics():Slice<Diagnostic> {
 		this.panicIfNoProgram("GetConfigFileParsingDiagnostics");
 		return this.program.GetConfigFileParsingDiagnostics();
 	}
 
 	// GetSyntacticDiagnostics implements compiler.AnyProgram interface.
-	public function GetSyntacticDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic> {
+	public function GetSyntacticDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic> {
 		this.panicIfNoProgram("GetSyntacticDiagnostics");
 		return this.program.GetSyntacticDiagnostics(ctx, file);
 	}
 
 	// GetBindDiagnostics implements compiler.AnyProgram interface.
-	public function GetBindDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic> {
+	public function GetBindDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic> {
 		this.panicIfNoProgram("GetBindDiagnostics");
 		return this.program.GetBindDiagnostics(ctx, file);
 	}
 
-	public function GetProgramDiagnostics():Array<Diagnostic> {
+	public function GetProgramDiagnostics():Slice<Diagnostic> {
 		this.panicIfNoProgram("GetProgramDiagnostics");
 		return this.program.GetProgramDiagnostics();
 	}
 
-	public function GetGlobalDiagnostics(ctx:Context):Array<Diagnostic> {
+	public function GetGlobalDiagnostics(ctx:Context):Slice<Diagnostic> {
 		this.panicIfNoProgram("GetGlobalDiagnostics");
 		return this.program.GetGlobalDiagnostics(ctx);
 	}
 
 	// GetSemanticDiagnostics implements compiler.AnyProgram interface.
-	public function GetSemanticDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic> {
+	public function GetSemanticDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic> {
 		this.panicIfNoProgram("GetSemanticDiagnostics");
 		if (this.snapshot.options.NoCheck.IsTrue()) {
 			return null;
@@ -119,7 +119,7 @@ class Program implements ProgramLike {
 			return this.getSemanticDiagnosticsOfFile(file);
 		}
 
-		var diagnostics:Array<Diagnostic> = null;
+		var diagnostics:Slice<Diagnostic> = null;
 		for (file in this.program.GetSourceFiles()) {
 			final d = this.getSemanticDiagnosticsOfFile(file);
 			if (d != null && d.length > 0) {
@@ -132,7 +132,7 @@ class Program implements ProgramLike {
 		return diagnostics;
 	}
 
-	function getSemanticDiagnosticsOfFile(file:SourceFile):Array<Diagnostic> {
+	function getSemanticDiagnosticsOfFile(file:SourceFile):Slice<Diagnostic> {
 		final r = this.snapshot.semanticDiagnosticsPerFile.Load(file.Path());
 		if (!r.ok) {
 			throw "After handling all the affected files, there shouldnt be more changes";
@@ -143,7 +143,7 @@ class Program implements ProgramLike {
 	}
 
 	// GetDeclarationDiagnostics implements compiler.AnyProgram interface.
-	public function GetDeclarationDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic> {
+	public function GetDeclarationDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic> {
 		this.panicIfNoProgram("GetDeclarationDiagnostics");
 		final options = new EmitOptions();
 		options.TargetSourceFile = file;
@@ -155,7 +155,7 @@ class Program implements ProgramLike {
 	}
 
 	// GetSuggestionDiagnostics implements compiler.AnyProgram interface.
-	public function GetSuggestionDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic> {
+	public function GetSuggestionDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic> {
 		this.panicIfNoProgram("GetSuggestionDiagnostics");
 		return this.program.GetSuggestionDiagnostics(ctx, file); // TODO: incremental suggestion diagnostics (only relevant in editor incremental builder?)
 	}
@@ -208,7 +208,7 @@ class Program implements ProgramLike {
 			}
 		}
 
-		var affectedFiles:Array<SourceFile> = null;
+		var affectedFiles:Slice<SourceFile> = null;
 		if (file != null) {
 			if (this.snapshot.semanticDiagnosticsPerFile.Load(file.Path()).ok) {
 				return;
@@ -404,13 +404,13 @@ class Program implements ProgramLike {
 		this.snapshot.missingPackageJsons = Incremental.normalizePackageJsons(this.snapshot.missingPackageJsons);
 	}
 
-	public function PackageJsonLookupPaths():Array<RootedFilePath> {
+	public function PackageJsonLookupPaths():Slice<RootedFilePath> {
 		final config = Tspath.GetDirectoryPath(this.program.CommandLine().ConfigName());
 		if (config == "") {
 			return null;
 		}
 
-		var packageJsons:Array<RootedFilePath> = null;
+		var packageJsons:Slice<RootedFilePath> = null;
 		this.program.PackageJsonCacheEntries(function(key:PathKey, value:InfoCacheEntry):Bool {
 			if (value == null) {
 				return true;

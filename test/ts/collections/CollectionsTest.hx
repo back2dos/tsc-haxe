@@ -557,21 +557,21 @@ class CollectionsTest {
 		return StringTools.lpad(Std.string(n), " ", 10);
 	}
 
-	static function isSortedInt(a:Array<Int>):Bool {
+	static function isSortedInt(a:Slice<Int>):Bool {
 		for (i in 1...a.length)
 			if (a[i] < a[i - 1])
 				return false;
 		return true;
 	}
 
-	static function isSortedString(a:Array<String>):Bool {
+	static function isSortedString(a:Slice<String>):Bool {
 		for (i in 1...a.length)
 			if (a[i] < a[i - 1])
 				return false;
 		return true;
 	}
 
-	static function str(a:Null<Array<Dynamic>>):String {
+	static function str(a:Slice<Dynamic>):String {
 		return a == null ? "nil" : "[" + a.join(",") + "]";
 	}
 }

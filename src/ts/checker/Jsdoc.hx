@@ -8,7 +8,7 @@ package ts.checker;
 class Jsdoc {
 
 	static function checkUnmatchedJSDocParameters(c:Checker, node:Node):Void {
-		var jsdocParameters:Array<Node> = null;
+		var jsdocParameters:Slice<Node> = null;
 		final tags = Checker.getAllJSDocTags(node);
 		if (tags != null) {
 			for (tag in tags) {

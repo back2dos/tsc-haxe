@@ -30,7 +30,7 @@ class Execute {
 		}
 	}
 
-	public static function CommandLine(ctx:Context, sys:System, commandLineArgs:Null<Array<std.String>>, testing:Null<CommandLineTesting>):CommandLineResult {
+	public static function CommandLine(ctx:Context, sys:System, commandLineArgs:Slice<std.String>, testing:Null<CommandLineTesting>):CommandLineResult {
 		if (Core.len(commandLineArgs) > 0) {
 			switch (Strings.ToLower(commandLineArgs[0])) {
 				case "-b", "--b", "-build", "--build":

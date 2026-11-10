@@ -4,9 +4,9 @@ package ts.core;
 
 class BreadthFirstSearchResult<N> {
 	public var Stopped:Bool = false;
-	public var Path:Null<Array<N>> = null;
+	public var Path:Slice<N> = null;
 
-	public function new(Stopped:Bool = false, ?Path:Array<N>) {
+	public function new(Stopped:Bool = false, ?Path:Slice<N>) {
 		this.Stopped = Stopped;
 		this.Path = Path;
 	}

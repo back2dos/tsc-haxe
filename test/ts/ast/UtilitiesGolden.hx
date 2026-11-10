@@ -101,7 +101,7 @@ class UtilitiesGolden {
 		final kindFuncs = UtilitiesGoldenTable.kindFuncs(fb, fi);
 		final kindNames = UtilitiesGoldenTable.kindFuncNames;
 		final nodeNames = UtilitiesGoldenTable.nodeFuncNames;
-		var nodeFuncs:Array<(Node) -> String> = null;
+		var nodeFuncs:Slice<(Node) -> String> = null;
 		var lb:ObjectMap<Node, String> = null;
 		function label(n:Node):String {
 			if (n == null)
@@ -109,7 +109,7 @@ class UtilitiesGolden {
 			final s = lb.get(n);
 			return s != null ? s : "?" + n.Kind.String();
 		}
-		function labels(ns:Array<Node>):String {
+		function labels(ns:Slice<Node>):String {
 			if (ns == null)
 				return "nil";
 			return "[" + [for (n in ns) label(n)].join(",") + "]";
@@ -121,7 +121,7 @@ class UtilitiesGolden {
 		var caseHeader = "";
 		var free:Node = null;
 		var tree:Node = null;
-		var treeChildren:Array<Node> = null;
+		var treeChildren:Slice<Node> = null;
 		var freeLabels:ObjectMap<Node, String> = null;
 		var treeLabels:ObjectMap<Node, String> = null;
 		var cases = 0, kindLines = 0, opLines = 0, nodeLines = 0;

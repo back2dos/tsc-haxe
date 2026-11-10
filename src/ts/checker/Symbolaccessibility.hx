@@ -72,7 +72,7 @@ class Symbolaccessibility {
 	}
 
 	// PORT: Go `append(res, xs...)` on possibly-nil slices; `res` is owned by the caller.
-	static function appendAll(res:Array<Symbol>, xs:Array<Symbol>):Array<Symbol> {
+	static function appendAll(res:Slice<Symbol>, xs:Slice<Symbol>):Slice<Symbol> {
 		if (xs == null || xs.length == 0) {
 			return res;
 		}
@@ -100,7 +100,7 @@ class Symbolaccessibility {
 		return access.Accessibility == SymbolAccessibilityAccessible;
 	}
 
-	public static function IsAnySymbolAccessible(c:Checker, symbols:Array<Symbol>, enclosingDeclaration:Node, initialSymbol:Symbol, meaning:SymbolFlags, shouldComputeAliasesToMakeVisible:Bool, allowModules:Bool):SymbolAccessibilityResult {
+	public static function IsAnySymbolAccessible(c:Checker, symbols:Slice<Symbol>, enclosingDeclaration:Node, initialSymbol:Symbol, meaning:SymbolFlags, shouldComputeAliasesToMakeVisible:Bool, allowModules:Bool):SymbolAccessibilityResult {
 		if (Core.len(symbols) == 0) {
 			return null;
 		}
@@ -179,11 +179,11 @@ class Symbolaccessibility {
 		return null;
 	}
 
-	static function getWithAlternativeContainers(c:Checker, container:Symbol, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags):Array<Symbol> {
+	static function getWithAlternativeContainers(c:Checker, container:Symbol, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags):Slice<Symbol> {
 		final additionalContainers = Core.MapNonNil(container.Declarations, (d:Node) -> {
 			return c.getFileSymbolIfFileSymbolExportEqualsContainer(d, container);
 		});
-		var reexportContainers:Array<Symbol> = null;
+		var reexportContainers:Slice<Symbol> = null;
 		if (enclosingDeclaration != null) {
 			reexportContainers = c.getAlternativeContainingModules(symbol, enclosingDeclaration);
 		}
@@ -201,7 +201,7 @@ class Symbolaccessibility {
 		}
 		// we potentially have a symbol which is a member of the instance side of something - look for a variable in scope with the container's type
 		// which may be acting like a namespace (eg, `Symbol` acts like a namespace when looking up `Symbol.toStringTag`)
-		var variableMatches:Array<Symbol> = null;
+		var variableMatches:Slice<Symbol> = null;
 		if ((meaning == SymbolFlagsValue
 			&& (container.Flags & leftMeaning) == 0)
 			&& (container.Flags & SymbolFlagsType) != 0
@@ -224,7 +224,7 @@ class Symbolaccessibility {
 			c.sortSymbols(variableMatches);
 		}
 
-		var res:Array<Symbol> = null;
+		var res:Slice<Symbol> = null;
 		res = appendAll(res, variableMatches);
 		res = appendAll(res, additionalContainers);
 		res = appendAll(res, [container]);
@@ -235,7 +235,7 @@ class Symbolaccessibility {
 		return res;
 	}
 
-	static function getAlternativeContainingModules(c:Checker, symbol:Symbol, enclosingDeclaration:Node):Array<Symbol> {
+	static function getAlternativeContainingModules(c:Checker, symbol:Symbol, enclosingDeclaration:Node):Slice<Symbol> {
 		if (enclosingDeclaration == null) {
 			return null;
 		}
@@ -243,13 +243,13 @@ class Symbolaccessibility {
 		final id = Ast.GetNodeId(containingFile.AsNode());
 		final links = c.symbolContainerLinks.Get(symbol);
 		if (links.extendedContainersByFile == null) {
-			links.extendedContainersByFile = new IntMap<Array<Symbol>>();
+			links.extendedContainersByFile = new IntMap<Slice<Symbol>>();
 		}
 		final existing = links.extendedContainersByFile.get(id);
 		if (existing != null) {
 			return existing;
 		}
-		var results:Array<Symbol> = null;
+		var results:Slice<Symbol> = null;
 		if (Core.len(containingFile.Imports()) > 0) {
 			// Try to make an import using an import already in the enclosing file, if possible
 			for (importRef in containingFile.Imports()) {
@@ -286,7 +286,7 @@ class Symbolaccessibility {
 		return results;
 	}
 
-	static function getExternalModuleContainers(c:Checker, symbol:Symbol):Array<Symbol> {
+	static function getExternalModuleContainers(c:Checker, symbol:Symbol):Slice<Symbol> {
 		if (c.externalModuleContainers == null) {
 			c.buildExternalModuleContainerIndex();
 		}
@@ -337,8 +337,8 @@ class Symbolaccessibility {
 		index.complete = true;
 	}
 
-	static function scanExternalModuleContainers(c:Checker, symbol:Symbol):Array<Symbol> {
-		var containers:Array<Symbol> = null;
+	static function scanExternalModuleContainers(c:Checker, symbol:Symbol):Slice<Symbol> {
+		var containers:Slice<Symbol> = null;
 		for (file in c.program.SourceFiles()) {
 			if (!Ast.IsExternalModule(file)) {
 				continue;
@@ -404,13 +404,13 @@ class Symbolaccessibility {
 	* Attempts to find the symbol corresponding to the container a symbol is in - usually this
 	* is just its' `.parent`, but for locals, this value is `undefined`
 	 */
-	static function getContainersOfSymbol(c:Checker, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags):Array<Symbol> {
+	static function getContainersOfSymbol(c:Checker, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags):Slice<Symbol> {
 		final container = c.getParentOfSymbol(symbol);
 		// Type parameters end up in the `members` lists but are not externally visible
 		if (container != null && ((symbol.Flags & SymbolFlagsTypeParameter) == 0)) {
 			return c.getWithAlternativeContainers(container, symbol, enclosingDeclaration, meaning);
 		}
-		var candidates:Array<Symbol> = null;
+		var candidates:Slice<Symbol> = null;
 		if (symbol.Declarations != null) {
 			for (d in symbol.Declarations) {
 				if (!Ast.IsAmbientModule(d) && d.Parent != null) {
@@ -464,8 +464,8 @@ class Symbolaccessibility {
 			return null;
 		}
 
-		var bestContainers:Array<Symbol> = null;
-		var alternativeContainers:Array<Symbol> = null;
+		var bestContainers:Slice<Symbol> = null;
+		var alternativeContainers:Slice<Symbol> = null;
 		for (container in candidates) {
 			if (c.getAliasForSymbolInContainer(container, symbol) == null) {
 				continue;
@@ -501,7 +501,7 @@ class Symbolaccessibility {
 		if (quick != null && c.getSymbolIfSameReference(quick, symbol) != null) {
 			return quick;
 		}
-		var candidates:Array<Symbol> = null;
+		var candidates:Slice<Symbol> = null;
 		if (exports != null) {
 			for (exported in exports) {
 				if (c.getSymbolIfSameReference(exported, symbol) != null) {
@@ -519,7 +519,7 @@ class Symbolaccessibility {
 		return null;
 	}
 
-	static function getAccessibleSymbolChain(c:Checker, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags, useOnlyExternalAliasing:Bool):Array<Symbol> {
+	static function getAccessibleSymbolChain(c:Checker, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags, useOnlyExternalAliasing:Bool):Slice<Symbol> {
 		final ctx = new AccessibleSymbolChainContext();
 		ctx.symbol = symbol;
 		ctx.enclosingDeclaration = enclosingDeclaration;
@@ -529,11 +529,11 @@ class Symbolaccessibility {
 		return c.getAccessibleSymbolChainEx(ctx);
 	}
 
-	public static function GetAccessibleSymbolChain(c:Checker, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags, useOnlyExternalAliasing:Bool):Array<Symbol> {
+	public static function GetAccessibleSymbolChain(c:Checker, symbol:Symbol, enclosingDeclaration:Node, meaning:SymbolFlags, useOnlyExternalAliasing:Bool):Slice<Symbol> {
 		return c.getAccessibleSymbolChain(symbol, enclosingDeclaration, meaning, useOnlyExternalAliasing);
 	}
 
-	static function getAccessibleSymbolChainEx(c:Checker, ctx:AccessibleSymbolChainContext):Array<Symbol> {
+	static function getAccessibleSymbolChainEx(c:Checker, ctx:AccessibleSymbolChainContext):Slice<Symbol> {
 		if (ctx.symbol == null) {
 			return null;
 		}
@@ -549,13 +549,13 @@ class Symbolaccessibility {
 		final links = c.symbolContainerLinks.Get(ctx.symbol);
 		final linkKey = accessibleChainCacheKeyOf(c, ctx.useOnlyExternalAliasing, firstRelevantLocation, ctx.meaning);
 		if (links.accessibleChainCache == null) {
-			links.accessibleChainCache = new StringMap<Array<Symbol>>();
+			links.accessibleChainCache = new StringMap<Slice<Symbol>>();
 		}
 		if (links.accessibleChainCache.exists(linkKey)) {
 			return links.accessibleChainCache.get(linkKey);
 		}
 
-		var result:Array<Symbol> = null;
+		var result:Slice<Symbol> = null;
 
 		c.someSymbolTableInScope(ctx.enclosingDeclaration, (t:SymbolTable, tableId:SymbolTableID, ignoreQualification:Bool, isLocalNameLookup:Bool, _:Node) -> {
 			final res = c.getAccessibleSymbolChainFromSymbolTable(ctx, t, tableId, ignoreQualification, isLocalNameLookup);
@@ -572,7 +572,7 @@ class Symbolaccessibility {
 	/**
 	* @param {ignoreQualification} boolean Set when a symbol is being looked for through the exports of another symbol (meaning we have a route to qualify it already)
 	 */
-	static function getAccessibleSymbolChainFromSymbolTable(c:Checker, ctx:AccessibleSymbolChainContext, t:SymbolTable, tableId:SymbolTableID, ignoreQualification:Bool, isLocalNameLookup:Bool):Array<Symbol> {
+	static function getAccessibleSymbolChainFromSymbolTable(c:Checker, ctx:AccessibleSymbolChainContext, t:SymbolTable, tableId:SymbolTableID, ignoreQualification:Bool, isLocalNameLookup:Bool):Slice<Symbol> {
 		final symId = Ast.GetSymbolId(ctx.symbol);
 		var visitedSymbolTables = ctx.visitedSymbolTablesMap.get(symId);
 		if (visitedSymbolTables == null) {
@@ -596,7 +596,7 @@ class Symbolaccessibility {
 	// caching the result by tableId to avoid repeated iteration over large tables.
 	// Members tables are skipped entirely since someSymbolTableInScope filters them
 	// to SymbolFlagsType & ^SymbolFlagsAssignment, which never includes aliases.
-	static function getSymbolTableAliases(c:Checker, symbols:SymbolTable, tableId:SymbolTableID):Array<Symbol> {
+	static function getSymbolTableAliases(c:Checker, symbols:SymbolTable, tableId:SymbolTableID):Slice<Symbol> {
 		final kind:SymbolTableID = tableId & stKindMask;
 		// Members tables never contain alias symbols; skip entirely.
 		if (kind == stKindMembers) {
@@ -611,7 +611,7 @@ class Symbolaccessibility {
 				}
 			}
 		}
-		var aliases:Array<Symbol> = null;
+		var aliases:Slice<Symbol> = null;
 		if (symbols != null) {
 			for (sym in symbols) {
 				if ((sym.Flags & SymbolFlagsAlias) != 0) {
@@ -624,14 +624,14 @@ class Symbolaccessibility {
 		}
 		if (kind == stKindGlobals || kind == stKindExports || kind == stKindResolvedExports) {
 			if (c.symbolTableAliasCache == null) {
-				c.symbolTableAliasCache = new IntMap<Array<Symbol>>();
+				c.symbolTableAliasCache = new IntMap<Slice<Symbol>>();
 			}
 			c.symbolTableAliasCache.set(tableId, aliases);
 		}
 		return aliases;
 	}
 
-	static function trySymbolTable(c:Checker, ctx:AccessibleSymbolChainContext, symbols:SymbolTable, tableId:SymbolTableID, ignoreQualification:Bool, isLocalNameLookup:Bool):Array<Symbol> {
+	static function trySymbolTable(c:Checker, ctx:AccessibleSymbolChainContext, symbols:SymbolTable, tableId:SymbolTableID, ignoreQualification:Bool, isLocalNameLookup:Bool):Slice<Symbol> {
 		final isGlobals = tableId == stKindGlobals;
 		// If symbol is directly available by its name in the symbol table
 		final res = symbolTableGet(symbols, ctx.symbol.Name);
@@ -639,7 +639,7 @@ class Symbolaccessibility {
 			return [ctx.symbol];
 		}
 
-		var candidateChains:Array<Array<Symbol>> = null;
+		var candidateChains:Slice<Slice<Symbol>> = null;
 
 		// Check for ExportSymbol by direct name lookup rather than discovering it during
 		// the alias iteration below (where it would never match, since only alias-flagged
@@ -694,7 +694,7 @@ class Symbolaccessibility {
 		return null;
 	}
 
-	static function compareSymbolChainsWorker(c:Checker, a:Array<Symbol>, b:Array<Symbol>):Int {
+	static function compareSymbolChainsWorker(c:Checker, a:Slice<Symbol>, b:Slice<Symbol>):Int {
 		final chainLen = Core.len(a) - Core.len(b);
 		if (chainLen != 0) {
 			return chainLen;
@@ -711,7 +711,7 @@ class Symbolaccessibility {
 		return 0;
 	}
 
-	static function getCandidateListForSymbol(c:Checker, ctx:AccessibleSymbolChainContext, symbolFromSymbolTable:Symbol, resolvedImportedSymbol:Symbol, ignoreQualification:Bool):Array<Symbol> {
+	static function getCandidateListForSymbol(c:Checker, ctx:AccessibleSymbolChainContext, symbolFromSymbolTable:Symbol, resolvedImportedSymbol:Symbol, ignoreQualification:Bool):Slice<Symbol> {
 		if (c.isAccessible(ctx, symbolFromSymbolTable, resolvedImportedSymbol, ignoreQualification)) {
 			return [symbolFromSymbolTable];
 		}

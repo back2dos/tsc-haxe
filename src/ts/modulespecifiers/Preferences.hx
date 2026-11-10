@@ -5,7 +5,7 @@ package ts.modulespecifiers;
 class ModuleSpecifierPreferences {
 	public var relativePreference:RelativePreferenceKind = RelativePreferenceRelative;
 	public var getAllowedEndingsInPreferredOrder:(syntaxImpliedNodeFormat:ResolutionMode) -> Array<ModuleSpecifierEnding> = null;
-	public var excludeRegexes:Null<Array<String>> = null;
+	public var excludeRegexes:Slice<String> = null;
 
 	public function new() {}
 }

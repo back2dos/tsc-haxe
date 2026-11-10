@@ -14,7 +14,7 @@ typedef AssignmentTarget = Node;
 @:allow(ts.checker)
 class OrderedSet<T> {
 	var valuesByKey:GoMap<T, Bool> = null;
-	var values:Array<T> = null;
+	var values:Slice<T> = null;
 
 	public function new() {}
 
@@ -48,7 +48,7 @@ class OrderedSet<T> {
 @:allow(ts.checker)
 class FeatureMapEntry {
 	var lib:std.String = "";
-	var props:Array<std.String> = null;
+	var props:Slice<std.String> = null;
 
 	public function new() {}
 }
@@ -57,7 +57,7 @@ class FeatureMapEntry {
 // used for sharing diagnostic chain computation between the checker and incremental builder.
 class DiagnosticDetails {
 	public var Message:Message = null;
-	public var Args:Array<Any> = null;
+	public var Args:Slice<Any> = null;
 
 	public function new() {}
 }
@@ -92,7 +92,7 @@ class Utilities {
 		return false;
 	}
 
-	static function sortSymbols(c:Checker, symbols:Array<Symbol>):Void {
+	static function sortSymbols(c:Checker, symbols:Slice<Symbol>):Void {
 		Slices.SortFunc(symbols, c.compareSymbols);
 	}
 

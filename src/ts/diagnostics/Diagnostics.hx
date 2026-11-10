@@ -11,7 +11,7 @@ import go.text.language.Language.Tag;
 class Diagnostics {
 	// --- diagnostics.go ---
 
-	public static function Localize(locale:Locale, message:Null<Message>, key:Key, args:Array<String>):String {
+	public static function Localize(locale:Locale, message:Null<Message>, key:Key, args:Slice<String>):String {
 		if (message == null)
 			message = keyToMessage(key);
 		if (message == null)
@@ -72,7 +72,7 @@ class Diagnostics {
 	static final placeholderRegexp = ~/\{([0-9]+)\}/g; // PORT: jvm — `{` escaped (Java regex rejects a bare `{`)
 	#end
 
-	public static function Format(text:String, args:Array<String>):String {
+	public static function Format(text:String, args:Slice<String>):String {
 		if (args == null || args.length == 0)
 			return text;
 
@@ -85,7 +85,7 @@ class Diagnostics {
 		});
 	}
 
-	public static function StringifyArgs(args:Array<Any>):Array<String> {
+	public static function StringifyArgs(args:Slice<Any>):Array<String> {
 		if (args == null || args.length == 0)
 			return null;
 		return [for (arg in args) arg is String ? (arg : String) : Std.string(arg)];
@@ -159,7 +159,7 @@ class Message {
 	// For debugging only.
 	public function toString():String return text;
 
-	public function Localize(locale:Locale, args:Array<Any>):String {
+	public function Localize(locale:Locale, args:Slice<Any>):String {
 		return Diagnostics.Localize(locale, this, "", Diagnostics.StringifyArgs(args));
 	}
 }

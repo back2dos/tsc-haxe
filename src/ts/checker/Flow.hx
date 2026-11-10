@@ -79,7 +79,7 @@ class FlowState {
 	var refKey:CacheHashKey = new CacheHashKey();
 	var depth:Int = 0;
 	var sharedFlowStart:Int = 0;
-	var reduceLabels:Array<FlowReduceLabelData> = null;
+	var reduceLabels:Slice<FlowReduceLabelData> = null;
 	var next:FlowState = null;
 	// PORT: perf — (from tsrs) flow memo (FlowMemo.hx): the walk's taint source, its key (memoKeyState 0: not
 	// computed, 1: none, 2: memoRoot and memoHash), whether it used a memo answer, whether it reached the depth limit
@@ -107,7 +107,7 @@ class Flow {
 	}
 
 	// slices.Contains(s[start:], t)
-	static function containsTypeFrom(s:Array<Type>, start:Int, t:Type):Bool {
+	static function containsTypeFrom(s:Slice<Type>, start:Int, t:Type):Bool {
 		if (s == null) {
 			return false;
 		}
@@ -1594,7 +1594,7 @@ class Flow {
 		final clauseTypes = switchTypes.slice(data.ClauseStart, data.ClauseEnd);
 		final hasDefaultClause = data.ClauseStart == data.ClauseEnd || Slices.Contains(clauseTypes, c.neverType);
 		if ((t.flags & TypeFlagsUnknown) != 0 && !hasDefaultClause) {
-			var groundClauseTypes:Array<Type> = null;
+			var groundClauseTypes:Slice<Type> = null;
 			for (i in 0...clauseTypes.length) {
 				final s = clauseTypes[i];
 				if ((s.flags & (TypeFlagsPrimitive | TypeFlagsNonPrimitive)) != 0) {
@@ -1826,7 +1826,7 @@ class Flow {
 	// At flow control branch or loop junctions, if the type along every antecedent code path
 	// is an evolving array type, we construct a combined evolving array type. Otherwise we
 	// finalize all evolving array types.
-	static function getUnionOrEvolvingArrayType(c:Checker, f:FlowState, types:Array<Type>, subtypeReduction:UnionReduction):Type {
+	static function getUnionOrEvolvingArrayType(c:Checker, f:FlowState, types:Slice<Type>, subtypeReduction:UnionReduction):Type {
 		if (Checker.isEvolvingArrayTypeList(types)) {
 			return c.getEvolvingArrayType(c.getUnionType(Core.Map(types, t -> c.getElementTypeOfEvolvingArrayType(t))));
 		}
@@ -2534,7 +2534,7 @@ class Flow {
 		return c.eachTypeContainedIn(c.mapType(t, t -> c.getRegularTypeOfLiteralType(t)), switchTypes);
 	}
 
-	static function eachTypeContainedIn(c:Checker, source:Type, types:Array<Type>):Bool {
+	static function eachTypeContainedIn(c:Checker, source:Type, types:Slice<Type>):Bool {
 		if ((source.flags & TypeFlagsUnion) != 0) {
 			return !Core.Some(source.AsUnionType().types, function(t:Type):Bool {
 				return !Slices.Contains(types, t);
@@ -2545,7 +2545,7 @@ class Flow {
 
 	// Get the type names from all cases in a switch on `typeof`. The default clause and/or duplicate type names are
 	// represented as empty strings. Return nil if one or more case clause expressions are not string literals.
-	static function getSwitchClauseTypeOfWitnesses(c:Checker, node:Node):Array<std.String> {
+	static function getSwitchClauseTypeOfWitnesses(c:Checker, node:Node):Slice<std.String> {
 		final links = c.switchStatementLinks.Get(node);
 		if (!links.witnessesComputed) {
 			final clauses = node.AsSwitchStatement().CaseBlock.AsCaseBlock().Clauses.Nodes;
@@ -2570,7 +2570,7 @@ class Flow {
 	}
 
 	// Return the combined not-equal type facts for all cases except those between the start and end indices.
-	static function getNotEqualFactsFromTypeofSwitch(c:Checker, start:Int, end:Int, witnesses:Array<std.String>):TypeFacts {
+	static function getNotEqualFactsFromTypeofSwitch(c:Checker, start:Int, end:Int, witnesses:Slice<std.String>):TypeFacts {
 		var facts:TypeFacts = TypeFactsNone;
 		for (i in 0...witnesses.length) {
 			final witness = witnesses[i];
@@ -2587,7 +2587,7 @@ class Flow {
 		return facts;
 	}
 
-	static function getSwitchClauseTypes(c:Checker, node:Node):Array<Type> {
+	static function getSwitchClauseTypes(c:Checker, node:Node):Slice<Type> {
 		final links = c.switchStatementLinks.Get(node);
 		if (!links.switchTypesComputed) {
 			final clauses = node.AsSwitchStatement().CaseBlock.AsCaseBlock().Clauses.Nodes;
@@ -3067,7 +3067,7 @@ class Flow {
 		return c.convertAutoToAny(flowType);
 	}
 
-	static function getFlowTypeInStaticBlocks(c:Checker, symbol:Symbol, staticBlocks:Array<Node>):Type {
+	static function getFlowTypeInStaticBlocks(c:Checker, symbol:Symbol, staticBlocks:Slice<Node>):Type {
 		var accessName:Node;
 		if (StringTools.startsWith(symbol.Name, "\u{FFFE}#")) {
 			accessName = c.factory.NewPrivateIdentifier(symbol.Name.substring(symbol.Name.indexOf("@") + 1));

@@ -468,7 +468,7 @@ class FlowLoopKey {
 @:allow(ts.checker)
 class FlowLoopInfo {
 	var key:FlowLoopKey = new FlowLoopKey();
-	var types:Array<Type> = null;
+	var types:Slice<Type> = null;
 	var serial:Int = 0; // PORT: perf — (from tsrs) flow memo taint source of the in-process types
 
 	public function new() {}
@@ -488,7 +488,7 @@ enum abstract InferenceFlags(Int) from Int to Int {
 
 @:allow(ts.checker)
 class InferenceContext {
-	var inferences:Array<InferenceInfo> = null; // Inferences made for each type parameter
+	var inferences:Slice<InferenceInfo> = null; // Inferences made for each type parameter
 	var signature:Signature = null; // Generic signature for which inferences are made (if any)
 	var flags:InferenceFlags = 0; // Inference flags
 	var compareTypes:TypeComparer = null; // Type comparer function
@@ -496,8 +496,8 @@ class InferenceContext {
 	var nonFixingMapper:TypeMapper = null; // Mapper that doesn't fix inferences
 	var returnMapper:TypeMapper = null; // Type mapper for inferences from return types (if any)
 	var outerReturnMapper:TypeMapper = null; // Type mapper for inferences from return types of outer function (if any)
-	var inferredTypeParameters:Array<Type> = null; // Inferred type parameters for function result
-	var intraExpressionInferenceSites:Array<IntraExpressionInferenceSite> = null;
+	var inferredTypeParameters:Slice<Type> = null; // Inferred type parameters for function result
+	var intraExpressionInferenceSites:Slice<IntraExpressionInferenceSite> = null;
 
 	public function new() {}
 }
@@ -505,9 +505,9 @@ class InferenceContext {
 @:allow(ts.checker)
 class InferenceInfo {
 	var typeParameter:Type = null; // Type parameter for which inferences are being made
-	var candidates:Array<Type> = null; // Candidates in covariant positions in decreasing depth order
-	var candidateDepths:Array<Int> = null; // Type argument depths of covariant inferences
-	var contraCandidates:Array<Type> = null; // Candidates in contravariant positions
+	var candidates:Slice<Type> = null; // Candidates in covariant positions in decreasing depth order
+	var candidateDepths:Slice<Int> = null; // Type argument depths of covariant inferences
+	var contraCandidates:Slice<Type> = null; // Candidates in contravariant positions
 	var inferredType:Type = null; // Cache for resolved inferred type
 	var priority:InferencePriority = 0; // Priority of current inference set
 	var topLevel:Bool = false; // True if all inferences are to top level occurrences
@@ -764,7 +764,7 @@ class IterationTypesResolver {
 	var getGlobalIterableIteratorTypeChecked:() -> Type = null;
 	var getGlobalIteratorObjectType:() -> Type = null;
 	var getGlobalGeneratorType:() -> Type = null;
-	var getGlobalBuiltinIteratorTypes:() -> Array<Type> = null;
+	var getGlobalBuiltinIteratorTypes:() -> Slice<Type> = null;
 	var resolveIterationType:(t:Type, errorNode:Node) -> Type = null;
 	var mustHaveANextMethodDiagnostic:Message = null;
 	var mustBeAMethodDiagnostic:Message = null;
@@ -786,7 +786,7 @@ class WideningContext {
 	var parent:WideningContext = null; // Parent context
 	var propertyName:std.String = ""; // Name of property in parent
 	var siblings:haxe.ds.Vector<Type> = null; // Types of siblings
-	var resolvedProperties:Array<Symbol> = null; // Properties occurring in sibling object literals
+	var resolvedProperties:Slice<Symbol> = null; // Properties occurring in sibling object literals
 	var childContexts:StringMap<WideningContext> = null;
 	var widenedTypes:IdentityMap<Type, Type> = null;
 
@@ -827,15 +827,15 @@ interface Program extends Host {
 	function IsSourceFileDefaultLibrary(path:Path):Bool;
 	function Options():CompilerOptions;
 	function SourceFileMayBeEmitted(sourceFile:SourceFile, forceDtsEmit:Bool):Bool;
-	function SourceFiles():Array<SourceFile>;
+	function SourceFiles():Slice<SourceFile>;
 }
 
 interface Host {
 	function CommonSourceDirectory():RootedDirectoryPath;
 	function CaseSensitivity():CaseSensitivity;
 	function BaseDirectory():RootedDirectoryPath;
-	function ContentMapperExtensions():Null<Array<std.String>>;
-	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
+	function ContentMapperExtensions():Slice<std.String>;
+	function ContentMapperExtensionRewrites():Slice<ts.tspath.Tspath.ExtensionRewrite>;
 	function FileExists(path:RootedFilePath):Bool;
 	function GetDefaultResolutionModeForFile(file:HasFileName):ResolutionMode;
 	function GetGlobalTypingsCacheLocation():RootedDirectoryPath;
@@ -865,14 +865,14 @@ enum abstract UnusedKind(Int) from Int to Int {
 @:allow(ts.checker)
 class CallState {
 	var node:Node = null;
-	var typeArguments:Array<Node> = null;
-	var args:Array<Node> = null;
-	var candidates:Array<Signature> = null;
+	var typeArguments:Slice<Node> = null;
+	var args:Slice<Node> = null;
+	var candidates:Slice<Signature> = null;
 	var argCheckMode:CheckMode = 0;
 	var isSingleNonGenericCandidate:Bool = false;
 	var signatureHelpTrailingComma:Bool = false;
 	var recursiveResolution:Bool = false;
-	var candidatesForArgumentError:Array<Signature> = null;
+	var candidatesForArgumentError:Slice<Signature> = null;
 	var candidateForArgumentArityError:Signature = null;
 	var candidateForTypeArgumentError:Signature = null;
 
@@ -893,7 +893,7 @@ enum abstract PredicateSemantics(Int) from Int to Int {
 @:allow(ts.checker)
 class ExportCollision {
 	var specifierText:std.String = "";
-	var exportsWithDuplicate:Array<Node> = null;
+	var exportsWithDuplicate:Slice<Node> = null;
 
 	public function new() {}
 }
@@ -975,7 +975,7 @@ class KeyHasher {
 		return pool.length > 0 ? pool.pop() : new KeyHasher();
 	}
 	#else
-	static var pool:Array<KeyHasher> = null;
+	static var pool:Slice<KeyHasher> = null;
 	static var packed:haxe.io.Bytes = null;
 
 	static function Get():KeyHasher {
@@ -1187,13 +1187,13 @@ abstract KeyBuilder(KeyHasher) {
 		Checker.hashWrite32(this, t.id);
 	}
 
-	extern inline overload function writeTypes(types:Array<Type>):Void
+	extern inline overload function writeTypes(types:Slice<Type>):Void
 		writeTypesA(types);
 
 	extern inline overload function writeTypes(types:haxe.ds.Vector<Type>):Void
 		writeTypesV(types);
 
-	function writeTypesA(types:Array<Type>):Void {
+	function writeTypesA(types:Slice<Type>):Void {
 		writeInt(Core.len(types));
 		if (types != null) {
 			for (t in types) {
@@ -1278,15 +1278,15 @@ enum abstract ThisAssignmentDeclarationKind(Int) from Int to Int {
 @:allow(ts.checker)
 class TupleNormalizer {
 	var c:Checker = null;
-	var types:Array<Type> = null;
-	var infos:Array<TupleElementInfo> = null;
+	var types:Slice<Type> = null;
+	var infos:Slice<TupleElementInfo> = null;
 	var lastRequiredIndex:Int = 0;
 	var firstRestIndex:Int = 0;
 	var lastOptionalOrRestIndex:Int = 0;
 
 	public function new() {}
 
-	function normalize(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>):Bool {
+	function normalize(c:Checker, elementTypes:Array<Type>, elementInfos:Slice<TupleElementInfo>):Bool {
 		this.c = c;
 		this.lastRequiredIndex = -1;
 		this.firstRestIndex = -1;
@@ -1342,7 +1342,7 @@ class TupleNormalizer {
 		}
 		if (this.firstRestIndex >= 0 && this.firstRestIndex < this.lastOptionalOrRestIndex) {
 			// Turn elements between first rest and last optional/rest into a single rest element
-			var types:Array<Type> = null;
+			var types:Slice<Type> = null;
 			var i = this.firstRestIndex;
 			while (i <= this.lastOptionalOrRestIndex) {
 				var t = this.types[i];
@@ -1410,7 +1410,7 @@ enum abstract IntersectionFlags(Int) from Int to Int {
 @:allow(ts.checker)
 class ObjectLiteralDiscriminator implements Discriminator {
 	var c:Checker = null;
-	var props:Array<Node> = null;
+	var props:Slice<Node> = null;
 	var members:haxe.ds.Vector<Symbol> = null;
 
 	public function new() {}
@@ -1459,10 +1459,10 @@ class Checker {
 	var id:Int = 0;
 	var program:Program = null;
 	var compilerOptions:CompilerOptions = null;
-	var files:Array<SourceFile> = null;
+	var files:Slice<SourceFile> = null;
 	var fileIndexMap:IdentityMap<SourceFile, Int> = null;
 	var compareSymbols:(Symbol, Symbol) -> Int = null;
-	var compareSymbolChains:(Array<Symbol>, Array<Symbol>) -> Int = null;
+	var compareSymbolChains:(Slice<Symbol>, Slice<Symbol>) -> Int = null;
 	public var TypeCount:Int = 0;
 	public var SymbolCount:Int = 0;
 	public var SignatureCount:Int = 0;
@@ -1491,7 +1491,7 @@ class Checker {
 	var exactOptionalPropertyTypes:Bool = false;
 	var canCollectSymbolAliasAccessibilityData:Bool = false;
 	var wasCanceled:Bool = false;
-	var arrayVariances:Array<VarianceFlags> = null;
+	var arrayVariances:Slice<VarianceFlags> = null;
 	var globals:SymbolTable = null;
 	var evaluate:Evaluator_ = null; // PORT: Go evaluator.Evaluator is the func type Evaluator_
 	var stringLiteralTypes:StringMap<Type> = null;
@@ -1506,7 +1506,7 @@ class Checker {
 	var uniqueESSymbolTypes:IdentityMap<Symbol, Type> = null;
 	var thisExpandoKinds:IdentityMap<Symbol, ThisAssignmentDeclarationKind> = null;
 	var thisExpandoLocations:IdentityMap<Symbol, Node> = null;
-	var subtypeReductionCache:ts.core.HashKeyMap<Array<Type>> /* key: checker.CacheHashKey */ = null;
+	var subtypeReductionCache:ts.core.HashKeyMap<Slice<Type>> /* key: checker.CacheHashKey */ = null;
 	var cachedTypes:CachedTypesMap /* key: checker.CachedTypeKey */ = null;
 	var cachedSignatures:StringMap<Signature> /* key: checker.CachedSignatureKey */ = null;
 	var undefinedProperties:IdentityMap<Symbol, Symbol> = null;
@@ -1533,7 +1533,7 @@ class Checker {
 	var errorTypes:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
 	var moduleSymbols:IdentityMap<Node, Symbol> = null;
 	var globalThisSymbol:Symbol = null;
-	var symbolTableAliasCache:IntMap<Array<Symbol>> = null;
+	var symbolTableAliasCache:IntMap<Slice<Symbol>> = null;
 	var classExpressionNameTables:IntMap<SymbolTable> = null;
 	// PORT: perf — second result (includes) of addTypesToUnion/addTypeToUnion, read by the caller right after the call.
 	var addTypesToUnionIncludes:TypeFlags = 0;
@@ -1672,7 +1672,7 @@ class Checker {
 	var cachedArgumentsReferenced:IdentityMap<Node, Bool> = null;
 	var enumNumberIndexInfo:IndexInfo = null;
 	var anyBaseTypeIndexInfo:IndexInfo = null;
-	var patternAmbientModules:Array<PatternAmbientModule> = null;
+	var patternAmbientModules:Slice<PatternAmbientModule> = null;
 	var patternAmbientModuleAugmentations:SymbolTable = null;
 	var patternAmbientModuleAugmentationTargets:SymbolTable = null;
 	var moduleImportAttributesTypes:IdentityMap<Symbol, Type> = null;
@@ -1697,16 +1697,16 @@ class Checker {
 	var autoArrayType:Type = null;
 	var anyReadonlyArrayType:Type = null;
 	var deferredGlobalImportMetaExpressionType:Type = null;
-	var contextualBindingPatterns:Array<Node> = null;
+	var contextualBindingPatterns:Slice<Node> = null;
 	var emptyStringType:Type = null;
 	var zeroType:Type = null;
 	var zeroBigIntType:Type = null;
 	var typeofType:Type = null;
-	var typeResolutions:Array<TypeResolution> = null;
+	var typeResolutions:Slice<TypeResolution> = null;
 	var typeResolutionCount = 0; // PORT: perf (the stack's depth; its entries are reused)
 	var resolutionStart:Int = 0;
 	var callResolutionStack:Array<Node> = [];
-	var varianceStack:Array<VarianceStackEntry> = null;
+	var varianceStack:Slice<VarianceStackEntry> = null;
 	var apparentArgumentCount:Null<Int> /* PORT: pointer */ = null;
 	var lastGetCombinedNodeFlagsNode:Node = null;
 	var lastGetCombinedNodeFlagsResult:NodeFlags = 0;
@@ -1715,10 +1715,10 @@ class Checker {
 	var freeinferenceState:InferenceState = null;
 	var freeFlowState:FlowState = null;
 	var flowLoopCache:StringMap<Type> /* key: checker.FlowLoopKey */ = null;
-	var flowLoopStack:Array<FlowLoopInfo> = null;
-	var sharedFlows:Array<SharedFlow> = null;
+	var flowLoopStack:Slice<FlowLoopInfo> = null;
+	var sharedFlows:Slice<SharedFlow> = null;
 	var sharedFlowsLen:Int = 0; // PORT: perf — len(c.sharedFlows); the array keeps its objects past it (see Flow)
-	var antecedentTypes:Array<Type> = null;
+	var antecedentTypes:Slice<Type> = null;
 	var flowAnalysisDisabled:Bool = false;
 	var flowInvocationCount:Int = 0;
 	var flowTypeCache:IdentityMap<Node, Type> = null;
@@ -1733,14 +1733,14 @@ class Checker {
 	var lastFlowNodeReachable:Bool = false;
 	var flowNodeReachable:IdentityMap<FlowNode, Bool> = null;
 	var flowNodePostSuper:IdentityMap<FlowNode, Bool> = null;
-	var renamedBindingElementsInTypes:Array<Node> = null;
-	var contextualInfos:Array<ContextualInfo> = null;
+	var renamedBindingElementsInTypes:Slice<Node> = null;
+	var contextualInfos:Slice<ContextualInfo> = null;
 	var contextualInfoCount = 0; // PORT: perf (the stack's depth; its entries are reused)
-	var inferenceContextInfos:Array<InferenceContextInfo> = null;
+	var inferenceContextInfos:Slice<InferenceContextInfo> = null;
 	var inferenceContextInfoCount = 0; // PORT: perf (the stack's depth; its entries are reused)
-	var awaitedTypeStack:Array<Type> = null;
-	var reverseMappedSourceStack:Array<Type> = null;
-	var reverseMappedTargetStack:Array<Type> = null;
+	var awaitedTypeStack:Slice<Type> = null;
+	var reverseMappedSourceStack:Slice<Type> = null;
+	var reverseMappedTargetStack:Slice<Type> = null;
 	var reverseExpandingFlags:ExpandingFlags = 0;
 	var freeRelater:Relater = null;
 	var subtypeRelation:Relation = null;
@@ -1816,15 +1816,15 @@ class Checker {
 	var skipDirectInferenceNodes:Set<Node> = new Set<Node>();
 	var ctx:Context = null;
 	var packagesMap:StringMap<Bool> = null;
-	var activeMappers:Array<TypeMapper> = null;
-	var activeTypeMappersCaches:Array<ts.checker.CheckerPart6.ActiveMapperCache> = null; // PORT: perf (see ActiveMapperCache)
+	var activeMappers:Slice<TypeMapper> = null;
+	var activeTypeMappersCaches:Slice<ts.checker.CheckerPart6.ActiveMapperCache> = null; // PORT: perf (see ActiveMapperCache)
 	final activeMapperCachePool:Array<ts.checker.CheckerPart6.ActiveMapperCache> = []; // PORT: perf (see popActiveMapper)
 	var ambientModulesOnce:Any /* sync.Once */ = null /* PORT: Go zero struct */;
-	var ambientModules:Array<Symbol> = null;
+	var ambientModules:Slice<Symbol> = null;
 	var withinUnreachableCode:Bool = false;
 	var reportedUnreachableNodes:Set<Node> = new Set<Node>();
 	var nonExistentProperties:Set<std.String> /* key: NonExistentPropertyKey.keyOf */ = new Set<std.String>();
-	var deferredDiagnosticCallbacks:Array<() -> Void> = null;
+	var deferredDiagnosticCallbacks:Slice<() -> Void> = null;
 	var typeToStringNodebuilder:NodeBuilder = null;
 	var mu:Any /* sync.Mutex */ = null /* PORT: Go zero struct */;
 	var tracer:Tracer = null; // Optional tracer for trace events and type recording (for --generateTrace)
@@ -1987,7 +1987,7 @@ class Checker {
 		c.uniqueESSymbolTypes = new IdentityMap<Symbol, Type>();
 		c.thisExpandoKinds = new IdentityMap<Symbol, ThisAssignmentDeclarationKind>();
 		c.thisExpandoLocations = new IdentityMap<Symbol, Node>();
-		c.subtypeReductionCache = new ts.core.HashKeyMap<Array<Type>>();
+		c.subtypeReductionCache = new ts.core.HashKeyMap<Slice<Type>>();
 		c.cachedTypes = new CachedTypesMap();
 		c.cachedSignatures = new StringMap<Signature>();
 		c.undefinedProperties = new IdentityMap<Symbol, Symbol>();
@@ -2179,7 +2179,7 @@ class Checker {
 		return new Pair<Checker, Any>(c, c.mu);
 	}
 
-	static function createFileIndexMap(files:Array<SourceFile>):IdentityMap<SourceFile, Int> {
+	static function createFileIndexMap(files:Slice<SourceFile>):IdentityMap<SourceFile, Int> {
 		final result = new IdentityMap<SourceFile, Int>();
 		if (files != null) {
 			for (i in 0...files.length) {
@@ -2414,13 +2414,13 @@ class Checker {
 		}
 	}
 
-	static function hasTypeParameterByName(typeParameters:Array<Type>, name:std.String):Bool {
+	static function hasTypeParameterByName(typeParameters:Slice<Type>, name:std.String):Bool {
 		return Core.Some(typeParameters, (tp:Type) -> {
 			return tp.symbol.Name == name;
 		});
 	}
 
-	static function getUniqueTypeParameterName(typeParameters:Array<Type>, baseName:std.String):std.String {
+	static function getUniqueTypeParameterName(typeParameters:Slice<Type>, baseName:std.String):std.String {
 		while (baseName.length > 1 && StringTools.fastCodeAt(baseName, baseName.length - 1) >= '0'.code
 			&& StringTools.fastCodeAt(baseName, baseName.length - 1) <= '9'.code) {
 			baseName = baseName.substring(0, baseName.length - 1);
@@ -2621,7 +2621,7 @@ class Checker {
 		#end
 	}
 
-	static extern inline overload function getTypeListKey(types:Array<Type>):CacheHashKey {
+	static extern inline overload function getTypeListKey(types:Slice<Type>):CacheHashKey {
 		#if (target.name == "hxmc")
 		if (Core.len(types) <= 3)
 			return new CacheHashKey(packedTypesKeyA(1, 0, types));
@@ -2647,13 +2647,13 @@ class Checker {
 		return b.hash();
 	}
 
-	static extern inline overload function getUnionKey(types:Array<Type>, origin:Type, alias:TypeAlias):CacheHashKey
+	static extern inline overload function getUnionKey(types:Slice<Type>, origin:Type, alias:TypeAlias):CacheHashKey
 		return getUnionKeyA(types, origin, alias);
 
 	static extern inline overload function getUnionKey(types:haxe.ds.Vector<Type>, origin:Type, alias:TypeAlias):CacheHashKey
 		return getUnionKeyV(types, origin, alias);
 
-	static function getUnionKeyA(types:Array<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
+	static function getUnionKeyA(types:Slice<Type>, origin:Type, alias:TypeAlias):CacheHashKey {
 		#if (target.name == "hxmc")
 		if (origin == null && alias == null && Core.len(types) <= 3)
 			return new CacheHashKey(packedTypesKeyA(5, 0, types));
@@ -2707,7 +2707,7 @@ class Checker {
 		return b.hash();
 	}
 
-	static function getIntersectionKey(types:Array<Type>, flags:IntersectionFlags, alias:TypeAlias):CacheHashKey {
+	static function getIntersectionKey(types:Slice<Type>, flags:IntersectionFlags, alias:TypeAlias):CacheHashKey {
 		#if (target.name == "hxmc")
 		final noReduction = flags & IntersectionFlagsNoConstraintReduction != 0;
 		if ((alias == null || noReduction) && Core.len(types) <= 3)
@@ -2723,7 +2723,7 @@ class Checker {
 		return b.hash();
 	}
 
-	static function getTupleKey(elementInfos:Array<TupleElementInfo>, readonly:Bool):CacheHashKey {
+	static function getTupleKey(elementInfos:Slice<TupleElementInfo>, readonly:Bool):CacheHashKey {
 		final b = new KeyBuilder();
 		if (elementInfos != null) {
 			for (e in elementInfos) {
@@ -2747,11 +2747,11 @@ class Checker {
 		return b.hash();
 	}
 
-	static function getTypeAliasInstantiationKey(typeArguments:Array<Type>, alias:TypeAlias):CacheHashKey {
+	static function getTypeAliasInstantiationKey(typeArguments:Slice<Type>, alias:TypeAlias):CacheHashKey {
 		return getTypeInstantiationKey(typeArguments, alias, false);
 	}
 
-	static function getTypeInstantiationKey(typeArguments:Array<Type>, alias:TypeAlias, singleSignature:Bool):CacheHashKey {
+	static function getTypeInstantiationKey(typeArguments:Slice<Type>, alias:TypeAlias, singleSignature:Bool):CacheHashKey {
 		#if (target.name == "hxmc")
 		if (alias == null && Core.len(typeArguments) <= 3)
 			return new CacheHashKey(packedTypesKeyA(2, singleSignature ? 1 : 0, typeArguments));
@@ -2796,7 +2796,7 @@ class Checker {
 		return b.hash();
 	}
 
-	static function getConditionalTypeKey(typeArguments:Array<Type>, alias:TypeAlias, forConstraint:Bool):CacheHashKey {
+	static function getConditionalTypeKey(typeArguments:Slice<Type>, alias:TypeAlias, forConstraint:Bool):CacheHashKey {
 		#if (target.name == "hxmc")
 		if (alias == null && Core.len(typeArguments) <= 3)
 			return new CacheHashKey(packedTypesKeyA(3, forConstraint ? 1 : 0, typeArguments));
@@ -2878,7 +2878,7 @@ class Checker {
 	// intersection), its flag and the count) and each id as two
 	// units, 1 to 7 units: never equal to a hashed key (KeyHasher.Sum: 8 units), equal to another packed key exactly
 	// when family, flag and ids are; no hasher and no hashing
-	static function packedTypesKeyA(family:Int, flag:Int, types:Array<Type>):std.String {
+	static function packedTypesKeyA(family:Int, flag:Int, types:Slice<Type>):std.String {
 		final n = Core.len(types);
 		final s = hxmc.rt.Str.make2(1 + 2 * n);
 		final d = hxmc.rt.Str.chars2(s);
@@ -2897,7 +2897,7 @@ class Checker {
 	}
 
 	// PORT: perf — the map's entry for the packed key of types (at most 3) without making the key string
-	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:Array<Type>):Type {
+	static extern inline overload function getPackedTypes(m:ts.core.HashKeyMap<Type>, family:Int, flag:Int, types:Slice<Type>):Type {
 		final n = types == null ? 0 : types.length;
 		return m.getPacked(0xF000 | (family << 8) | (flag << 4) | n, n, n > 0 ? types[0].id : 0, n > 1 ? types[1].id : 0, n > 2 ? types[2].id : 0);
 	}
@@ -3025,11 +3025,11 @@ class Checker {
 		return null;
 	}
 
-	static extern inline overload function findIndexInfo(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
+	static extern inline overload function findIndexInfo(indexInfos:Slice<IndexInfo>, keyType:Type):IndexInfo {
 		return findIndexInfoA(indexInfos, keyType);
 	}
 
-	static function findIndexInfoA(indexInfos:Array<IndexInfo>, keyType:Type):IndexInfo {
+	static function findIndexInfoA(indexInfos:Slice<IndexInfo>, keyType:Type):IndexInfo {
 		if (indexInfos != null) {
 			for (info in indexInfos) {
 				if (info.keyType == keyType) {
@@ -3193,7 +3193,7 @@ class Checker {
 		return values;
 	}
 
-	static function instantiateList<T>(c:Checker, values:Array<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):Array<T> {
+	static function instantiateList<T>(c:Checker, values:Slice<T>, m:TypeMapper, instantiator:(c:Checker, value:T, m:TypeMapper) -> T):Slice<T> {
 		if (values == null) {
 			return values;
 		}
@@ -3362,13 +3362,13 @@ class Checker {
 		return getConstituentCountOfTypes(t.Types());
 	}
 
-	static extern inline overload function getConstituentCountOfTypes(types:Array<Type>):Int
+	static extern inline overload function getConstituentCountOfTypes(types:Slice<Type>):Int
 		return getConstituentCountOfTypesA(types);
 
 	static extern inline overload function getConstituentCountOfTypes(types:haxe.ds.Vector<Type>):Int
 		return getConstituentCountOfTypesV(types);
 
-	static function getConstituentCountOfTypesA(types:Array<Type>):Int {
+	static function getConstituentCountOfTypesA(types:Slice<Type>):Int {
 		var n = 0;
 		if (types != null) {
 			for (t in types) {
@@ -3439,10 +3439,10 @@ class Checker {
 		return i < n && types[i] == t;
 	}
 
-	static extern inline overload function containsType(types:Array<Type>, t:Type):Bool
+	static extern inline overload function containsType(types:Slice<Type>, t:Type):Bool
 		return containsTypeA(types, t);
 
-	static function containsTypeA(types:Array<Type>, t:Type):Bool {
+	static function containsTypeA(types:Slice<Type>, t:Type):Bool {
 		final n = types == null ? 0 : types.length;
 		if (n <= 8) {
 			for (i in 0...n) {
@@ -3463,15 +3463,15 @@ class Checker {
 		return i < n && types[i] == t;
 	}
 
-	static function insertType(types:Array<Type>, t:Type):ValueOk<Array<Type>> {
+	static function insertType(types:Slice<Type>, t:Type):ValueOk<Slice<Type>> {
 		final r = Slices.BinarySearchFuncInline(types, t, (a, b) -> CompareTypes(a, b)) /* PORT: perf */;
 		if (!r.ok) {
 			// PORT: slices.Insert may reuse the backing array; insert into a copy so the caller's slice is unchanged.
 			final result = types == null ? [] : types.copy();
 			result.insert(r.value, t);
-			return new ValueOk<Array<Type>>(result, true);
+			return new ValueOk<Slice<Type>>(result, true);
 		}
-		return new ValueOk<Array<Type>>(types, false);
+		return new ValueOk<Slice<Type>>(types, false);
 	}
 
 	static function countTypes(t:Type):Int {
@@ -3761,7 +3761,7 @@ class Checker {
 		return null;
 	}
 
-	static function getBranchLabelAntecedents(flow:FlowNode, reduceLabels:Array<FlowReduceLabelData>):FlowList {
+	static function getBranchLabelAntecedents(flow:FlowNode, reduceLabels:Slice<FlowReduceLabelData>):FlowList {
 		var i = Core.len(reduceLabels);
 		while (i != 0) {
 			i--;
@@ -3796,7 +3796,7 @@ class Checker {
 		return null;
 	}
 
-	static function isEvolvingArrayTypeList(types:Array<Type>):Bool {
+	static function isEvolvingArrayTypeList(types:Slice<Type>):Bool {
 		var hasEvolvingArrayType = false;
 		if (types != null) {
 			for (t in types) {
@@ -3922,7 +3922,7 @@ class Checker {
 		return result;
 	}
 
-	static function clearCachedInferences(inferences:Array<InferenceInfo>):Void {
+	static function clearCachedInferences(inferences:Slice<InferenceInfo>):Void {
 		if (inferences != null) {
 			for (inference in inferences) {
 				if (!inference.isFixed) {
@@ -3951,7 +3951,7 @@ class Checker {
 		return false;
 	}
 
-	static function hasOverlappingInferences(a:Array<InferenceInfo>, b:Array<InferenceInfo>):Bool {
+	static function hasOverlappingInferences(a:Slice<InferenceInfo>, b:Slice<InferenceInfo>):Bool {
 		for (i in 0...Core.len(a)) {
 			if (hasInferenceCandidates(a[i]) && hasInferenceCandidates(b[i])) {
 				return true;
@@ -3962,7 +3962,7 @@ class Checker {
 
 	// --- jsdoc.go ---
 
-	static function getAllJSDocTags(node:Node):Array<Node> {
+	static function getAllJSDocTags(node:Node):Slice<Node> {
 		if (node.Flags & NodeFlagsJSDoc == 0) {
 			var current = node;
 			while (current != null) {
@@ -4016,15 +4016,15 @@ class Checker {
 		return newTypeMapperV(sources, targets);
 	}
 
-	static extern inline overload function newTypeMapper(sources:Array<Type>, targets:Array<Type>):TypeMapper {
+	static extern inline overload function newTypeMapper(sources:Slice<Type>, targets:Slice<Type>):TypeMapper {
 		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), Core.toVector(targets));
 	}
 
-	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:Array<Type>):TypeMapper {
+	static extern inline overload function newTypeMapper(sources:haxe.ds.Vector<Type>, targets:Slice<Type>):TypeMapper {
 		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(sources, Core.toVector(targets));
 	}
 
-	static extern inline overload function newTypeMapper(sources:Array<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
+	static extern inline overload function newTypeMapper(sources:Slice<Type>, targets:haxe.ds.Vector<Type>):TypeMapper {
 		return Core.len(sources) == 1 ? newSimpleTypeMapper(sources[0], targets[0]) : newArrayTypeMapper(Core.toVector(sources), targets);
 	}
 
@@ -4111,7 +4111,7 @@ class Checker {
 		return m;
 	}
 
-	static function newDeferredTypeMapper(sources:haxe.ds.Vector<Type>, targets:Array<() -> Type>):TypeMapper {
+	static function newDeferredTypeMapper(sources:haxe.ds.Vector<Type>, targets:Slice<() -> Type>):TypeMapper {
 		final m = new DeferredTypeMapper();
 		m.sources = sources;
 		m.targets = targets;
@@ -4193,7 +4193,7 @@ class Checker {
 	// typeElementsToClassElements converts TypeElement nodes (PropertySignature, MethodSignature)
 	// to their ClassElement equivalents (PropertyDeclaration, MethodDeclaration) so they can be
 	// used as members of a ClassDeclaration. Nodes that are already ClassElements pass through unchanged.
-	static function typeElementsToClassElements(f:NodeFactory, members:Array<Node>):Array<Node> {
+	static function typeElementsToClassElements(f:NodeFactory, members:Slice<Node>):Slice<Node> {
 		if (members != null) {
 			for (i in 0...members.length) {
 				final m = members[i];
@@ -4678,7 +4678,7 @@ class Checker {
 				return factory.NewArrayTypeNode(visitor.VisitNode(node.AsJSDocVariadicType().Type));
 			}
 			if (node.Kind == KindJSDocTypeLiteral) {
-				var members:Array<Node> = null;
+				var members:Slice<Node> = null;
 				final tags = node.AsJSDocTypeLiteral().JSDocPropertyTags;
 				if (tags != null) {
 					for (t in tags) {
@@ -4957,8 +4957,8 @@ class Checker {
 			final introducesNewScope = Ast.IsFunctionLike(node) || Ast.IsMappedTypeNode(node);
 			var exit:() -> Void = null;
 			if (introducesNewScope) {
-				var params:Array<Symbol> = null;
-				var typeParams:Array<Type> = null;
+				var params:Slice<Symbol> = null;
+				var typeParams:Slice<Type> = null;
 				if (Ast.IsFunctionLike(node)) {
 					final sig = b.ch.getSignatureFromDeclaration(node);
 					params = Core.vectorToArray(sig.parameters); // PORT: perf — a copy (printing)
@@ -5063,7 +5063,7 @@ class Checker {
 		return new RecursionId(value);
 	}
 
-	static function createDiagnosticChainFromErrorChain(chain:ErrorChain, errorNode:Node, relatedInfo:Array<Diagnostic>):Diagnostic {
+	static function createDiagnosticChainFromErrorChain(chain:ErrorChain, errorNode:Node, relatedInfo:Slice<Diagnostic>):Diagnostic {
 		while (chain != null && chain.message.ElidedInCompatibilityPyramid()) {
 			chain = chain.next;
 		}
@@ -5071,7 +5071,7 @@ class Checker {
 			return null;
 		}
 		final next = createDiagnosticChainFromErrorChain(chain.next, errorNode, relatedInfo);
-		final args:Array<Any> = chain.args == null ? [] : chain.args;
+		final args:Array<Any> = chain.args.toArray();
 		if (next == null) {
 			return NewDiagnosticForNode(errorNode, chain.message, ...args).SetRelatedInfo(relatedInfo);
 		}
@@ -5340,7 +5340,7 @@ class Checker {
 		}
 	}
 
-	static function getPossibleSymbolReferenceNodes(sourceFile:SourceFile, symbolName:std.String, container:Node):Array<Node> {
+	static function getPossibleSymbolReferenceNodes(sourceFile:SourceFile, symbolName:std.String, container:Node):Slice<Node> {
 		return Core.MapNonNil(getPossibleSymbolReferencePositions(sourceFile, symbolName, container), (pos:Int) -> {
 			final referenceLocation = Astnav.GetTouchingPropertyName(sourceFile, pos);
 			if (referenceLocation != sourceFile.AsNode()) {
@@ -5526,7 +5526,7 @@ class Checker {
 		return a;
 	}
 
-	static function wrapTypes(types:Array<Type>):Array<TracedType> {
+	static function wrapTypes(types:Slice<Type>):Array<TracedType> {
 		if (Core.len(types) == 0) {
 			return null;
 		}
@@ -6307,10 +6307,10 @@ class Checker {
 		return 0;
 	}
 
-	static extern inline overload function compareTypeLists(s1:Array<Type>, s2:Array<Type>):Int
+	static extern inline overload function compareTypeLists(s1:Slice<Type>, s2:Slice<Type>):Int
 		return compareTypeArrays(s1, s2);
 
-	static function compareTypeArrays(s1:Array<Type>, s2:Array<Type>):Int {
+	static function compareTypeArrays(s1:Slice<Type>, s2:Slice<Type>):Int {
 		if (Core.len(s1) != Core.len(s2)) {
 			return Core.len(s1) - Core.len(s2);
 		}
@@ -6709,7 +6709,7 @@ class Checker {
 		return Ast.IsCallExpression(n) && n.Expression().Kind == KindSuperKeyword;
 	}
 
-	static function getMembersOfDeclaration(node:Node):Array<Node> {
+	static function getMembersOfDeclaration(node:Node):Slice<Node> {
 		switch (node.Kind) {
 			case KindInterfaceDeclaration | KindClassDeclaration | KindClassExpression | KindTypeLiteral:
 				return node.Members();
@@ -6910,7 +6910,7 @@ class Checker {
 		return Core.len(sig.parameters) - Core.IfElse(signatureHasRestParameter(sig), 1, 0);
 	}
 
-	static function minAndMax<T>(slice:Array<T>, getValue:(value:T) -> Int):Pair<Int, Int> {
+	static function minAndMax<T>(slice:Slice<T>, getValue:(value:T) -> Int):Pair<Int, Int> {
 		var minValue = 0;
 		var maxValue = 0;
 		if (slice != null) {
@@ -7142,8 +7142,8 @@ class Checker {
 		return false;
 	}
 
-	static function symbolsToArray(symbols:SymbolTable):Array<Symbol> {
-		var result:Array<Symbol> = null;
+	static function symbolsToArray(symbols:SymbolTable):Slice<Symbol> {
+		var result:Slice<Symbol> = null;
 		if (symbols != null) {
 			for (id => symbol in symbols) {
 				if (!isReservedMemberName(id)) {
@@ -7301,10 +7301,10 @@ class TypeFlagNamesStruct {
 class ResolvingObjectType {
 	var t:Type; // Type being resolved
 	var mapper:TypeMapper; // Instantiation mapper
-	var baseTypes:Array<Type>; // Instantiated base types
+	var baseTypes:Slice<Type>; // Instantiated base types
 	var resolvedMembers:SymbolTable = null; // Members resolved by getDeclaredPropertyOfResolvingType
 
-	public function new(t:Type, mapper:TypeMapper, baseTypes:Array<Type>) {
+	public function new(t:Type, mapper:TypeMapper, baseTypes:Slice<Type>) {
 		this.t = t;
 		this.mapper = mapper;
 		this.baseTypes = baseTypes;

@@ -8,7 +8,7 @@ class CommandLineParser {
 		return this.workerDiagnostics.didYouMean.alternateMode;
 	}
 
-	public function OptionsDeclarations():Null<Array<CommandLineOption>> {
+	public function OptionsDeclarations():Slice<CommandLineOption> {
 		return this.workerDiagnostics.didYouMean.OptionDeclarations;
 	}
 
@@ -25,13 +25,13 @@ class CommandLineParser {
 	var fs:Null<FS> = null;
 	var currentDirectory:RootedDirectoryPath = cast "";
 	var options:OrderedMap<String, Dynamic> = null;
-	var fileNames:Null<Array<String>> = null;
-	var errors:Null<Array<Diagnostic>> = null;
+	var fileNames:Slice<String> = null;
+	var errors:Slice<Diagnostic> = null;
 	var responseFileStack:Set<PathKey> = new Set<PathKey>();
 
 	public function new() {}
 
-	function parseStrings(args:Array<String>):Void {
+	function parseStrings(args:Slice<String>):Void {
 		var i = 0;
 		while (i < args.length) {
 			final s = args[i];
@@ -128,7 +128,7 @@ class CommandLineParser {
 		this.parseStrings(args);
 	}
 
-	function parseOptionValue(args:Array<String>, i:Int, opt:CommandLineOption, diag:Message):Int {
+	function parseOptionValue(args:Slice<String>, i:Int, opt:CommandLineOption, diag:Message):Int {
 		if (opt.IsTSConfigOnly && i <= args.length) {
 			var optValue = "";
 			if (i < args.length) {
@@ -245,7 +245,7 @@ class CommandLineParser {
 		return i;
 	}
 
-	function parseListTypeOption(opt:CommandLineOption, value:String):Pair<Array<Dynamic>, Null<Array<Diagnostic>>> {
+	function parseListTypeOption(opt:CommandLineOption, value:String):Pair<Slice<Dynamic>, Slice<Diagnostic>> {
 		return Tsoptions.ParseListTypeOption(opt, value);
 	}
 }

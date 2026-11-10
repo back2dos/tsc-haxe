@@ -10,7 +10,7 @@ package ts.compiler;
 #end
 interface EmitHost extends ts.printer.Emithost.EmitHost extends ts.transformers.declarations.Transform.DeclarationEmitHost extends SourceFileMayBeEmittedHost {
 	function Options():CompilerOptions;
-	function SourceFiles():Array<SourceFile>;
+	function SourceFiles():Slice<SourceFile>;
 	function CaseSensitivity():CaseSensitivity;
 	function BaseDirectory():RootedDirectoryPath;
 	function CommonSourceDirectory():RootedDirectoryPath;
@@ -93,7 +93,7 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return this.program.Options();
 	}
 
-	public function SourceFiles():Array<SourceFile> {
+	public function SourceFiles():Slice<SourceFile> {
 		return this.program.SourceFiles();
 	}
 
@@ -109,11 +109,11 @@ class EmitHost_ implements EmitHost implements OutputPathsHost {
 		return this.program.CaseSensitivity();
 	}
 
-	public function ContentMapperExtensions():Array<std.String> {
+	public function ContentMapperExtensions():Slice<std.String> {
 		return this.program.ContentMapperExtensions();
 	}
 
-	public function ContentMapperExtensionRewrites():Array<ExtensionRewrite> {
+	public function ContentMapperExtensionRewrites():Slice<ExtensionRewrite> {
 		return this.program.ContentMapperExtensionRewrites();
 	}
 

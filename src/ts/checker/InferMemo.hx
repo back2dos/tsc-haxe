@@ -41,8 +41,8 @@ package ts.checker;
 // TSHX_INFER_MEMO_MIN_STEPS=<n> sets the shortest walk that is stored.
 @:allow(ts.checker)
 class InferMemoInfo {
-	var candidates:Array<Type> = null;
-	var contraCandidates:Array<Type> = null;
+	var candidates:Slice<Type> = null;
+	var contraCandidates:Slice<Type> = null;
 	// The walk appended to the info's arrays (or left them alone) rather than replacing them.
 	var sameCandidates:Bool = false;
 	var sameContraCandidates:Bool = false;
@@ -56,7 +56,7 @@ class InferMemoInfo {
 			&& sameContraCandidates == o.sameContraCandidates && priority == o.priority && topLevel == o.topLevel;
 	}
 
-	static function sameList(a:Array<Type>, b:Array<Type>):Bool {
+	static function sameList(a:Slice<Type>, b:Slice<Type>):Bool {
 		if (a == null || b == null) {
 			return a == b;
 		}
@@ -72,7 +72,7 @@ class InferMemoInfo {
 	}
 
 	function toString():std.String {
-		inline function list(l:Array<Type>):std.String
+		inline function list(l:Slice<Type>):std.String
 			return l == null ? "null" : "[" + [for (t in l) t.id].join(",") + "]";
 		return "{" + list(candidates) + (sameCandidates ? "=" : "") + " / " + list(contraCandidates) + (sameContraCandidates ? "=" : "") + " p"
 			+ (priority : Int) + (topLevel ? " top" : "") + "}";
@@ -82,9 +82,9 @@ class InferMemoInfo {
 @:allow(ts.checker)
 class InferMemoEntry {
 	var hash:Int = 0;
-	var key:Array<Int> = null;
+	var key:Slice<Int> = null;
 	var next:InferMemoEntry = null;
-	var infos:Array<InferMemoInfo> = null;
+	var infos:Slice<InferMemoInfo> = null;
 	var cleared:Bool = false;
 	var height:Int = 0;
 	var flags:Int = 0;
@@ -301,7 +301,7 @@ class InferMemo {
 		return null;
 	}
 
-	static function sameKey(a:Array<Int>, b:Array<Int>):Bool {
+	static function sameKey(a:Slice<Int>, b:Array<Int>):Bool {
 		if (a.length != b.length) {
 			return false;
 		}
@@ -348,7 +348,7 @@ class InferMemo {
 	}
 
 	// A list's length (-1: null) and type ids.
-	static inline function pushList(key:Array<Int>, list:Array<Type>):Void {
+	static inline function pushList(key:Array<Int>, list:Slice<Type>):Void {
 		if (list == null) {
 			key.push(-1);
 		} else {
@@ -360,8 +360,8 @@ class InferMemo {
 	}
 
 	// The infos' list arrays before a walk (two per info), to tell appending from replacing.
-	static function snapshotLists(inferences:Array<InferenceInfo>):Array<Array<Type>> {
-		final r:Array<Array<Type>> = [];
+	static function snapshotLists(inferences:Slice<InferenceInfo>):Array<Slice<Type>> {
+		final r:Array<Slice<Type>> = [];
 		for (info in inferences) {
 			r.push(info.candidates);
 			r.push(info.contraCandidates);
@@ -369,7 +369,7 @@ class InferMemo {
 		return r;
 	}
 
-	static function outcomes(inferences:Array<InferenceInfo>, before:Array<Array<Type>>):Array<InferMemoInfo> {
+	static function outcomes(inferences:Slice<InferenceInfo>, before:Array<Slice<Type>>):Array<InferMemoInfo> {
 		final r:Array<InferMemoInfo> = [];
 		for (i in 0...inferences.length) {
 			final info = inferences[i];
@@ -387,7 +387,7 @@ class InferMemo {
 
 	// What the walk did to one list: appended to the same array (the current one holds the stored list's prefix, as
 	// the key says), or put a new one (or null) in its place.
-	static inline function replay(current:Array<Type>, stored:Array<Type>, same:Bool):Array<Type> {
+	static inline function replay(current:Slice<Type>, stored:Slice<Type>, same:Bool):Slice<Type> {
 		if (same) {
 			if (current != null) {
 				for (i in current.length...stored.length) {

@@ -20,7 +20,7 @@ class BundledTest {
 		T.run("TestEmbeddedLibs", () -> {
 			final fs = Bundled.WrapFS(ts.vfs.osvfs.Osvfs.FS());
 
-			var files:Null<Array<String>> = null;
+			var files:Slice<String> = null;
 
 			final err = fs.WalkDir(Bundled.LibPath(), (path, d, err) -> {
 				if (err != null) {

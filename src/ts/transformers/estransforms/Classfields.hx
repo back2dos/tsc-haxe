@@ -111,10 +111,10 @@ class ClassFieldsTransformer {
 	var legacyDecorators:Bool = false;
 	// pendingExpressions tracks what computed name expressions originating from elided names
 	// must be inlined at the next execution site, in document order.
-	var pendingExpressions:Array<Expression> = null;
+	var pendingExpressions:Slice<Expression> = null;
 	// pendingStatements tracks what computed name expression statements and static property
 	// initializers must be emitted at the next execution site, in document order (for decorated classes).
-	var pendingStatements:Array<Statement> = null;
+	var pendingStatements:Slice<Statement> = null;
 	var lexicalEnvironment:ClassLexicalEnv = null;
 	var currentClassContainer:ClassLikeDeclaration = null;
 	var currentClassElement:ClassElement = null;
@@ -197,7 +197,7 @@ class ClassFieldsTransformer {
 		classAliases = new IdentityMap<Node, IdentifierNode>();
 		enclosingClassDeclarations.Clear();
 		final visited = Visitor().VisitEachChild(node.AsNode());
-		EmitContext().AddEmitHelper(visited, ...EmitContext().ReadEmitHelpers());
+		EmitContext().AddEmitHelper(visited, ...EmitContext().ReadEmitHelpers().toArray());
 		classAliases = null;
 		enclosingClassDeclarations.Clear();
 		return visited;
@@ -1321,7 +1321,7 @@ class ClassFieldsTransformer {
 		return null;
 	}
 
-	function setCurrentClassElementAndVisitStatements(classElement:Node, statements:Array<Statement>):Array<Statement> {
+	function setCurrentClassElementAndVisitStatements(classElement:Node, statements:Slice<Statement>):Slice<Statement> {
 		final savedCurrentClassElement = currentClassElement;
 		currentClassElement = classElement;
 		final result = Visitor().VisitSlice(statements);
@@ -1534,7 +1534,7 @@ class ClassFieldsTransformer {
 		return null;
 	}
 
-	function getPrivateInstanceMethodsAndAccessors(node:Node):Array<Node> {
+	function getPrivateInstanceMethodsAndAccessors(node:Node):Slice<Node> {
 		return Core.Filter(node.Members(), Estransforms.isNonStaticMethodOrAccessorWithPrivateName);
 	}
 
@@ -1781,7 +1781,7 @@ class ClassFieldsTransformer {
 		final members = transformed.a;
 		final membersPrologue = transformed.b;
 
-		var statements:Array<Node> = null;
+		var statements:Slice<Node> = null;
 
 		if (pendingClassReferenceAssignment != null) {
 			final pe:Array<Expression> = [pendingClassReferenceAssignment];
@@ -2248,7 +2248,7 @@ class ClassFieldsTransformer {
 		return result;
 	}
 
-	function transformConstructorBodyWorker(statementsOut:Array<Statement>, statementsIn:Array<Statement>, statementOffset:Int, superPath:Array<Int>, superPathDepth:Int, initializerStatements:Array<Statement>, constructor:ConstructorDeclaration):Array<Statement> {
+	function transformConstructorBodyWorker(statementsOut:Slice<Statement>, statementsIn:Slice<Statement>, statementOffset:Int, superPath:Slice<Int>, superPathDepth:Int, initializerStatements:Slice<Statement>, constructor:ConstructorDeclaration):Slice<Statement> {
 		final superStatementIndex = superPath[superPathDepth];
 		final superStatement = statementsIn[superStatementIndex];
 
@@ -2331,7 +2331,7 @@ class ClassFieldsTransformer {
 
 	function transformConstructorBody(container:Node, constructor:ConstructorDeclaration, isDerivedClass:Bool):Node {
 		final instanceProperties = getProperties(container, false /*requireInitializer*/, false /*isStatic*/);
-		var properties = instanceProperties;
+		var properties:Slice<Node> = instanceProperties;
 		if (!compilerOptions.GetUseDefineForClassFields()) {
 			properties = Core.Filter(properties, function(prop:Node):Bool {
 				return prop.Initializer() != null || Ast.IsPrivateIdentifier(prop.Name()) || Ast.HasAccessorModifier(prop);
@@ -2349,7 +2349,7 @@ class ClassFieldsTransformer {
 		EmitContext().StartVariableEnvironment();
 
 		final needsSyntheticConstructor = constructor == null && isDerivedClass;
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 
 		// Add the property initializers. Transforms this:
 		//
@@ -2361,7 +2361,7 @@ class ClassFieldsTransformer {
 		//      this.x = 1;
 		//  }
 		//
-		var initializerStatements:Array<Statement> = null;
+		var initializerStatements:Slice<Statement> = null;
 		final receiver = Factory().NewThisExpression();
 
 		// private methods can be called in property initializers, they should execute first
@@ -2481,7 +2481,7 @@ class ClassFieldsTransformer {
 	}
 
 	// addPropertyOrClassStaticBlockStatements generates assignment statements for property initializers.
-	function addPropertyOrClassStaticBlockStatements(statements:Array<Node>, properties:Array<Node>, receiver:Expression):Array<Node> {
+	function addPropertyOrClassStaticBlockStatements(statements:Slice<Node>, properties:Slice<Node>, receiver:Expression):Slice<Node> {
 		if (properties != null) {
 			for (property in properties) {
 				if (Ast.IsStatic(property) && !shouldTransformPrivateElementsOrClassStaticBlocks) {
@@ -2539,8 +2539,8 @@ class ClassFieldsTransformer {
 	}
 
 	// generateInitializedPropertyExpressionsOrClassStaticBlock generates assignment expressions for property initializers.
-	function generateInitializedPropertyExpressionsOrClassStaticBlock(propertiesOrClassStaticBlocks:Array<Node>, receiver:Expression):Array<Expression> {
-		var expressions:Array<Expression> = null;
+	function generateInitializedPropertyExpressionsOrClassStaticBlock(propertiesOrClassStaticBlocks:Slice<Node>, receiver:Expression):Slice<Expression> {
+		var expressions:Slice<Expression> = null;
 		if (propertiesOrClassStaticBlocks != null) {
 			for (property in propertiesOrClassStaticBlocks) {
 				var expression:Expression = null;
@@ -2675,7 +2675,7 @@ class ClassFieldsTransformer {
 	}
 
 	// addInstanceMethodStatements generates brand-check initializer for private methods.
-	function addInstanceMethodStatements(statements:Array<Statement>, methods:Array<Node>, receiver:Expression):Array<Statement> {
+	function addInstanceMethodStatements(statements:Slice<Statement>, methods:Slice<Node>, receiver:Expression):Slice<Statement> {
 		if (!shouldTransformPrivateElementsOrClassStaticBlocks || Core.len(methods) == 0) {
 			return statements;
 		}
@@ -3187,8 +3187,8 @@ class ClassFieldsTransformer {
 		return !(Ast.IsPrivateIdentifier(node) && EmitContext().HasAutoGenerateInfo(node)) && node.Text() == "#constructor";
 	}
 
-	function getProperties(node:Node, requireInitializer:Bool, isStatic:Bool):Array<Node> {
-		var result:Array<Node> = null;
+	function getProperties(node:Node, requireInitializer:Bool, isStatic:Bool):Slice<Node> {
+		var result:Slice<Node> = null;
 		for (member in (node.Members() ?? [])) { // PORT: range over a possibly-nil slice
 			if (Ast.IsPropertyDeclaration(member) && (!requireInitializer || member.Initializer() != null) && Ast.HasStaticModifier(member) == isStatic) {
 				if (result == null) {
@@ -3200,8 +3200,8 @@ class ClassFieldsTransformer {
 		return result;
 	}
 
-	function getStaticPropertiesAndClassStaticBlock(node:Node):Array<Node> {
-		var result:Array<Node> = null;
+	function getStaticPropertiesAndClassStaticBlock(node:Node):Slice<Node> {
+		var result:Slice<Node> = null;
 		for (member in (node.Members() ?? [])) { // PORT: range over a possibly-nil slice
 			if (Ast.IsClassStaticBlockDeclaration(member) || (Ast.IsPropertyDeclaration(member) && Ast.HasStaticModifier(member))) {
 				if (result == null) {

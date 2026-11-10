@@ -5,11 +5,11 @@ package ts.compiler;
 @:allow(ts.compiler)
 class IncludeProcessor {
 	var fileIncludeReasons:StringMap<Array<FileIncludeReason>> = null;
-	var processingDiagnostics:Array<ProcessingDiagnostic> = null;
+	var processingDiagnostics:Slice<ProcessingDiagnostic> = null;
 
 	var reasonToReferenceLocation:SyncMap<FileIncludeReason, ReferenceFileLocation> = new SyncMap<FileIncludeReason, ReferenceFileLocation>();
 	var includeReasonToRelatedInfo:SyncMap<FileIncludeReason, Diagnostic> = new SyncMap<FileIncludeReason, Diagnostic>();
-	var redirectAndFileFormat:StringMap<Array<Diagnostic>> = new StringMap(); // PORT: SyncMap[tspath.Path, ...] → StringMap
+	var redirectAndFileFormat:StringMap<Slice<Diagnostic>> = new StringMap(); // PORT: SyncMap[tspath.Path, ...] → StringMap
 	var computedDiagnostics:DiagnosticsCollection = null;
 	var computedDiagnosticsOnce:Bool = false; // PORT: sync.Once → flag
 	var compilerOptionsSyntax:ObjectLiteralExpression = null;
@@ -109,7 +109,7 @@ class IncludeProcessor {
 		return relatedInfo;
 	}
 
-	function explainRedirectAndImpliedFormat(program:Program, filePath:Path, toFileName:(fileName:RootedFilePath) -> std.String):Array<Diagnostic> {
+	function explainRedirectAndImpliedFormat(program:Program, filePath:Path, toFileName:(fileName:RootedFilePath) -> std.String):Slice<Diagnostic> {
 		if (this.redirectAndFileFormat.exists(filePath)) {
 			return this.redirectAndFileFormat.get(filePath);
 		}
@@ -125,7 +125,7 @@ class IncludeProcessor {
 			}
 			file = ts.modulespecifiers.Types.SourceFileAdapter.Of(sourceFile);
 		}
-		var result:Array<Diagnostic> = null;
+		var result:Slice<Diagnostic> = null;
 		final source = program.GetSourceOfProjectReferenceIfOutputIncluded(file);
 		if (source != file.FileName()) {
 			if (result == null)

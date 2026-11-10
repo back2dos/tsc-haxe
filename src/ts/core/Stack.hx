@@ -2,7 +2,7 @@ package ts.core;
 
 // Port of stack.go. Go zero value `Stack[T]{}` → `new Stack<T>()`.
 class Stack<T> {
-	var data:Null<Array<T>> = null;
+	var data:Slice<T> = null;
 
 	public function new() {}
 

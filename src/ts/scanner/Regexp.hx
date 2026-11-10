@@ -85,11 +85,11 @@ class RegExpParser {
 	// All named capturing groups defined in the regex.
 	var groupSpecifiers:StringMap<Bool> = null;
 	// All references to named capturing groups in the regex.
-	var groupNameReferences:Array<GroupNameReference> = null;
+	var groupNameReferences:Slice<GroupNameReference> = null;
 	// All numeric backreferences within the regex.
-	var decimalEscapes:Array<DecimalEscapeValue> = null;
+	var decimalEscapes:Slice<DecimalEscapeValue> = null;
 	// A stack of scopes for named capturing groups. See scanGroupName.
-	var namedCapturingGroups:Array<StringMap<Bool>> = null;
+	var namedCapturingGroups:Slice<StringMap<Bool>> = null;
 
 	// pendingLowSurrogate holds the low surrogate to emit on the next
 	// scanSourceCharacter call when Corsa has to split a non-BMP rune into

@@ -120,7 +120,7 @@ class SuperAccessState {
 	//	});
 	function createSuperAccessVariableStatement():Node {
 		final f = factory;
-		var accessors:Array<Node> = null;
+		var accessors:Slice<Node> = null;
 
 		for (name in capturedSuperProperties.Values()) {
 			final descriptorProperties:Array<Node> = [];

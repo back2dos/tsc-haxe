@@ -5,5 +5,5 @@ package ts.sourcemap;
 interface Source {
 	function Text():String;
 	function FileName():RootedFilePath;
-	function ECMALineMap():Array<TextPos>;
+	function ECMALineMap():Slice<TextPos>;
 }

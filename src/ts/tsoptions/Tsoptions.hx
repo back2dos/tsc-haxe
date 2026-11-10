@@ -60,7 +60,7 @@ class Tsoptions {
 	}
 
 	// Go `[]any` value of an `any` that holds a []any (nil for a nil slice).
-	static function asAnySlice(v:Dynamic):Null<Array<Dynamic>> {
+	static function asAnySlice(v:Dynamic):Slice<Dynamic> {
 		if (v == null || isSentinel(v, nilAnySlice)) {
 			return null;
 		}
@@ -68,12 +68,12 @@ class Tsoptions {
 	}
 
 	// Go: store a []any into an `any`.
-	static function anySliceToAny(s:Null<Array<Dynamic>>):Dynamic {
+	static function anySliceToAny(s:Slice<Dynamic>):Dynamic {
 		return s == null ? nilAnySlice : s;
 	}
 
 	// Go: store a []string into an `any`.
-	static function stringSliceToAny(s:Null<Array<std.String>>):Dynamic {
+	static function stringSliceToAny(s:Slice<std.String>):Dynamic {
 		return s == null ? nilStringSlice : s;
 	}
 
@@ -94,7 +94,7 @@ class Tsoptions {
 	}
 
 	// Go: append errs to errors (a nil result stays nil when both are empty).
-	static function appendDiags(errors:Null<Array<Diagnostic>>, errs:Null<Array<Diagnostic>>):Null<Array<Diagnostic>> {
+	static function appendDiags(errors:Slice<Diagnostic>, errs:Slice<Diagnostic>):Slice<Diagnostic> {
 		if (errs == null || errs.length == 0) {
 			return errors;
 		}
@@ -107,7 +107,7 @@ class Tsoptions {
 		return errors;
 	}
 
-	static function appendDiag(errors:Null<Array<Diagnostic>>, d:Diagnostic):Array<Diagnostic> {
+	static function appendDiag(errors:Slice<Diagnostic>, d:Diagnostic):Slice<Diagnostic> {
 		if (errors == null) {
 			errors = [];
 		}
@@ -207,7 +207,7 @@ class Tsoptions {
 
 	// --- commandlineparser.go ---
 
-	public static function ParseCommandLine(commandLine:Null<Array<std.String>>, fs:FS, currentDirectory:RootedDirectoryPath):ParsedCommandLine {
+	public static function ParseCommandLine(commandLine:Slice<std.String>, fs:FS, currentDirectory:RootedDirectoryPath):ParsedCommandLine {
 		if (commandLine == null) {
 			commandLine = [];
 		}
@@ -226,7 +226,7 @@ class Tsoptions {
 		return result;
 	}
 
-	public static function ParseBuildCommandLine(commandLine:Null<Array<std.String>>, fs:FS, currentDirectory:RootedDirectoryPath):ParsedBuildCommandLine {
+	public static function ParseBuildCommandLine(commandLine:Slice<std.String>, fs:FS, currentDirectory:RootedDirectoryPath):ParsedBuildCommandLine {
 		if (commandLine == null) {
 			commandLine = [];
 		}
@@ -272,7 +272,7 @@ class Tsoptions {
 		return result;
 	}
 
-	static function parseCommandLineWorker(parseCommandLineWithDiagnostics:ParseCommandLineWorkerDiagnostics, commandLine:Array<std.String>,
+	static function parseCommandLineWorker(parseCommandLineWithDiagnostics:ParseCommandLineWorkerDiagnostics, commandLine:Slice<std.String>,
 			fs:Null<FS>, currentDirectory:RootedDirectoryPath):CommandLineParser {
 		final parser = new CommandLineParser();
 		parser.fs = fs;
@@ -293,7 +293,7 @@ class Tsoptions {
 
 	// PORT: readFile returns (string, bool) as ValueOk; the result (string, []*ast.Diagnostic) is a Pair.
 	static function tryReadFile(fileName:RootedFilePath, readFile:(RootedFilePath) -> ValueOk<std.String>,
-			errors:Null<Array<Diagnostic>>):Pair<std.String, Null<Array<Diagnostic>>> {
+			errors:Slice<Diagnostic>):Pair<std.String, Slice<Diagnostic>> {
 		// this function adds a compiler diagnostic if the file cannot be read
 		final r = readFile(fileName);
 		var text = r.value;
@@ -305,25 +305,25 @@ class Tsoptions {
 			text = "";
 			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Cannot_read_file_0, fileName.AsString()));
 		}
-		return new Pair<std.String, Null<Array<Diagnostic>>>(text, errors);
+		return new Pair<std.String, Slice<Diagnostic>>(text, errors);
 	}
 
 	// PORT: ([]any, []*ast.Diagnostic) → Pair (a nil []any is null).
-	public static function ParseListTypeOption(opt:CommandLineOption, value:std.String):Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>> {
+	public static function ParseListTypeOption(opt:CommandLineOption, value:std.String):Pair<Slice<Dynamic>, Slice<Diagnostic>> {
 		value = Strings.TrimSpace(value);
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		if (StringTools.startsWith(value, "-")) {
-			return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>([], errors);
+			return new Pair<Slice<Dynamic>, Slice<Diagnostic>>([], errors);
 		}
 		if (opt.Kind == CommandLineOptionTypeListOrElement && value.indexOf(",") < 0) {
 			final r = validateJsonOptionValue(opt, value, null, null);
 			if (r.b != null) {
-				return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>([], r.b);
+				return new Pair<Slice<Dynamic>, Slice<Diagnostic>>([], r.b);
 			}
-			return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>([mustString(r.a)], errors);
+			return new Pair<Slice<Dynamic>, Slice<Diagnostic>>([mustString(r.a)], errors);
 		}
 		if (value == "") {
-			return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>([], errors);
+			return new Pair<Slice<Dynamic>, Slice<Diagnostic>>([], errors);
 		}
 		final values = Strings.Split(value, ",");
 		switch (opt.Elements().Kind) {
@@ -338,7 +338,7 @@ class Tsoptions {
 					errors = appendDiags(errors, err);
 					return new ValueOk<Dynamic>("", false);
 				});
-				return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>(elements, errors);
+				return new Pair<Slice<Dynamic>, Slice<Diagnostic>>(elements, errors);
 			case CommandLineOptionTypeBoolean, CommandLineOptionTypeObject, CommandLineOptionTypeNumber:
 				// do nothing: only string and enum/object types currently allowed as list entries
 				// 				!!! we don't actually have number list options, so I didn't implement number list parsing
@@ -354,25 +354,25 @@ class Tsoptions {
 					errors = appendDiags(errors, err);
 					return new ValueOk<Dynamic>("", false);
 				});
-				return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>(result, errors);
+				return new Pair<Slice<Dynamic>, Slice<Diagnostic>>(result, errors);
 		}
 	}
 
 	static function convertJsonOptionOfEnumType(opt:CommandLineOption, value:std.String, valueExpression:Null<Node>,
-			sourceFile:Null<SourceFile>):Pair<Dynamic, Null<Array<Diagnostic>>> {
+			sourceFile:Null<SourceFile>):Pair<Dynamic, Slice<Diagnostic>> {
 		if (value == "") {
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, null);
+			return new Pair<Dynamic, Slice<Diagnostic>>(null, null);
 		}
 		final key = Strings.ToLower(value);
 		final typeMap = opt.EnumMap();
 		if (typeMap == null) {
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, null);
+			return new Pair<Dynamic, Slice<Diagnostic>>(null, null);
 		}
 		final r = typeMap.Get(key);
 		if (r.ok) {
 			return validateJsonOptionValue(opt, r.value, valueExpression, sourceFile);
 		}
-		return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, [createDiagnosticForInvalidEnumType(opt, sourceFile, valueExpression)]);
+		return new Pair<Dynamic, Slice<Diagnostic>>(null, [createDiagnosticForInvalidEnumType(opt, sourceFile, valueExpression)]);
 	}
 
 	// --- declsbuild.go ---
@@ -395,10 +395,10 @@ class Tsoptions {
 		return _TscBuildOption;
 	}
 
-	public static var OptionsForBuild(get, never):Array<CommandLineOption>;
-	static var _OptionsForBuild:Array<CommandLineOption> = null;
+	public static var OptionsForBuild(get, never):Slice<CommandLineOption>;
+	static var _OptionsForBuild:Slice<CommandLineOption> = null;
 
-	static function get_OptionsForBuild():Array<CommandLineOption> {
+	static function get_OptionsForBuild():Slice<CommandLineOption> {
 		if (_OptionsForBuild == null) {
 			_OptionsForBuild = [
 				TscBuildOption,
@@ -465,10 +465,10 @@ class Tsoptions {
 		return _OptionsForBuild;
 	}
 
-	public static var BuildOpts(get, never):Array<CommandLineOption>;
-	static var _BuildOpts:Array<CommandLineOption> = null;
+	public static var BuildOpts(get, never):Slice<CommandLineOption>;
+	static var _BuildOpts:Slice<CommandLineOption> = null;
 
-	static function get_BuildOpts():Array<CommandLineOption> {
+	static function get_BuildOpts():Slice<CommandLineOption> {
 		if (_BuildOpts == null) {
 			_BuildOpts = Slices.Concat(commonOptionsWithBuild, OptionsForBuild);
 		}
@@ -477,20 +477,20 @@ class Tsoptions {
 
 	// --- declscompiler.go ---
 
-	public static var OptionsDeclarations(get, never):Array<CommandLineOption>;
-	static var _OptionsDeclarations:Array<CommandLineOption> = null;
+	public static var OptionsDeclarations(get, never):Slice<CommandLineOption>;
+	static var _OptionsDeclarations:Slice<CommandLineOption> = null;
 
-	static function get_OptionsDeclarations():Array<CommandLineOption> {
+	static function get_OptionsDeclarations():Slice<CommandLineOption> {
 		if (_OptionsDeclarations == null) {
 			_OptionsDeclarations = Slices.Concat(commonOptionsWithBuild, optionsForCompiler);
 		}
 		return _OptionsDeclarations;
 	}
 
-	static var commonOptionsWithBuild(get, never):Array<CommandLineOption>;
-	static var _commonOptionsWithBuild:Array<CommandLineOption> = null;
+	static var commonOptionsWithBuild(get, never):Slice<CommandLineOption>;
+	static var _commonOptionsWithBuild:Slice<CommandLineOption> = null;
 
-	static function get_commonOptionsWithBuild():Array<CommandLineOption> {
+	static function get_commonOptionsWithBuild():Slice<CommandLineOption> {
 		if (_commonOptionsWithBuild == null) {
 			_commonOptionsWithBuild = [
 				//******* commonOptionsWithBuild *******
@@ -807,10 +807,10 @@ class Tsoptions {
 		return _commonOptionsWithBuild;
 	}
 
-	static var optionsForCompiler(get, never):Array<CommandLineOption>;
-	static var _optionsForCompiler:Array<CommandLineOption> = null;
+	static var optionsForCompiler(get, never):Slice<CommandLineOption>;
+	static var _optionsForCompiler:Slice<CommandLineOption> = null;
 
-	static function get_optionsForCompiler():Array<CommandLineOption> {
+	static function get_optionsForCompiler():Slice<CommandLineOption> {
 		if (_optionsForCompiler == null) {
 			_optionsForCompiler = [
 				//******* compilerOptions not common with --build *******
@@ -2112,10 +2112,10 @@ class Tsoptions {
 	}
 
 	// Do not delete this without updating the website's tsconfig generation.
-	static var typeAcquisitionDecls(get, never):Array<CommandLineOption>;
-	static var _typeAcquisitionDecls:Array<CommandLineOption> = null;
+	static var typeAcquisitionDecls(get, never):Slice<CommandLineOption>;
+	static var _typeAcquisitionDecls:Slice<CommandLineOption> = null;
 
-	static function get_typeAcquisitionDecls():Array<CommandLineOption> {
+	static function get_typeAcquisitionDecls():Slice<CommandLineOption> {
 		if (_typeAcquisitionDecls == null) {
 			_typeAcquisitionDecls = [
 				{
@@ -2151,10 +2151,10 @@ class Tsoptions {
 
 	// --- declswatch.go ---
 
-	public static var OptionsForWatch(get, never):Array<CommandLineOption>;
-	static var _OptionsForWatch:Array<CommandLineOption> = null;
+	public static var OptionsForWatch(get, never):Slice<CommandLineOption>;
+	static var _OptionsForWatch:Slice<CommandLineOption> = null;
 
-	static function get_OptionsForWatch():Array<CommandLineOption> {
+	static function get_OptionsForWatch():Slice<CommandLineOption> {
 		if (_OptionsForWatch == null) {
 			_OptionsForWatch = [
 				{
@@ -2267,7 +2267,7 @@ class Tsoptions {
 		return _CompilerOptionsDidYouMeanDiagnostics;
 	}
 
-	static function getParseCommandLineWorkerDiagnostics(decls:Array<CommandLineOption>):ParseCommandLineWorkerDiagnostics {
+	static function getParseCommandLineWorkerDiagnostics(decls:Slice<CommandLineOption>):ParseCommandLineWorkerDiagnostics {
 		// this will only return the correct diagnostics for `compiler` mode, and is factored into a function for testing reasons.
 		final r = new ParseCommandLineWorkerDiagnostics();
 		r.didYouMean.alternateMode = new AlternateModeDiagnostics(Diagnostics.Compiler_option_0_may_only_be_used_with_build, BuildNameMap);
@@ -2439,10 +2439,10 @@ class Tsoptions {
 		return _LibMap;
 	}
 
-	public static var Libs(get, never):Null<Array<std.String>>;
-	static var _Libs:Null<Array<std.String>> = null;
+	public static var Libs(get, never):Slice<std.String>;
+	static var _Libs:Slice<std.String> = null;
 
-	static function get_Libs():Null<Array<std.String>> {
+	static function get_Libs():Slice<std.String> {
 		if (_Libs == null) {
 			_Libs = Slices.Collect(LibMap.Keys());
 		}
@@ -2456,7 +2456,7 @@ class Tsoptions {
 		if (_LibFilesSet == null) {
 			_LibFilesSet = Collections.NewSetFromItems(...Core.Map(Slices.Collect(LibMap.Values()), function(s:Dynamic):std.String {
 				return mustString(s);
-			}));
+			}).toArray());
 		}
 		return _LibFilesSet;
 	}
@@ -2679,7 +2679,7 @@ class Tsoptions {
 			stringNames);
 	}
 
-	static function formatEnumTypeKeys(opt:CommandLineOption, keys:Null<Array<std.String>>):std.String {
+	static function formatEnumTypeKeys(opt:CommandLineOption, keys:Slice<std.String>):std.String {
 		if (opt.DeprecatedKeys() != null) {
 			keys = Core.Filter(keys, function(key:std.String):Bool {
 				return !opt.DeprecatedKeys().Has(key);
@@ -2805,7 +2805,7 @@ class Tsoptions {
 		return _WatchNameMap;
 	}
 
-	public static function GetNameMapFromList(optDecls:Null<Array<CommandLineOption>>):NameMap {
+	public static function GetNameMapFromList(optDecls:Slice<CommandLineOption>):NameMap {
 		final optionsNames = Collections.NewOrderedMapWithSizeHint(Core.len(optDecls), (null : CommandLineOption));
 		final shortOptionNames = new StringMap<std.String>();
 		if (optDecls != null) {
@@ -2824,8 +2824,8 @@ class Tsoptions {
 	static inline final fileGlobPattern = "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json}";
 	static inline final recursiveFileGlobPattern = "**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json}";
 
-	public static function NewParsedCommandLine(compilerOptions:CompilerOptions, rootFileNames:Null<Array<RootedFilePath>>,
-			projectReferences:Null<Array<ProjectReference>>, baseDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):ParsedCommandLine {
+	public static function NewParsedCommandLine(compilerOptions:CompilerOptions, rootFileNames:Slice<RootedFilePath>,
+			projectReferences:Slice<ProjectReference>, baseDirectory:RootedDirectoryPath, caseSensitivity:CaseSensitivity):ParsedCommandLine {
 		final p = new ParsedCommandLine();
 		final parsedConfig = new ParsedOptions();
 		parsedConfig.CompilerOptions = compilerOptions;
@@ -2854,7 +2854,7 @@ class Tsoptions {
 		}
 	}
 
-	public static function ParseStringArray(value:Dynamic):Null<Array<std.String>> {
+	public static function ParseStringArray(value:Dynamic):Slice<std.String> {
 		if (isAnySlice(value)) {
 			final arr = asAnySlice(value);
 			if (arr == null) {
@@ -2876,7 +2876,7 @@ class Tsoptions {
 			final m:OrderedMap<std.String, Dynamic> = value;
 			final result = Collections.NewOrderedMapWithSizeHint(m.Size(), (null : Array<std.String>));
 			for (k => v in m.Entries()) {
-				result.Set(k, ParseStringArray(v));
+				result.Set(k, ParseStringArray(v).nilable());
 			}
 			return result;
 		}
@@ -2914,7 +2914,7 @@ class Tsoptions {
 		return Tspath.RootedPathFromNormalized(path);
 	}
 
-	static function parseDirectoryNames(value:Dynamic):Null<Array<RootedDirectoryPath>> {
+	static function parseDirectoryNames(value:Dynamic):Slice<RootedDirectoryPath> {
 		return Core.Map(ParseStringArray(value), function(path:std.String):RootedDirectoryPath {
 			if (path == "") {
 				return cast "";
@@ -2968,12 +2968,12 @@ class Tsoptions {
 	}
 
 	// TypeScript main (content mappers).
-	static function parseContentMapper(value:Dynamic):Pair<Null<Mapper>, Null<Array<Diagnostic>>> {
+	static function parseContentMapper(value:Dynamic):Pair<Null<Mapper>, Slice<Diagnostic>> {
 		if (!isOrderedMap(value)) {
 			return new Pair(null, null);
 		}
 		final v:OrderedMap<std.String, Dynamic> = value;
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		final mapper = new Mapper();
 		final pkg = v.Get("package");
 		if (pkg.ok) {
@@ -3174,7 +3174,7 @@ class Tsoptions {
 	}
 
 	public static function GetContentMapperOptionDiagnosticLocation(config:Null<ParsedCommandLine>, mapper:Mapper,
-			path:Array<ts.contentmapper.Host.OptionPathSegment>):Pair<Null<SourceFile>, TextRange> {
+			path:Slice<ts.contentmapper.Host.OptionPathSegment>):Pair<Null<SourceFile>, TextRange> {
 		if (config == null || config.ConfigFile == null) {
 			return new Pair(null, Core.UndefinedTextRange());
 		}
@@ -3294,7 +3294,7 @@ class Tsoptions {
 		return result;
 	}
 
-	public static function ParseCompilerOptions(key:std.String, value:Dynamic, allOptions:Null<CompilerOptions>):Null<Array<Diagnostic>> {
+	public static function ParseCompilerOptions(key:std.String, value:Dynamic, allOptions:Null<CompilerOptions>):Slice<Diagnostic> {
 		if (value == null) {
 			return null;
 		}
@@ -3600,7 +3600,7 @@ class Tsoptions {
 		return Std.int((value : Float));
 	}
 
-	public static function ParseWatchOptions(key:std.String, value:Dynamic, allOptions:Null<WatchOptions>):Null<Array<Diagnostic>> {
+	public static function ParseWatchOptions(key:std.String, value:Dynamic, allOptions:Null<WatchOptions>):Slice<Diagnostic> {
 		if (allOptions == null) {
 			return null;
 		}
@@ -3630,7 +3630,7 @@ class Tsoptions {
 		return null;
 	}
 
-	public static function ParseTypeAcquisition(key:std.String, value:Dynamic, allOptions:Null<TypeAcquisition>):Null<Array<Diagnostic>> {
+	public static function ParseTypeAcquisition(key:std.String, value:Dynamic, allOptions:Null<TypeAcquisition>):Slice<Diagnostic> {
 		if (value == null) {
 			return null;
 		}
@@ -3651,7 +3651,7 @@ class Tsoptions {
 		return null;
 	}
 
-	public static function ParseBuildOptions(key:std.String, value:Dynamic, allOptions:Null<BuildOptions>):Null<Array<Diagnostic>> {
+	public static function ParseBuildOptions(key:std.String, value:Dynamic, allOptions:Null<BuildOptions>):Slice<Diagnostic> {
 		if (value == null) {
 			return null;
 		}
@@ -3785,10 +3785,10 @@ class Tsoptions {
 	// impliedOptions lists the compiler options that may be implied by other options,
 	// mirroring TypeScript's computedOptions used in convertToTSConfig.
 	// Each compute function delegates directly to an existing core.CompilerOptions getter.
-	static var impliedOptions(get, never):Array<ImpliedOption>;
-	static var _impliedOptions:Array<ImpliedOption> = null;
+	static var impliedOptions(get, never):Slice<ImpliedOption>;
+	static var _impliedOptions:Slice<ImpliedOption> = null;
 
-	static function get_impliedOptions():Array<ImpliedOption> {
+	static function get_impliedOptions():Slice<ImpliedOption> {
 		if (_impliedOptions == null) {
 			_impliedOptions = [
 				new ImpliedOption("Module", ["Target"], o -> o.GetEmitModuleKind()),
@@ -3820,7 +3820,7 @@ class Tsoptions {
 		final caseSensitivity = configParseResult.CaseSensitivity();
 
 		// Build the list of all resolved files as relative paths from the config file.
-		var files:Null<Array<std.String>> = null;
+		var files:Slice<std.String> = null;
 		if (configParseResult.FileNames() != null) {
 			for (f in configParseResult.FileNames()) {
 				if (files == null)
@@ -3855,7 +3855,7 @@ class Tsoptions {
 		// Add references
 		final refs = configParseResult.ProjectReferences();
 		if (Core.len(refs) > 0) {
-			var references:Null<Array<Dynamic>> = null;
+			var references:Slice<Dynamic> = null;
 			for (r in refs) {
 				final ref = new OrderedMap<std.String, Dynamic>();
 				ref.Set("path", r.OriginalPath);
@@ -3902,7 +3902,7 @@ class Tsoptions {
 	}
 
 	// filterSameAsDefaultInclude returns nil if specs is the default include spec ["**/*"]
-	static function filterSameAsDefaultInclude(specs:Null<Array<std.String>>):Null<Array<std.String>> {
+	static function filterSameAsDefaultInclude(specs:Slice<std.String>):Slice<std.String> {
 		if (Core.len(specs) == 0) {
 			return null;
 		}
@@ -4112,7 +4112,7 @@ class Tsoptions {
 
 	// anyDependencyProvided returns true if any of the given dependency names
 	// (using Go field names like "Target") corresponds to an option in the provided set.
-	static function anyDependencyProvided(dependencies:Null<Array<std.String>>, provided:StringMap<Bool>):Bool {
+	static function anyDependencyProvided(dependencies:Slice<std.String>, provided:StringMap<Bool>):Bool {
 		if (dependencies != null) {
 			for (dep in dependencies) {
 				final depDecl = CommandLineCompilerOptionsMap.Get(dep);
@@ -4243,17 +4243,17 @@ class Tsoptions {
 	}
 
 	static function parseOwnConfigOfJsonSourceFile(sourceFile:SourceFile, fs:FS, basePath:RootedDirectoryPath,
-			configFileName:RootedFilePath):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
+			configFileName:RootedFilePath):Pair<ParsedTsconfig, Slice<Diagnostic>> {
 		final compilerOptions = getDefaultCompilerOptions(configFileName);
 		final typeAcquisition = getDefaultTypeAcquisition(configFileName);
 		// var watchOptions *compiler.WatchOptions
-		var extendedConfigPaths:Null<Array<RootedFilePath>> = null;
-		var rootCompilerOptions:Null<Array<Node>> = null;
-		var errors:Null<Array<Diagnostic>> = null;
+		var extendedConfigPaths:Slice<RootedFilePath> = null;
+		var rootCompilerOptions:Slice<Node> = null;
+		var errors:Slice<Diagnostic> = null;
 		final onPropertySet = function(keyText:std.String, value:Dynamic, propertyAssignment:PropertyAssignment, parentOption:Null<CommandLineOption>, // TsConfigOnlyOption,
-				option:Null<CommandLineOption>):Pair<Dynamic, Null<Array<Diagnostic>>> {
+				option:Null<CommandLineOption>):Pair<Dynamic, Slice<Diagnostic>> {
 			// Ensure value is verified except for extends which is handled in its own way for error reporting
-			var propertySetErrors:Null<Array<Diagnostic>> = null;
+			var propertySetErrors:Slice<Diagnostic> = null;
 			if (option != null && option != extendsOptionDeclaration) {
 				final r = convertJsonOption(option, value, basePath, propertyAssignment, propertyAssignment.Initializer, sourceFile);
 				value = r.a;
@@ -4261,7 +4261,7 @@ class Tsoptions {
 			}
 			if (parentOption != null && parentOption.Name != "undefined" && value != null) {
 				if (option != null && option.Name != "") {
-					var parseDiagnostics:Null<Array<Diagnostic>> = null;
+					var parseDiagnostics:Slice<Diagnostic> = null;
 					switch (parentOption.Name) {
 						case "compilerOptions":
 							parseDiagnostics = compilerOptions.ParseOption(option.Name, value);
@@ -4309,7 +4309,7 @@ class Tsoptions {
 					}
 				}
 			}
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(value, propertySetErrors);
+			return new Pair<Dynamic, Slice<Diagnostic>>(value, propertySetErrors);
 		};
 
 		final r = convertConfigFileToObject(sourceFile, new JsonConversionNotifier(tsconfigRootOptionsMap, onPropertySet));
@@ -4326,7 +4326,7 @@ class Tsoptions {
 		parsed.typeAcquisition = typeAcquisition;
 		parsed.extendedConfigPaths = extendedConfigPaths;
 		parsed.contentMappersConfigFile = configFileName;
-		return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(parsed, errors);
+		return new Pair<ParsedTsconfig, Slice<Diagnostic>>(parsed, errors);
 	}
 
 	static function tsconfigToSourceFile(tsconfigSourceFile:Null<TsConfigSourceFile>):Null<SourceFile> {
@@ -4344,7 +4344,7 @@ class Tsoptions {
 		return new TsConfigSourceFile(sourceFile);
 	}
 
-	static function convertConfigFileToObject(sourceFile:SourceFile, jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Dynamic, Null<Array<Diagnostic>>> {
+	static function convertConfigFileToObject(sourceFile:SourceFile, jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Dynamic, Slice<Diagnostic>> {
 		var rootExpression:Null<Node> = null;
 		if (Core.len(sourceFile.Statements.Nodes) > 0) {
 			rootExpression = sourceFile.Statements.Nodes[0].Expression();
@@ -4364,7 +4364,7 @@ class Tsoptions {
 					return convertToJson(sourceFile, firstObject, true /*returnValue*/, jsonConversionNotifier);
 				}
 			}
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(new OrderedMap<std.String, Dynamic>(), errors);
+			return new Pair<Dynamic, Slice<Diagnostic>>(new OrderedMap<std.String, Dynamic>(), errors);
 		}
 		return convertToJson(sourceFile, rootExpression, true, jsonConversionNotifier);
 	}
@@ -4408,12 +4408,12 @@ class Tsoptions {
 	}
 
 	static function validateJsonOptionValue(opt:CommandLineOption, val:Dynamic, valueExpression:Null<Node>,
-			sourceFile:Null<SourceFile>):Pair<Dynamic, Null<Array<Diagnostic>>> {
+			sourceFile:Null<SourceFile>):Pair<Dynamic, Slice<Diagnostic>> {
 		if (val == null) {
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, null);
+			return new Pair<Dynamic, Slice<Diagnostic>>(null, null);
 		}
 
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 
 		switch (opt.extraValidation) {
 			case extraValidationSpec:
@@ -4430,16 +4430,16 @@ class Tsoptions {
 		}
 
 		if (Core.len(errors) > 0) {
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, errors);
+			return new Pair<Dynamic, Slice<Diagnostic>>(null, errors);
 		}
-		return new Pair<Dynamic, Null<Array<Diagnostic>>>(val, null);
+		return new Pair<Dynamic, Slice<Diagnostic>>(val, null);
 	}
 
 	// PORT: returns the Go []any (nil → null); callers that store it in an `any` use anySliceToAny.
 	static function convertJsonOptionOfListType(option:CommandLineOption, values:Dynamic, basePath:RootedDirectoryPath, propertyAssignment:Null<PropertyAssignment>,
-			valueExpression:Null<Node>, sourceFile:Null<SourceFile>):Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>> {
+			valueExpression:Null<Node>, sourceFile:Null<SourceFile>):Pair<Slice<Dynamic>, Slice<Diagnostic>> {
 		var expression:Null<Node> = null;
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		if (isAnySlice(values)) {
 			final values = asAnySlice(values);
 			final mappedValues = Core.MapIndex(values, function(v:Dynamic, index:Int):Dynamic {
@@ -4457,9 +4457,9 @@ class Tsoptions {
 					return (v != null && !(isBool(v) && (v : Bool) == false) && !(isString(v) && (v : std.String) == ""));
 				});
 			}
-			return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>(filteredValues, errors);
+			return new Pair<Slice<Dynamic>, Slice<Diagnostic>>(filteredValues, errors);
 		}
-		return new Pair<Null<Array<Dynamic>>, Null<Array<Diagnostic>>>(null, errors);
+		return new Pair<Slice<Dynamic>, Slice<Diagnostic>>(null, errors);
 	}
 
 	static inline final configDirTemplate = "${configDir}";
@@ -4486,18 +4486,18 @@ class Tsoptions {
 	}
 
 	static function convertJsonOption(opt:CommandLineOption, value:Dynamic, basePath:RootedDirectoryPath, propertyAssignment:Null<PropertyAssignment>,
-			valueExpression:Null<Node>, sourceFile:Null<SourceFile>):Pair<Dynamic, Null<Array<Diagnostic>>> {
+			valueExpression:Null<Node>, sourceFile:Null<SourceFile>):Pair<Dynamic, Slice<Diagnostic>> {
 		if (opt.IsCommandLineOnly) {
 			var nodeValue:Null<Node> = null;
 			if (propertyAssignment != null) {
 				nodeValue = propertyAssignment.Name();
 			}
 			if (sourceFile == null && nodeValue == null) {
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, [
+				return new Pair<Dynamic, Slice<Diagnostic>>(null, [
 					Ast.NewCompilerDiagnostic(Diagnostics.Option_0_can_only_be_specified_on_command_line, opt.Name)
 				]);
 			} else {
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, [
+				return new Pair<Dynamic, Slice<Diagnostic>>(null, [
 					CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, nodeValue, Diagnostics.Option_0_can_only_be_specified_on_command_line,
 						opt.Name)
 				]);
@@ -4507,17 +4507,17 @@ class Tsoptions {
 			switch (opt.Kind) {
 				case CommandLineOptionTypeList:
 					final r = convertJsonOptionOfListType(opt, value, basePath, propertyAssignment, valueExpression, sourceFile); // as ArrayLiteralExpression | undefined
-					return new Pair<Dynamic, Null<Array<Diagnostic>>>(anySliceToAny(r.a), r.b);
+					return new Pair<Dynamic, Slice<Diagnostic>>(anySliceToAny(r.a), r.b);
 				case CommandLineOptionTypeListOrElement:
 					if (isSlice(value)) {
 						final r = convertJsonOptionOfListType(opt, value, basePath, propertyAssignment, valueExpression, sourceFile);
-						return new Pair<Dynamic, Null<Array<Diagnostic>>>(anySliceToAny(r.a), r.b);
+						return new Pair<Dynamic, Slice<Diagnostic>>(anySliceToAny(r.a), r.b);
 					} else {
 						return convertJsonOption(opt.Elements(), value, basePath, propertyAssignment, valueExpression, sourceFile);
 					}
 				case CommandLineOptionTypeEnum:
 					if (value == null) {
-						return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, null);
+						return new Pair<Dynamic, Slice<Diagnostic>>(null, null);
 					}
 					return convertJsonOptionOfEnumType(opt, mustString(value), valueExpression, sourceFile);
 				default:
@@ -4527,16 +4527,16 @@ class Tsoptions {
 			final validatedValue = r.a;
 			final errors = r.b;
 			if (Core.len(errors) > 0 || validatedValue == null) {
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(validatedValue, errors);
+				return new Pair<Dynamic, Slice<Diagnostic>>(validatedValue, errors);
 			} else if (isString(validatedValue) && opt.PathKind.IsRooted() && isNetworkPathValue(validatedValue, basePath)) {
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, [
+				return new Pair<Dynamic, Slice<Diagnostic>>(null, [
 					CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, valueExpression, Diagnostics.Network_path_0_is_not_supported, validatedValue)
 				]);
 			} else {
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(normalizeNonListOptionValue(opt, basePath, validatedValue), errors);
+				return new Pair<Dynamic, Slice<Diagnostic>>(normalizeNonListOptionValue(opt, basePath, validatedValue), errors);
 			}
 		} else {
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, [
+			return new Pair<Dynamic, Slice<Diagnostic>>(null, [
 				CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(sourceFile, valueExpression, Diagnostics.Compiler_option_0_requires_a_value_of_type_1,
 					opt.Name, getCompilerOptionValueTypeString(opt))
 			]);
@@ -4546,24 +4546,24 @@ class Tsoptions {
 	// PORT: returns the Go []string (nil → null).
 	static function getExtendsConfigPathOrArray(value:CompilerOptionsValue, fs:FS, basePath:RootedDirectoryPath, configFileName:RootedFilePath,
 			propertyAssignment:Null<PropertyAssignment>, valueExpression:Null<Node>,
-			sourceFile:Null<SourceFile>):Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>> {
-		var extendedConfigPathArray:Null<Array<RootedFilePath>> = null;
+			sourceFile:Null<SourceFile>):Pair<Slice<RootedFilePath>, Slice<Diagnostic>> {
+		var extendedConfigPathArray:Slice<RootedFilePath> = null;
 		var newBase = basePath;
 		if (configFileName != "") {
 			newBase = configFileName.Directory();
 		}
 		if (value == null) {
 			final r = convertJsonOption(extendsOptionDeclaration, value, basePath, propertyAssignment, valueExpression, sourceFile);
-			return new Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, r.b);
+			return new Pair<Slice<RootedFilePath>, Slice<Diagnostic>>(extendedConfigPathArray, r.b);
 		}
 		if (isString(value)) {
 			final r = getExtendsConfigPath(value, fs, newBase, valueExpression, sourceFile);
 			if (r.a != "") {
 				extendedConfigPathArray = [r.a];
 			}
-			return new Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, r.b);
+			return new Pair<Slice<RootedFilePath>, Slice<Diagnostic>>(extendedConfigPathArray, r.b);
 		}
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		if (isSlice(value)) {
 			// PORT: Go `value.([]any)`; values here come from JSON and are []any.
 			final arr = asAnySlice(value);
@@ -4591,7 +4591,7 @@ class Tsoptions {
 		} else {
 			errors = convertJsonOption(extendsOptionDeclaration, value, basePath, propertyAssignment, valueExpression, sourceFile).b;
 		}
-		return new Pair<Null<Array<RootedFilePath>>, Null<Array<Diagnostic>>>(extendedConfigPathArray, errors);
+		return new Pair<Slice<RootedFilePath>, Slice<Diagnostic>>(extendedConfigPathArray, errors);
 	}
 
 	// isNetworkPathValue reports whether a path written in a config file refers
@@ -4603,9 +4603,9 @@ class Tsoptions {
 	}
 
 	static function getExtendsConfigPath(extendedConfig:std.String, fs:FS, basePath:RootedDirectoryPath, valueExpression:Null<Node>,
-			sourceFile:Null<SourceFile>):Pair<RootedFilePath, Null<Array<Diagnostic>>> {
+			sourceFile:Null<SourceFile>):Pair<RootedFilePath, Slice<Diagnostic>> {
 		extendedConfig = Tspath.NormalizeSlashes(extendedConfig);
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		var errorFile:Null<SourceFile> = null;
 		if (sourceFile != null) {
 			errorFile = sourceFile;
@@ -4613,7 +4613,7 @@ class Tsoptions {
 		if (isNetworkPathValue(extendedConfig, basePath)) {
 			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.Network_path_0_is_not_supported,
 				extendedConfig));
-			return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(cast "", errors);
+			return new Pair<RootedFilePath, Slice<Diagnostic>>(cast "", errors);
 		}
 		if (Tspath.IsRootedDiskPath(extendedConfig) || StringTools.startsWith(extendedConfig, "./") || StringTools.startsWith(extendedConfig, "../")) {
 			var extendedConfigPath = Tspath.ToRootedFilePath(extendedConfig, basePath);
@@ -4622,15 +4622,15 @@ class Tsoptions {
 				if (!fs.FileExists(extendedConfigPath)) {
 					errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.File_0_not_found,
 						extendedConfig));
-					return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(cast "", errors);
+					return new Pair<RootedFilePath, Slice<Diagnostic>>(cast "", errors);
 				}
 			}
-			return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(extendedConfigPath, errors);
+			return new Pair<RootedFilePath, Slice<Diagnostic>>(extendedConfigPath, errors);
 		}
 		// If the path isn't a rooted or relative path, resolve like a module
 		final resolved = ts.module.Module.ResolveConfig(extendedConfig, basePath.ResolveFile("tsconfig.json"), fs);
 		if (resolved.IsResolved()) {
-			return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(resolved.ResolvedFileName, errors);
+			return new Pair<RootedFilePath, Slice<Diagnostic>>(resolved.ResolvedFileName, errors);
 		}
 		if (extendedConfig == "") {
 			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression,
@@ -4639,10 +4639,10 @@ class Tsoptions {
 			errors = appendDiag(errors, CreateDiagnosticForNodeInSourceFileOrCompilerDiagnostic(errorFile, valueExpression, Diagnostics.File_0_not_found,
 				extendedConfig));
 		}
-		return new Pair<RootedFilePath, Null<Array<Diagnostic>>>(cast "", errors);
+		return new Pair<RootedFilePath, Slice<Diagnostic>>(cast "", errors);
 	}
 
-	@:allow(ts.tsoptions) static function commandLineOptionsToMap(compilerOptions:Array<CommandLineOption>):CommandLineOptionNameMap {
+	@:allow(ts.tsoptions) static function commandLineOptionsToMap(compilerOptions:Slice<CommandLineOption>):CommandLineOptionNameMap {
 		final result = new CommandLineOptionNameMap();
 		for (i in 0...compilerOptions.length) {
 			(result : StringMap<CommandLineOption>).set(compilerOptions[i].Name, compilerOptions[i]);
@@ -4670,16 +4670,16 @@ class Tsoptions {
 	}
 
 	static function convertOptionsFromJson<O:OptionParser>(optionsNameMap:CommandLineOptionNameMap, jsonOptions:Dynamic, basePath:RootedDirectoryPath,
-			result:O):Pair<O, Null<Array<Diagnostic>>> {
+			result:O):Pair<O, Slice<Diagnostic>> {
 		if (jsonOptions == null) {
-			return new Pair<O, Null<Array<Diagnostic>>>(result, null);
+			return new Pair<O, Slice<Diagnostic>>(result, null);
 		}
 		if (!isOrderedMap(jsonOptions)) {
 			// !!! probably should be an error
-			return new Pair<O, Null<Array<Diagnostic>>>(result, null);
+			return new Pair<O, Slice<Diagnostic>>(result, null);
 		}
 		final jsonMap:OrderedMap<std.String, Dynamic> = jsonOptions;
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		for (key => value in jsonMap.Entries()) {
 			final opt = optionsNameMap.Get(key);
 			if (opt != null && opt.Name != key) {
@@ -4699,27 +4699,27 @@ class Tsoptions {
 			final compilerOptionsErr = result.ParseOption(key, r.a);
 			errors = appendDiags(errors, compilerOptionsErr);
 		}
-		return new Pair<O, Null<Array<Diagnostic>>>(result, errors);
+		return new Pair<O, Slice<Diagnostic>>(result, errors);
 	}
 
-	static function convertArrayLiteralExpressionToJson(sourceFile:SourceFile, elements:Null<Array<Node>>, elementOption:Null<CommandLineOption>,
-			returnValue:Bool):Pair<Dynamic, Null<Array<Diagnostic>>> {
+	static function convertArrayLiteralExpressionToJson(sourceFile:SourceFile, elements:Slice<Node>, elementOption:Null<CommandLineOption>,
+			returnValue:Bool):Pair<Dynamic, Slice<Diagnostic>> {
 		if (!returnValue) {
 			if (elements != null) {
 				for (element in elements) {
 					convertPropertyValueToJson(sourceFile, element, elementOption, returnValue, null);
 				}
 			}
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, null);
+			return new Pair<Dynamic, Slice<Diagnostic>>(null, null);
 		}
 		// Filter out invalid values
 		if (Core.len(elements) == 0) {
 			// Always return an empty array, even if elements is nil.
 			// The parser will produce nil slices instead of allocating empty ones.
-			return new Pair<Dynamic, Null<Array<Diagnostic>>>(([] : Array<Dynamic>), null);
+			return new Pair<Dynamic, Slice<Diagnostic>>(([] : Array<Dynamic>), null);
 		}
-		var errors:Null<Array<Diagnostic>> = null;
-		var value:Null<Array<Dynamic>> = null;
+		var errors:Slice<Diagnostic> = null;
+		var value:Slice<Dynamic> = null;
 		for (element in elements) {
 			final r = convertPropertyValueToJson(sourceFile, element, elementOption, returnValue, null);
 			errors = appendDiags(errors, r.b);
@@ -4729,13 +4729,13 @@ class Tsoptions {
 				value.push(r.a);
 			}
 		}
-		return new Pair<Dynamic, Null<Array<Diagnostic>>>(anySliceToAny(value), errors);
+		return new Pair<Dynamic, Slice<Diagnostic>>(anySliceToAny(value), errors);
 	}
 
 	// ParseConfigFileTextToJson parses the text of the tsconfig.json file
 	// fileName is the path to the config file
 	// jsonText is the text of the config file
-	public static function ParseConfigFileTextToJson(fileName:RootedFilePath, path:PathKey, jsonText:std.String):Pair<Dynamic, Null<Array<Diagnostic>>> {
+	public static function ParseConfigFileTextToJson(fileName:RootedFilePath, path:PathKey, jsonText:std.String):Pair<Dynamic, Slice<Diagnostic>> {
 		final opts = new SourceFileParseOptions();
 		opts.FileName = fileName;
 		opts.Path = path;
@@ -4746,7 +4746,7 @@ class Tsoptions {
 		if (Core.len(jsonSourceFile.Diagnostics()) > 0) {
 			errors = [jsonSourceFile.Diagnostics()[0]];
 		}
-		return new Pair<Dynamic, Null<Array<Diagnostic>>>(config, errors);
+		return new Pair<Dynamic, Slice<Diagnostic>>(config, errors);
 	}
 
 	// NewDefaultParseConfigHost leaves external code authorization to the runExternalCode option.
@@ -4755,7 +4755,7 @@ class Tsoptions {
 	}
 
 	public static function ParseJsonSourceFileConfigFileContent(sourceFile:TsConfigSourceFile, host:ParseConfigHost, basePath:RootedDirectoryPath,
-			existingOptions:Null<CompilerOptions>, existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>, resolutionStack:Null<Array<PathKey>>,
+			existingOptions:Null<CompilerOptions>, existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>, resolutionStack:Slice<PathKey>,
 			extendedConfigCache:Null<ExtendedConfigCache>):ParsedCommandLine {
 		// tracing?.push(tracing.Phase.Parse, "parseJsonSourceFileConfigFileContent", { path: sourceFile.fileName });
 		final result = parseJsonConfigFileContentWorker(null /*json*/, sourceFile, host, basePath, existingOptions, existingOptionsRaw,
@@ -4766,12 +4766,12 @@ class Tsoptions {
 
 	static function convertObjectLiteralExpressionToJson(sourceFile:SourceFile, returnValue:Bool, node:ObjectLiteralExpression,
 			objectOption:Null<CommandLineOption>,
-			jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Null<OrderedMap<std.String, Dynamic>>, Null<Array<Diagnostic>>> {
+			jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Null<OrderedMap<std.String, Dynamic>>, Slice<Diagnostic>> {
 		var result:Null<OrderedMap<std.String, Dynamic>> = null;
 		if (returnValue) {
 			result = new OrderedMap<std.String, Dynamic>();
 		}
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		final properties = node.Properties.Nodes;
 		for (element in (properties == null ? [] : properties)) {
 			if (element.Kind != KindPropertyAssignment) {
@@ -4809,21 +4809,21 @@ class Tsoptions {
 				}
 			}
 		}
-		return new Pair<Null<OrderedMap<std.String, Dynamic>>, Null<Array<Diagnostic>>>(result, errors);
+		return new Pair<Null<OrderedMap<std.String, Dynamic>>, Slice<Diagnostic>>(result, errors);
 	}
 
 	// convertToJson converts the json syntax tree into the json value and report errors
 	// This returns the json value (apart from checking errors) only if returnValue provided is true.
 	// Otherwise it just checks the errors and returns undefined
 	static function convertToJson(sourceFile:SourceFile, rootExpression:Null<Node>, returnValue:Bool,
-			jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Dynamic, Null<Array<Diagnostic>>> {
+			jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Dynamic, Slice<Diagnostic>> {
 		if (rootExpression == null) {
 			if (returnValue) {
 				// PORT: Go returns `struct{}{}` (marshals as {}); an empty OrderedMap behaves the same
 				// everywhere it is used (no keys, marshals as {}).
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(new OrderedMap<std.String, Dynamic>(), null);
+				return new Pair<Dynamic, Slice<Diagnostic>>(new OrderedMap<std.String, Dynamic>(), null);
 			} else {
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, null);
+				return new Pair<Dynamic, Slice<Diagnostic>>(null, null);
 			}
 		}
 		var rootOptions:Null<CommandLineOption> = null;
@@ -4838,32 +4838,32 @@ class Tsoptions {
 	}
 
 	static function convertPropertyValueToJson(sourceFile:SourceFile, valueExpression:Node, option:Null<CommandLineOption>, returnValue:Bool,
-			jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Dynamic, Null<Array<Diagnostic>>> {
+			jsonConversionNotifier:Null<JsonConversionNotifier>):Pair<Dynamic, Slice<Diagnostic>> {
 		switch (valueExpression.Kind) {
 			case KindTrueKeyword:
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(true, null);
+				return new Pair<Dynamic, Slice<Diagnostic>>(true, null);
 			case KindFalseKeyword:
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(false, null);
+				return new Pair<Dynamic, Slice<Diagnostic>>(false, null);
 			case KindNullKeyword: // todo: how to manage null
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, null);
+				return new Pair<Dynamic, Slice<Diagnostic>>(null, null);
 
 			case KindStringLiteral:
 				if (!isDoubleQuotedString(valueExpression)) {
-					return new Pair<Dynamic, Null<Array<Diagnostic>>>(valueExpression.Text(), [
+					return new Pair<Dynamic, Slice<Diagnostic>>(valueExpression.Text(), [
 						Ast.NewDiagnostic(sourceFile, valueExpression.Loc, Diagnostics.String_literal_with_double_quotes_expected)
 					]);
 				}
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(valueExpression.Text(), null);
+				return new Pair<Dynamic, Slice<Diagnostic>>(valueExpression.Text(), null);
 
 			case KindNumericLiteral:
 				final n:Float = Jsnum.FromString(valueExpression.Text());
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(n, null);
+				return new Pair<Dynamic, Slice<Diagnostic>>(n, null);
 			case KindPrefixUnaryExpression:
 				// PORT: Go `break`s out of the switch when the operand is not valid JSON syntax.
 				if (!(valueExpression.AsPrefixUnaryExpression().Operator != KindMinusToken
 					|| valueExpression.AsPrefixUnaryExpression().Operand.Kind != KindNumericLiteral)) {
 					final n:Float = -(Jsnum.FromString(valueExpression.AsPrefixUnaryExpression().Operand.Text()) : Float);
-					return new Pair<Dynamic, Null<Array<Diagnostic>>>(n, null);
+					return new Pair<Dynamic, Slice<Diagnostic>>(n, null);
 				}
 				// not valid JSON syntax
 			case KindObjectLiteralExpression:
@@ -4875,14 +4875,14 @@ class Tsoptions {
 				// vs what we set in the json
 				// If need arises, we can modify this interface and callbacks as needed
 				final r = convertObjectLiteralExpressionToJson(sourceFile, returnValue, objectLiteralExpression, option, jsonConversionNotifier);
-				return new Pair<Dynamic, Null<Array<Diagnostic>>>(r.a, r.b);
+				return new Pair<Dynamic, Slice<Diagnostic>>(r.a, r.b);
 			case KindArrayLiteralExpression:
 				final r = convertArrayLiteralExpressionToJson(sourceFile, valueExpression.Elements(), option, returnValue);
 				return r;
 			default:
 		}
 		// Not in expected format
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		if (option != null) {
 			errors = [
 				Ast.NewDiagnostic(sourceFile, valueExpression.Loc, Diagnostics.Compiler_option_0_requires_a_value_of_type_1, option.Name,
@@ -4894,7 +4894,7 @@ class Tsoptions {
 					Diagnostics.Property_value_can_only_be_string_literal_numeric_literal_true_false_null_object_literal_or_array_literal)
 			];
 		}
-		return new Pair<Dynamic, Null<Array<Diagnostic>>>(null, errors);
+		return new Pair<Dynamic, Slice<Diagnostic>>(null, errors);
 	}
 
 	// ParseJsonConfigFileContent parses the contents of a config file (tsconfig.json).
@@ -4902,7 +4902,7 @@ class Tsoptions {
 	// host: Instance of ParseConfigHost used to enumerate files in folder.
 	// basePath: A root directory to resolve relative path entries in the config file to. e.g. outDir
 	public static function ParseJsonConfigFileContent(json:Dynamic, host:ParseConfigHost, basePath:RootedDirectoryPath,
-			existingOptions:Null<CompilerOptions>, configFileName:RootedFilePath, resolutionStack:Null<Array<PathKey>>,
+			existingOptions:Null<CompilerOptions>, configFileName:RootedFilePath, resolutionStack:Slice<PathKey>,
 			extendedConfigCache:Null<ExtendedConfigCache>):ParsedCommandLine {
 		final result = parseJsonConfigFileContentWorker(parseJsonToStringKey(json), null /*sourceFile*/, host, basePath, existingOptions,
 			null /*existingOptionsRaw*/, configFileName, resolutionStack, extendedConfigCache);
@@ -4910,7 +4910,7 @@ class Tsoptions {
 	}
 
 	// convertToObject converts the json syntax tree into the json value
-	static function convertToObject(sourceFile:SourceFile):Pair<Dynamic, Null<Array<Diagnostic>>> {
+	static function convertToObject(sourceFile:SourceFile):Pair<Dynamic, Slice<Diagnostic>> {
 		var rootExpression:Null<Node> = null;
 		if (Core.len(sourceFile.Statements.Nodes) != 0) {
 			rootExpression = sourceFile.Statements.Nodes[0].Expression();
@@ -4940,26 +4940,26 @@ class Tsoptions {
 	}
 
 	static function convertCompilerOptionsFromJsonWorker(jsonOptions:Dynamic, basePath:RootedDirectoryPath,
-			configFileName:RootedFilePath):Pair<ParsedCompilerOptions, Null<Array<Diagnostic>>> {
+			configFileName:RootedFilePath):Pair<ParsedCompilerOptions, Slice<Diagnostic>> {
 		final options = getDefaultCompilerOptions(configFileName);
 		final errors = convertOptionsFromJson(CommandLineCompilerOptionsMap, jsonOptions, basePath,
 			new CompilerOptionsParser(options.CompilerOptions, options.unresolvedPaths)).b;
 		if (configFileName != "") {
 			options.CompilerOptions.ConfigFilePath = configFileName;
 		}
-		return new Pair<ParsedCompilerOptions, Null<Array<Diagnostic>>>(options, errors);
+		return new Pair<ParsedCompilerOptions, Slice<Diagnostic>>(options, errors);
 	}
 
 	static function convertTypeAcquisitionFromJsonWorker(jsonOptions:Dynamic, basePath:RootedDirectoryPath,
-			configFileName:RootedFilePath):Pair<TypeAcquisition, Null<Array<Diagnostic>>> {
+			configFileName:RootedFilePath):Pair<TypeAcquisition, Slice<Diagnostic>> {
 		final options = getDefaultTypeAcquisition(configFileName);
 		final errors = convertOptionsFromJson(typeAcquisitionDeclaration.ElementOptions, jsonOptions, basePath, new TypeAcquisitionParser(options)).b;
-		return new Pair<TypeAcquisition, Null<Array<Diagnostic>>>(options, errors);
+		return new Pair<TypeAcquisition, Slice<Diagnostic>>(options, errors);
 	}
 
 	static function parseOwnConfigOfJson(json:OrderedMap<std.String, Dynamic>, fs:FS, basePath:RootedDirectoryPath,
-			configFileName:RootedFilePath):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
-		var errors:Null<Array<Diagnostic>> = null;
+			configFileName:RootedFilePath):Pair<ParsedTsconfig, Slice<Diagnostic>> {
+		var errors:Slice<Diagnostic> = null;
 		if (json.Has("excludes")) {
 			errors = appendDiag(errors, Ast.NewCompilerDiagnostic(Diagnostics.Unknown_option_excludes_Did_you_mean_exclude));
 		}
@@ -4972,7 +4972,7 @@ class Tsoptions {
 		errors = appendDiags(appendDiags(errors, err), err2);
 		// watchOptions := convertWatchOptionsFromJsonWorker(json.watchOptions, basePath, errors)
 		// json.compileOnSave = convertCompileOnSaveOptionFromJson(json, basePath, errors)
-		var extendedConfigPaths:Null<Array<RootedFilePath>> = null;
+		var extendedConfigPaths:Slice<RootedFilePath> = null;
 		final extends_ = json.GetOrZero("extends");
 		if (extends_ != null && !(isString(extends_) && (extends_ : std.String) == "")) {
 			final r3 = getExtendsConfigPathOrArray(extends_, fs, basePath, configFileName, null, null, null);
@@ -4986,11 +4986,11 @@ class Tsoptions {
 		parsedConfig.typeAcquisition = typeAcquisition;
 		parsedConfig.extendedConfigPaths = extendedConfigPaths;
 		parsedConfig.contentMappersConfigFile = configFileName;
-		return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(parsedConfig, errors);
+		return new Pair<ParsedTsconfig, Slice<Diagnostic>>(parsedConfig, errors);
 	}
 
 	static function readJsonConfigFile(fileName:RootedFilePath, path:PathKey,
-			readFile:(fileName:RootedFilePath) -> ValueOk<std.String>):Pair<TsConfigSourceFile, Null<Array<Diagnostic>>> {
+			readFile:(fileName:RootedFilePath) -> ValueOk<std.String>):Pair<TsConfigSourceFile, Slice<Diagnostic>> {
 		final r = tryReadFile(fileName, readFile, []);
 		final text = r.a;
 		final diagnostic = r.b;
@@ -4998,7 +4998,7 @@ class Tsoptions {
 			final opts = new SourceFileParseOptions();
 			opts.FileName = fileName;
 			opts.Path = path;
-			return new Pair<TsConfigSourceFile, Null<Array<Diagnostic>>>(new TsConfigSourceFile(Parser.ParseSourceFile(opts, text, ScriptKindJSON)),
+			return new Pair<TsConfigSourceFile, Slice<Diagnostic>>(new TsConfigSourceFile(Parser.ParseSourceFile(opts, text, ScriptKindJSON)),
 				diagnostic);
 		} else {
 			final factory = new NodeFactory();
@@ -5007,14 +5007,14 @@ class Tsoptions {
 			opts.Path = path;
 			final file = new TsConfigSourceFile(factory.NewSourceFile(opts, "", factory.NewNodeList([]), factory.NewToken(KindEndOfFile)).AsSourceFile());
 			file.SourceFile.SetDiagnostics(diagnostic);
-			return new Pair<TsConfigSourceFile, Null<Array<Diagnostic>>>(file, diagnostic);
+			return new Pair<TsConfigSourceFile, Slice<Diagnostic>>(file, diagnostic);
 		}
 	}
 
 	static function getExtendedConfig(sourceFile:Null<TsConfigSourceFile>, extendedConfigFileName:RootedFilePath, fs:FS,
-			resolutionStack:Null<Array<PathKey>>, extendedConfigCache:Null<ExtendedConfigCache>,
-			result:ExtendsResult):Pair<Null<ParsedTsconfig>, Null<Array<Diagnostic>>> {
-		var errors:Null<Array<Diagnostic>> = null;
+			resolutionStack:Slice<PathKey>, extendedConfigCache:Null<ExtendedConfigCache>,
+			result:ExtendsResult):Pair<Null<ParsedTsconfig>, Slice<Diagnostic>> {
+		var errors:Slice<Diagnostic> = null;
 		final extendedConfigPath = fs.CaseSensitivity().PathKey(extendedConfigFileName.AsPath());
 
 		var cacheEntry:ExtendedConfigCacheEntry = null;
@@ -5042,10 +5042,10 @@ class Tsoptions {
 				}
 			}
 		}
-		return new Pair<Null<ParsedTsconfig>, Null<Array<Diagnostic>>>(cacheEntry.extendedConfig, errors);
+		return new Pair<Null<ParsedTsconfig>, Slice<Diagnostic>>(cacheEntry.extendedConfig, errors);
 	}
 
-	public static function ParseExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS,
+	public static function ParseExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Slice<PathKey>, fs:FS,
 			extendedConfigCache:Null<ExtendedConfigCache>):ExtendedConfigCacheEntry {
 		final r = readJsonConfigFile(fileName, path, fs.ReadFile);
 		final extendedResult = r.a;
@@ -5073,14 +5073,14 @@ class Tsoptions {
 	// parseConfig just extracts options/include/exclude/files out of a config file.
 	// It does not resolve the included files.
 	static function parseConfig(json:Null<OrderedMap<std.String, Dynamic>>, sourceFile:Null<TsConfigSourceFile>, fs:FS,
-			basePath:RootedDirectoryPath, configFileName:RootedFilePath, resolutionStack:Null<Array<PathKey>>,
-			extendedConfigCache:Null<ExtendedConfigCache>):Pair<ParsedTsconfig, Null<Array<Diagnostic>>> {
+			basePath:RootedDirectoryPath, configFileName:RootedFilePath, resolutionStack:Slice<PathKey>,
+			extendedConfigCache:Null<ExtendedConfigCache>):Pair<ParsedTsconfig, Slice<Diagnostic>> {
 		final caseSensitivity = fs.CaseSensitivity();
 		var resolvedPath = caseSensitivity.PathKey(basePath.AsPath());
 		if (configFileName != "") {
 			resolvedPath = caseSensitivity.PathKey(configFileName.AsPath());
 		}
-		var errors:Null<Array<Diagnostic>> = null;
+		var errors:Slice<Diagnostic> = null;
 		if (Slices.Contains(resolutionStack, resolvedPath)) {
 			var result:ParsedTsconfig = null;
 			final cycle:Array<std.String> = [for (p in resolutionStack.slice(Slices.Index(resolutionStack, resolvedPath))) (p : std.String)];
@@ -5095,11 +5095,11 @@ class Tsoptions {
 				result = new ParsedTsconfig();
 				result.raw = r.a;
 			}
-			return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(result, errors);
+			return new Pair<ParsedTsconfig, Slice<Diagnostic>>(result, errors);
 		}
 
 		var ownConfig:ParsedTsconfig = null;
-		var err:Null<Array<Diagnostic>> = null;
+		var err:Slice<Diagnostic> = null;
 		if (json != null) {
 			final r = parseOwnConfigOfJson(json, fs, basePath, configFileName);
 			ownConfig = r.a;
@@ -5221,7 +5221,7 @@ class Tsoptions {
 			//     assignWatchOptions(result, ownConfig.watchOptions) :
 			//     ownConfig.watchOptions || result.watchOptions;
 		}
-		return new Pair<ParsedTsconfig, Null<Array<Diagnostic>>>(ownConfig, errors);
+		return new Pair<ParsedTsconfig, Slice<Diagnostic>>(ownConfig, errors);
 	}
 
 	static inline final defaultIncludeSpec = "**/*";
@@ -5234,7 +5234,7 @@ class Tsoptions {
 	// resolutionStack: Only present for backwards-compatibility. Should be empty.
 	static function parseJsonConfigFileContentWorker(json:Null<OrderedMap<std.String, Dynamic>>, sourceFile:Null<TsConfigSourceFile>,
 			host:ParseConfigHost, basePath:RootedDirectoryPath, existingOptions:Null<CompilerOptions>,
-			existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>, configFileName:RootedFilePath, resolutionStack:Null<Array<PathKey>>,
+			existingOptionsRaw:Null<OrderedMap<std.String, Dynamic>>, configFileName:RootedFilePath, resolutionStack:Slice<PathKey>,
 			extendedConfigCache:Null<ExtendedConfigCache>):ParsedCommandLine {
 		final fs = host.FS();
 		Debug.Assert((json == null && sourceFile != null) || (json != null && sourceFile == null));
@@ -5331,11 +5331,11 @@ class Tsoptions {
 			includeSpecs = new PropOfRaw(([defaultIncludeSpec] : Array<Dynamic>));
 			isDefaultIncludeSpec = true;
 		}
-		var validatedIncludeSpecs:Null<Array<PathPattern>> = null;
-		var validatedIncludeSpecsBeforeSubstitution:Null<Array<PathPattern>> = null;
-		var validatedExcludeSpecs:Null<Array<PathPattern>> = null;
-		var validatedFilesSpec:Null<Array<FileSpec>> = null;
-		var validatedFilesSpecBeforeSubstitution:Null<Array<FileSpec>> = null;
+		var validatedIncludeSpecs:Slice<PathPattern> = null;
+		var validatedIncludeSpecsBeforeSubstitution:Slice<PathPattern> = null;
+		var validatedExcludeSpecs:Slice<PathPattern> = null;
+		var validatedFilesSpec:Slice<FileSpec> = null;
+		var validatedFilesSpecBeforeSubstitution:Slice<FileSpec> = null;
 		// The exclude spec list is converted into a regular expression, which allows us to quickly
 		// test whether a file or directory should be excluded before recursively traversing the
 		// file system.
@@ -5357,7 +5357,7 @@ class Tsoptions {
 			}
 		}
 		if (fileSpecs.sliceValue != null) {
-			final fileSpecs:Array<Dynamic> = Core.Filter(fileSpecs.sliceValue, function(spec:Dynamic):Bool { // PORT: Go []any (the elements are not all strings)
+			final fileSpecs:Slice<Dynamic> = Core.Filter(fileSpecs.sliceValue, function(spec:Dynamic):Bool { // PORT: Go []any (the elements are not all strings)
 				return isString(spec);
 			});
 			for (spec in fileSpecs) {
@@ -5413,7 +5413,7 @@ class Tsoptions {
 		}
 
 		final contentMapperSourceFile:Null<SourceFile> = sourceFile != null ? sourceFile.SourceFile : null;
-		var contentMappers:Null<Array<Mapper>> = null;
+		var contentMappers:Slice<Mapper> = null;
 		var contentMapperIndices:Array<Int> = [];
 		final contentMappersOfRaw = getPropFromRaw("contentMappers", function(element:Dynamic):Bool {
 			return isOrderedMap(element);
@@ -5438,7 +5438,7 @@ class Tsoptions {
 			}
 		}
 		final seenContentMapperExtensions = new StringMap<Bool>();
-		var contentMapperExtensions:Null<Array<std.String>> = [];
+		var contentMapperExtensions:Slice<std.String> = [];
 		final caseInsensitive = fs.CaseSensitivity().IsCaseInsensitive();
 		final canonicalExtension = function(extension:std.String):std.String {
 			return fs.CaseSensitivity().Canonicalize(extension);
@@ -5559,7 +5559,7 @@ class Tsoptions {
 			}
 			contentMappers = resolvedContentMappers;
 			contentMapperExtensions = Core.FlatMap(contentMappers, function(mapper:Mapper):Array<std.String> {
-				return mapper.Definition.Extensions;
+				return mapper.Definition.Extensions.nilable();
 			});
 		}
 
@@ -5585,8 +5585,8 @@ class Tsoptions {
 			return new Pair<Array<RootedFilePath>, Int>(fileNames, literalFileNamesLen);
 		};
 
-		final getProjectReferences = function(basePath:RootedDirectoryPath):Null<Array<ProjectReference>> {
-			var projectReferences:Null<Array<ProjectReference>> = null;
+		final getProjectReferences = function(basePath:RootedDirectoryPath):Slice<ProjectReference> {
+			var projectReferences:Slice<ProjectReference> = null;
 			final newReferencesOfRaw = getPropFromRaw("references", function(element:Dynamic):Bool {
 				return isOrderedMap(element);
 			}, "object");
@@ -5652,8 +5652,8 @@ class Tsoptions {
 		return !filesExists && !referencesExists;
 	}
 
-	static function shouldReportNoInputFiles(fileNames:Null<Array<RootedFilePath>>, canJsonReportNoInputFiles:Bool,
-			resolutionStack:Null<Array<PathKey>>):Bool {
+	static function shouldReportNoInputFiles(fileNames:Slice<RootedFilePath>, canJsonReportNoInputFiles:Bool,
+			resolutionStack:Slice<PathKey>):Bool {
 		return Core.len(fileNames) == 0 && canJsonReportNoInputFiles && Core.len(resolutionStack) == 0;
 	}
 
@@ -5667,10 +5667,10 @@ class Tsoptions {
 	}
 
 	static function validateSpecs(specs:Dynamic, disallowTrailingRecursion:Bool, basePath:RootedDirectoryPath, jsonSourceFile:Null<SourceFile>,
-			specKey:std.String):Pair<Null<Array<PathPattern>>, Null<Array<Diagnostic>>> {
-		var errors:Null<Array<Diagnostic>> = null;
-		var finalSpecs:Null<Array<PathPattern>> = null;
-		final arr:Null<Array<Dynamic>> = asAnySlice(specs);
+			specKey:std.String):Pair<Slice<PathPattern>, Slice<Diagnostic>> {
+		var errors:Slice<Diagnostic> = null;
+		var finalSpecs:Slice<PathPattern> = null;
+		final arr:Slice<Dynamic> = asAnySlice(specs);
 		if (arr != null) {
 			for (spec in arr) {
 				if (!isString(spec)) {
@@ -5686,7 +5686,7 @@ class Tsoptions {
 				}
 			}
 		}
-		return new Pair<Null<Array<PathPattern>>, Null<Array<Diagnostic>>>(finalSpecs, errors);
+		return new Pair<Slice<PathPattern>, Slice<Diagnostic>>(finalSpecs, errors);
 	}
 
 	static function specToDiagnostic(spec:std.String, disallowTrailingRecursion:Bool, basePath:RootedDirectoryPath):Null<Message> {
@@ -5850,8 +5850,8 @@ class Tsoptions {
 		return Tspath.GetNormalizedAbsolutePath(replaced, basePath);
 	}
 
-	static function getSubstitutedStringArrayWithConfigDirTemplate<T:std.String>(list:Null<Array<T>>, basePath:RootedDirectoryPath):Null<Array<T>> {
-		var result:Null<Array<T>> = null;
+	static function getSubstitutedStringArrayWithConfigDirTemplate<T:std.String>(list:Slice<T>, basePath:RootedDirectoryPath):Slice<T> {
+		var result:Slice<T> = null;
 		if (list != null) {
 			for (i in 0...list.length) {
 				final element = list[i];
@@ -5883,7 +5883,7 @@ class Tsoptions {
 						paths = compilerOptions.CompilerOptions.Paths.Clone();
 						compilerOptions.CompilerOptions.Paths = paths;
 					}
-					paths.Set(k, substitution);
+					paths.Set(k, substitution.nilable());
 				}
 			}
 		}
@@ -5959,9 +5959,9 @@ class Tsoptions {
 
 	// hasFileWithHigherPriorityExtension determines whether a literal or wildcard file has already been included that has a higher extension priority.
 	// file is the path to the file.
-	static function hasFileWithHigherPriorityExtension(file:RootedFilePath, extensions:Array<Array<std.String>>,
+	static function hasFileWithHigherPriorityExtension(file:RootedFilePath, extensions:Slice<Array<std.String>>,
 			hasFile:(fileName:RootedFilePath) -> Bool):Bool {
-		var extensionGroup:Null<Array<std.String>> = null;
+		var extensionGroup:Slice<std.String> = null;
 		for (group in extensions) {
 			if (file.ExtensionIsOneOf(group)) {
 				extensionGroup = Slices.Concat(extensionGroup, group);
@@ -5993,8 +5993,8 @@ class Tsoptions {
 	// Removes files included via wildcard expansion with a lower extension priority that have already been included.
 	// file is the path to the file.
 	static function removeWildcardFilesWithLowerPriorityExtension<V>(file:RootedFilePath, wildcardFiles:OrderedMap<PathKey, V>,
-			extensions:Array<Array<std.String>>, keyMapper:(value:RootedFilePath) -> PathKey):Void {
-		var extensionGroup:Null<Array<std.String>> = null;
+			extensions:Slice<Array<std.String>>, keyMapper:(value:RootedFilePath) -> PathKey):Void {
+		var extensionGroup:Slice<std.String> = null;
 		for (group in extensions) {
 			if (file.ExtensionIsOneOf(group)) {
 				extensionGroup = Slices.Concat(extensionGroup, group);
@@ -6023,7 +6023,7 @@ class Tsoptions {
 	// host is the host used to resolve files and directories.
 	// extraFileExtensions optionally file extra file extension information from host
 	static function getFileNamesFromConfigSpecs(configFileSpecs:ConfigFileSpecs, basePath:RootedDirectoryPath, // considering this is the current directory
-			options:CompilerOptions, host:FS, extraExtensions:Null<Array<std.String>>):Pair<Array<RootedFilePath>, Int> {
+			options:CompilerOptions, host:FS, extraExtensions:Slice<std.String>):Pair<Array<RootedFilePath>, Int> {
 		final keyMapper = function(fileName:RootedFilePath):PathKey {
 			return host.CaseSensitivity().PathKey(fileName.AsPath());
 		};
@@ -6117,7 +6117,7 @@ class Tsoptions {
 		return new Pair<Array<RootedFilePath>, Int>(files, literalFileMap.Size());
 	}
 
-	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraExtensions:Null<Array<std.String>>):Array<Array<std.String>> {
+	public static function GetSupportedExtensions(compilerOptions:CompilerOptions, extraExtensions:Slice<std.String>):Slice<Array<std.String>> {
 		final needJSExtensions = compilerOptions.GetAllowJS();
 		var builtins:Array<Array<std.String>>;
 		if (needJSExtensions) {
@@ -6129,7 +6129,7 @@ class Tsoptions {
 			return builtins;
 		}
 		final flatBuiltins = Core.Flatten(builtins);
-		var result:Null<Array<Array<std.String>>> = null;
+		var result:Slice<Array<std.String>> = null;
 		for (ext in extraExtensions) {
 			if (!Slices.Contains(flatBuiltins, ext)) {
 				if (result == null)
@@ -6144,7 +6144,7 @@ class Tsoptions {
 	}
 
 	public static function GetSupportedExtensionsWithJsonIfResolveJsonModule(compilerOptions:Null<CompilerOptions>,
-			supportedExtensions:Array<Array<std.String>>):Array<Array<std.String>> {
+			supportedExtensions:Slice<Array<std.String>>):Slice<Array<std.String>> {
 		if (compilerOptions == null || !compilerOptions.GetResolveJsonModule()) {
 			return supportedExtensions;
 		}
@@ -6161,28 +6161,28 @@ class Tsoptions {
 	// PORT: (*ParsedCommandLine, []*ast.Diagnostic) → Pair.
 	public static function GetParsedCommandLineOfConfigFile(configFileName:RootedFilePath, options:Null<CompilerOptions>,
 			optionsRaw:Null<OrderedMap<std.String, Dynamic>>, host:ParseConfigHost,
-			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>> {
+			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Slice<Diagnostic>> {
 		return GetParsedCommandLineOfConfigFilePath(configFileName, host.FS().CaseSensitivity().PathKey(configFileName.AsPath()), options, optionsRaw, host,
 			extendedConfigCache);
 	}
 
 	public static function GetParsedCommandLineOfConfigFilePath(configFileName:RootedFilePath, path:PathKey, options:Null<CompilerOptions>,
 			optionsRaw:Null<OrderedMap<std.String, Dynamic>>, host:ParseConfigHost,
-			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>> {
-		var errors:Null<Array<Diagnostic>> = [];
+			extendedConfigCache:Null<ExtendedConfigCache>):Pair<Null<ParsedCommandLine>, Slice<Diagnostic>> {
+		var errors:Slice<Diagnostic> = [];
 		final fs = host.FS();
 		final r = tryReadFile(configFileName, fs.ReadFile, errors);
 		final configFileText = r.a;
 		errors = r.b;
 		if (Core.len(errors) > 0) {
 			// these are unrecoverable errors--exit to report them as diagnostics
-			return new Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>>(null, errors);
+			return new Pair<Null<ParsedCommandLine>, Slice<Diagnostic>>(null, errors);
 		}
 
 		final tsConfigSourceFile = NewTsconfigSourceFileFromFilePath(configFileName, path, configFileText);
 		// tsConfigSourceFile.resolvedPath = tsConfigSourceFile.FileName()
 		// tsConfigSourceFile.originalFileName = tsConfigSourceFile.FileName()
-		return new Pair<Null<ParsedCommandLine>, Null<Array<Diagnostic>>>(ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, host,
+		return new Pair<Null<ParsedCommandLine>, Slice<Diagnostic>>(ParseJsonSourceFileConfigFileContent(tsConfigSourceFile, host,
 			configFileName.Directory(), options, optionsRaw, null, extendedConfigCache), null);
 	}
 
@@ -6190,7 +6190,7 @@ class Tsoptions {
 
 	// PORT: map[tspath.RootedDirectoryPath]bool → an OrderedMap (Go map iteration order is random; the
 	// result does not depend on it). main's PathPatternInput generic (string | tspath.PathPattern) → T:String.
-	static function getWildcardDirectories<T:std.String>(include:Null<Array<T>>, exclude:Null<Array<T>>, currentDirectory:RootedDirectoryPath,
+	static function getWildcardDirectories<T:std.String>(include:Slice<T>, exclude:Slice<T>, currentDirectory:RootedDirectoryPath,
 			caseSensitivity:CaseSensitivity):Null<OrderedMap<RootedDirectoryPath, Bool>> {
 		// We watch a directory recursively if it contains a wildcard anywhere in a directory segment
 		// of the pattern:
@@ -6214,7 +6214,7 @@ class Tsoptions {
 		final wildcardDirectories = new OrderedMap<RootedDirectoryPath, Bool>(false);
 		final wildCardKeyToPath = new StringMap<RootedDirectoryPath>();
 
-		var recursiveKeys:Null<Array<PathKey>> = null;
+		var recursiveKeys:Slice<PathKey> = null;
 
 		for (file in include) {
 			final spec = Tspath.NormalizePath(Tspath.CombinePaths(currentDirectory.AsString(), (file : std.String)));
@@ -6317,10 +6317,10 @@ class Tsoptions {
 	// Go code that walks the struct with reflect (mergeCompilerOptions, serializeCompilerOptions,
 	// ForEachCompilerOptionValue) walks this table; values are read and written with
 	// Reflect.field / Reflect.setField on the exact Go field names.
-	static var compilerOptionsFields(get, never):Array<CompilerOptionsField>;
-	static var _compilerOptionsFields:Array<CompilerOptionsField> = null;
+	static var compilerOptionsFields(get, never):Slice<CompilerOptionsField>;
+	static var _compilerOptionsFields:Slice<CompilerOptionsField> = null;
 
-	static function get_compilerOptionsFields():Array<CompilerOptionsField> {
+	static function get_compilerOptionsFields():Slice<CompilerOptionsField> {
 		if (_compilerOptionsFields == null) {
 			_compilerOptionsFields = [
 			new CompilerOptionsField("AllowJs", "allowJs", FieldTristate),

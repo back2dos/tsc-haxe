@@ -9,7 +9,7 @@ class PackageJson {
 	public var Parseable:Bool = false;
 
 	var versionPaths:VersionPaths = new VersionPaths();
-	var versionTraces:Null<Array<DiagnosticAndArgs>> = null;
+	var versionTraces:Slice<DiagnosticAndArgs> = null;
 	// PORT: sync.Once → flag.
 	var once:Bool = false;
 

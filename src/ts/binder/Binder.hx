@@ -106,7 +106,7 @@ class Binder {
 	var symbolArena:Arena<Symbol> = new Arena<Symbol>(() -> new ts.ast.Symbol.SymbolWithData());
 	var flowNodeArena:Arena<FlowNode> = new Arena<FlowNode>(() -> new FlowNode());
 	var flowListArena:Arena<FlowList> = new Arena<FlowList>(() -> new FlowList());
-	var expandoAssignments:Array<ExpandoAssignmentInfo> = null;
+	var expandoAssignments:Slice<ExpandoAssignmentInfo> = null;
 	var seenCommonJSModuleIndicator:Bool = false;
 
 	function new() {}
@@ -1002,7 +1002,7 @@ class Binder {
 	static final fl_isExportDeclarationOrAssignment:(s:Node) -> Bool = s -> Ast.IsExportDeclaration(s) || Ast.IsExportAssignment(s);
 
 	function hasExportDeclarations(node:Node):Bool {
-		var statements:Array<Node> = null;
+		var statements:Slice<Node> = null;
 		switch (node.Kind) {
 			case KindSourceFile:
 				statements = node.Statements();
@@ -1501,7 +1501,7 @@ class Binder {
 		return nodeText == "\"use strict\"" || nodeText == "'use strict'";
 	}
 
-	public static function FindUseStrictPrologue(sourceFile:SourceFile, statements:Array<Node>):Node {
+	public static function FindUseStrictPrologue(sourceFile:SourceFile, statements:Slice<Node>):Node {
 		if (statements != null) {
 			for (statement in statements) {
 				if (Ast.IsPrologueDirective(statement)) {
@@ -1899,7 +1899,7 @@ class Binder {
 		node.ForEachChild(bindFunc);
 	}
 
-	function bindEach(nodes:Array<Node>):Void {
+	function bindEach(nodes:Slice<Node>):Void {
 		if (nodes != null) {
 			for (node in nodes) {
 				bind(node);

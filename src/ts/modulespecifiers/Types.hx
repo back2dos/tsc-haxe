@@ -13,7 +13,7 @@ import ts.module.Types.ResolvedModule;
 // PORT: Go's structural interface includes PathKey()/FileName(), i.e. ast.HasFileName; declared as
 // `extends HasFileName` so values can be passed where Go converts them to ast.HasFileName.
 interface SourceFileForSpecifierGeneration extends HasFileName {
-	function Imports():Array<StringLiteralLike>;
+	function Imports():Slice<StringLiteralLike>;
 	function IsJS():Bool;
 }
 
@@ -57,7 +57,7 @@ class SourceFileAdapter implements SourceFileForSpecifierGeneration {
 		return File.Path();
 	}
 
-	public function Imports():Array<StringLiteralLike> {
+	public function Imports():Slice<StringLiteralLike> {
 		return File.Imports();
 	}
 
@@ -81,11 +81,11 @@ enum abstract ResultKind(Int) from Int to Int {
 }
 
 class ModuleSpecifiersResult {
-	public var Specifiers:Array<ModuleSpecifier> = null;
+	public var Specifiers:Slice<ModuleSpecifier> = null;
 	public var Kind:ResultKind = ResultKindNone;
 	public var AmbientModuleSymbol:ts.ast.Symbol = null; // used to construct an import attributes node, if one is needed
 
-	public function new(Specifiers:Array<ModuleSpecifier> = null, Kind:ResultKind = ResultKindNone, AmbientModuleSymbol:ts.ast.Symbol = null) {
+	public function new(Specifiers:Slice<ModuleSpecifier> = null, Kind:ResultKind = ResultKindNone, AmbientModuleSymbol:ts.ast.Symbol = null) {
 		this.Specifiers = Specifiers;
 		this.Kind = Kind;
 		this.AmbientModuleSymbol = AmbientModuleSymbol;
@@ -147,7 +147,7 @@ enum abstract ImportModuleSpecifierEndingPreference(String) from String to Strin
 class UserPreferences {
 	public var ImportModuleSpecifierPreference:ImportModuleSpecifierPreference = ImportModuleSpecifierPreferenceNone;
 	public var ImportModuleSpecifierEnding:ImportModuleSpecifierEndingPreference = ImportModuleSpecifierEndingPreferenceNone;
-	public var AutoImportSpecifierExcludeRegexes:Null<Array<String>> = null;
+	public var AutoImportSpecifierExcludeRegexes:Slice<String> = null;
 
 	public function new() {}
 }

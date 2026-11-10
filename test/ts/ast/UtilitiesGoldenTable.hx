@@ -380,7 +380,7 @@ class UtilitiesGoldenTable {
 	];
 
 	public static function nodeFuncs(fb:(Bool) -> String, fi:(Int) -> String, fs:(String) -> String, lb:(Node) -> String,
-			lbs:(Array<Node>) -> String):Array<(Node) -> String> {
+			lbs:(Slice<Node>) -> String):Array<(Node) -> String> {
 		return [
 			n -> fb(Ast.NodeIsMissing(n)),
 			n -> fb(Ast.NodeIsPresent(n)),

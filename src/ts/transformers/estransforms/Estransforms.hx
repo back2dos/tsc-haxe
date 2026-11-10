@@ -70,7 +70,7 @@ class Estransforms {
 	}
 
 	// isSimpleParameterList checks if every parameter has no initializer and an Identifier name.
-	static function isSimpleParameterList(params:Array<Node>):Bool {
+	static function isSimpleParameterList(params:Slice<Node>):Bool {
 		// PORT: range over a possibly-nil slice.
 		if (params != null) {
 			for (param in params) {
@@ -1284,7 +1284,7 @@ class Estransforms {
 		return usingKindNone;
 	}
 
-	static function getUsingKindOfStatements(statements:Array<Node>):UsingKind {
+	static function getUsingKindOfStatements(statements:Slice<Node>):UsingKind {
 		var result = usingKindNone;
 		if (statements != null) for (statement in statements) { // PORT: range over possibly-nil slice
 			final usingKind = getUsingKind(statement);

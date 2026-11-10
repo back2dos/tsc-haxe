@@ -127,7 +127,7 @@ class Jsx {
 				} else {
 					tagType = c.checkExpression(tagName);
 				}
-				final diags:Array<Diagnostic> = [];
+				final diags:Slice<Diagnostic> = [];
 				if (!c.checkTypeRelatedToEx(tagType, elementTypeConstraint, c.assignableRelation, tagName, Diagnostics.Its_type_0_is_not_a_valid_JSX_element_type, diags)) {
 					c.addDiagnostic(Ast.NewDiagnosticChain(diags[0], Diagnostics.X_0_cannot_be_used_as_a_JSX_component, Scanner.GetTextOfNode(tagName)));
 				}
@@ -148,7 +148,7 @@ class Jsx {
 	}
 
 	static function checkJsxReturnAssignableToAppropriateBound(c:Checker, refKind:JsxReferenceKind, elemInstanceType:Type, openingLikeElement:Node):Void {
-		final diags:Array<Diagnostic> = [];
+		final diags:Slice<Diagnostic> = [];
 		switch (refKind) {
 			case JsxReferenceKindFunction:
 				final sfcReturnConstraint = c.getJsxStatelessElementTypeAt(openingLikeElement);
@@ -276,7 +276,7 @@ class Jsx {
 		return discriminated;
 	}
 
-	static function elaborateJsxComponents(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateJsxComponents(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Slice<Diagnostic>):Bool {
 		var reportedError = false;
 		for (prop in rangeOf(node.Properties())) {
 			if (!Ast.IsJsxSpreadAttribute(prop) && !Checker.isHyphenatedJsxName(prop.Name().Text())) {
@@ -311,14 +311,14 @@ class Jsx {
 				nonArrayLikeTargetParts = c.filterType(childrenTargetType, t -> !c.isArrayOrTupleLikeType(t));
 			}
 			var invalidTextDiagnostic:Message = null;
-			var invalidTextDiagnosticArgs:Array<Any> = null;
+			var invalidTextDiagnosticArgs:Slice<Any> = null;
 			final getInvalidTextualChildDiagnostic = () -> {
 				if (invalidTextDiagnostic == null) {
 					final tagNameText = Scanner.GetTextOfNode(node.Parent.TagName());
 					invalidTextDiagnostic = Diagnostics.X_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2;
 					invalidTextDiagnosticArgs = [tagNameText, childrenPropName, c.TypeToString(childrenTargetType)];
 				}
-				return new Pair<Message, Array<Any>>(invalidTextDiagnostic, invalidTextDiagnosticArgs);
+				return new Pair<Message, Slice<Any>>(invalidTextDiagnostic, invalidTextDiagnosticArgs);
 			};
 			if (moreThanOneRealChildren) {
 				if (arrayLikeTargetParts != c.neverType) {
@@ -349,7 +349,7 @@ class Jsx {
 		return reportedError;
 	}
 
-	static function generateJsxChildren(c:Checker, node:Node, getInvalidTextDiagnostic:() -> Pair<Message, Array<Any>>):(yield:(JsxElaborationElement) -> Bool) -> Void {
+	static function generateJsxChildren(c:Checker, node:Node, getInvalidTextDiagnostic:() -> Pair<Message, Slice<Any>>):(yield:(JsxElaborationElement) -> Bool) -> Void {
 		return (yield:(JsxElaborationElement) -> Bool) -> {
 			var memberOffset = 0;
 			final nodes = rangeOf(node.Children().Nodes);
@@ -368,7 +368,7 @@ class Jsx {
 		};
 	}
 
-	static function getElaborationElementForJsxChild(c:Checker, child:Node, nameType:Type, getInvalidTextDiagnostic:() -> Pair<Message, Array<Any>>):JsxElaborationElement {
+	static function getElaborationElementForJsxChild(c:Checker, child:Node, nameType:Type, getInvalidTextDiagnostic:() -> Pair<Message, Slice<Any>>):JsxElaborationElement {
 		switch (child.Kind) {
 			case KindJsxExpression:
 				// child is of the type of the expression
@@ -383,7 +383,7 @@ class Jsx {
 					final d = getInvalidTextDiagnostic();
 					final errorMessage = d.a;
 					final errorArgs = d.b;
-					return Checker.NewDiagnosticForNode(prop, errorMessage, ...errorArgs);
+					return Checker.NewDiagnosticForNode(prop, errorMessage, ...errorArgs.toArray());
 				});
 			case KindJsxElement | KindJsxSelfClosingElement | KindJsxFragment:
 				// child is of type JSX.Element
@@ -393,7 +393,7 @@ class Jsx {
 		throw "Unhandled case in getElaborationElementForJsxChild";
 	}
 
-	static function elaborateIterableOrArrayLikeTargetElementwise(c:Checker, iterator:(yield:(JsxElaborationElement) -> Bool) -> Void, source:Type, target:Type, relation:Relation, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateIterableOrArrayLikeTargetElementwise(c:Checker, iterator:(yield:(JsxElaborationElement) -> Bool) -> Void, source:Type, target:Type, relation:Relation, diagnosticOutput:Slice<Diagnostic>):Bool {
 		final tupleOrArrayLikeTargetParts = c.filterType(target, t -> c.isArrayOrTupleLikeType(t));
 		final nonTupleOrArrayLikeTargetParts = c.filterType(target, t -> !c.isArrayOrTupleLikeType(t));
 		// If `nonTupleOrArrayLikeTargetParts` is not `never`, then that should mean `Iterable` is defined.
@@ -574,7 +574,7 @@ class Jsx {
 	// @param node a JSX opening-like element we are trying to figure its call signature
 	// @param signature a candidate signature we are trying whether it is a call signature
 	// @param relation a relationship to check parameter and argument type
-	static function checkApplicableSignatureForJsxCallLikeElement(c:Checker, node:Node, signature:Signature, relation:Relation, checkMode:CheckMode, reportErrors:Bool, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function checkApplicableSignatureForJsxCallLikeElement(c:Checker, node:Node, signature:Signature, relation:Relation, checkMode:CheckMode, reportErrors:Bool, diagnosticOutput:Slice<Diagnostic>):Bool {
 		// Stateless function components can have maximum of three arguments: "props", "context", and "updater".
 		// However "context" and "updater" are implicit and can't be specify by users. Only the first parameter, props,
 		// can be specified by users through attributes property.
@@ -787,7 +787,7 @@ class Jsx {
 			if (parent == null) {
 				return false;
 			}
-			var children:Array<Node> = null;
+			var children:Slice<Node> = null;
 
 			if (Ast.IsJsxElement(parent)) {
 				// We have to check that openingElement of the parent is the one we are visiting as this may not be true for selfClosingElement
@@ -802,7 +802,7 @@ class Jsx {
 			return Core.len(Ast.GetSemanticJsxChildren(children)) != 0;
 		};
 		if (parentHasSemanticJsxChildren(openingLikeElement)) {
-			final childTypes:Array<Type> = c.checkJsxChildren(openingLikeElement.Parent, checkMode);
+			final childTypes:Slice<Type> = c.checkJsxChildren(openingLikeElement.Parent, checkMode);
 			if (!hasSpreadAnyType && jsxChildrenPropertyName != Ast.InternalSymbolNameMissing && jsxChildrenPropertyName != "") {
 				// Error if there is a attribute named "children" explicitly specified and children element.
 				// This is because children element will overwrite the value from attributes.
@@ -859,8 +859,8 @@ class Jsx {
 		return c.trueType;
 	}
 
-	static function checkJsxChildren(c:Checker, node:Node, checkMode:CheckMode):Array<Type> {
-		var childTypes:Array<Type> = null;
+	static function checkJsxChildren(c:Checker, node:Node, checkMode:CheckMode):Slice<Type> {
+		var childTypes:Slice<Type> = null;
 		for (child in rangeOf(node.Children().Nodes)) {
 			// In React, JSX text that contains only whitespaces will be ignored so we don't want to type-check that
 			// because then type of children property will have constituent of string type.
@@ -976,7 +976,7 @@ class Jsx {
 			// get the type of `props` on each return type individually, and then _intersect them_, rather than union them (as would normally occur
 			// for a union signature). It's an unfortunate quirk of looking in the output of the signature for the type we want to use for the input.
 			// The default behavior of `getTypeOfFirstParameterOfSignatureWithFallback` when no `props` member name is defined is much more sane.
-			var results:Array<Type> = null;
+			var results:Slice<Type> = null;
 			for (signature in rangeOf(sig.composite.signatures)) {
 				final instance = c.getReturnTypeOfSignature(signature);
 				if (Checker.IsTypeAny(instance)) {
@@ -1475,7 +1475,7 @@ class Jsx {
 	// --- private helpers (PORT) ---
 
 	// PORT: Go `range` over a possibly-nil slice.
-	static extern inline overload function rangeOf<T>(s:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(s:Slice<T>):Slice<T> {
 		return s != null ? s : [];
 	}
 
@@ -1494,7 +1494,7 @@ class Jsx {
 	}
 
 	// PORT: Go `append(s, t)` on a possibly-nil []*Type owned by the caller.
-	static inline function appendType(s:Array<Type>, t:Type):Array<Type> {
+	static inline function appendType(s:Slice<Type>, t:Type):Slice<Type> {
 		if (s == null) {
 			return [t];
 		}

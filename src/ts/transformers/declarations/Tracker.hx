@@ -8,7 +8,7 @@ class SymbolTrackerImpl implements ts.nodebuilder.Types.SymbolTracker { // PORT:
 	var resolver:EmitResolver = null;
 	var state:SymbolTrackerSharedState = null;
 	var host:DeclarationEmitHost = null;
-	var fallbackStack:Array<Node> = null;
+	var fallbackStack:Slice<Node> = null;
 	// For detecting class expression self-references during member serialization.
 	// When set, TrackSymbol will record usage without reporting accessibility errors.
 	var watchedClassSymbol:Symbol = null;
@@ -238,8 +238,8 @@ class SymbolTrackerImpl implements ts.nodebuilder.Types.SymbolTracker { // PORT:
 
 @:allow(ts.transformers.declarations)
 class SymbolTrackerSharedState {
-	var lateMarkedStatements:Array<Node> = null;
-	var diagnostics:Array<Diagnostic> = null;
+	var lateMarkedStatements:Slice<Node> = null;
+	var diagnostics:Slice<Diagnostic> = null;
 	var getSymbolAccessibilityDiagnostic:GetSymbolAccessibilityDiagnostic = null;
 	var diagnosticNode:Node = null; // PORT: perf — the node getSymbolAccessibilityDiagnostic is made for while it is null
 	var errorNameNode:Node = null;

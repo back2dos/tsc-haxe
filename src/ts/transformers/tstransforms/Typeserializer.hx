@@ -75,7 +75,7 @@ class MetadataSerializer {
 			return f.NewArrayLiteralExpression(f.NewNodeList([]), false);
 		}
 
-		var expressions:Array<Node> = null;
+		var expressions:Slice<Node> = null;
 		final parameters = Tstransforms.getParametersOfDecoratedDeclaration(valueDeclaration, container);
 		for (i in 0...Core.len(parameters.Nodes)) {
 			final parameter = parameters.Nodes[i];
@@ -190,7 +190,7 @@ class MetadataSerializer {
 		return f.NewIdentifier("Object");
 	}
 
-	function serializeUnionOrIntersectionConstituents(types:Array<Node>, isIntersection:Bool):Node {
+	function serializeUnionOrIntersectionConstituents(types:Slice<Node>, isIntersection:Bool):Node {
 		// Note when updating logic here also update `getEntityNameForDecoratorMetadata` in checker.ts so that aliases can be marked as referenced
 		var serializedType:Node = null;
 		for (typeNode in Tstransforms.rangeOf(types)) {

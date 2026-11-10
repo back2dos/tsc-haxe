@@ -63,9 +63,9 @@ enum abstract FileEmitKind(Int) from Int to Int {
 @:allow(ts.execute.incremental)
 class EmitSignature {
 	var signature:std.String = "";
-	var signatureWithDifferentOptions:Array<std.String> = null;
+	var signatureWithDifferentOptions:Slice<std.String> = null;
 
-	public function new(signature:std.String = "", ?signatureWithDifferentOptions:Array<std.String>) {
+	public function new(signature:std.String = "", ?signatureWithDifferentOptions:Slice<std.String>) {
 		this.signature = signature;
 		this.signatureWithDifferentOptions = signatureWithDifferentOptions;
 	}
@@ -95,9 +95,9 @@ class BuildInfoDiagnosticWithFileName {
 	var code:Int = 0;
 	var category:Category = cast 0;
 	var messageKey:Key = "";
-	var messageArgs:Array<std.String> = null;
-	var messageChain:Array<BuildInfoDiagnosticWithFileName> = null;
-	var relatedInformation:Array<BuildInfoDiagnosticWithFileName> = null;
+	var messageArgs:Slice<std.String> = null;
+	var messageChain:Slice<BuildInfoDiagnosticWithFileName> = null;
+	var relatedInformation:Slice<BuildInfoDiagnosticWithFileName> = null;
 	var reportsUnnecessary:Bool = false;
 	var reportsDeprecated:Bool = false;
 	var skippedOnNoEmit:Bool = false;
@@ -117,13 +117,13 @@ class BuildInfoDiagnosticWithFileName {
 			return Incremental.repopulateDiagnosticChain(this, p, fileForDiagnostic);
 		}
 
-		var messageChain:Array<Diagnostic> = null;
+		var messageChain:Slice<Diagnostic> = null;
 		for (msg in this.messageChain) {
 			if (messageChain == null)
 				messageChain = [];
 			messageChain.push(msg.toDiagnostic(p, fileForDiagnostic));
 		}
-		var relatedInformation:Array<Diagnostic> = null;
+		var relatedInformation:Slice<Diagnostic> = null;
 		for (info in this.relatedInformation) {
 			if (relatedInformation == null)
 				relatedInformation = [];
@@ -134,13 +134,13 @@ class BuildInfoDiagnosticWithFileName {
 	}
 
 	function toDiagnosticWithoutRepopulate(p:CompilerProgram, file:SourceFile):Diagnostic {
-		var messageChain:Array<Diagnostic> = null;
+		var messageChain:Slice<Diagnostic> = null;
 		for (msg in this.messageChain) {
 			if (messageChain == null)
 				messageChain = [];
 			messageChain.push(msg.toDiagnostic(p, file));
 		}
-		var relatedInformation:Array<Diagnostic> = null;
+		var relatedInformation:Slice<Diagnostic> = null;
 		for (info in this.relatedInformation) {
 			if (relatedInformation == null)
 				relatedInformation = [];
@@ -153,15 +153,15 @@ class BuildInfoDiagnosticWithFileName {
 
 @:allow(ts.execute.incremental)
 class DiagnosticsOrBuildInfoDiagnosticsWithFileName {
-	var diagnostics:Array<Diagnostic> = null;
-	var buildInfoDiagnostics:Array<BuildInfoDiagnosticWithFileName> = null;
+	var diagnostics:Slice<Diagnostic> = null;
+	var buildInfoDiagnostics:Slice<BuildInfoDiagnosticWithFileName> = null;
 
-	public function new(?diagnostics:Array<Diagnostic>, ?buildInfoDiagnostics:Array<BuildInfoDiagnosticWithFileName>) {
+	public function new(?diagnostics:Slice<Diagnostic>, ?buildInfoDiagnostics:Slice<BuildInfoDiagnosticWithFileName>) {
 		this.diagnostics = diagnostics;
 		this.buildInfoDiagnostics = buildInfoDiagnostics;
 	}
 
-	function getDiagnostics(p:CompilerProgram, file:SourceFile):Array<Diagnostic> {
+	function getDiagnostics(p:CompilerProgram, file:SourceFile):Slice<Diagnostic> {
 		if (this.diagnostics != null) {
 			return this.diagnostics;
 		}
@@ -204,8 +204,8 @@ class Snapshot {
 	// If semantic diagnostic check is pending
 	var checkPending:Bool = false;
 	// Looked up package.json files from
-	var packageJsons:Array<RootedFilePath> = null;
-	var missingPackageJsons:Array<RootedFilePath> = null;
+	var packageJsons:Slice<RootedFilePath> = null;
+	var missingPackageJsons:Slice<RootedFilePath> = null;
 
 	// Additional fields that are not serialized but needed to track state
 
@@ -214,10 +214,10 @@ class Snapshot {
 	var hasErrorsFromOldState:Tristate = TSUnknown;
 	var hasSemanticErrorsFromOldState:Bool = false;
 	var allFilesExcludingDefaultLibraryFileOnce:Bool = false; // PORT: sync.Once → flag
-	var packageJsonsFromOldState:Array<RootedFilePath> = null;
-	var missingPackageJsonsFromOldState:Array<RootedFilePath> = null;
+	var packageJsonsFromOldState:Slice<RootedFilePath> = null;
+	var missingPackageJsonsFromOldState:Slice<RootedFilePath> = null;
 	//  Cache of all files excluding default library file for the current program
-	var allFilesExcludingDefaultLibraryFile:Array<SourceFile> = null;
+	var allFilesExcludingDefaultLibraryFile:Slice<SourceFile> = null;
 	var hasChangedDtsFile:Bool = false;
 	var hasEmitDiagnostics:Bool = false;
 
@@ -240,7 +240,7 @@ class Snapshot {
 		this.buildInfoEmitPending = true;
 	}
 
-	function getAllFilesExcludingDefaultLibraryFile(program:CompilerProgram, firstSourceFile:SourceFile):Array<SourceFile> {
+	function getAllFilesExcludingDefaultLibraryFile(program:CompilerProgram, firstSourceFile:SourceFile):Slice<SourceFile> {
 		if (!this.allFilesExcludingDefaultLibraryFileOnce) {
 			this.allFilesExcludingDefaultLibraryFileOnce = true;
 			final files = program.GetSourceFiles();

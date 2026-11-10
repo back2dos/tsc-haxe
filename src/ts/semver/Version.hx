@@ -7,8 +7,8 @@ class Version {
 	var major:Int = 0;
 	var minor:Int = 0;
 	var patch:Int = 0;
-	var prerelease:Array<String> = null;
-	var build:Array<String> = null;
+	var prerelease:Slice<String> = null;
+	var build:Slice<String> = null;
 
 	public function new() {}
 

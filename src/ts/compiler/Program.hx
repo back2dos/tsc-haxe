@@ -104,14 +104,14 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	var commonSourceDirectory:RootedDirectoryPath = cast "";
 	var commonSourceDirectoryOnce:Bool = false; // PORT: sync.Once → flag
 
-	var declarationDiagnosticCache:IdentityMap<SourceFile, Array<Diagnostic>> = new IdentityMap(); // PORT: SyncMap → IdentityMap
+	var declarationDiagnosticCache:IdentityMap<SourceFile, Slice<Diagnostic>> = new IdentityMap(); // PORT: SyncMap → IdentityMap
 
-	var programDiagnostics:Array<Diagnostic> = null;
-	var contentMapperOptionDiagnostics:Array<Diagnostic> = null;
+	var programDiagnostics:Slice<Diagnostic> = null;
+	var contentMapperOptionDiagnostics:Slice<Diagnostic> = null;
 	var hasEmitBlockingDiagnostics:Set<PathKey> = new Set<PathKey>();
 
 	var sourceFilesToEmitOnce:Bool = false; // PORT: sync.Once → flag
-	var sourceFilesToEmit:Array<SourceFile> = null;
+	var sourceFilesToEmit:Slice<SourceFile> = null;
 
 	// Cached unresolved imports for ATA
 	var unresolvedImports:LazyValue<Set<std.String>> = new LazyValue();
@@ -136,7 +136,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	inline function get_resolver()
 		return processedFiles.resolver;
 
-	var files(get, set):Array<SourceFile>;
+	var files(get, set):Slice<SourceFile>;
 
 	inline function get_files()
 		return processedFiles.files;
@@ -144,7 +144,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	inline function set_files(v)
 		return processedFiles.files = v;
 
-	var duplicateSourceFiles(get, never):Array<DuplicateSourceFile>;
+	var duplicateSourceFiles(get, never):Slice<DuplicateSourceFile>;
 
 	inline function get_duplicateSourceFiles()
 		return processedFiles.duplicateSourceFiles;
@@ -162,7 +162,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	inline function get_projectReferenceFileMapper()
 		return processedFiles.projectReferenceFileMapper;
 
-	var missingFiles(get, never):Array<std.String>;
+	var missingFiles(get, never):Slice<std.String>;
 
 	inline function get_missingFiles()
 		return processedFiles.missingFiles;
@@ -324,7 +324,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.projectReferenceFileMapper.getParseFileRedirect(Ast.NewHasFileName(fileName, this.caseSensitivity.PathKey(fileName.AsPath())));
 	}
 
-	public function GetResolvedProjectReferences():Array<ParsedCommandLine> {
+	public function GetResolvedProjectReferences():Slice<ParsedCommandLine> {
 		return this.projectReferenceFileMapper.getResolvedProjectReferences();
 	}
 
@@ -484,11 +484,11 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return true;
 	}
 
-	public function SourceFiles():Array<SourceFile> {
+	public function SourceFiles():Slice<SourceFile> {
 		return this.files;
 	}
 
-	public function DuplicateSourceFiles():Array<DuplicateSourceFile> {
+	public function DuplicateSourceFiles():Slice<DuplicateSourceFile> {
 		return this.duplicateSourceFiles;
 	}
 
@@ -517,11 +517,11 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return null;
 	}
 
-	public function ContentMapperExtensions():Array<std.String> {
+	public function ContentMapperExtensions():Slice<std.String> {
 		return this.opts.Config.ContentMapperExtensions();
 	}
 
-	public function ContentMapperExtensionRewrites():Array<ExtensionRewrite> {
+	public function ContentMapperExtensionRewrites():Slice<ExtensionRewrite> {
 		return this.opts.Config.ContentMapperExtensionRewrites();
 	}
 
@@ -534,7 +534,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	// PORT: slices.Clip (callers append to the result) → a copy (Haxe push would modify the shared array).
-	public function GetConfigFileParsingDiagnostics():Array<Diagnostic> {
+	public function GetConfigFileParsingDiagnostics():Slice<Diagnostic> {
 		return Slices.Clone(this.opts.Config.GetConfigFileParsingDiagnostics());
 	}
 
@@ -559,8 +559,8 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return unresolvedSet;
 	}
 
-	function extractUnresolvedImportsFromSourceFile(file:SourceFile):Array<std.String> {
-		var unresolvedImports:Array<std.String> = null;
+	function extractUnresolvedImportsFromSourceFile(file:SourceFile):Slice<std.String> {
+		var unresolvedImports:Slice<std.String> = null;
 
 		final resolvedModules = this.resolvedModules.get(file.Path());
 		if (resolvedModules != null) {
@@ -704,8 +704,8 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// collectDiagnostics collects diagnostics from a single file or all files.
 	// If sourceFile is non-nil, returns diagnostics for just that file.
 	// If sourceFile is nil, returns diagnostics for all files in the program.
-	function collectDiagnostics(ctx:Context, sourceFile:SourceFile, concurrent:Bool, collect:(Context, SourceFile) -> Array<Diagnostic>):Array<Diagnostic> {
-		var result:Array<Diagnostic>;
+	function collectDiagnostics(ctx:Context, sourceFile:SourceFile, concurrent:Bool, collect:(Context, SourceFile) -> Slice<Diagnostic>):Slice<Diagnostic> {
+		var result:Slice<Diagnostic>;
 		if (sourceFile != null) {
 			result = collect(ctx, sourceFile);
 		} else {
@@ -715,9 +715,9 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return Compiler.SortAndDeduplicateDiagnostics(result);
 	}
 
-	function collectDiagnosticsFromFiles(ctx:Context, sourceFiles:Array<SourceFile>, concurrent:Bool,
-			collect:(Context, SourceFile) -> Array<Diagnostic>):Array<Array<Diagnostic>> {
-		final diagnostics:Array<Array<Diagnostic>> = [for (_ in 0...sourceFiles.length) null];
+	function collectDiagnosticsFromFiles(ctx:Context, sourceFiles:Slice<SourceFile>, concurrent:Bool,
+			collect:(Context, SourceFile) -> Slice<Diagnostic>):Array<Slice<Diagnostic>> {
+		final diagnostics:Array<Slice<Diagnostic>> = [for (_ in 0...sourceFiles.length) null];
 		final wg = Core.NewWorkGroup(!concurrent || this.SingleThreaded());
 		for (i in 0...sourceFiles.length) {
 			final file = sourceFiles[i];
@@ -734,7 +734,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// supports grouped iteration (compiler pool), files are grouped by checker and
 	// processed in parallel with one task per checker, reducing contention and improving
 	// cache locality. Otherwise, falls back to per-file concurrent collection.
-	function collectCheckerDiagnostics(ctx:Context, sourceFile:SourceFile, collect:(Context, Checker, SourceFile) -> Array<Diagnostic>):Array<Diagnostic> {
+	function collectCheckerDiagnostics(ctx:Context, sourceFile:SourceFile, collect:(Context, Checker, SourceFile) -> Slice<Diagnostic>):Slice<Diagnostic> {
 		if (sourceFile != null) {
 			if (this.SkipTypeChecking(sourceFile, false)) {
 				return null;
@@ -748,7 +748,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return filterAndSortDiagnostics(Slices.Concat(...this.collectCheckerDiagnosticsFromFiles(ctx, this.files, collect)));
 	}
 
-	static function filterAndSortDiagnostics(diags:Array<Diagnostic>):Array<Diagnostic> {
+	static function filterAndSortDiagnostics(diags:Slice<Diagnostic>):Slice<Diagnostic> {
 		return Compiler.SortAndDeduplicateDiagnostics(Core.Filter(diags, function(diag:Diagnostic):Bool {
 			final file = diag.File();
 			if (!diag.ReportsUnnecessary() || file == null || file.SpanMap() == null || diag.Source() != "") {
@@ -760,9 +760,9 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 
 	// collectCheckerDiagnosticsFromFiles collects checker diagnostics for a list of files.
-	function collectCheckerDiagnosticsFromFiles(ctx:Context, sourceFiles:Array<SourceFile>,
-			collect:(Context, Checker, SourceFile) -> Array<Diagnostic>):Array<Array<Diagnostic>> {
-		final diagnostics:Array<Array<Diagnostic>> = [for (_ in 0...sourceFiles.length) null];
+	function collectCheckerDiagnosticsFromFiles(ctx:Context, sourceFiles:Slice<SourceFile>,
+			collect:(Context, Checker, SourceFile) -> Slice<Diagnostic>):Array<Slice<Diagnostic>> {
+		final diagnostics:Array<Slice<Diagnostic>> = [for (_ in 0...sourceFiles.length) null];
 		if (this.compilerCheckerPool != null) {
 			this.compilerCheckerPool.forEachCheckerGroupDo(ctx, sourceFiles, this.SingleThreaded(), function(c:Checker, fileIndex:Int, file:SourceFile) {
 				diagnostics[fileIndex] = collect(ctx, c, file);
@@ -785,8 +785,8 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return diagnostics;
 	}
 
-	public function GetSyntacticDiagnostics(ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
-		return this.collectDiagnostics(ctx, sourceFile, false /*concurrent*/, function(_:Context, file:SourceFile):Array<Diagnostic> {
+	public function GetSyntacticDiagnostics(ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
+		return this.collectDiagnostics(ctx, sourceFile, false /*concurrent*/, function(_:Context, file:SourceFile):Slice<Diagnostic> {
 			var diags = Core.Concatenate(file.Diagnostics(), file.JSDiagnostics());
 			// For JS files that won't be checked by the checker (no checkJs/ts-check), we need
 			// program-level syntactic checks that require compiler options. This mirrors Strada's
@@ -804,35 +804,35 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		});
 	}
 
-	public function GetBindDiagnostics(ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+	public function GetBindDiagnostics(ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
 		if (sourceFile != null) {
 			Binder.BindSourceFile(sourceFile);
 		} else {
 			this.BindSourceFiles();
 		}
-		return this.collectDiagnostics(ctx, sourceFile, false /*concurrent*/, function(_:Context, file:SourceFile):Array<Diagnostic> {
+		return this.collectDiagnostics(ctx, sourceFile, false /*concurrent*/, function(_:Context, file:SourceFile):Slice<Diagnostic> {
 			return file.BindDiagnostics();
 		});
 	}
 
-	public function GetSemanticDiagnostics(ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+	public function GetSemanticDiagnostics(ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
 		return this.collectCheckerDiagnostics(ctx, sourceFile, this.getSemanticDiagnosticsWithChecker);
 	}
 
-	public function GetSemanticDiagnosticsWithoutNoEmitFiltering(ctx:Context, sourceFiles:Array<SourceFile>):IdentityMap<SourceFile, Array<Diagnostic>> {
+	public function GetSemanticDiagnosticsWithoutNoEmitFiltering(ctx:Context, sourceFiles:Slice<SourceFile>):IdentityMap<SourceFile, Slice<Diagnostic>> {
 		final allDiags = this.collectCheckerDiagnosticsFromFiles(ctx, sourceFiles, this.getBindAndCheckDiagnosticsWithChecker);
-		final result = new IdentityMap<SourceFile, Array<Diagnostic>>();
+		final result = new IdentityMap<SourceFile, Slice<Diagnostic>>();
 		for (i in 0...allDiags.length) {
 			result.set(sourceFiles[i], filterAndSortDiagnostics(allDiags[i]));
 		}
 		return result;
 	}
 
-	public function GetSuggestionDiagnostics(ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+	public function GetSuggestionDiagnostics(ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
 		return this.collectCheckerDiagnostics(ctx, sourceFile, this.getSuggestionDiagnosticsWithChecker);
 	}
 
-	public function GetProgramDiagnostics():Array<Diagnostic> {
+	public function GetProgramDiagnostics():Slice<Diagnostic> {
 		return Compiler.SortAndDeduplicateDiagnostics(Slices.Concat(this.programDiagnostics, this.processedFiles.contentMapperDiagnostics,
 			this.contentMapperOptionDiagnostics, this.includeProcessor.getDiagnostics(this).GetGlobalDiagnostics()));
 	}
@@ -849,7 +849,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		});
 	}
 
-	public function GetIncludeProcessorDiagnostics(sourceFile:SourceFile):Array<Diagnostic> {
+	public function GetIncludeProcessorDiagnostics(sourceFile:SourceFile):Slice<Diagnostic> {
 		if (this.SkipTypeChecking(sourceFile, false)) {
 			return null;
 		}
@@ -885,7 +885,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return isPlainJS || isCheckJS || sourceFile.ScriptKind == ScriptKindDeferred;
 	}
 
-	function getSourceFilesToEmit(targetSourceFile:SourceFile, forceDtsEmit:Bool):Array<SourceFile> {
+	function getSourceFilesToEmit(targetSourceFile:SourceFile, forceDtsEmit:Bool):Slice<SourceFile> {
 		if (targetSourceFile == null && !forceDtsEmit) {
 			#if tshx_parallel
 			go.Par.onceMutex.acquire();
@@ -1244,7 +1244,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			&& (options.OutDir != "" || (options.GetEmitDeclarations() && options.DeclarationDir != "") || options.OutFile != "")) {
 			// Check if rootDir inferred changed and issue diagnostic
 			final dir = this.CommonSourceDirectory();
-			var emittedFiles:Array<RootedFilePath> = null;
+			var emittedFiles:Slice<RootedFilePath> = null;
 			for (file in this.files) {
 				if (!file.IsDeclarationFile && Compiler.sourceFileMayBeEmitted(file, this, false)) {
 					if (emittedFiles == null)
@@ -1487,7 +1487,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		});
 	}
 
-	public function GetGlobalDiagnostics(ctx:Context):Array<Diagnostic> {
+	public function GetGlobalDiagnostics(ctx:Context):Slice<Diagnostic> {
 		if (this.files.length == 0) {
 			return null;
 		}
@@ -1499,7 +1499,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return null;
 	}
 
-	public function GetDeclarationDiagnostics(ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+	public function GetDeclarationDiagnostics(ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
 		#if tshx_parallel
 		if (sourceFile == null && this.compilerCheckerPool != null && !this.SingleThreaded()) {
 			return Compiler.SortAndDeduplicateDiagnostics(Slices.Concat(...this.declarationDiagnosticsByChecker(ctx)));
@@ -1514,9 +1514,9 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// thread. Like emit (#64922), the files of each checker are transformed in one task: a checker shared by concurrent
 	// tasks would create types in a scheduling-dependent order. Each task visits its files in reverse program order, the
 	// order of the single-threaded work group, so every checker sees the same sequence as before (same results).
-	function declarationDiagnosticsByChecker(ctx:Context):Array<Array<Diagnostic>> {
+	function declarationDiagnosticsByChecker(ctx:Context):Array<Slice<Diagnostic>> {
 		final files = this.files;
-		final diagnostics:Array<Array<Diagnostic>> = [for (_ in 0...files.length) null];
+		final diagnostics:Array<Slice<Diagnostic>> = [for (_ in 0...files.length) null];
 		final fresh:Array<Bool> = [for (_ in 0...files.length) false];
 		final groups = this.compilerCheckerPool.groupFilesByChecker(files);
 		// go.Par runs the queue in order on a fixed set of threads: the largest group first
@@ -1567,7 +1567,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	}
 	#end
 
-	function getSemanticDiagnosticsWithChecker(ctx:Context, c:Checker, sourceFile:SourceFile):Array<Diagnostic> {
+	function getSemanticDiagnosticsWithChecker(ctx:Context, c:Checker, sourceFile:SourceFile):Slice<Diagnostic> {
 		return Core.Concatenate(Compiler.FilterNoEmitSemanticDiagnostics(this.getBindAndCheckDiagnosticsWithChecker(ctx, c, sourceFile), this.Options()),
 			this.GetIncludeProcessorDiagnostics(sourceFile));
 	}
@@ -1575,7 +1575,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 	// getBindAndCheckDiagnosticsWithChecker gets semantic diagnostics for a single file using a
 	// caller-provided checker, including bind diagnostics, checker diagnostics, and handling
 	// of @ts-ignore/@ts-expect-error directives.
-	function getBindAndCheckDiagnosticsWithChecker(ctx:Context, fileChecker:Checker, sourceFile:SourceFile):Array<Diagnostic> {
+	function getBindAndCheckDiagnosticsWithChecker(ctx:Context, fileChecker:Checker, sourceFile:SourceFile):Slice<Diagnostic> {
 		final compilerOptions = this.Options();
 		if (this.SkipTypeChecking(sourceFile, false)) {
 			return null;
@@ -1583,7 +1583,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 		// Checker creation forces binding, so bind diagnostics will be populated.
 		// PORT: slices.Clip + append → copy then push
-		var diags:Array<Diagnostic> = Slices.Clone(sourceFile.BindDiagnostics());
+		var diags:Slice<Diagnostic> = Slices.Clone(sourceFile.BindDiagnostics());
 		final checkDiags = fileChecker.GetDiagnostics(ctx, sourceFile);
 		if (checkDiags != null && checkDiags.length > 0) {
 			if (diags == null)
@@ -1628,7 +1628,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return filtered;
 	}
 
-	static function applyContentMapperDiagnosticDirectives(sourceFile:SourceFile, diags:Array<Diagnostic>):Array<Diagnostic> {
+	static function applyContentMapperDiagnosticDirectives(sourceFile:SourceFile, diags:Slice<Diagnostic>):Slice<Diagnostic> {
 		final directives = sourceFile.DiagnosticDirectives();
 		if (Core.len(directives) == 0) {
 			return diags;
@@ -1663,7 +1663,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 
 	// PORT: ([]*ast.Diagnostic, map[int]ast.CommentDirective) → Pair. The map holds copies of the
 	// directives (Go value semantics), so changing their Kind does not touch the source file.
-	function getDiagnosticsWithPrecedingDirectives(sourceFile:SourceFile, diags:Array<Diagnostic>):Pair<Array<Diagnostic>, IntMap<CommentDirective>> {
+	function getDiagnosticsWithPrecedingDirectives(sourceFile:SourceFile, diags:Slice<Diagnostic>):Pair<Slice<Diagnostic>, IntMap<CommentDirective>> {
 		if (Core.len(sourceFile.CommentDirectives) == 0) {
 			return new Pair(diags, null);
 		}
@@ -1677,7 +1677,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 			directivesByLine.set(line, copy);
 		}
 		final lineStarts = Scanner.GetECMALineStarts(sourceFile);
-		final filtered:Array<Diagnostic> = [];
+		final filtered:Slice<Diagnostic> = [];
 		if (diags != null) {
 			for (diagnostic in diags) {
 				var ignoreDiagnostic = false;
@@ -1705,7 +1705,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return new Pair(filtered, directivesByLine);
 	}
 
-	function getDeclarationDiagnosticsForFile(ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+	function getDeclarationDiagnosticsForFile(ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
 		if (sourceFile.IsDeclarationFile) {
 			return [];
 		}
@@ -1726,7 +1726,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return diagnostics;
 	}
 
-	function getSuggestionDiagnosticsWithChecker(ctx:Context, fileChecker:Checker, sourceFile:SourceFile):Array<Diagnostic> {
+	function getSuggestionDiagnosticsWithChecker(ctx:Context, fileChecker:Checker, sourceFile:SourceFile):Slice<Diagnostic> {
 		if (this.SkipTypeChecking(sourceFile, false)) {
 			return null;
 		}
@@ -1837,7 +1837,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		#end
 		if (!this.commonSourceDirectoryOnce) {
 			this.commonSourceDirectoryOnce = true;
-			final files = function():Null<Array<RootedFilePath>> {
+			final files = function():Slice<RootedFilePath> {
 				return Core.MapFiltered(this.files, function(file:SourceFile):ValueOk<RootedFilePath> {
 					return new ValueOk(file.FileName(), Compiler.sourceFileMayBeEmitted(file, this, false /*forceDtsEmit*/) && !file.IsDeclarationFile);
 				});
@@ -1851,7 +1851,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		return this.commonSourceDirectory;
 	}
 
-	function checkSourceFilesBelongToPath(sourceFiles:Null<Array<RootedFilePath>>, rootDirectory:RootedDirectoryPath):Bool {
+	function checkSourceFilesBelongToPath(sourceFiles:Slice<RootedFilePath>, rootDirectory:RootedDirectoryPath):Bool {
 		var allFilesBelongToPath = true;
 		if (sourceFiles != null) {
 			for (file in sourceFiles) {
@@ -2059,7 +2059,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 		});
 	}
 
-	public function GetSourceFiles():Array<SourceFile> {
+	public function GetSourceFiles():Slice<SourceFile> {
 		return this.files;
 	}
 
@@ -2347,7 +2347,7 @@ class Program implements ts.checker.Checker.Program implements ProgramLike imple
 class WriteFileData {
 	public var SourceMapUrlPos:Int = 0;
 	public var BuildInfo:Any = null;
-	public var Diagnostics:Array<Diagnostic> = null;
+	public var Diagnostics:Slice<Diagnostic> = null;
 	public var SkippedDtsWrite:Bool = false;
 
 	public function new() {}
@@ -2365,15 +2365,15 @@ class EmitOptions {
 
 class EmitResult {
 	public var EmitSkipped:Bool = false;
-	public var Diagnostics:Array<Diagnostic> = null; // Contains declaration emit diagnostics
-	public var EmittedFiles:Array<RootedFilePath> = null; // Array of files the compiler wrote to disk
-	public var SourceMaps:Array<SourceMapEmitResult> = null; // Array of sourceMapData if compiler emitted sourcemaps
+	public var Diagnostics:Slice<Diagnostic> = null; // Contains declaration emit diagnostics
+	public var EmittedFiles:Slice<RootedFilePath> = null; // Array of files the compiler wrote to disk
+	public var SourceMaps:Slice<SourceMapEmitResult> = null; // Array of sourceMapData if compiler emitted sourcemaps
 
 	public function new() {}
 }
 
 class SourceMapEmitResult {
-	public var InputSourceFileNames:Array<std.String> = null; // Input source file (which one can use on program to get the file), 1:1 mapping with the sourceMap.sources list
+	public var InputSourceFileNames:Slice<std.String> = null; // Input source file (which one can use on program to get the file), 1:1 mapping with the sourceMap.sources list
 	public var SourceMap:RawSourceMap = null;
 	public var GeneratedFile:std.String = "";
 
@@ -2383,15 +2383,15 @@ class SourceMapEmitResult {
 interface ProgramLike {
 	function Options():CompilerOptions;
 	function GetSourceFile(fileName:RootedFilePath):SourceFile;
-	function GetSourceFiles():Array<SourceFile>;
-	function GetConfigFileParsingDiagnostics():Array<Diagnostic>;
-	function GetSyntacticDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;
-	function GetBindDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;
-	function GetProgramDiagnostics():Array<Diagnostic>;
-	function GetGlobalDiagnostics(ctx:Context):Array<Diagnostic>;
-	function GetSemanticDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;
-	function GetDeclarationDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;
-	function GetSuggestionDiagnostics(ctx:Context, file:SourceFile):Array<Diagnostic>;
+	function GetSourceFiles():Slice<SourceFile>;
+	function GetConfigFileParsingDiagnostics():Slice<Diagnostic>;
+	function GetSyntacticDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic>;
+	function GetBindDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic>;
+	function GetProgramDiagnostics():Slice<Diagnostic>;
+	function GetGlobalDiagnostics(ctx:Context):Slice<Diagnostic>;
+	function GetSemanticDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic>;
+	function GetDeclarationDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic>;
+	function GetSuggestionDiagnostics(ctx:Context, file:SourceFile):Slice<Diagnostic>;
 	function Emit(ctx:Context, options:EmitOptions):EmitResult;
 	function CommonSourceDirectory():RootedDirectoryPath;
 	function IsSourceFileDefaultLibrary(path:Path):Bool;

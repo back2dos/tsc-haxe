@@ -16,7 +16,7 @@ import go.Time;
 class TscOutputPathScenario {
 	public var subScenario:String = "";
 	public var files:Null<FileMap> = null;
-	public var expectedDtsNames:Null<Array<String>> = null;
+	public var expectedDtsNames:Slice<String> = null;
 }
 
 @:structInit
@@ -26,7 +26,7 @@ class BuildResolveJsonModuleScenario {
 	public var additionalCompilerOptions:String = "";
 	public var skipOutdir:Bool = false;
 	public var modifyFiles:Null<(files:FileMap) -> Void> = null;
-	public var edits:Null<Array<TscEdit>> = null;
+	public var edits:Slice<TscEdit> = null;
 }
 
 class TscbuildTest {
@@ -51,7 +51,7 @@ class TscbuildTest {
 
 	// PORT: Go `append(s, xs...)`; the scenario code only appends to slices it owns or to fresh
 	// literals, so a copy keeps Go's result without aliasing.
-	static function append<E>(s:Null<Array<E>>, ...xs:E):Array<E> {
+	static function append<E>(s:Slice<E>, ...xs:E):Array<E> {
 		final r = s == null ? [] : s.copy();
 		for (x in xs)
 			r.push(x);
@@ -2696,7 +2696,7 @@ public static function TestBuildProjectsBuilding() {
 		}", references));
 	};
 	var addSolution = function(files:FileMap, count:Int) {
-		var pkgReferences:Array<String> = null;
+		var pkgReferences:Slice<String> = null;
 		for (i in 0...count) {
 			pkgReferences = append(pkgReferences, sprintf("{ \"path\": \"./pkg%d\" }", i));
 		}

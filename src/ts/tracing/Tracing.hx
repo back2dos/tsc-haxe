@@ -23,16 +23,16 @@ interface Tracer {
 // PORT: `uint32` ids → Int.
 interface TracedType {
 	function Id():Int;
-	function FormatFlags():Array<String>;
+	function FormatFlags():Slice<String>;
 	function IsConditional():Bool;
 	function Symbol():Symbol;
 	function AliasSymbol():Symbol;
-	function AliasTypeArguments():Array<TracedType>;
+	function AliasTypeArguments():Slice<TracedType>;
 
 	// Type-specific data accessors
 	function IntrinsicName():String;
-	function UnionTypes():Array<TracedType>;
-	function IntersectionTypes():Array<TracedType>;
+	function UnionTypes():Slice<TracedType>;
+	function IntersectionTypes():Slice<TracedType>;
 	function IndexType():TracedType;
 	function IndexedAccessObjectType():TracedType;
 	function IndexedAccessIndexType():TracedType;
@@ -43,7 +43,7 @@ interface TracedType {
 	function SubstitutionBaseType():TracedType;
 	function SubstitutionConstraintType():TracedType;
 	function ReferenceTarget():TracedType;
-	function ReferenceTypeArguments():Array<TracedType>;
+	function ReferenceTypeArguments():Slice<TracedType>;
 	function ReferenceNode():Node;
 	function ReverseMappedSourceType():TracedType;
 	function ReverseMappedMappedType():TracedType;
@@ -196,8 +196,8 @@ class Tracing {
 	var traceDir:RootedDirectoryPath = cast "";
 	var tracePath:RootedFilePath = cast "";
 	var configFilePath:String = "";
-	var legend:Array<TraceRecord> = null;
-	var tracers:Array<TypeTracer> = null;
+	var legend:Slice<TraceRecord> = null;
+	var tracers:Slice<TypeTracer> = null;
 	var traceContent:StringBuf = new StringBuf();
 	var traceStarted:Bool = false;
 	var threadIDs:StringMap<Int> = null; // PORT: map[traceThreadKey]int keyed by TraceThreadKey.mapKey()
@@ -550,7 +550,7 @@ class Tracing {
 		return null;
 	}
 
-	static function mapTypeIds(types:Array<TracedType>):Array<Int> {
+	static function mapTypeIds(types:Slice<TracedType>):Array<Int> {
 		if (Core.len(types) == 0) {
 			return null;
 		}
@@ -739,7 +739,7 @@ class Tracing {
 	}
 
 	// json.MarshalIndent(legend, "", indent)
-	static function marshalIndentTraceRecords(records:Array<TraceRecord>, indent:String):String {
+	static function marshalIndentTraceRecords(records:Slice<TraceRecord>, indent:String):String {
 		if (records == null) {
 			return "null"; // PORT: unreachable (legend is never nil)
 		}
@@ -774,7 +774,7 @@ class Tracing {
 		return b.toString();
 	}
 
-	static function appendUint32s(buf:StringBuf, name:String, a:Array<Int>):Void {
+	static function appendUint32s(buf:StringBuf, name:String, a:Slice<Int>):Void {
 		buf.add(',"' + name + '":[');
 		for (i in 0...a.length) {
 			if (i > 0)
@@ -891,7 +891,7 @@ class TypeTracer implements Tracer {
 	var fs:FS = null;
 	var checkerIndex:Int = 0;
 	var typesPath:RootedFilePath = cast "";
-	var types:Array<TracedType> = null;
+	var types:Slice<TracedType> = null;
 
 	public function new() {}
 
@@ -1107,9 +1107,9 @@ class TypeDescriptor {
 	public var SymbolName:String = ""; // json:"symbolName,omitzero"
 	public var RecursionID:Null<Int> = null; // json:"recursionId,omitzero"
 	public var IsTuple:Bool = false; // json:"isTuple,omitzero"
-	public var UnionTypes:Array<Int> = null; // json:"unionTypes,omitzero"
-	public var IntersectionTypes:Array<Int> = null; // json:"intersectionTypes,omitzero"
-	public var AliasTypeArguments:Array<Int> = null; // json:"aliasTypeArguments,omitzero"
+	public var UnionTypes:Slice<Int> = null; // json:"unionTypes,omitzero"
+	public var IntersectionTypes:Slice<Int> = null; // json:"intersectionTypes,omitzero"
+	public var AliasTypeArguments:Slice<Int> = null; // json:"aliasTypeArguments,omitzero"
 	public var KeyofType:Null<Int> = null; // json:"keyofType,omitzero"
 	public var IndexedAccessObjectType:Null<Int> = null; // json:"indexedAccessObjectType,omitzero"
 	public var IndexedAccessIndexType:Null<Int> = null; // json:"indexedAccessIndexType,omitzero"
@@ -1122,7 +1122,7 @@ class TypeDescriptor {
 	public var SubstitutionBaseType:Null<Int> = null; // json:"substitutionBaseType,omitzero"
 	public var ConstraintType:Null<Int> = null; // json:"constraintType,omitzero"
 	public var InstantiatedType:Null<Int> = null; // json:"instantiatedType,omitzero"
-	public var TypeArguments:Array<Int> = null; // json:"typeArguments,omitzero"
+	public var TypeArguments:Slice<Int> = null; // json:"typeArguments,omitzero"
 	public var ReferenceLocation:Location = null; // json:"referenceLocation,omitzero"
 	public var ReverseMappedSourceType:Null<Int> = null; // json:"reverseMappedSourceType,omitzero"
 	public var ReverseMappedMappedType:Null<Int> = null; // json:"reverseMappedMappedType,omitzero"
@@ -1131,7 +1131,7 @@ class TypeDescriptor {
 	public var EvolvingArrayFinalType:Null<Int> = null; // json:"evolvingArrayFinalType,omitzero"
 	public var DestructuringPattern:Location = null; // json:"destructuringPattern,omitzero"
 	public var FirstDeclaration:Location = null; // json:"firstDeclaration,omitzero"
-	public var Flags:Array<String> = null; // json:"flags"
+	public var Flags:Slice<String> = null; // json:"flags"
 	public var Display:String = ""; // json:"display,omitzero"
 
 	public function new() {}

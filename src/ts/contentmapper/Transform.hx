@@ -17,7 +17,7 @@ import ts.tspath.RootedPath;
 // SourceFiles is the canonical output and its unnamed supplemental compiler inputs.
 class SourceFiles {
 	public var Canonical:SourceFile = null;
-	public var Supplemental:Array<SourceFile> = null;
+	public var Supplemental:Slice<SourceFile> = null;
 
 	public function new() {}
 }

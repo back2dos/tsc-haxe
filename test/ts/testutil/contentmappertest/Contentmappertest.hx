@@ -26,7 +26,7 @@ class Contentmappertest {
 	public static inline final SupplementalGlobalsMapper = "supplemental-globals-mapper";
 	public static inline final SupplementalModuleMapper = "supplemental-module-mapper";
 
-	static function handlerForMapper(command:Array<String>):ValueError<Handler> {
+	static function handlerForMapper(command:Slice<String>):ValueError<Handler> {
 		if (command == null || command.length == 0) {
 			return new ValueError(null, Errors.New("contentmappertest: empty mapper command"));
 		}
@@ -73,7 +73,7 @@ class Contentmappertest {
 private class InProcessSpawner implements Spawner {
 	public function new() {}
 
-	public function Spawn(command:Array<String>, dir:String):ValueError<Handler> {
+	public function Spawn(command:Slice<String>, dir:String):ValueError<Handler> {
 		final h = @:privateAccess Contentmappertest.handlerForMapper(command);
 		if (h.err != null) {
 			return h;
@@ -105,7 +105,7 @@ private class StaticProjectHandler implements Handler {
 						return new ValueError(null, err);
 					}
 				}
-				var diagnostics:Array<OptionDiagnosticResult> = null;
+				var diagnostics:Slice<OptionDiagnosticResult> = null;
 				if (p.Options == '{"plugins":[{"name":1}]}') {
 					final d = new OptionDiagnosticResult();
 					d.Path = ['"plugins"', '0', '"name"'];
@@ -197,7 +197,7 @@ class TransformingHandler implements Handler implements ProjectLifecycleHandler 
 		final virtual = new StringBuf();
 		var virtualLen = 0;
 		final segments:Array<Segment> = [];
-		var diagnostics:Array<ProtocolDiagnostic> = null;
+		var diagnostics:Slice<ProtocolDiagnostic> = null;
 
 		function write(s:String) {
 			virtual.add(s);
@@ -270,7 +270,7 @@ class TransformingHandler implements Handler implements ProjectLifecycleHandler 
 	}
 
 	static function diagnosticDirectives(content:String, mappings:Spanmap):Null<DiagnosticDirectives> {
-		function wrap(directives:Array<ProtocolDiagnosticDirective>, ?unused:Array<UnusedExpectDirectiveDiagnostic>):DiagnosticDirectives {
+		function wrap(directives:Array<ProtocolDiagnosticDirective>, ?unused:Slice<UnusedExpectDirectiveDiagnostic>):DiagnosticDirectives {
 			return new DiagnosticDirectives(directives, unused);
 		}
 		final invalidPrefix = "// @box-invalid-directive:";

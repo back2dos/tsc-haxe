@@ -187,14 +187,14 @@ class Result {
 	// VirtualExtension determines how Text is parsed.
 	public var VirtualExtension:String = "";
 	// Diagnostics are syntax errors in the original content.
-	public var Diagnostics:Array<Diagnostic> = null;
+	public var Diagnostics:Slice<Diagnostic> = null;
 	// Mappings maps positions in Text back to the original content. A successful transform must return
 	// a non-nil map; an empty map describes fully synthesized output.
 	public var Mappings:Spanmap = null;
 	// DiagnosticDirectives control TypeScript diagnostics produced in virtual ranges.
-	public var DiagnosticDirectives:Array<MappedDiagnosticDirective> = null;
+	public var DiagnosticDirectives:Slice<MappedDiagnosticDirective> = null;
 	// Supplemental contains additional unnamed outputs associated with the canonical result.
-	public var Supplemental:Array<MappedResult> = null;
+	public var Supplemental:Slice<MappedResult> = null;
 
 	public function new() {}
 }
@@ -204,7 +204,7 @@ class MappedResult {
 	public var Text:String = "";
 	public var VirtualExtension:String = "";
 	public var Mappings:Spanmap = null;
-	public var DiagnosticDirectives:Array<MappedDiagnosticDirective> = null;
+	public var DiagnosticDirectives:Slice<MappedDiagnosticDirective> = null;
 
 	public function new() {}
 }
@@ -227,11 +227,11 @@ class ProjectSpec {
 	// ConfigFileName is the absolute project configuration file name, or empty for a project without one.
 	public var ConfigFileName:String = "";
 	// Mappers are the resolved content mapper entries configured for the project.
-	public var Mappers:Array<Mapper> = null;
+	public var Mappers:Slice<Mapper> = null;
 	// CompilerOptions are the project's effective compiler options.
 	public var CompilerOptions:CompilerOptions = null;
 
-	public function new(configFileName:String, mappers:Array<Mapper>, compilerOptions:CompilerOptions) {
+	public function new(configFileName:String, mappers:Slice<Mapper>, compilerOptions:CompilerOptions) {
 		this.ConfigFileName = configFileName;
 		this.Mappers = mappers;
 		this.CompilerOptions = compilerOptions;
@@ -248,7 +248,7 @@ class OptionPathSegment {
 
 class OptionDiagnostic {
 	public var Mapper:Mapper = null;
-	public var Path:Array<OptionPathSegment> = null;
+	public var Path:Slice<OptionPathSegment> = null;
 	public var Source:String = "";
 	public var Code:Int = 0;
 	public var MessageText:String = "";
@@ -268,9 +268,9 @@ interface Project {
 	// Identity returns the transform identity for mapper, or an empty string if mapper is not in this project.
 	function Identity(mapper:Mapper):ValueError<String>;
 	// WatchedFiles returns the absolute files reported by mappers whose package.json declares dynamicConfig.
-	function WatchedFiles():ValueError<Array<String>>;
+	function WatchedFiles():ValueError<Slice<String>>;
 	// Diagnostics returns option diagnostics cached by mapper projects that have already been opened.
-	function Diagnostics():Array<OptionDiagnostic>;
+	function Diagnostics():Slice<OptionDiagnostic>;
 	// Transform transforms one content-mapped source file using mapper in this project's configuration.
 	function Transform(mapper:Mapper, request:Request):ValueError<Result>;
 	// Close releases this project reference and closes mapper project handles when no references remain.

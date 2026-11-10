@@ -113,7 +113,7 @@ class CheckerPart7 {
 					links.resolvedType = c.createDeferredTypeReference(target, node, null /*mapper*/, null /*alias*/);
 				}
 			} else {
-				var elementTypes:Array<Type>;
+				var elementTypes:Slice<Type>;
 				if (node.Kind == KindArrayType) {
 					elementTypes = [c.getTypeFromTypeNode(node.AsArrayTypeNode().ElementType)];
 				} else {
@@ -231,7 +231,7 @@ class CheckerPart7 {
 		if (links.resolvedType == null) {
 			final spans = node.AsTemplateLiteralTypeNode().TemplateSpans;
 			final texts:Array<std.String> = [for (_ in 0...spans.Nodes.length + 1) ""];
-			final types:Array<Type> = [for (_ in 0...spans.Nodes.length) null];
+			final types:Slice<Type> = [for (_ in 0...spans.Nodes.length) null];
 			texts[0] = node.AsTemplateLiteralTypeNode().Head.Text();
 			for (i in 0...spans.Nodes.length) {
 				final span = spans.Nodes[i];
@@ -263,7 +263,7 @@ class CheckerPart7 {
 			final checkType = c.getTypeFromTypeNode(node.AsConditionalTypeNode().CheckType);
 			final alias = c.getAliasForTypeNode(node);
 			final allOuterTypeParameters = c.getOuterTypeParameters(node, true /*includeThisTypes*/);
-			var outerTypeParameters:Array<Type>;
+			var outerTypeParameters:Slice<Type>;
 			if (alias != null && Core.len(alias.typeArguments) != 0) {
 				outerTypeParameters = allOuterTypeParameters;
 			} else {
@@ -289,7 +289,7 @@ class CheckerPart7 {
 
 	static function getConditionalType(c:Checker, root:ConditionalRoot, mapper:TypeMapper, forConstraint:Bool, alias:TypeAlias):Type {
 		var result:Type = null;
-		var extraTypes:Array<Type> = null;
+		var extraTypes:Slice<Type> = null;
 		var tailCount = 0;
 		// We loop here for an immediately nested conditional type in the false position, effectively treating
 		// types of the form 'A extends B ? X : C extends D ? Y : E extends F ? Z : ...' as a single construct for
@@ -743,7 +743,7 @@ class CheckerPart7 {
 		return info;
 	}
 
-	static function createTupleType(c:Checker, elementTypes:Array<Type>):Type {
+	static function createTupleType(c:Checker, elementTypes:Slice<Type>):Type {
 		final elementInfos = Core.Map(elementTypes, (_:Type) -> {
 			final info = new TupleElementInfo();
 			info.flags = ElementFlagsRequired;
@@ -752,11 +752,11 @@ class CheckerPart7 {
 		return c.createTupleTypeEx(elementTypes, elementInfos, false /*readonly*/);
 	}
 
-	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		return c.createTupleTypeExV(elementTypes, elementInfos, readonly);
 	}
 
-	static function createTupleTypeExV(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static function createTupleTypeExV(c:Checker, elementTypes:haxe.ds.Vector<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		final tupleTarget = c.getTupleTargetType(elementInfos, readonly);
 		if (tupleTarget == c.emptyGenericType) {
 			return c.emptyObjectType;
@@ -766,11 +766,11 @@ class CheckerPart7 {
 		return tupleTarget;
 	}
 
-	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static extern inline overload function createTupleTypeEx(c:Checker, elementTypes:Slice<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		return c.createTupleTypeExA(elementTypes, elementInfos, readonly);
 	}
 
-	static function createTupleTypeExA(c:Checker, elementTypes:Array<Type>, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static function createTupleTypeExA(c:Checker, elementTypes:Slice<Type>, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		final tupleTarget = c.getTupleTargetType(elementInfos, readonly);
 		if (tupleTarget == c.emptyGenericType) {
 			return c.emptyObjectType;
@@ -780,7 +780,7 @@ class CheckerPart7 {
 		return tupleTarget;
 	}
 
-	static function getTupleTargetType(c:Checker, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static function getTupleTargetType(c:Checker, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		if (Core.len(elementInfos) == 1 && (elementInfos[0].flags & ElementFlagsRest) != 0) {
 			// [...X[]] is equivalent to just X[]
 			if (readonly) {
@@ -804,7 +804,7 @@ class CheckerPart7 {
 	//
 	// Note that the generic type created by this function has no symbol associated with it. The same
 	// is true for each of the synthesized type parameters.
-	static function createTupleTargetType(c:Checker, elementInfos:Array<TupleElementInfo>, readonly:Bool):Type {
+	static function createTupleTargetType(c:Checker, elementInfos:Slice<TupleElementInfo>, readonly:Bool):Type {
 		final arity = Core.len(elementInfos);
 		var minLength = 0;
 		for (e in rangeOf(elementInfos)) {
@@ -812,7 +812,7 @@ class CheckerPart7 {
 				minLength++;
 			}
 		}
-		var typeParameters:Array<Type> = null;
+		var typeParameters:Slice<Type> = null;
 		var members = new SymbolTable();
 		var membersLen = 0; // PORT: Go len(members); StringMap has no O(1) size.
 		var combinedFlags = ElementFlagsNone;
@@ -840,7 +840,7 @@ class CheckerPart7 {
 		if ((combinedFlags & ElementFlagsVariable) != 0) {
 			c.valueSymbolLinks.Get(lengthSymbol).resolvedType = c.numberType;
 		} else {
-			var literalTypes:Array<Type> = null;
+			var literalTypes:Slice<Type> = null;
 			var i = minLength;
 			while (i <= arity) {
 				if (literalTypes == null) {
@@ -881,7 +881,7 @@ class CheckerPart7 {
 		final elementInfos = t.TargetTupleType().elementInfos;
 		if (index < length) {
 			final typeArguments = c.getTypeArguments(t);
-			var elementTypes:Array<Type> = null;
+			var elementTypes:Slice<Type> = null;
 			for (i in index...length) {
 				var e = typeArguments[i];
 				if ((elementInfos[i].flags & ElementFlagsVariadic) != 0) {
@@ -1007,7 +1007,7 @@ class CheckerPart7 {
 	}
 
 	static function getConditionalFlowTypeOfType(c:Checker, t:Type, node:Node):Type {
-		var constraints:Array<Type> = null;
+		var constraints:Slice<Type> = null;
 		var covariant = true;
 		while (node != null && !Ast.IsStatement(node) && node.Kind != KindJSDoc) {
 			final parent = node.Parent;
@@ -1156,7 +1156,7 @@ class CheckerPart7 {
 		return c.createTypeReference(target, typeArguments);
 	}
 
-	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:Array<Type>):Type {
+	static extern inline overload function createTypeReference(c:Checker, target:Type, typeArguments:Slice<Type>):Type {
 		return c.createTypeReferenceExA(target, typeArguments, ObjectFlagsNone);
 	}
 
@@ -1165,7 +1165,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: perf — the type arguments of a new reference are a Vector: an Array (a fresh list) is copied once, on a miss
-	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
+	static extern inline overload function createTypeReferenceEx(c:Checker, target:Type, typeArguments:Slice<Type>, objectFlags:ObjectFlags):Type {
 		return c.createTypeReferenceExA(target, typeArguments, objectFlags);
 	}
 
@@ -1173,7 +1173,7 @@ class CheckerPart7 {
 		return c.createTypeReferenceExV(target, typeArguments, objectFlags);
 	}
 
-	static function createTypeReferenceExA(c:Checker, target:Type, typeArguments:Array<Type>, objectFlags:ObjectFlags):Type {
+	static function createTypeReferenceExA(c:Checker, target:Type, typeArguments:Slice<Type>, objectFlags:ObjectFlags):Type {
 		final intf = target.AsInterfaceType();
 		#if (target.name == "hxmc")
 		// PORT: perf — a short list's packed key looked up without the key string (made only to store)
@@ -1264,7 +1264,7 @@ class CheckerPart7 {
 	}
 
 	// PORT: perf — the lists are stored as Vectors: Arrays (fresh lists) are copied once, Vectors held as they are
-	static inline function setStructuredTypeMembersA(c:Checker, t:Type, members:SymbolTable, callSignatures:Array<Signature>, constructSignatures:Array<Signature>, indexInfos:Array<IndexInfo>):Void {
+	static inline function setStructuredTypeMembersA(c:Checker, t:Type, members:SymbolTable, callSignatures:Slice<Signature>, constructSignatures:Slice<Signature>, indexInfos:Slice<IndexInfo>):Void {
 		c.setStructuredTypeMembers(t, members, VectorBuilder.freezeOrNull(callSignatures), VectorBuilder.freezeOrNull(constructSignatures), VectorBuilder.freezeOrNull(indexInfos));
 	}
 
@@ -1313,7 +1313,7 @@ class CheckerPart7 {
 		return result & ObjectFlagsPropagatingFlags;
 	}
 
-	static extern inline overload function getPropagatingFlagsOfTypes(c:Checker, types:Array<Type>, excludeKinds:TypeFlags):ObjectFlags {
+	static extern inline overload function getPropagatingFlagsOfTypes(c:Checker, types:Slice<Type>, excludeKinds:TypeFlags):ObjectFlags {
 		var result:ObjectFlags = ObjectFlagsNone;
 		if (types != null) {
 			for (t in types) {
@@ -1325,7 +1325,7 @@ class CheckerPart7 {
 		return result & ObjectFlagsPropagatingFlags;
 	}
 
-	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type
+	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:Slice<Type>):Type
 		return c.newUnionTypeV(objectFlags, VectorBuilder.freeze(types)); // PORT: perf — a Vector (one copy per new type)
 
 	static extern inline overload function newUnionType(c:Checker, objectFlags:ObjectFlags, types:haxe.ds.Vector<Type>):Type
@@ -1337,7 +1337,7 @@ class CheckerPart7 {
 		return c.newType(TypeFlagsUnion, objectFlags, data);
 	}
 
-	static function newIntersectionType(c:Checker, objectFlags:ObjectFlags, types:Array<Type>):Type {
+	static function newIntersectionType(c:Checker, objectFlags:ObjectFlags, types:Slice<Type>):Type {
 		final data = new IntersectionType();
 		data.types = VectorBuilder.freeze(types); // PORT: perf — a Vector (one copy per new type)
 		return c.newType(TypeFlagsIntersection, objectFlags, data);
@@ -1406,7 +1406,7 @@ class CheckerPart7 {
 		return sig;
 	}
 
-	static function newIndexInfo(c:Checker, keyType:Type, valueType:Type, isReadonly:Bool, declaration:Node, components:Array<Node>):IndexInfo {
+	static function newIndexInfo(c:Checker, keyType:Type, valueType:Type, isReadonly:Bool, declaration:Node, components:Slice<Node>):IndexInfo {
 		final info = c.indexInfoArena.New();
 		info.keyType = keyType;
 		info.valueType = valueType;
@@ -1705,7 +1705,7 @@ class CheckerPart7 {
 		return t;
 	}
 
-	static function getUnionOrIntersectionType(c:Checker, types:Array<Type>, isUnion:Bool, unionReduction:UnionReduction):Type {
+	static function getUnionOrIntersectionType(c:Checker, types:Slice<Type>, isUnion:Bool, unionReduction:UnionReduction):Type {
 		if (isUnion) {
 			return c.getUnionTypeEx(types, unionReduction, null, null);
 		}
@@ -1715,10 +1715,10 @@ class CheckerPart7 {
 	static extern inline overload function getUnionType(c:Checker, types:haxe.ds.Vector<Type>):Type
 		return c.getUnionTypeExV(types, UnionReductionLiteral, null /*alias*/, null /*origin*/);
 
-	static extern inline overload function getUnionType(c:Checker, types:Array<Type>):Type
+	static extern inline overload function getUnionType(c:Checker, types:Slice<Type>):Type
 		return c.getUnionTypeA(types);
 
-	static function getUnionTypeA(c:Checker, types:Array<Type>):Type {
+	static function getUnionTypeA(c:Checker, types:Slice<Type>):Type {
 		return c.getUnionTypeEx(types, UnionReductionLiteral, null /*alias*/, null /*origin*/);
 	}
 
@@ -1732,10 +1732,10 @@ class CheckerPart7 {
 	static extern inline overload function getUnionTypeEx(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeExV(types, unionReduction, alias, origin);
 
-	static extern inline overload function getUnionTypeEx(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+	static extern inline overload function getUnionTypeEx(c:Checker, types:Slice<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeExA(types, unionReduction, alias, origin);
 
-	static function getUnionTypeExA(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+	static function getUnionTypeExA(c:Checker, types:Slice<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
 		if (Core.len(types) == 0) {
 			return c.neverType;
 		}
@@ -1789,13 +1789,13 @@ class CheckerPart7 {
 		return c.getUnionTypeWorker(types, unionReduction, alias, origin);
 	}
 
-	static extern inline overload function getUnionTypeWorker(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
+	static extern inline overload function getUnionTypeWorker(c:Checker, types:Slice<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeWorkerA(types, unionReduction, alias, origin);
 
 	static extern inline overload function getUnionTypeWorker(c:Checker, types:haxe.ds.Vector<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeWorkerV(types, unionReduction, alias, origin);
 
-	static function getUnionTypeWorkerA(c:Checker, types:Array<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
+	static function getUnionTypeWorkerA(c:Checker, types:Slice<Type>, unionReduction:UnionReduction, alias:TypeAlias, origin:Type):Type {
 		var typeSet = c.addTypesToUnion([], 0, types);
 		final includes = c.addTypesToUnionIncludes; // PORT: perf (second result of addTypesToUnion)
 		if (unionReduction != UnionReductionNone) {
@@ -1849,7 +1849,7 @@ class CheckerPart7 {
 		}
 		if (origin == null && includes & TypeFlagsUnion != 0) {
 			final namedUnions = c.addNamedUnions(null, types);
-			var reducedTypes:Array<Type> = typesNotInNamedUnions(typeSet, namedUnions);
+			var reducedTypes:Slice<Type> = typesNotInNamedUnions(typeSet, namedUnions);
 			if (alias == null && Core.len(namedUnions) == 1 && Core.len(reducedTypes) == 0) {
 				return namedUnions[0];
 			}
@@ -1929,7 +1929,7 @@ class CheckerPart7 {
 		}
 		if (origin == null && includes & TypeFlagsUnion != 0) {
 			final namedUnions = c.addNamedUnions(null, types);
-			var reducedTypes:Array<Type> = typesNotInNamedUnions(typeSet, namedUnions);
+			var reducedTypes:Slice<Type> = typesNotInNamedUnions(typeSet, namedUnions);
 			if (alias == null && Core.len(namedUnions) == 1 && Core.len(reducedTypes) == 0) {
 				return namedUnions[0];
 			}
@@ -1957,13 +1957,13 @@ class CheckerPart7 {
 
 	// This function assumes the constituent type list is sorted and deduplicated.
 	// PORT: perf — a fresh Array (copied into the new type's Vector on a miss) or a type's Vector (stored as it is)
-	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:Array<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
+	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:Slice<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeFromSortedListA(types, precomputedObjectFlags, alias, origin);
 
 	static extern inline overload function getUnionTypeFromSortedList(c:Checker, types:haxe.ds.Vector<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type
 		return c.getUnionTypeFromSortedListV(types, precomputedObjectFlags, alias, origin);
 
-	static function getUnionTypeFromSortedListA(c:Checker, types:Array<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
+	static function getUnionTypeFromSortedListA(c:Checker, types:Slice<Type>, precomputedObjectFlags:ObjectFlags, alias:TypeAlias, origin:Type):Type {
 		if (Core.len(types) == 0) {
 			return c.neverType;
 		}
@@ -2045,17 +2045,17 @@ class CheckerPart7 {
 	// between source types can break the order: the list is a sequence of ascending runs starting there, merged
 	// pairwise (mergeTypeRuns); two unions are merged directly. CompareTypes is a total order in which only identical
 	// types compare equal (it ends with the type id), so any correct sort gives Go's order.
-	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type>
+	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:Slice<Type>):Slice<Type>
 		return c.addTypesToUnionA(typeSet, includes, sourceTypes);
 
-	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Array<Type>
+	static extern inline overload function addTypesToUnion(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Slice<Type>
 		return c.addTypesToUnionV(typeSet, includes, sourceTypes);
 
-	static function addTypesToUnionA(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:Array<Type>):Array<Type> {
+	static function addTypesToUnionA(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:Slice<Type>):Slice<Type> {
 		if (sourceTypes != null && sourceTypes.length == 2 && typeSet.length == 0 && sourceTypes[0].flags & sourceTypes[1].flags & TypeFlagsUnion != 0)
 			return c.addTwoUnionsToUnion(typeSet, includes, sourceTypes[0], sourceTypes[1]);
 		var lastType:Type = null;
-		var runs:Array<Int> = null; // the starts of the ascending runs after the first
+		var runs:Slice<Int> = null; // the starts of the ascending runs after the first
 		if (sourceTypes != null) {
 			for (t in sourceTypes) {
 				if (t != lastType) {
@@ -2098,11 +2098,11 @@ class CheckerPart7 {
 		return typeSet;
 	}
 
-	static function addTypesToUnionV(c:Checker, typeSet:Array<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Array<Type> {
+	static function addTypesToUnionV(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, sourceTypes:haxe.ds.Vector<Type>):Slice<Type> {
 		if (sourceTypes != null && sourceTypes.length == 2 && typeSet.length == 0 && sourceTypes[0].flags & sourceTypes[1].flags & TypeFlagsUnion != 0)
 			return c.addTwoUnionsToUnion(typeSet, includes, sourceTypes[0], sourceTypes[1]);
 		var lastType:Type = null;
-		var runs:Array<Int> = null; // the starts of the ascending runs after the first
+		var runs:Slice<Int> = null; // the starts of the ascending runs after the first
 		if (sourceTypes != null) {
 			for (t in sourceTypes) {
 				if (t != lastType) {
@@ -2146,7 +2146,7 @@ class CheckerPart7 {
 	}
 
 	// addTypesToUnion of two unions: their sorted, unique constituents merged (one of both added once)
-	static function addTwoUnionsToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t1:Type, t2:Type):Array<Type> {
+	static function addTwoUnionsToUnion(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, t1:Type, t2:Type):Slice<Type> {
 		final u1 = t1.AsUnionType(), u2 = t2.AsUnionType();
 		if (t1.alias != null || u1.origin != null || t2.alias != null || u2.origin != null) {
 			includes |= TypeFlagsUnion;
@@ -2214,7 +2214,7 @@ class CheckerPart7 {
 		return lo;
 	}
 
-	static extern inline overload function lowerBoundType(types:Array<Type>, lo:Int, hi:Int, t:Type):Int {
+	static extern inline overload function lowerBoundType(types:Slice<Type>, lo:Int, hi:Int, t:Type):Int {
 		while (lo < hi) {
 			final h = (lo + hi) >>> 1;
 			if (types[h] != t && Checker.CompareTypes(types[h], t) < 0)
@@ -2227,7 +2227,7 @@ class CheckerPart7 {
 
 	// sorts `types`, ascending runs that start at 0 and at each of `runs`, by CompareTypes: a single type next to a
 	// run is inserted by binary search, other runs are merged pairwise (identical types end up next to each other)
-	static function mergeTypeRuns(types:Array<Type>, runs:Array<Int>):Void {
+	static function mergeTypeRuns(types:Slice<Type>, runs:Slice<Int>):Void {
 		final n = types.length;
 		if (runs.length == 1 && (runs[0] == 1 || runs[0] == n - 1)) {
 			if (runs[0] == 1) {
@@ -2249,9 +2249,9 @@ class CheckerPart7 {
 			return;
 		}
 		runs.push(n);
-		var src = types, dst:Array<Type> = [];
+		var src = types.nilable(), dst:Array<Type> = [];
 		dst.resize(n);
-		var bounds = [0].concat(runs); // run i is [bounds[i], bounds[i + 1])
+		var bounds = [0].concat(runs.nilable()); // run i is [bounds[i], bounds[i + 1])
 		while (bounds.length > 2) {
 			final next = [0];
 			var r = 0;
@@ -2292,7 +2292,7 @@ class CheckerPart7 {
 	// PORT: perf — Go keeps each t of typeSet that no named union contains (a binary search per named union per t).
 	// typeSet and every union's types are sorted by CompareTypes, a total order in which only identical types compare
 	// equal: one walk per named union along typeSet finds the same types, comparing only types that differ.
-	static function typesNotInNamedUnions(typeSet:Array<Type>, namedUnions:Array<Type>):Array<Type> {
+	static function typesNotInNamedUnions(typeSet:Slice<Type>, namedUnions:Slice<Type>):Slice<Type> {
 		final n = typeSet.length;
 		var named:Array<Bool> = [];
 		if (namedUnions != null && namedUnions.length != 0) {
@@ -2316,7 +2316,7 @@ class CheckerPart7 {
 				}
 			}
 		}
-		var reducedTypes:Array<Type> = null;
+		var reducedTypes:Slice<Type> = null;
 		for (k in 0...n) {
 			if (named.length == 0 || !named[k]) {
 				if (reducedTypes == null) {
@@ -2328,7 +2328,7 @@ class CheckerPart7 {
 		return reducedTypes;
 	}
 
-	static function addTypeToUnion(c:Checker, typeSet:Array<Type>, includes:TypeFlags, t:Type):TypeFlags {
+	static function addTypeToUnion(c:Checker, typeSet:Slice<Type>, includes:TypeFlags, t:Type):TypeFlags {
 		final flags = t.flags;
 		// We ignore 'never' types in unions
 		if (flags & TypeFlagsNever == 0) {
@@ -2356,13 +2356,13 @@ class CheckerPart7 {
 		return includes;
 	}
 
-	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Array<Type>, types:Array<Type>):Array<Type>
+	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Slice<Type>, types:Slice<Type>):Slice<Type>
 		return c.addNamedUnionsA(namedUnions, types);
 
-	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Array<Type>, types:haxe.ds.Vector<Type>):Array<Type>
+	static extern inline overload function addNamedUnions(c:Checker, namedUnions:Slice<Type>, types:haxe.ds.Vector<Type>):Slice<Type>
 		return c.addNamedUnionsV(namedUnions, types);
 
-	static function addNamedUnionsA(c:Checker, namedUnions:Array<Type>, types:Array<Type>):Array<Type> {
+	static function addNamedUnionsA(c:Checker, namedUnions:Slice<Type>, types:Slice<Type>):Slice<Type> {
 		if (types != null) {
 			for (t in types) {
 				if (t.flags & TypeFlagsUnion != 0) {
@@ -2378,7 +2378,7 @@ class CheckerPart7 {
 		return namedUnions;
 	}
 
-	static function addNamedUnionsV(c:Checker, namedUnions:Array<Type>, types:haxe.ds.Vector<Type>):Array<Type> {
+	static function addNamedUnionsV(c:Checker, namedUnions:Slice<Type>, types:haxe.ds.Vector<Type>):Slice<Type> {
 		if (types != null) {
 			for (t in types) {
 				if (t.flags & TypeFlagsUnion != 0) {
@@ -2394,7 +2394,7 @@ class CheckerPart7 {
 		return namedUnions;
 	}
 
-	static function removeRedundantLiteralTypes(c:Checker, types:Array<Type>, includes:TypeFlags, reduceVoidUndefined:Bool):Array<Type> {
+	static function removeRedundantLiteralTypes(c:Checker, types:Slice<Type>, includes:TypeFlags, reduceVoidUndefined:Bool):Slice<Type> {
 		var i = Core.len(types);
 		while (i > 0) {
 			i--;
@@ -2413,7 +2413,7 @@ class CheckerPart7 {
 		return types;
 	}
 
-	static function removeStringLiteralsMatchedByTemplateLiterals(c:Checker, types:Array<Type>):Array<Type> {
+	static function removeStringLiteralsMatchedByTemplateLiterals(c:Checker, types:Slice<Type>):Slice<Type> {
 		final templates = Core.Filter(types, (t:Type) -> c.isPatternLiteralType(t));
 		if (Core.len(templates) != 0) {
 			var i = types.length;
@@ -2435,8 +2435,8 @@ class CheckerPart7 {
 		return c.isMemberOfStringMapping(t, template);
 	}
 
-	static function removeConstrainedTypeVariables(c:Checker, types:Array<Type>):Array<Type> {
-		var typeVariables:Array<Type> = null;
+	static function removeConstrainedTypeVariables(c:Checker, types:Slice<Type>):Slice<Type> {
+		var typeVariables:Slice<Type> = null;
 		// First collect a list of the type variables occurring in constraining intersections.
 		for (t in rangeOf(types)) {
 			if (t.flags & TypeFlagsIntersection != 0 && t.objectFlags & ObjectFlagsIsConstrainedTypeVariable != 0) {
@@ -2451,7 +2451,7 @@ class CheckerPart7 {
 		// cover the constraint of the type variable; if so, remove the constraining intersections and
 		// substitute the type variable.
 		for (typeVariable in rangeOf(typeVariables)) {
-			var primitives:Array<Type> = null;
+			var primitives:Slice<Type> = null;
 			// First collect the primitive types from the constraining intersections.
 			for (t in rangeOf(types)) {
 				if (t.flags & TypeFlagsIntersection != 0 && t.objectFlags & ObjectFlagsIsConstrainedTypeVariable != 0) {
@@ -2490,7 +2490,7 @@ class CheckerPart7 {
 
 	static final NO_KEY_PROPERTY = @:privateAccess new Symbol(); // (see removeSubtypes)
 
-	static function removeSubtypes(c:Checker, types:Array<Type>, hasObjectTypes:Bool):Array<Type> {
+	static function removeSubtypes(c:Checker, types:Slice<Type>, hasObjectTypes:Bool):Slice<Type> {
 		// [] and [T] immediately reduce to [] and [T] respectively
 		if (Core.len(types) < 2) {
 			return types;
@@ -2626,20 +2626,20 @@ class CheckerPart7 {
 	static extern inline overload function getIntersectionType(c:Checker, types:haxe.ds.Vector<Type>):Type
 		return c.getIntersectionTypeExV(types, IntersectionFlagsNone, null /*alias*/);
 
-	static extern inline overload function getIntersectionType(c:Checker, types:Array<Type>):Type
+	static extern inline overload function getIntersectionType(c:Checker, types:Slice<Type>):Type
 		return c.getIntersectionTypeA(types);
 
-	static function getIntersectionTypeA(c:Checker, types:Array<Type>):Type {
+	static function getIntersectionTypeA(c:Checker, types:Slice<Type>):Type {
 		return c.getIntersectionTypeEx(types, IntersectionFlagsNone, null /*alias*/);
 	}
 
 	static extern inline overload function getIntersectionTypeEx(c:Checker, types:haxe.ds.Vector<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
 		return c.getIntersectionTypeExV(types, flags, alias);
 
-	static extern inline overload function getIntersectionTypeEx(c:Checker, types:Array<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
+	static extern inline overload function getIntersectionTypeEx(c:Checker, types:Slice<Type>, flags:IntersectionFlags, alias:TypeAlias):Type
 		return c.getIntersectionTypeExA(types, flags, alias);
 
-	static function getIntersectionTypeExA(c:Checker, types:Array<Type>, flags:IntersectionFlags, alias:TypeAlias):Type {
+	static function getIntersectionTypeExA(c:Checker, types:Slice<Type>, flags:IntersectionFlags, alias:TypeAlias):Type {
 		final orderedTypes = new OrderedSet<Type>();
 		orderedTypes.values = [];
 		final includes = c.addTypesToIntersection(orderedTypes, 0, types);
@@ -2971,7 +2971,7 @@ class CheckerPart7 {
 
 	// Add the given types to the given type set. Order is preserved, freshness is removed from literal
 	// types, duplicates are removed, and nested types of the given kind are flattened into the set.
-	static function addTypesToIntersection(c:Checker, typeSet:OrderedSet<Type>, includes:TypeFlags, types:Array<Type>):TypeFlags {
+	static function addTypesToIntersection(c:Checker, typeSet:OrderedSet<Type>, includes:TypeFlags, types:Slice<Type>):TypeFlags {
 		if (types != null) {
 			for (t in types) {
 				includes = c.addTypeToIntersection(typeSet, includes, c.getRegularTypeOfLiteralType(t));
@@ -3025,7 +3025,7 @@ class CheckerPart7 {
 		return includes;
 	}
 
-	static function removeRedundantSupertypes(c:Checker, types:Array<Type>, includes:TypeFlags):Array<Type> {
+	static function removeRedundantSupertypes(c:Checker, types:Slice<Type>, includes:TypeFlags):Slice<Type> {
 		var i = Core.len(types);
 		while (i > 0) {
 			i--;
@@ -3048,7 +3048,7 @@ class CheckerPart7 {
 	 * Returns true if the intersection of the template literals and string literals is the empty set,
 	 * for example `get${string}` & "setX", and should reduce to never.
 	 */
-	static function extractRedundantTemplateLiterals(c:Checker, types:Array<Type>):ValueOk<Array<Type>> {
+	static function extractRedundantTemplateLiterals(c:Checker, types:Slice<Type>):ValueOk<Slice<Type>> {
 		final literals = Core.Filter(types, (t:Type) -> (t.flags & TypeFlagsStringLiteral) != 0);
 		var i = Core.len(types);
 		while (i > 0) {
@@ -3066,21 +3066,21 @@ class CheckerPart7 {
 						break;
 					}
 					if (c.isPatternLiteralType(t)) {
-						return new ValueOk<Array<Type>>(types, true);
+						return new ValueOk<Slice<Type>>(types, true);
 					}
 				}
 			}
 		}
-		return new ValueOk<Array<Type>>(types, false);
+		return new ValueOk<Slice<Type>>(types, false);
 	}
 
 	// If the given list of types contains more than one union of primitive types, replace the
 	// first with a union containing an intersection of those primitive types, then remove the
 	// other unions and return true. Otherwise, do nothing and return false.
-	static function intersectUnionsOfPrimitiveTypes(c:Checker, types:Array<Type>):ValueOk<Array<Type>> {
+	static function intersectUnionsOfPrimitiveTypes(c:Checker, types:Slice<Type>):ValueOk<Slice<Type>> {
 		final index = Core.FindIndex(types, Checker.isPrimitiveUnion);
 		if (index < 0) {
-			return new ValueOk<Array<Type>>(types, false);
+			return new ValueOk<Slice<Type>>(types, false);
 		}
 		// Remove all but the first union of primitive types and collect them in
 		// the unionTypes array.
@@ -3099,13 +3099,13 @@ class CheckerPart7 {
 		}
 		// Return false if there was only one union of primitive types
 		if (unionTypes.length == 1) {
-			return new ValueOk<Array<Type>>(types, false);
+			return new ValueOk<Slice<Type>>(types, false);
 		}
 		// We have more than one union of primitive types, now intersect them. For each
 		// type in each union we check if the type is matched in every union and if so
 		// we include it in the result.
-		var checked:Array<Type> = null;
-		var result:Array<Type> = null;
+		var checked:Slice<Type> = null;
+		var result:Slice<Type> = null;
 		for (u in unionTypes) {
 			for (t in rangeOf(u.Types())) {
 				final ins = Checker.insertType(checked, t);
@@ -3127,7 +3127,7 @@ class CheckerPart7 {
 		}
 		// Finally replace the first union with the result
 		types[index] = c.getUnionTypeFromSortedList(result, ObjectFlagsPrimitiveUnion, null /*alias*/, null /*origin*/);
-		return new ValueOk<Array<Type>>(types, true);
+		return new ValueOk<Slice<Type>>(types, true);
 	}
 
 	// Check that the given type has a match in every union. A given type is matched by
@@ -3167,9 +3167,9 @@ class CheckerPart7 {
 		return primitive != null && Checker.containsType(types, primitive);
 	}
 
-	static function getCrossProductIntersections(c:Checker, types:Array<Type>, flags:IntersectionFlags):Array<Type> {
+	static function getCrossProductIntersections(c:Checker, types:Slice<Type>, flags:IntersectionFlags):Slice<Type> {
 		final count = c.getCrossProductUnionSize(types);
-		var intersections:Array<Type> = null;
+		var intersections:Slice<Type> = null;
 		for (i in 0...count) {
 			final constituents = Slices.Clone(types);
 			var n = i;
@@ -3194,7 +3194,7 @@ class CheckerPart7 {
 		return intersections;
 	}
 
-	static function filterTypes(c:Checker, types:Array<Type>, predicate:(Type) -> Bool):Void {
+	static function filterTypes(c:Checker, types:Slice<Type>, predicate:(Type) -> Bool):Void {
 		if (types != null) {
 			for (i in 0...types.length) {
 				types[i] = c.filterType(types[i], predicate);
@@ -3331,7 +3331,7 @@ class CheckerPart7 {
 		return t == c.errorType || (t.flags & TypeFlagsAny) != 0 && t.alias != null;
 	}
 
-	static function checkCrossProductUnion(c:Checker, types:Array<Type>):Bool {
+	static function checkCrossProductUnion(c:Checker, types:Slice<Type>):Bool {
 		final size = c.getCrossProductUnionSize(types);
 		if (size >= 100000) {
 			final tr = c.tracer;
@@ -3346,7 +3346,7 @@ class CheckerPart7 {
 		return true;
 	}
 
-	static function getCrossProductUnionSize(c:Checker, types:Array<Type>):Int {
+	static function getCrossProductUnionSize(c:Checker, types:Slice<Type>):Int {
 		var size = 1;
 		for (t in rangeOf(types)) {
 			if ((t.flags & TypeFlagsUnion) != 0) {
@@ -3413,7 +3413,7 @@ class CheckerPart7 {
 		}
 		final props = c.getLayoutPropertiesOfType(t); // PORT: layout properties (#64915)
 		final indexInfos = c.getIndexInfosOfType(t);
-		final types:Array<Type> = [];
+		final types:Slice<Type> = [];
 		for (prop in rangeOf(props)) {
 			types.push(c.getLiteralTypeFromProperty(prop, include, false));
 		}
@@ -3554,7 +3554,7 @@ class CheckerPart7 {
 			// no mapping and no filtering required, just quickly bail to returning the constraint in the common case
 			return constraintType;
 		}
-		var keyTypes:Array<Type> = null;
+		var keyTypes:Slice<Type> = null;
 		final addMemberForKeyType = (keyType:Type) -> {
 			var propNameType = keyType;
 			if (nameType != null) {
@@ -3653,7 +3653,7 @@ class CheckerPart7 {
 		// skipping straight to getPropertyTypeForIndexType gives errors with 'boolean' instead of 'true'.
 		final apparentObjectType = c.getReducedApparentType(objectType);
 		if ((indexType.flags & TypeFlagsUnion) != 0 && (indexType.flags & TypeFlagsBoolean) == 0) {
-			var propTypes:Array<Type> = null;
+			var propTypes:Slice<Type> = null;
 			var wasMissingProp = false;
 			for (t in rangeOf(indexType.Types())) {
 				final propType = c.getPropertyTypeForIndexType(objectType, apparentObjectType, t, indexType, accessNode,
@@ -3823,7 +3823,7 @@ class CheckerPart7 {
 							c.TypeToString(objectType)));
 						return c.undefinedType;
 					} else if (indexType.flags & (TypeFlagsNumber | TypeFlagsString) != 0) {
-						final types:Array<Type> = [];
+						final types:Slice<Type> = [];
 						for (prop in rangeOf(objectType.AsStructuredType().getProperties())) {
 							types.push(c.getTypeOfSymbol(prop));
 						}
@@ -4796,7 +4796,7 @@ class CheckerPart7 {
 	// --- private helpers (P7) ---
 
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Slice<T>):Slice<T> {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
@@ -4832,7 +4832,7 @@ class CheckerPart7 {
 		};
 	}
 
-	static extern inline overload function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:Slice<T>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			if (s != null) {
 				for (v in s) {

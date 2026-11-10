@@ -36,13 +36,13 @@ class Vfsmatch {
 	public static inline final UnlimitedDepth = 2147483647;
 
 	// PORT: main's PathPatternInput generic (string | tspath.PathPattern) → T:String; the specs are passed on as strings.
-	public static inline function ReadDirectory<T:String>(host:FS, path:RootedDirectoryPath, extensions:Null<Array<String>>, excludes:Null<Array<T>>,
-			includes:Null<Array<T>>, depth:Int):Null<Array<RootedFilePath>> {
+	public static inline function ReadDirectory<T:String>(host:FS, path:RootedDirectoryPath, extensions:Slice<String>, excludes:Slice<T>,
+			includes:Slice<T>, depth:Int):Slice<RootedFilePath> {
 		return matchFileNames(path, extensions, specStrings(excludes), specStrings(includes), depth, host);
 	}
 
 	// PORT: Array<T:String> → Array<String> (the abstract spec types are strings at run time; arrays are invariant).
-	static inline function specStrings<T:String>(specs:Null<Array<T>>):Null<Array<String>> {
+	static inline function specStrings<T:String>(specs:Slice<T>):Slice<String> {
 		return cast specs;
 	}
 
@@ -72,7 +72,7 @@ class Vfsmatch {
 
 	// getBasePaths computes the unique non-wildcard base paths amongst the provided include patterns.
 	@:allow(ts.vfs.vfsmatch)
-	static function getBasePaths(path:RootedDirectoryPath, includes:Null<Array<String>>, caseSensitivity:CaseSensitivity):Array<RootedDirectoryPath> {
+	static function getBasePaths(path:RootedDirectoryPath, includes:Slice<String>, caseSensitivity:CaseSensitivity):Array<RootedDirectoryPath> {
 		// Storage for our results in the form of literal paths (e.g. the paths as written by the user).
 		final basePaths = [path];
 
@@ -278,7 +278,7 @@ class Vfsmatch {
 	}
 
 	@:allow(ts.vfs.vfsmatch)
-	static function newGlobMatcher(includeSpecs:Null<Array<String>>, excludeSpecs:Null<Array<String>>, basePath:RootedDirectoryPath,
+	static function newGlobMatcher(includeSpecs:Slice<String>, excludeSpecs:Slice<String>, basePath:RootedDirectoryPath,
 			caseSensitivity:CaseSensitivity, usage:Usage):GlobMatcher {
 		final m = new GlobMatcher();
 		m.hadIncludes = Core.len(includeSpecs) > 0;
@@ -305,8 +305,8 @@ class Vfsmatch {
 	}
 
 	@:allow(ts.vfs.vfsmatch)
-	static function matchFileNames(path:RootedDirectoryPath, extensions:Null<Array<String>>, excludes:Null<Array<String>>,
-			includes:Null<Array<String>>, depth:Int, host:FS):Null<Array<RootedFilePath>> {
+	static function matchFileNames(path:RootedDirectoryPath, extensions:Slice<String>, excludes:Slice<String>,
+			includes:Slice<String>, depth:Int, host:FS):Slice<RootedFilePath> {
 		final caseSensitivity = host.CaseSensitivity();
 
 		final fileMatcher = newGlobMatcher(includes, excludes, path, caseSensitivity, UsageFiles);
@@ -334,12 +334,12 @@ class Vfsmatch {
 
 	// NewSpecMatcher creates a matcher for one or more glob specs.
 	// It returns a matcher that can test if paths match any of the patterns.
-	public static inline function NewSpecMatcher<T:String>(specs:Null<Array<T>>, basePath:RootedDirectoryPath, usage:Usage,
+	public static inline function NewSpecMatcher<T:String>(specs:Slice<T>, basePath:RootedDirectoryPath, usage:Usage,
 			caseSensitivity:CaseSensitivity):Null<SpecMatcher> {
 		return newSpecMatcher(specStrings(specs), basePath, usage, caseSensitivity);
 	}
 
-	static function newSpecMatcher(specs:Null<Array<String>>, basePath:RootedDirectoryPath, usage:Usage,
+	static function newSpecMatcher(specs:Slice<String>, basePath:RootedDirectoryPath, usage:Usage,
 			caseSensitivity:CaseSensitivity):Null<SpecMatcher> {
 		if (Core.len(specs) == 0) {
 			return null;
@@ -378,11 +378,11 @@ enum abstract SegmentKind(Int) to Int {
 class Component {
 	public final kind:ComponentKind;
 	public final literal:String; // for kindLiteral: the exact string to match
-	public final segments:Null<Array<Segment>>; // for kindWildcard: parsed wildcard pattern
+	public final segments:Slice<Segment>; // for kindWildcard: parsed wildcard pattern
 	// Include patterns with wildcards skip common package folders (node_modules, etc.)
 	public final skipPackageFolders:Bool;
 
-	public function new(kind:ComponentKind, literal:String, segments:Null<Array<Segment>>, skipPackageFolders:Bool) {
+	public function new(kind:ComponentKind, literal:String, segments:Slice<Segment>, skipPackageFolders:Bool) {
 		this.kind = kind;
 		this.literal = literal;
 		this.segments = segments;
@@ -404,7 +404,7 @@ class Segment {
 
 // globPattern is a compiled glob pattern for matching file paths without regex.
 class GlobPattern {
-	public var components:Null<Array<Component>> = null; // path segments to match (e.g., ["src", "**", "*.ts"])
+	public var components:Slice<Component> = null; // path segments to match (e.g., ["src", "**", "*.ts"])
 	public var isExclude:Bool = false; // exclude patterns have different matching rules
 	public var caseSensitive:Bool = false;
 	public var excludeMinJs:Bool = false; // for "files" patterns, exclude .min.js by default
@@ -491,7 +491,7 @@ class GlobPattern {
 	}
 
 	// matchWildcard matches a path component against wildcard segments.
-	public function matchWildcard(segs:Array<Segment>, s:String):Bool {
+	public function matchWildcard(segs:Slice<Segment>, s:String):Bool {
 		// Include patterns: wildcards at start cannot match hidden files
 		if (!this.isExclude && segs.length > 0 && Vfsmatch.isHiddenPath(s) && (segs[0].kind == SegStar || segs[0].kind == SegQuestion)) {
 			return false;
@@ -513,7 +513,7 @@ class GlobPattern {
 	// This avoids exponential backtracking by tracking only the last star position.
 	// The algorithm is O(n*m) where n is the string length and m is pattern length.
 	// PORT: utf8.DecodeRuneInString size → UTF-16 rune length (go.Utf16, PORTING.md §5).
-	public function matchSegments(segs:Array<Segment>, s:String):Bool {
+	public function matchSegments(segs:Slice<Segment>, s:String):Bool {
 		var segIdx = 0;
 		var sIdx = 0;
 		var starSegIdx = -1;
@@ -566,7 +566,7 @@ class GlobPattern {
 		return segIdx >= segs.length;
 	}
 
-	function shouldIncludeMinJs(filename:String, segs:Array<Segment>):Bool {
+	function shouldIncludeMinJs(filename:String, segs:Slice<Segment>):Bool {
 		if (!this.excludeMinJs) {
 			return true;
 		}
@@ -596,7 +596,7 @@ class GlobPattern {
 		return Strings.EqualFold(filename.substring(filename.length - minJs.length), minJs);
 	}
 
-	function patternMentionsMinSuffix(segs:Array<Segment>):Bool {
+	function patternMentionsMinSuffix(segs:Slice<Segment>):Bool {
 		for (seg in segs) {
 			if (seg.kind != SegLiteral) {
 				continue;
@@ -623,8 +623,8 @@ class GlobPattern {
 
 // globMatcher combines include and exclude patterns for file matching.
 class GlobMatcher {
-	public var includes:Null<Array<GlobPattern>> = null;
-	public var excludes:Null<Array<GlobPattern>> = null;
+	public var includes:Slice<GlobPattern> = null;
+	public var excludes:Slice<GlobPattern> = null;
 	public var hadIncludes:Bool = false; // true if include specs were provided (even if none compiled)
 
 	public function new() {}
@@ -676,17 +676,17 @@ class GlobVisitor {
 	final host:FS;
 	final fileMatcher:GlobMatcher;
 	final directoryMatcher:GlobMatcher;
-	final extensions:Null<Array<String>>;
+	final extensions:Slice<String>;
 	final caseSensitivity:CaseSensitivity;
 	final visited = new Set<PathKey>();
 
-	public final results:Array<Null<Array<RootedFilePath>>>;
+	public final results:Array<Slice<RootedFilePath>>;
 	#if tshx_parallel
 	public var prefetched:Null<StringMap<PrefetchedDirectory>> = null;
 	#end
 
-	public function new(host:FS, fileMatcher:GlobMatcher, directoryMatcher:GlobMatcher, extensions:Null<Array<String>>, caseSensitivity:CaseSensitivity,
-			results:Array<Null<Array<RootedFilePath>>>) {
+	public function new(host:FS, fileMatcher:GlobMatcher, directoryMatcher:GlobMatcher, extensions:Slice<String>, caseSensitivity:CaseSensitivity,
+			results:Array<Slice<RootedFilePath>>) {
 		this.host = host;
 		this.fileMatcher = fileMatcher;
 		this.directoryMatcher = directoryMatcher;
@@ -774,7 +774,7 @@ class GlobVisitor {
 // SpecMatcher wraps multiple glob patterns for matching paths.
 class SpecMatcher {
 	@:allow(ts.vfs.vfsmatch)
-	var patterns:Null<Array<GlobPattern>> = null;
+	var patterns:Slice<GlobPattern> = null;
 
 	@:allow(ts.vfs.vfsmatch)
 	function new() {}

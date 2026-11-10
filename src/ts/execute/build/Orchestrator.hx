@@ -15,9 +15,9 @@ class Options {
 
 class OrchestratorResult {
 	public var result:CommandLineResult = new CommandLineResult();
-	public var errors:Null<Array<Diagnostic>> = null;
+	public var errors:Slice<Diagnostic> = null;
 	public var statistics:Statistics = new Statistics();
-	public var filesToDelete:Null<Array<RootedFilePath>> = null;
+	public var filesToDelete:Slice<RootedFilePath> = null;
 
 	public function new() {}
 
@@ -51,8 +51,8 @@ class Orchestrator {
 
 	// order generation result
 	var tasks:SyncMap<PathKey, BuildTask> = null;
-	var order:Null<Array<BuildTask>> = null;
-	var errors:Null<Array<Diagnostic>> = null;
+	var order:Slice<BuildTask> = null;
+	var errors:Slice<Diagnostic> = null;
 
 	var errorSummaryReporter:DiagnosticsReporter = null;
 	var watchStatusReporter:DiagnosticReporter = null;
@@ -73,13 +73,13 @@ class Orchestrator {
 		return path.AsString();
 	}
 
-	public function Order():Null<Array<RootedFilePath>> {
+	public function Order():Slice<RootedFilePath> {
 		return Core.Map(this.order, function(task:BuildTask):RootedFilePath {
 			return task.config;
 		});
 	}
 
-	public function Upstream(configName:std.String):Null<Array<std.String>> {
+	public function Upstream(configName:std.String):Slice<std.String> {
 		final path = this.caseSensitivity.PathKey(Tspath.ToRootedPath(configName, this.currentDirectory));
 		final task = this.getTask(path);
 		return Core.Map(task.upStream, function(t:UpstreamTask):std.String {
@@ -87,7 +87,7 @@ class Orchestrator {
 		});
 	}
 
-	public function Downstream(configName:std.String):Null<Array<std.String>> {
+	public function Downstream(configName:std.String):Slice<std.String> {
 		final path = this.caseSensitivity.PathKey(Tspath.ToRootedPath(configName, this.currentDirectory));
 		final task = this.getTask(path);
 		return Core.Map(task.downStream, function(t:BuildTask):std.String {
@@ -103,7 +103,7 @@ class Orchestrator {
 		return r.value;
 	}
 
-	function createBuildTasks(oldTasks:Null<SyncMap<PathKey, BuildTask>>, configs:Null<Array<RootedFilePath>>, wg:WorkGroup):Void {
+	function createBuildTasks(oldTasks:Null<SyncMap<PathKey, BuildTask>>, configs:Slice<RootedFilePath>, wg:WorkGroup):Void {
 		for (config in configs) {
 			wg.Queue(function() {
 				final path = this.caseSensitivity.PathKey(config.AsPath());

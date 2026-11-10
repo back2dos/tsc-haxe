@@ -5,8 +5,8 @@ import ts.tsoptions.Tsconfigparsing.TsConfigSourceFile;
 // Port of js_emit_baseline.go: types (the package-level funcs are in Tsbaseline.hx).
 @:allow(ts.testutil.tsbaseline)
 class DeclarationCompilationContext {
-	var declInputFiles:Array<TestFile> = null;
-	var declOtherFiles:Array<TestFile> = null;
+	var declInputFiles:Slice<TestFile> = null;
+	var declOtherFiles:Slice<TestFile> = null;
 	var harnessSettings:HarnessOptions = null;
 	var options:CompilerOptions = null;
 	var currentDirectory:String = "";
@@ -17,8 +17,8 @@ class DeclarationCompilationContext {
 
 @:allow(ts.testutil.tsbaseline)
 class DeclarationCompilationResult {
-	var declInputFiles:Array<TestFile> = null;
-	var declOtherFiles:Array<TestFile> = null;
+	var declInputFiles:Slice<TestFile> = null;
+	var declOtherFiles:Slice<TestFile> = null;
 	var declResult:CompilationResult = null;
 
 	public function new() {}

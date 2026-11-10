@@ -72,9 +72,9 @@ class BindDump {
 	static var depth = 0;
 	static var walkChild:(node:Node) -> Bool = null;
 	static var symIds:ObjectMap<Symbol, Int> = null;
-	static var syms:Array<Symbol> = null;
+	static var syms:Slice<Symbol> = null;
 	static var flowIds:ObjectMap<FlowNode, Int> = null;
-	static var flows:Array<FlowNode> = null;
+	static var flows:Slice<FlowNode> = null;
 
 	static function dump(file:String, text:String) {
 		out.add("## ");

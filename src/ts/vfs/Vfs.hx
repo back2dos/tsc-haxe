@@ -53,8 +53,8 @@ interface FS {
 // PORT: Go `Entries` is a struct returned by value; it is never mutated after it is built,
 // so no copy() is needed. `Symlinks map[string]struct{}` → StringMap<Bool> (null = Go nil).
 class Entries {
-	public var Files:Null<Array<String>> = null;
-	public var Directories:Null<Array<String>> = null;
+	public var Files:Slice<String> = null;
+	public var Directories:Slice<String> = null;
 	// Symlinks contains the names of entries in Files or Directories that were
 	// originally symbolic links (or reparse points) on disk. The names are the
 	// same as those in Files/Directories (i.e., the link name, not the target).

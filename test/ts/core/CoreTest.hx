@@ -37,7 +37,7 @@ class CoreTest {
 		return c;
 	}
 
-	static function str<T>(a:Null<Array<T>>):String {
+	static function str<T>(a:Slice<T>):String {
 		return a == null ? "nil" : "[" + a.join(" ") + "]";
 	}
 
@@ -220,7 +220,7 @@ class CoreTest {
 
 		T.run("Filter/Map family (extra)", () -> {
 			final even = (x:Int) -> x % 2 == 0;
-			final nilInts:Null<Array<Int>> = null;
+			final nilInts:Slice<Int> = null;
 			// Go: nil [] [] [2 4]
 			T.eq("nil", str(Core.Filter(nilInts, even)));
 			final empty:Array<Int> = [];
@@ -288,7 +288,7 @@ class CoreTest {
 		});
 
 		T.run("Find family (extra)", () -> {
-			final nilInts:Null<Array<Int>> = null;
+			final nilInts:Slice<Int> = null;
 			final xs = [1, 2, 3, 4];
 			T.isTrue(Core.Some(xs, x -> x == 3));
 			T.isTrue(!Core.Some(nilInts, x -> true));
@@ -335,7 +335,7 @@ class CoreTest {
 		});
 
 		T.run("Slice building (extra)", () -> {
-			final nilInts:Null<Array<Int>> = null;
+			final nilInts:Slice<Int> = null;
 			final a = [1, 2];
 			final empty:Array<Int> = [];
 			T.isTrue(Core.Same(Core.Concatenate(a, empty), a));

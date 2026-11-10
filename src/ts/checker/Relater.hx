@@ -77,14 +77,14 @@ enum abstract RelationComparisonResult(Int) from Int to Int {
 @:allow(ts.checker)
 class DiagnosticAndArguments {
 	var message:Message = null;
-	var arguments:Array<Any> = null;
+	var arguments:Slice<Any> = null;
 
 	public function new() {}
 }
 
 @:allow(ts.checker)
 class ErrorOutputContainer {
-	var errors:Array<Diagnostic> = null;
+	var errors:Slice<Diagnostic> = null;
 	var skipLogging:Bool = false;
 
 	public function new() {}
@@ -229,7 +229,7 @@ class Relation {
 @:allow(ts.checker)
 class TypeDiscriminator implements Discriminator {
 	var c:Checker = null;
-	var props:Array<Symbol> = null;
+	var props:Slice<Symbol> = null;
 	var isRelatedTo:(Type, Type) -> Ternary = null;
 
 	public function new() {}
@@ -262,7 +262,7 @@ interface Discriminator {
 @:allow(ts.checker)
 class ErrorState {
 	var errorChain:ErrorChain = null;
-	var relatedInfo:Array<Diagnostic> = null;
+	var relatedInfo:Slice<Diagnostic> = null;
 
 	public function new() {}
 }
@@ -271,7 +271,7 @@ class ErrorState {
 class ErrorChain {
 	var next:ErrorChain = null;
 	var message:Message = null;
-	var args:Array<Any> = null;
+	var args:Slice<Any> = null;
 
 	public function new() {}
 }
@@ -283,18 +283,18 @@ class Relater {
 	var relation:Relation = null;
 	var errorNode:Node = null;
 	var errorChain:ErrorChain = null;
-	var relatedInfo:Array<Diagnostic> = null;
+	var relatedInfo:Slice<Diagnostic> = null;
 	// PORT: struct map key — the maybe keys are kept encoded (Relation.keyString); the skeleton's
 	// Set<CacheHashKey> would compare key objects by identity.
 	#if (target.name == "hxmc")
 	var maybeKeys:MaybeKeys = null; // PORT: perf — the keys' two Ints (see RelKey)
 	var maybeKeysSet:ts.core.PairIntMap = new ts.core.PairIntMap(); // (as a set: value 0)
 	#else
-	var maybeKeys:Array<std.String> = null;
+	var maybeKeys:Slice<std.String> = null;
 	var maybeKeysSet:Set<std.String> = new Set<std.String>();
 	#end
-	var sourceStack:Array<Type> = null;
-	var targetStack:Array<Type> = null;
+	var sourceStack:Slice<Type> = null;
+	var targetStack:Slice<Type> = null;
 	var maybeCount:Int = 0;
 	var sourceDepth:Int = 0;
 	var targetDepth:Int = 0;
@@ -581,7 +581,7 @@ class Relater {
 		return c.checkTypeRelatedToEx(source, target, c.assignableRelation, errorNode, headMessage, null);
 	}
 
-	static function checkTypeAssignableToEx(c:Checker, source:Type, target:Type, errorNode:Node, headMessage:Message, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function checkTypeAssignableToEx(c:Checker, source:Type, target:Type, errorNode:Node, headMessage:Message, diagnosticOutput:Slice<Diagnostic>):Bool {
 		return c.checkTypeRelatedToEx(source, target, c.assignableRelation, errorNode, headMessage, diagnosticOutput);
 	}
 
@@ -596,7 +596,7 @@ class Relater {
 	// Check that source is related to target according to the given relation. When errorNode is non-nil, errors are
 	// reported to the checker's diagnostic collection or through diagnosticOutput when non-nil. Callers can assume that
 	// this function only reports zero or one error to diagnosticOutput (unlike checkTypeRelatedToAndOptionallyElaborate).
-	static function checkTypeRelatedToEx(c:Checker, source:Type, target:Type, relation:Relation, errorNode:Node, headMessage:Message, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function checkTypeRelatedToEx(c:Checker, source:Type, target:Type, relation:Relation, errorNode:Node, headMessage:Message, diagnosticOutput:Slice<Diagnostic>):Bool {
 		final r = c.getRelater();
 		r.relation = relation;
 		r.errorNode = errorNode;
@@ -643,7 +643,7 @@ class Relater {
 
 	// PORT: Go `append(s, d)` where s may share its backing array with a saved errorState; the copy keeps
 	// restoreErrorState exact (a Haxe push would be visible through the saved array).
-	static function appendDiagnostic(s:Array<Diagnostic>, d:Diagnostic):Array<Diagnostic> {
+	static function appendDiagnostic(s:Slice<Diagnostic>, d:Diagnostic):Slice<Diagnostic> {
 		if (s == null) {
 			return [d];
 		}
@@ -652,7 +652,7 @@ class Relater {
 		return result;
 	}
 
-	static function reportDiagnostic(c:Checker, diagnostic:Diagnostic, diagnosticOutput:Array<Diagnostic>):Void {
+	static function reportDiagnostic(c:Checker, diagnostic:Diagnostic, diagnosticOutput:Slice<Diagnostic>):Void {
 		if (diagnostic != null) {
 			if (diagnosticOutput != null) {
 				diagnosticOutput.push(diagnostic);
@@ -662,11 +662,11 @@ class Relater {
 		}
 	}
 
-	static function checkTypeAssignableToAndOptionallyElaborate(c:Checker, source:Type, target:Type, errorNode:Node, expr:Node, headMessage:Message, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function checkTypeAssignableToAndOptionallyElaborate(c:Checker, source:Type, target:Type, errorNode:Node, expr:Node, headMessage:Message, diagnosticOutput:Slice<Diagnostic>):Bool {
 		return c.checkTypeRelatedToAndOptionallyElaborate(source, target, c.assignableRelation, errorNode, expr, headMessage, diagnosticOutput);
 	}
 
-	static function checkTypeRelatedToAndOptionallyElaborate(c:Checker, source:Type, target:Type, relation:Relation, errorNode:Node, expr:Node, headMessage:Message, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function checkTypeRelatedToAndOptionallyElaborate(c:Checker, source:Type, target:Type, relation:Relation, errorNode:Node, expr:Node, headMessage:Message, diagnosticOutput:Slice<Diagnostic>):Bool {
 		if (c.isTypeRelatedTo(source, target, relation)) {
 			return true;
 		}
@@ -676,7 +676,7 @@ class Relater {
 		return false;
 	}
 
-	static function elaborateError(c:Checker, node:Node, source:Type, target:Type, relation:Relation, headMessage:Message, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateError(c:Checker, node:Node, source:Type, target:Type, relation:Relation, headMessage:Message, diagnosticOutput:Slice<Diagnostic>):Bool {
 		if (node == null || c.isOrHasGenericConditional(target)) {
 			return false;
 		}
@@ -712,12 +712,12 @@ class Relater {
 		return t.flags & TypeFlagsConditional != 0 || (t.flags & TypeFlagsIntersection != 0 && Core.Some(t.Types(), t -> c.isOrHasGenericConditional(t)));
 	}
 
-	static function elaborateDidYouMeanToCallOrConstruct(c:Checker, node:Node, source:Type, target:Type, relation:Relation, kind:SignatureKind, headMessage:Message, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateDidYouMeanToCallOrConstruct(c:Checker, node:Node, source:Type, target:Type, relation:Relation, kind:SignatureKind, headMessage:Message, diagnosticOutput:Slice<Diagnostic>):Bool {
 		if (Core.Some(c.getSignaturesOfType(source, kind), s -> {
 			final returnType = c.getReturnTypeOfSignature(s);
 			return returnType.flags & (TypeFlagsAny | TypeFlagsNever) == 0 && c.checkTypeRelatedTo(returnType, target, relation, null /*errorNode*/);
 		})) {
-			final diags:Array<Diagnostic> = [];
+			final diags:Slice<Diagnostic> = [];
 			if (!c.checkTypeRelatedToEx(source, target, relation, node, headMessage, diags)) {
 				final diagnostic = diags[0];
 				final message = kind == SignatureKindConstruct ? Diagnostics.Did_you_mean_to_use_new_with_this_expression : Diagnostics.Did_you_mean_to_call_this_expression;
@@ -728,7 +728,7 @@ class Relater {
 		return false;
 	}
 
-	static function elaborateObjectLiteral(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateObjectLiteral(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Slice<Diagnostic>):Bool {
 		if (target.flags & (TypeFlagsPrimitive | TypeFlagsNever) != 0) {
 			return false;
 		}
@@ -753,7 +753,7 @@ class Relater {
 		return reportedError;
 	}
 
-	static function elaborateArrayLiteral(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateArrayLiteral(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Slice<Diagnostic>):Bool {
 		if (target.flags & (TypeFlagsPrimitive | TypeFlagsNever) != 0) {
 			return false;
 		}
@@ -779,7 +779,7 @@ class Relater {
 		return reportedError;
 	}
 
-	static function elaborateElement(c:Checker, source:Type, target:Type, relation:Relation, prop:Node, next:Node, nameType:Type, errorMessage:Message, diagnosticFactory:(prop:Node) -> Diagnostic, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateElement(c:Checker, source:Type, target:Type, relation:Relation, prop:Node, next:Node, nameType:Type, errorMessage:Message, diagnosticFactory:(prop:Node) -> Diagnostic, diagnosticOutput:Slice<Diagnostic>):Bool {
 		var targetPropType = c.getBestMatchIndexedAccessTypeOrUndefined(source, target, nameType);
 		if (targetPropType == null || targetPropType.flags & TypeFlagsIndexedAccess != 0) {
 			// Don't elaborate on indexes on generic variables
@@ -794,7 +794,7 @@ class Relater {
 			return true;
 		}
 		// Issue error on the prop itself, since the prop couldn't elaborate the error
-		final diags:Array<Diagnostic> = [];
+		final diags:Slice<Diagnostic> = [];
 		// Use the expression type, if available
 		var specificSource = sourcePropType;
 		if (next != null) {
@@ -877,7 +877,7 @@ class Relater {
 		return result;
 	}
 
-	static function elaborateArrowFunction(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function elaborateArrowFunction(c:Checker, node:Node, source:Type, target:Type, relation:Relation, diagnosticOutput:Slice<Diagnostic>):Bool {
 		// Don't elaborate blocks or functions with annotated parameter types
 		if (Ast.IsBlock(node.Body()) || Core.Some(node.Parameters(), Checker.hasType)) {
 			return false;
@@ -899,7 +899,7 @@ class Relater {
 		if (returnExpression != null && c.elaborateError(returnExpression, sourceReturn, targetReturn, relation, null /*headMessage*/, diagnosticOutput)) {
 			return true;
 		}
-		final diags:Array<Diagnostic> = [];
+		final diags:Slice<Diagnostic> = [];
 		c.checkTypeRelatedToEx(sourceReturn, targetReturn, relation, returnExpression, null /*headMessage*/, diags);
 		if (diags.length != 0) {
 			final diagnostic = diags[0];
@@ -999,7 +999,7 @@ class Relater {
 	// It is possible, though highly unlikely, for the deeply nested check to be true in a situation where a chain of
 	// instantiations is not infinitely expanding. Effectively, we will generate a false positive when two types are
 	// structurally equal to at least maxDepth levels, but unequal at some level beyond that.
-	static function isDeeplyNestedType(c:Checker, t:Type, stack:Array<Type>, maxDepth:Int):Bool {
+	static function isDeeplyNestedType(c:Checker, t:Type, stack:Slice<Type>, maxDepth:Int):Bool {
 		if (Core.len(stack) >= maxDepth) {
 			final target = Checker.getRecursionIdentityTarget(t);
 			if (target.flags & TypeFlagsIntersection != 0) {
@@ -1202,8 +1202,8 @@ class Relater {
 		return null;
 	}
 
-	static function findDiscriminantProperties(c:Checker, sourceProperties:haxe.ds.Vector<Symbol>, target:Type):Array<Symbol> {
-		var result:Array<Symbol> = null;
+	static function findDiscriminantProperties(c:Checker, sourceProperties:haxe.ds.Vector<Symbol>, target:Type):Slice<Symbol> {
+		var result:Slice<Symbol> = null;
 		if (sourceProperties != null) {
 			for (sourceProperty in sourceProperties) {
 				if (c.isDiscriminantProperty(target, sourceProperty.Name)) {
@@ -1377,7 +1377,7 @@ class Relater {
 			}
 		}
 		if (include.indexOf(TernaryFalse) >= 0) {
-			var filteredTypes:Array<Type> = null;
+			var filteredTypes:Slice<Type> = null;
 			for (i in 0...types.length) {
 				if (include[i] == TernaryTrue) {
 					if (filteredTypes == null) {
@@ -1451,7 +1451,7 @@ class Relater {
 		return Checker.isUnitType(t) || t.flags & TypeFlagsTemplateLiteral != 0 || t.flags & TypeFlagsStringMapping != 0;
 	}
 
-	static function getVariances(c:Checker, t:Type):Array<VarianceFlags> {
+	static function getVariances(c:Checker, t:Type):Slice<VarianceFlags> {
 		// Arrays and tuples are known to be covariant, no need to spend time computing this.
 		if (t == c.globalArrayType || t == c.globalReadonlyArrayType || t.objectFlags & ObjectFlagsTuple != 0) {
 			return c.arrayVariances;
@@ -1459,7 +1459,7 @@ class Relater {
 		return c.getVariancesWorker(t.symbol, t.AsInterfaceType().TypeParameters());
 	}
 
-	static function getAliasVariances(c:Checker, symbol:Symbol):Array<VarianceFlags> {
+	static function getAliasVariances(c:Checker, symbol:Symbol):Slice<VarianceFlags> {
 		return c.getVariancesWorker(symbol, c.typeAliasLinks.Get(symbol).typeParameters);
 	}
 
@@ -1468,7 +1468,7 @@ class Relater {
 	// generic type are structurally compared. We infer the variance information by comparing
 	// instantiations of the generic type for type arguments with known relations. The function
 	// returns an empty slice when invoked recursively for the given generic type.
-	static function getVariancesWorker(c:Checker, symbol:Symbol, typeParameters:haxe.ds.Vector<Type>):Array<VarianceFlags> {
+	static function getVariancesWorker(c:Checker, symbol:Symbol, typeParameters:haxe.ds.Vector<Type>):Slice<VarianceFlags> {
 		final links = c.varianceLinks.Get(symbol);
 		if (links.variances == null) {
 			var traceArgs:StringMap<Any> = null;
@@ -1622,7 +1622,7 @@ class Relater {
 
 	// Return true if the given type reference has a 'void' type argument for a covariant type parameter.
 	// See comment at call in recursiveTypeRelatedTo for when this case matters.
-	static function hasCovariantVoidArgument(c:Checker, typeArguments:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>):Bool {
+	static function hasCovariantVoidArgument(c:Checker, typeArguments:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>):Bool {
 		for (i in 0...Core.len(variances)) {
 			final v = variances[i];
 			if (v & VarianceFlagsVarianceMask == VarianceFlagsCovariant && typeArguments[i].flags & TypeFlagsVoid != 0) {
@@ -2239,9 +2239,9 @@ class Relater {
 		return sig.resolvedTypePredicate;
 	}
 
-	static function getUnionOrIntersectionTypePredicate(c:Checker, signatures:Array<Signature>, isUnion:Bool):TypePredicate {
+	static function getUnionOrIntersectionTypePredicate(c:Checker, signatures:Slice<Signature>, isUnion:Bool):TypePredicate {
 		var last:TypePredicate = null;
-		var types:Array<Type> = null;
+		var types:Slice<Type> = null;
 		if (signatures != null) {
 			for (sig in signatures) {
 				final pred = c.getTypePredicateOfSignature(sig);
@@ -2318,7 +2318,7 @@ class Relater {
 		return signature.resolvedReturnType == null && c.findResolutionCycleStartIndex((cast signature : TypeSystemEntity) /* PORT: Signature does not declare TypeSystemEntity in the skeleton */, TypeSystemPropertyNameResolvedReturnType) >= 0;
 	}
 
-	static function findMatchingSignatures(c:Checker, signatureLists:Array<haxe.ds.Vector<Signature>>, signature:Signature, listIndex:Int):Array<Signature> {
+	static function findMatchingSignatures(c:Checker, signatureLists:Slice<haxe.ds.Vector<Signature>>, signature:Signature, listIndex:Int):Slice<Signature> {
 		if (Core.len(signature.typeParameters) != 0) {
 			// We require an exact match for generic signatures, so we only return signatures from the first
 			// signature list and only if they have exact matches in the other signature lists.
@@ -2332,7 +2332,7 @@ class Relater {
 			}
 			return [signature];
 		}
-		var result:Array<Signature> = null;
+		var result:Slice<Signature> = null;
 		for (i in 0...signatureLists.length) {
 			// Allow matching non-generic signatures to have excess parameters (as a fallback if exact parameter match is not found) and different return types.
 			// Prefer matching this types if possible.
@@ -2353,7 +2353,7 @@ class Relater {
 		return result;
 	}
 
-	static extern inline overload function findMatchingSignature(c:Checker, signatureList:Array<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
+	static extern inline overload function findMatchingSignature(c:Checker, signatureList:Slice<Signature>, signature:Signature, partialMatch:Bool, ignoreThisTypes:Bool, ignoreReturnTypes:Bool):Signature {
 		final compareTypes:(s:Type, t:Type) -> Ternary = partialMatch ? (s, t) -> c.compareTypesSubtypeOf(s, t) : (s, t) -> c.compareTypesIdentical(s, t);
 		var found:Signature = null;
 		if (signatureList != null) {
@@ -2503,7 +2503,7 @@ class Relater {
 	}
 
 	static function getEffectiveConstraintOfIntersection(c:Checker, types:haxe.ds.Vector<Type>, targetIsUnion:Bool):Type {
-		var constraints:Array<Type> = null;
+		var constraints:Slice<Type> = null;
 		var hasDisjointDomainType = false;
 		for (t in types) {
 			if (t.flags & TypeFlagsInstantiable != 0) {
@@ -2569,7 +2569,7 @@ class Relater {
 		return false;
 	}
 
-	static function inferTypesFromTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType, compareTypes:TypeComparer):Array<Type> {
+	static function inferTypesFromTemplateLiteralType(c:Checker, source:Type, target:TemplateLiteralType, compareTypes:TypeComparer):Slice<Type> {
 		if (source.flags & TypeFlagsStringLiteral != 0) {
 			return c.inferFromLiteralPartsToTemplateLiteral([Checker.getStringLiteralValue(source)], null, target);
 		} else if (source.flags & TypeFlagsTemplateLiteral != 0) {
@@ -2608,7 +2608,7 @@ class Relater {
 	// the source. The first match for the '.' in target occurs at character 1 in the source text part at index 1, and thus
 	// the first inference is the template literal type `<${string}>`. The remainder of the source makes up the second
 	// inference, the template literal type `<${number}-${number}>`.
-	static function inferFromLiteralPartsToTemplateLiteral(c:Checker, sourceTexts:Array<std.String>, sourceTypes:Array<Type>, target:TemplateLiteralType):Array<Type> {
+	static function inferFromLiteralPartsToTemplateLiteral(c:Checker, sourceTexts:Slice<std.String>, sourceTypes:Slice<Type>, target:TemplateLiteralType):Slice<Type> {
 		final lastSourceIndex = sourceTexts.length - 1;
 		final sourceStartText = sourceTexts[0];
 		final sourceEndText = sourceTexts[lastSourceIndex];
@@ -2623,7 +2623,7 @@ class Relater {
 		final remainingEndText = sourceEndText.substring(0, sourceEndText.length - targetEndText.length);
 		var seg = 0;
 		var pos = targetStartText.length;
-		var matches:Array<Type> = null;
+		var matches:Slice<Type> = null;
 		final getSourceText = (index:Int) -> {
 			if (index < lastSourceIndex) {
 				return sourceTexts[index];
@@ -3015,7 +3015,7 @@ class Relater {
 	}
 
 	static function getTypeOfPropertyInTypes(c:Checker, types:haxe.ds.Vector<Type>, name:std.String):Type {
-		var propTypes:Array<Type> = null;
+		var propTypes:Slice<Type> = null;
 		for (t in types) {
 			if (propTypes == null) {
 				propTypes = [];
@@ -3618,8 +3618,8 @@ class Relater {
 		rvOriginalErrorChain = oec;
 	}
 
-	function relateVariances(sourceTypeArguments:haxe.ds.Vector<Type>, targetTypeArguments:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>,
-			intersectionState:IntersectionState, reportErrors:Bool, saveErrorChain:ErrorChain, saveRelatedInfo:Array<Diagnostic>):Ternary {
+	function relateVariances(sourceTypeArguments:haxe.ds.Vector<Type>, targetTypeArguments:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>,
+			intersectionState:IntersectionState, reportErrors:Bool, saveErrorChain:ErrorChain, saveRelatedInfo:Slice<Diagnostic>):Ternary {
 		final result = typeArgumentsRelatedTo(sourceTypeArguments, targetTypeArguments, variances, reportErrors, intersectionState);
 		if (result != TernaryFalse) {
 			rvDone(result, true, false, false, false, null);
@@ -4302,7 +4302,7 @@ class Relater {
 		return TernaryFalse;
 	}
 
-	function typeArgumentsRelatedTo(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
+	function typeArgumentsRelatedTo(sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>, reportErrors:Bool, intersectionState:IntersectionState):Ternary {
 		if (Core.len(sources) != Core.len(targets) && relation == c.identityRelation) {
 			return TernaryFalse;
 		}
@@ -4455,7 +4455,7 @@ class Relater {
 		}
 		// Match each combination of the cartesian product of discriminant properties to one or more
 		// constituents of 'target'. If any combination does not have a match then 'source' is not relatable.
-		var matchingTypes:Array<Type> = null;
+		var matchingTypes:Slice<Type> = null;
 		for (combination in discriminantCombinations) {
 			var hasMatch = false;
 			for (t in target.Types()) {

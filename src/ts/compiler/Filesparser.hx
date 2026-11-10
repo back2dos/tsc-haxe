@@ -9,7 +9,7 @@ class ParseTask implements HasFileName {
 	var file:SourceFile = null;
 	var libFile:LibFile = null;
 	var redirectedParseTask:ParseTask = null;
-	var subTasks:Array<ParseTask> = null;
+	var subTasks:Slice<ParseTask> = null;
 	var loaded:Bool = false;
 	var startedSubTasks:Bool = false;
 	var isForAutomaticTypeDirective:Bool = false;
@@ -20,11 +20,11 @@ class ParseTask implements HasFileName {
 
 	var metadata:SourceFileMetaData = new SourceFileMetaData();
 	var resolutionsInFile:ModeAwareCache<ResolvedModule> = null;
-	var resolutionsTrace:Array<DiagAndArgs> = null;
+	var resolutionsTrace:Slice<DiagAndArgs> = null;
 	var typeResolutionsInFile:ModeAwareCache<ResolvedTypeReferenceDirective> = null;
-	var typeResolutionsTrace:Array<DiagAndArgs> = null;
-	var resolutionDiagnostics:Array<Diagnostic> = null;
-	var processingDiagnostics:Array<ProcessingDiagnostic> = null;
+	var typeResolutionsTrace:Slice<DiagAndArgs> = null;
+	var resolutionDiagnostics:Slice<Diagnostic> = null;
+	var processingDiagnostics:Slice<ProcessingDiagnostic> = null;
 	var importHelpersImportSpecifier:Node = null;
 	var jsxRuntimeImportSpecifier:JsxRuntimeImportSpecifier = null;
 
@@ -32,7 +32,7 @@ class ParseTask implements HasFileName {
 	var elideOnDepth:Bool = false;
 
 	var loadedTask:ParseTask = null;
-	var allIncludeReasons:Array<FileIncludeReason> = null;
+	var allIncludeReasons:Slice<FileIncludeReason> = null;
 
 	public function new() {}
 
@@ -277,12 +277,12 @@ class FilesParser {
 
 	public function new() {}
 
-	function parse(loader:FileLoader, tasks:Array<ParseTask>):Void {
+	function parse(loader:FileLoader, tasks:Slice<ParseTask>):Void {
 		this.start(loader, tasks, 0);
 		this.wg.RunAndWait();
 	}
 
-	function start(loader:FileLoader, tasks:Array<ParseTask>, depth:Int):Void {
+	function start(loader:FileLoader, tasks:Slice<ParseTask>, depth:Int):Void {
 		if (tasks == null)
 			return;
 		#if tshx_parallel
@@ -430,8 +430,8 @@ class FilesParser {
 		final totalFileCount = loader.totalFileCount;
 		final libFileCount = loader.libFileCount;
 
-		var missingFiles:Array<std.String> = null;
-		var duplicateSourceFiles:Array<DuplicateSourceFile> = null;
+		var missingFiles:Slice<std.String> = null;
+		var duplicateSourceFiles:Slice<DuplicateSourceFile> = null;
 		final files:Array<SourceFile> = [];
 		final libFiles:Array<SourceFile> = []; // totalFileCount here since we append files to it later to construct the final list
 
@@ -474,8 +474,8 @@ class FilesParser {
 		// was acquired when the snapshot is disposed, leaving a dangling cache entry that
 		// panics the next time it is referenced.
 		var recordedDuplicates:IdentityMap<ParseTaskData, Set<std.String>> = null;
-		var collectFiles:(tasks:Array<ParseTask>, seen:IdentityMap<ParseTaskData, std.String>) -> Void = null;
-		collectFiles = function(tasks:Array<ParseTask>, seen:IdentityMap<ParseTaskData, std.String>) {
+		var collectFiles:(tasks:Slice<ParseTask>, seen:IdentityMap<ParseTaskData, std.String>) -> Void = null;
+		collectFiles = function(tasks:Slice<ParseTask>, seen:IdentityMap<ParseTaskData, std.String>) {
 			for (task0 in tasks) {
 				var task = task0;
 				final includeReason = task.includeReason;
@@ -544,12 +544,12 @@ class FilesParser {
 
 				if (task.typeResolutionsTrace != null) {
 					for (trace in task.typeResolutionsTrace) {
-						loader.opts.Host.Trace(trace.Message, ...(trace.Args == null ? [] : trace.Args));
+						loader.opts.Host.Trace(trace.Message, ...(trace.Args == null ? [] : trace.Args).toArray());
 					}
 				}
 				if (task.resolutionsTrace != null) {
 					for (trace in task.resolutionsTrace) {
-						loader.opts.Host.Trace(trace.Message, ...(trace.Args == null ? [] : trace.Args));
+						loader.opts.Host.Trace(trace.Message, ...(trace.Args == null ? [] : trace.Args).toArray());
 					}
 				}
 
@@ -614,7 +614,7 @@ class FilesParser {
 				if (task.isForAutomaticTypeDirective) {
 					typeResolutionsInFile.set(task.path, task.typeResolutionsInFile);
 					if (Core.len(task.processingDiagnostics) > 0) {
-						includeProcessor.addProcessingDiagnostic(...task.processingDiagnostics);
+						includeProcessor.addProcessingDiagnostic(...task.processingDiagnostics.toArray());
 					}
 					continue;
 				}
@@ -622,7 +622,7 @@ class FilesParser {
 				final path = task.path;
 
 				if (Core.len(task.processingDiagnostics) > 0) {
-					includeProcessor.addProcessingDiagnostic(...task.processingDiagnostics);
+					includeProcessor.addProcessingDiagnostic(...task.processingDiagnostics.toArray());
 				}
 
 				if (file == null) {
@@ -680,7 +680,7 @@ class FilesParser {
 			resolvedModules.set(key, cache);
 			if (value.trace != null) {
 				for (trace in value.trace) {
-					loader.opts.Host.Trace(trace.Message, ...(trace.Args == null ? [] : trace.Args));
+					loader.opts.Host.Trace(trace.Message, ...(trace.Args == null ? [] : trace.Args).toArray());
 				}
 			}
 		}

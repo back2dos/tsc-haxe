@@ -304,7 +304,7 @@ class Spanmap {
 	}
 
 	// New builds a SpanMap from segments, sorted by virtual start.
-	public static function New(segments:Null<Array<Segment>>):Spanmap {
+	public static function New(segments:Slice<Segment>):Spanmap {
 		final sorted = segments == null ? [] : segments.copy();
 		Slices.SortFunc(sorted, (a, b) -> a.VirtualStart - b.VirtualStart);
 		return new Spanmap(sorted);
@@ -453,7 +453,7 @@ class Spanmap {
 
 	// OriginalToVirtualPositions returns every virtual projection of an original position whose segment
 	// participates in feature.
-	public static function OriginalToVirtualPositions(m:Null<Spanmap>, pos:Int, feature:Feature):Array<MappedPosition> {
+	public static function OriginalToVirtualPositions(m:Null<Spanmap>, pos:Int, feature:Feature):Slice<MappedPosition> {
 		if (m == null) {
 			return [new MappedPosition(pos, FidelityExact)];
 		}
@@ -461,7 +461,7 @@ class Spanmap {
 		if (groups.length == 0) {
 			return null;
 		}
-		var results:Array<MappedPosition> = null;
+		var results:Slice<MappedPosition> = null;
 		for (group in groups) {
 			for (segment in group.segments) {
 				if (!supportsFeature(segment, feature)) {
@@ -478,7 +478,7 @@ class Spanmap {
 				}
 				if (results == null)
 					results = [];
-				if (!Lambda.exists(results, r -> r.Position == mapped.Position && r.Fidelity == mapped.Fidelity)) {
+				if (!Lambda.exists(results.nilable(), r -> r.Position == mapped.Position && r.Fidelity == mapped.Fidelity)) {
 					results.push(mapped);
 				}
 			}
@@ -488,7 +488,7 @@ class Spanmap {
 	}
 
 	// OriginalToVirtualSpans returns every feature-compatible virtual projection of an original range.
-	public static function OriginalToVirtualSpans(m:Null<Spanmap>, r:TextRange, feature:Feature):Array<MappedSpan> {
+	public static function OriginalToVirtualSpans(m:Null<Spanmap>, r:TextRange, feature:Feature):Slice<MappedSpan> {
 		if (m == null) {
 			return [new MappedSpan(r, FidelityExact)];
 		}

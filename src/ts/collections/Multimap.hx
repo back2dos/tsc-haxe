@@ -12,7 +12,7 @@ class MultiMap<K, V> {
 	}
 
 	// Returns null (Go nil slice) for a missing key.
-	public function Get(key:K):Null<Array<V>> {
+	public function Get(key:K):Slice<V> {
 		return M == null ? null : M.get(key);
 	}
 

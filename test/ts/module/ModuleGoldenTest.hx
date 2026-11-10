@@ -46,7 +46,7 @@ class ModuleGoldenTest {
 		return v == null ? "" : v.Str;
 	}
 
-	static function strings(v:Null<Value>):Null<Array<String>> {
+	static function strings(v:Null<Value>):Slice<String> {
 		return v == null || v.Kind != "[".code ? null : [for (i in v.Items) i.Str];
 	}
 
@@ -131,7 +131,7 @@ class ModuleGoldenTest {
 			if (paths != null) {
 				o.Paths = new OrderedMap<String, Array<String>>();
 				for (i in 0...paths.Names.length)
-					o.Paths.Set(paths.Names[i], strings(paths.Members[i]));
+					o.Paths.Set(paths.Names[i], strings(paths.Members[i]).nilable());
 			}
 			o.PathsBasePath = cast str(get(ov, "pathsBasePath"));
 			o.RootDirs = cast strings(get(ov, "rootDirs"));
@@ -165,7 +165,7 @@ class ModuleGoldenTest {
 					default: ModuleKindNone;
 				}
 				out.add('### $name: $kind $opName $from $modeText $dir\n');
-				final writeTraces = function(traces:Null<Array<DiagAndArgs>>) {
+				final writeTraces = function(traces:Slice<DiagAndArgs>) {
 					if (traces != null)
 						for (tr in traces)
 							out.add("trace: " + tr.Message.Localize(Locale.Default, tr.Args) + "\n");

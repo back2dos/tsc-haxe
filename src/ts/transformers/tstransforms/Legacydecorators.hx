@@ -6,8 +6,8 @@ package ts.transformers.tstransforms;
 @:allow(ts.transformers.tstransforms)
 class LegacyDecoratorsTransformer {
 	// PORT: Go `range` over a possibly-nil slice (parser lists of zero elements have nil Nodes).
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 	public var Transformer:Transformer = new Transformer(); // Go: embedded
@@ -18,7 +18,7 @@ class LegacyDecoratorsTransformer {
 		 * with the double-binding behavior of classes.
 		 */
 	var classAliases:IdentityMap<Node, Node> = null;
-	var enclosingClasses:Array<ClassDeclaration> = null;
+	var enclosingClasses:Slice<ClassDeclaration> = null;
 
 	public function new() {}
 
@@ -63,7 +63,7 @@ class LegacyDecoratorsTransformer {
 				classAliases = new IdentityMap<Node, Node>();
 				enclosingClasses = null;
 				final result = Visitor().VisitEachChild(node);
-				EmitContext().AddEmitHelper(result, ...Core.Coalesce(EmitContext().ReadEmitHelpers(), [])); // PORT: spread of a nil slice is an empty variadic call
+				EmitContext().AddEmitHelper(result, ...Core.Coalesce(EmitContext().ReadEmitHelpers(), []).toArray()); // PORT: spread of a nil slice is an empty variadic call
 				classAliases = null;
 				enclosingClasses = null;
 				return result;
@@ -530,8 +530,8 @@ class LegacyDecoratorsTransformer {
 		return expression;
 	}
 
-	function transformDecoratorsOfClassElements(node:ClassDeclaration, members:NodeList):Pair<NodeList, Array<Node>> {
-		var decorationStatements:Array<Node> = null;
+	function transformDecoratorsOfClassElements(node:ClassDeclaration, members:NodeList):Pair<NodeList, Slice<Node>> {
+		var decorationStatements:Slice<Node> = null;
 		final s1 = getClassElementDecorationStatements(node, false);
 		final s2 = getClassElementDecorationStatements(node, true);
 		if (s1 != null) {
@@ -549,7 +549,7 @@ class LegacyDecoratorsTransformer {
 			}
 		}
 		if (Tstransforms.hasClassElementWithDecoratorContainingPrivateIdentifierInExpression(node)) {
-			var memberNodes:Array<Node> = null;
+			var memberNodes:Slice<Node> = null;
 			if (members != null && Core.len(members.Nodes) > 0) {
 				memberNodes = members.Nodes;
 			}
@@ -570,9 +570,9 @@ class LegacyDecoratorsTransformer {
 	* @param isStatic A value indicating whether to generate statements for static or
 	*                 instance members.
 	 */
-	function getClassElementDecorationStatements(node:ClassDeclaration, isStatic:Bool):Array<Node> {
+	function getClassElementDecorationStatements(node:ClassDeclaration, isStatic:Bool):Slice<Node> {
 		final exprs = generateClassElementDecorationExpressions(node, isStatic);
-		var statements:Array<Node> = null;
+		var statements:Slice<Node> = null;
 		if (exprs != null) {
 			for (e in exprs) {
 				if (statements == null)
@@ -591,9 +591,9 @@ class LegacyDecoratorsTransformer {
 	* @param isStatic A value indicating whether to generate expressions for static or
 	*                 instance members.
 	 */
-	function generateClassElementDecorationExpressions(node:ClassDeclaration, isStatic:Bool):Array<Node> {
+	function generateClassElementDecorationExpressions(node:ClassDeclaration, isStatic:Bool):Slice<Node> {
 		final members = Tstransforms.getDecoratedClassElements(node, isStatic);
-		var expressions:Array<Node> = null;
+		var expressions:Slice<Node> = null;
 		if (members != null) {
 			for (member in members) {
 				final expr = generateClassElementDecorationExpression(node, member);
@@ -680,15 +680,15 @@ class LegacyDecoratorsTransformer {
 	*
 	* @param allDecorators An object containing all of the decorators for the declaration.
 	 */
-	function transformAllDecoratorsOfDeclaration(allDecorators:AllDecorators):Array<Node> {
+	function transformAllDecoratorsOfDeclaration(allDecorators:AllDecorators):Slice<Node> {
 		if (allDecorators == null) {
 			return null;
 		}
 
 		// ensure that metadata decorators are last
 		// PORT: collections.GroupBy with a bool key (go.GoMap has no Bool keys) → two order-preserving groups.
-		var metadata:Array<Node> = null;
-		var decorators:Array<Node> = null;
+		var metadata:Slice<Node> = null;
+		var decorators:Slice<Node> = null;
 		if (allDecorators.decorators != null) {
 			for (d in allDecorators.decorators) {
 				if (isSyntheticMetadataDecorator(d)) {
@@ -703,7 +703,7 @@ class LegacyDecoratorsTransformer {
 			}
 		}
 
-		var decoratorExpressions:Array<Node> = null;
+		var decoratorExpressions:Slice<Node> = null;
 		for (part in [
 			transformDecorators(decorators),
 			transformDecoratorsOfParameters(allDecorators.parameters),
@@ -720,8 +720,8 @@ class LegacyDecoratorsTransformer {
 		return decoratorExpressions;
 	}
 
-	function transformDecoratorsOfParameters(parameters:Array<Array<Node>>):Array<Node> {
-		var results:Array<Node> = null;
+	function transformDecoratorsOfParameters(parameters:Slice<Slice<Node>>):Slice<Node> {
+		var results:Slice<Node> = null;
 		if (parameters != null) {
 			for (i in 0...parameters.length) {
 				final decorators = parameters[i];
@@ -744,8 +744,8 @@ class LegacyDecoratorsTransformer {
 	*
 	* @param decorator The decorator node.
 	 */
-	function transformDecorators(decorators:Array<Node>):Array<Node> {
-		var results:Array<Node> = null;
+	function transformDecorators(decorators:Slice<Node>):Slice<Node> {
+		var results:Slice<Node> = null;
 		if (decorators != null) {
 			for (d in decorators) {
 				if (results == null)
@@ -786,10 +786,10 @@ class LegacyDecoratorsTransformer {
 
 @:allow(ts.transformers.tstransforms)
 class AllDecorators {
-	var decorators:Array<Node> = null;
-	var parameters:Array<Array<Node>> = null;
+	var decorators:Slice<Node> = null;
+	var parameters:Slice<Slice<Node>> = null;
 
-	public function new(decorators:Array<Node> = null, parameters:Array<Array<Node>> = null) {
+	public function new(decorators:Slice<Node> = null, parameters:Slice<Slice<Node>> = null) {
 		this.decorators = decorators;
 		this.parameters = parameters;
 	}

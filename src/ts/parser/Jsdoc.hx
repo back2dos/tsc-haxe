@@ -689,7 +689,7 @@ class Jsdoc {
 		// start at token after link, then skip any whitespace
 		p.skipWhitespace();
 		var name = p.parseJSDocLinkName();
-		var text:Array<String> = null;
+		var text:Slice<String> = null;
 		while (p.token != KindCloseBraceToken && p.token != KindNewLineTrivia && p.token != KindEndOfFile) {
 			text = Parser.append(text, p.scanner.TokenText());
 			p.nextTokenJSDoc(); // Couldn't this be nextTokenCommentJSDoc?
@@ -813,7 +813,7 @@ class Jsdoc {
 	static function parseNestedTypeLiteral(p:Parser, typeExpression:Node, name:EntityName, target:PropertyLikeParse, indent:Int):Node {
 		if (typeExpression != null && Parser.isObjectOrObjectArrayTypeReference(typeExpression.Type())) {
 			var pos = p.nodePos();
-			var children:Array<Node> = null;
+			var children:Slice<Node> = null;
 			while (true) {
 				var state = p.mark();
 				var child = p.parseChildParameterOrPropertyTag(target, indent, name);
@@ -980,7 +980,7 @@ class Jsdoc {
 		if (typeExpression == null || Parser.isObjectOrObjectArrayTypeReference(typeExpression.Type())) {
 			var child:Node = null;
 			var childTypeTag:JSDocTypeTag = null;
-			var jsdocPropertyTags:Array<Node> = null;
+			var jsdocPropertyTags:Slice<Node> = null;
 			while (true) {
 				var state = p.mark();
 				child = p.parseChildPropertyTag(indent);
@@ -1051,7 +1051,7 @@ class Jsdoc {
 
 	static function parseCallbackTagParameters(p:Parser, indent:Int):NodeList {
 		var child:Node = null;
-		var parameters:Array<Node> = null;
+		var parameters:Slice<Node> = null;
 		var pos = p.nodePos();
 		while (true) {
 			var state = p.mark();

@@ -43,7 +43,7 @@ class TaskResult {
 	public var statistics:Null<Statistics> = null;
 	public var program:Null<ts.execute.incremental.Program.Program> = null;
 	public var buildKind:BuildKind = buildKindNone;
-	public var filesToDelete:Null<Array<RootedFilePath>> = null;
+	public var filesToDelete:Slice<RootedFilePath> = null;
 
 	public function new() {
 		this.builderWriter = new BuilderWriter(this.builder);
@@ -55,8 +55,8 @@ class BuildTask {
 	var config:RootedFilePath = cast "";
 	var path:PathKey = cast "";
 	var resolved:Null<ParsedCommandLine> = null;
-	var upStream:Null<Array<UpstreamTask>> = null;
-	var downStream:Null<Array<BuildTask>> = null; // Only set and used in watch mode
+	var upStream:Slice<UpstreamTask> = null;
+	var downStream:Slice<BuildTask> = null; // Only set and used in watch mode
 	var status:Null<UpToDateStatus> = null;
 
 	// PORT: `done chan struct{}` dropped (see the file header).
@@ -67,9 +67,9 @@ class BuildTask {
 	// PORT: `reportDone chan struct{}` dropped (see the file header).
 
 	var buildInfoEntry:Null<BuildInfoEntry> = null;
-	var packageJsons:Null<Array<RootedFilePath>> = null;
+	var packageJsons:Slice<RootedFilePath> = null;
 
-	var errors:Null<Array<Diagnostic>> = null;
+	var errors:Slice<Diagnostic> = null;
 	var pending:Bool = false;
 	var isInitialCycle:Bool = false;
 	var dirty:Bool = false;
@@ -651,8 +651,8 @@ class BuildTask {
 		return !this.resolved.CompilerOptions().NoEmit.IsTrue() && !this.resolved.CompilerOptions().IsIncremental();
 	}
 
-	function updateTimeStamps(orchestrator:Orchestrator, emittedFiles:Null<Array<RootedFilePath>>, verboseMessage:Message):Void {
-		final emitted = emittedFiles == null ? Collections.NewSetFromItems() : Collections.NewSetFromItems(...emittedFiles);
+	function updateTimeStamps(orchestrator:Orchestrator, emittedFiles:Slice<RootedFilePath>, verboseMessage:Message):Void {
+		final emitted = emittedFiles == null ? Collections.NewSetFromItems() : Collections.NewSetFromItems(...emittedFiles.toArray());
 		var verboseMessageReported = false;
 		final buildInfoName = this.resolved.GetBuildInfoFileName();
 		final now = orchestrator.opts.Sys.Now();
@@ -691,10 +691,10 @@ class BuildTask {
 			return;
 		}
 
-		final inputPaths:Array<PathKey> = Core.Map(this.resolved.FileNames(), function(fileName:RootedFilePath):PathKey {
+		final inputPaths:Slice<PathKey> = Core.Map(this.resolved.FileNames(), function(fileName:RootedFilePath):PathKey {
 			return orchestrator.caseSensitivity.PathKey(fileName.AsPath());
 		});
-		final inputs = inputPaths == null ? Collections.NewSetFromItems() : Collections.NewSetFromItems(...inputPaths);
+		final inputs = inputPaths == null ? Collections.NewSetFromItems() : Collections.NewSetFromItems(...inputPaths.toArray());
 		for (outputFile in this.resolved.GetOutputFileNames()) {
 			this.cleanProjectOutput(orchestrator, outputFile, inputs);
 		}

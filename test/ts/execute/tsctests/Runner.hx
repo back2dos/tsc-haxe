@@ -11,7 +11,7 @@ import ts.execute.tsc.Compile.ExitStatus.*;
 @:structInit
 class TscEdit {
 	public var caption:String = "";
-	public var commandLineArgs:Null<Array<String>> = null;
+	public var commandLineArgs:Slice<String> = null;
 	public var edit:Null<(sys:TestSys) -> Void> = null;
 	public var expectedDiff:String = "";
 }
@@ -22,15 +22,15 @@ typedef FileMap = Map<String, Any>;
 @:structInit
 class TscInput {
 	public var subScenario:String = "";
-	public var commandLineArgs:Null<Array<String>> = null;
+	public var commandLineArgs:Slice<String> = null;
 	public var files:Null<FileMap> = null;
 	public var cwd:String = "";
-	public var edits:Null<Array<TscEdit>> = null;
+	public var edits:Slice<TscEdit> = null;
 	public var env:Null<Map<String, String>> = null;
 	public var ignoreCase:Bool = false;
 	public var windowsStyleRoot:String = "";
 
-	function executeCommand(sys:TestSys, baselineBuilder:Builder, commandLineArgs:Null<Array<String>>):CommandLineResult {
+	function executeCommand(sys:TestSys, baselineBuilder:Builder, commandLineArgs:Slice<String>):CommandLineResult {
 		baselineBuilder.WriteString("tsgo " + (commandLineArgs == null ? "" : commandLineArgs.join(" ")) + "\n");
 		final result = Execute.CommandLine(Context.Background(), sys, commandLineArgs, sys);
 		switch (result.Status) {

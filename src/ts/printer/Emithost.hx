@@ -7,8 +7,8 @@ import go.Errors.Error;
 // NOTE: EmitHost operations must be thread-safe
 interface EmitHost {
 	function Options():CompilerOptions;
-	function SourceFiles():Array<SourceFile>;
-	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
+	function SourceFiles():Slice<SourceFile>;
+	function ContentMapperExtensionRewrites():Slice<ts.tspath.Tspath.ExtensionRewrite>;
 	function CaseSensitivity():CaseSensitivity;
 	function CommonSourceDirectory():RootedDirectoryPath;
 	function IsEmitBlocked(file:RootedFilePath):Bool;

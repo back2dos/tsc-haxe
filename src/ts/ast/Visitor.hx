@@ -118,7 +118,7 @@ class NodeVisitor {
 	//   - If v.Visit returns a SyntaxList Node, then the children of that node will be merged into the output and a new slice will be returned.
 	// PORT: perf — Go returns (result []*Node, changed bool); changed is left in VisitSliceChanged, read by the caller right
 	// after the call (no Pair per visited list).
-	public function VisitSlice(nodes:Array<Node>):Array<Node> {
+	public function VisitSlice(nodes:Slice<Node>):Slice<Node> {
 		if (nodes == null || Visit == null) {
 			VisitSliceChanged = false;
 			return nodes;
@@ -249,7 +249,7 @@ class NodeVisitor {
 	}
 
 	function liftToBlock(node:Statement):Statement {
-		var nodes:Array<Node> = null;
+		var nodes:Slice<Node> = null;
 		if (node != null) {
 			if (node.Kind == KindSyntaxList) {
 				nodes = node.AsSyntaxList().Children;

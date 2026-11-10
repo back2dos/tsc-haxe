@@ -322,7 +322,7 @@ class Transformers {
 	}
 
 	static function convertBindingElementToObjectAssignmentPattern(emitContext:EmitContext, element:BindingPattern):Expression {
-		var properties:Array<ObjectLiteralElement> = null;
+		var properties:Slice<ObjectLiteralElement> = null;
 		for (element in element.Elements.Nodes) {
 			if (properties == null) {
 				properties = [];
@@ -338,7 +338,7 @@ class Transformers {
 	}
 
 	static function convertBindingElementToArrayAssignmentPattern(emitContext:EmitContext, element:BindingPattern):Expression {
-		var elements:Array<Expression> = null;
+		var elements:Slice<Expression> = null;
 		for (element in element.Elements.Nodes) {
 			if (elements == null) {
 				elements = [];
@@ -371,7 +371,7 @@ class Transformers {
 		return assignment;
 	}
 
-	public static function SingleOrMany(nodes:Array<Node>, factory:ts.printer.Factory.NodeFactory):Node {
+	public static function SingleOrMany(nodes:Slice<Node>, factory:ts.printer.Factory.NodeFactory):Node {
 		if (nodes == null) {
 			return null;
 		}
@@ -419,7 +419,7 @@ class Transformers {
 	}
 
 	// FindSuperStatementIndexPath finds a path of indices to a statement containing a `super()` call.
-	public static function FindSuperStatementIndexPath(statements:Array<Statement>, start:Int):Array<Int> {
+	public static function FindSuperStatementIndexPath(statements:Slice<Statement>, start:Int):Slice<Int> {
 		final indices = findSuperStatementIndexPathWorker(statements, start, null);
 		if (indices != null) {
 			indices.reverse();
@@ -427,7 +427,7 @@ class Transformers {
 		return indices;
 	}
 
-	static function findSuperStatementIndexPathWorker(statements:Array<Statement>, start:Int, indices:Array<Int>):Array<Int> {
+	static function findSuperStatementIndexPathWorker(statements:Slice<Statement>, start:Int, indices:Array<Int>):Slice<Int> {
 		var i = start;
 		while (i < Core.len(statements)) {
 			final statement = statements[i];
@@ -530,7 +530,7 @@ class Transformers {
 	// PORT: Go `append(indices, i)` on a nil-able slice. The worker's recursive appends share the
 	// caller's backing array in Go only when capacity allows; each result is used once, so a push
 	// on the (owned) array is equivalent.
-	static function append(s:Array<Int>, x:Int):Array<Int> {
+	static function append(s:Slice<Int>, x:Int):Slice<Int> {
 		if (s == null) {
 			s = [];
 		}

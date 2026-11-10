@@ -29,7 +29,7 @@ class IdentityMap<K, V> implements IMap<K, V> {
 	var vs:SlotArray = null;
 	// Open addressing, linear probing: 0 = empty slot, else index into ks + 1.
 	// (Measured: keys and values stored in the table itself were slower — more memory per map.)
-	var slots:Array<Int> = null;
+	var slots:Slice<Int> = null;
 	var shift:Int = 32; // 32 - log2(slots.length)
 	var used:Int = 0; // ks.length (live entries + holes)
 	var count:Int = 0; // live entries

@@ -29,13 +29,13 @@ class Nodebuilderscopes {
 		};
 	}
 
-	static function enterSignatureScope(b:NodeBuilderImpl, signature:Signature):Pair<Array<Symbol>, () -> Void> {
+	static function enterSignatureScope(b:NodeBuilderImpl, signature:Signature):Pair<Slice<Symbol>, () -> Void> {
 		final expandedParams = b.ch.getExpandedParameters(signature, true /*skipUnionExpanding*/)[0];
 		final cleanup = b.enterNewScope(signature.declaration, expandedParams, Core.vectorToArray(signature.typeParameters) /* PORT: perf — a copy (printing) */, signature.parameters, signature.mapper);
-		return new Pair<Array<Symbol>, () -> Void>(expandedParams, cleanup);
+		return new Pair<Slice<Symbol>, () -> Void>(expandedParams, cleanup);
 	}
 
-	static function enterNewScope(b:NodeBuilderImpl, declaration:Node, expandedParams:Array<Symbol>, typeParameters:Array<Type>, originalParameters:haxe.ds.Vector<Symbol>, mapper:TypeMapper):() -> Void {
+	static function enterNewScope(b:NodeBuilderImpl, declaration:Node, expandedParams:Slice<Symbol>, typeParameters:Slice<Type>, originalParameters:haxe.ds.Vector<Symbol>, mapper:TypeMapper):() -> Void {
 		final cleanupContext = Checker.cloneNodeBuilderContext(b.ctx);
 		// For regular function/method declarations, the enclosing declaration will already be signature.declaration,
 		// so this is a no-op, but for arrow functions and function expressions, the enclosing declaration will be

@@ -26,7 +26,7 @@ class SerializedTypeEntry {
 	var node:Node = null;
 	var truncating:Bool = false;
 	var addedLength:Int = 0;
-	var trackedSymbols:Array<TrackedSymbolArgs> = null;
+	var trackedSymbols:Slice<TrackedSymbolArgs> = null;
 
 	public function new() {}
 }
@@ -84,17 +84,17 @@ class NodeBuilderContext {
 	var internalFlags:InternalFlags = 0;
 	var depth:Int = 0;
 	var maxExpansionDepth:Int = 0; // -1 means no expansion, 0+ = verbosity levels
-	var typeStack:Array<Type> = null;
+	var typeStack:Slice<Type> = null;
 	var canIncreaseExpansionDepth:Bool = false;
 	var expansionTruncated:Bool = false;
 	var enclosingDeclaration:Node = null;
 	var enclosingFile:SourceFile = null;
-	var inferTypeParameters:Array<Type> = null;
+	var inferTypeParameters:Slice<Type> = null;
 	var visitedTypes:Set<TypeId> = new Set<TypeId>();
 	var symbolDepth:StringMap<Int> /* key: checker.CompositeSymbolIdentity */ = null;
-	var trackedSymbols:Array<TrackedSymbolArgs> = null;
+	var trackedSymbols:Slice<TrackedSymbolArgs> = null;
 	var mapper:TypeMapper = null;
-	var reverseMappedStack:Array<Symbol> = null;
+	var reverseMappedStack:Slice<Symbol> = null;
 	var enclosingSymbolTypes:IntMap<Type> = null;
 	var suppressReportInferenceFallback:Bool = false;
 	var remappedSymbolReferences:IntMap<Symbol> = null;
@@ -319,7 +319,7 @@ class NodeBuilderImpl {
 		return this.e.AddSyntheticLeadingComment(this.f.NewKeywordTypeNode(KindAnyKeyword), KindMultiLineCommentTrivia, "elided", false /*hasTrailingNewLine*/);
 	}
 
-	function mapToTypeNodes(list:Array<Type>, isBareList:Bool):NodeList {
+	function mapToTypeNodes(list:Slice<Type>, isBareList:Bool):NodeList {
 		if (Core.len(list) == 0) {
 			return null;
 		}
@@ -560,7 +560,7 @@ class NodeBuilderImpl {
 		return this.createEntityNameFromSymbolChain(chain, Core.len(chain) - 1);
 	}
 
-	function createEntityNameFromSymbolChain(chain:Array<Symbol>, index:Int):Node {
+	function createEntityNameFromSymbolChain(chain:Slice<Symbol>, index:Int):Node {
 		// typeParameterNodes := b.lookupTypeParameterNodes(chain, index)
 		final symbol = chain[index];
 
@@ -690,7 +690,7 @@ class NodeBuilderImpl {
 		return entityName;
 	}
 
-	function createAccessFromSymbolChain(chain:Array<Symbol>, index:Int, stopper:Int, overrideTypeArguments:NodeList):Node {
+	function createAccessFromSymbolChain(chain:Slice<Symbol>, index:Int, stopper:Int, overrideTypeArguments:NodeList):Node {
 		var typeParameterNodes = overrideTypeArguments;
 		if (index != (chain.length - 1)) {
 			typeParameterNodes = this.lookupTypeParameterNodes(chain, index);
@@ -799,7 +799,7 @@ class NodeBuilderImpl {
 		return this.createExpressionFromSymbolChain(chain, Core.len(chain) - 1);
 	}
 
-	function createExpressionFromSymbolChain(chain:Array<Symbol>, index:Int):Expression {
+	function createExpressionFromSymbolChain(chain:Slice<Symbol>, index:Int):Expression {
 		final typeParameterNodes = this.lookupExpressionChainTypeArgumentNodes(chain, index);
 		final symbol = chain[index];
 
@@ -970,7 +970,7 @@ class NodeBuilderImpl {
 		return result;
 	}
 
-	function lookupTypeParameterNodes(chain:Array<Symbol>, index:Int):TypeParameterList {
+	function lookupTypeParameterNodes(chain:Slice<Symbol>, index:Int):TypeParameterList {
 		Debug.Assert(chain != null && 0 <= index && index < chain.length);
 		final symbol = chain[index];
 		final symbolId = Ast.GetSymbolId(symbol);
@@ -996,14 +996,14 @@ class NodeBuilderImpl {
 	}
 
 	// TODO: move `lookupSymbolChain` and co to `symbolaccessibility.go` (but getSpecifierForModuleSymbol uses much context which makes that hard?)
-	function lookupSymbolChain(symbol:Symbol, meaning:SymbolFlags, yieldModuleSymbol:Bool):Array<Symbol> {
+	function lookupSymbolChain(symbol:Symbol, meaning:SymbolFlags, yieldModuleSymbol:Bool):Slice<Symbol> {
 		this.ctx.tracker.TrackSymbol(symbol, this.ctx.enclosingDeclaration, meaning);
 		return this.lookupSymbolChainWorker(symbol, meaning, yieldModuleSymbol);
 	}
 
-	function lookupSymbolChainWorker(symbol:Symbol, meaning:SymbolFlags, yieldModuleSymbol:Bool):Array<Symbol> {
+	function lookupSymbolChainWorker(symbol:Symbol, meaning:SymbolFlags, yieldModuleSymbol:Bool):Slice<Symbol> {
 		// Try to get qualified name if the symbol is not a type parameter and there is an enclosing declaration.
-		var chain:Array<Symbol> = null;
+		var chain:Slice<Symbol> = null;
 		final isTypeParameter = symbol.Flags & SymbolFlagsTypeParameter != 0;
 		if (!isTypeParameter && (this.ctx.enclosingDeclaration != null || this.ctx.flags & FlagsUseFullyQualifiedType != 0)
 			&& (this.ctx.internalFlags & InternalFlagsDoNotIncludeSymbolChain == 0)) {
@@ -1018,7 +1018,7 @@ class NodeBuilderImpl {
 	}
 
 	/** @param endOfChain Set to false for recursive calls; non-recursive calls should always output something. */
-	function getSymbolChain(symbol:Symbol, meaning:SymbolFlags, endOfChain:Bool, yieldModuleSymbol:Bool):Array<Symbol> {
+	function getSymbolChain(symbol:Symbol, meaning:SymbolFlags, endOfChain:Bool, yieldModuleSymbol:Bool):Slice<Symbol> {
 		var accessibleSymbolChain = this.ch.getAccessibleSymbolChain(symbol, this.ctx.enclosingDeclaration, meaning,
 			this.ctx.flags & FlagsUseOnlyExternalAliasing != 0);
 		var qualifierMeaning = meaning;
@@ -1067,7 +1067,7 @@ class NodeBuilderImpl {
 							nextSyms = [fallback];
 						}
 						// PORT: Go `append(parentChain, nextSyms...)` → concat (never writes into parentChain).
-						accessibleSymbolChain = parentChain.concat(nextSyms);
+						accessibleSymbolChain = parentChain.concat(nextSyms.toArray());
 						break;
 					}
 				}
@@ -1539,14 +1539,14 @@ class NodeBuilderImpl {
 		return this.typeParameterToDeclarationWithConstraint(parameter, constraintNode);
 	}
 
-	function symbolToTypeParameterDeclarations(symbol:Symbol):Array<Node> {
+	function symbolToTypeParameterDeclarations(symbol:Symbol):Slice<Node> {
 		return this.typeParametersToTypeParameterDeclarations(symbol);
 	}
 
-	function typeParametersToTypeParameterDeclarations(symbol:Symbol):Array<Node> {
+	function typeParametersToTypeParameterDeclarations(symbol:Symbol):Slice<Node> {
 		final targetSymbol = this.ch.getTargetSymbol(symbol);
 		if (targetSymbol.Flags & (SymbolFlagsClass | SymbolFlagsInterface | SymbolFlagsAlias) != 0) {
-			var results:Array<Node> = null;
+			var results:Slice<Node> = null;
 			final params = this.ch.getLocalTypeParametersOfClassOrInterfaceOrTypeAlias(symbol);
 			if (params != null) {
 				for (param in params) {
@@ -1558,7 +1558,7 @@ class NodeBuilderImpl {
 			}
 			return results;
 		} else if (targetSymbol.Flags & SymbolFlagsFunction != 0) {
-			var results:Array<Node> = null;
+			var results:Slice<Node> = null;
 			final params = this.ch.getTypeParametersFromDeclaration(symbol.ValueDeclaration);
 			if (params != null) {
 				for (param in params) {
@@ -1695,7 +1695,7 @@ class NodeBuilderImpl {
 
 	function signatureToSignatureDeclarationHelper(signature:Signature, kind:Kind, options:SignatureToSignatureDeclarationOptions):Node {
 		final b = this;
-		var typeParameters:Array<Node> = null;
+		var typeParameters:Slice<Node> = null;
 
 		final scope = b.enterSignatureScope(signature);
 		final expandedParams = scope.a;
@@ -1737,13 +1737,13 @@ class NodeBuilderImpl {
 		}
 		if (thisParameter != null) {
 			final withThis:Array<Node> = [thisParameter];
-			parameters = parameters == null ? withThis : withThis.concat(parameters);
+			parameters = parameters == null ? withThis : withThis.concat(parameters.toArray());
 		}
 		restoreFlags();
 
 		var returnTypeNode = b.serializeReturnTypeForSignature(signature, true);
 
-		var modifiers:Array<Node> = null;
+		var modifiers:Slice<Node> = null;
 		if (options != null) {
 			modifiers = options.modifiers;
 		}
@@ -1914,7 +1914,7 @@ class NodeBuilderImpl {
 		return this.ch.GetEmitResolver().isEntityNameVisible(e.Name().Expression(), this.ctx.enclosingDeclaration, false).Accessibility == SymbolAccessibilityAccessible;
 	}
 
-	function indexInfoToObjectComputedNamesOrSignatureDeclaration(indexInfo:IndexInfo, typeNode:TypeNode):Array<Node> {
+	function indexInfoToObjectComputedNamesOrSignatureDeclaration(indexInfo:IndexInfo, typeNode:TypeNode):Slice<Node> {
 		final b = this;
 		if (Core.len(indexInfo.components) > 0) {
 			// Index info is derived from object or class computed property names (plus explicit named members) - we can clone those instead of writing out the result computed index signature
@@ -2311,7 +2311,7 @@ class NodeBuilderImpl {
 		return null;
 	}
 
-	function addPropertyToElementList(propertySymbol:Symbol, typeElements:Array<TypeElement>):Array<TypeElement> {
+	function addPropertyToElementList(propertySymbol:Symbol, typeElements:Slice<TypeElement>):Slice<TypeElement> {
 		final b = this;
 		// PORT: Go append onto a possibly-nil, caller-owned slice; callers reassign the result.
 		final append = (n:Node) -> {
@@ -2478,7 +2478,7 @@ class NodeBuilderImpl {
 			}
 			return this.f.NewNodeList([this.f.NewPropertySignatureDeclaration(null, this.f.NewIdentifier("..."), null, null, null)]);
 		}
-		var typeElements:Array<TypeElement> = null;
+		var typeElements:Slice<TypeElement> = null;
 		final callSignatures = resolvedType.CallSignatures();
 		if (callSignatures != null) {
 			for (signature in callSignatures) {
@@ -2856,7 +2856,7 @@ class NodeBuilderImpl {
 	}
 
 	function arrayOrTupleTypeToNode(t:Type):TypeNode {
-		var typeArguments:Array<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
+		var typeArguments:Slice<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
 		if (t.Target() == this.ch.globalArrayType || t.Target() == this.ch.globalReadonlyArrayType) {
 			if (this.ctx.flags & FlagsWriteArrayAsGenericType != 0) {
 				final typeArgumentNode = this.typeToTypeNode(typeArguments[0]);
@@ -2926,7 +2926,7 @@ class NodeBuilderImpl {
 	}
 
 	function typeReferenceToTypeNode(t:Type):TypeNode {
-		var typeArguments:Array<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
+		var typeArguments:Slice<Type> = Core.vectorToArray(this.ch.getTypeArguments(t)); // PORT: perf — a copy (printing)
 		if (this.ctx.flags & FlagsWriteClassExpressionAsTypeLiteral != 0 && t.symbol.ValueDeclaration != null && Ast.IsClassLike(t.symbol.ValueDeclaration)
 			&& !this.ch.IsValueSymbolAccessible(t.symbol, this.ctx.enclosingDeclaration)) {
 			return this.createAnonymousTypeNode(t);
@@ -3393,7 +3393,7 @@ class NodeBuilderImpl {
 				t = t.AsUnionType().origin;
 			}
 			if (t.flags & (TypeFlagsUnion | TypeFlagsIntersection) != 0) {
-				var types:Array<Type> = null;
+				var types:Slice<Type> = null;
 				if (t.flags & TypeFlagsUnion != 0) {
 					types = this.ch.formatUnionTypes(t.AsUnionType().types, expandingEnum);
 				} else {
@@ -3535,7 +3535,7 @@ class NodeBuilderImpl {
 		return this.f.NewExpressionWithTypeArguments(expr, typeArguments);
 	}
 
-	function lookupInstantiatedTypeArgumentNodes(chain:Array<Symbol>, index:Int):TypeParameterList {
+	function lookupInstantiatedTypeArgumentNodes(chain:Slice<Symbol>, index:Int):TypeParameterList {
 		if (this.shouldWriteTypeParametersInQualifiedName(chain, index)) {
 			final symbol = chain[index];
 			final nextSymbol = chain[index + 1];
@@ -3552,7 +3552,7 @@ class NodeBuilderImpl {
 				return null;
 			}
 
-			var params = this.getTypeParametersOfClassOrInterface(targetSymbol);
+			var params:Slice<Type> = this.getTypeParametersOfClassOrInterface(targetSymbol);
 			final targetMapper = this.ch.valueSymbolLinks.Get(nextSymbol).mapper;
 			if (targetMapper != null) {
 				params = Core.Map(params, (t:Type) -> targetMapper.Map(t));
@@ -3562,7 +3562,7 @@ class NodeBuilderImpl {
 		return null;
 	}
 
-	function lookupExpressionChainTypeArgumentNodes(chain:Array<Symbol>, index:Int):TypeParameterList {
+	function lookupExpressionChainTypeArgumentNodes(chain:Slice<Symbol>, index:Int):TypeParameterList {
 		if (this.shouldWriteTypeParametersInQualifiedName(chain, index)) {
 			final symbol = chain[index];
 			final symbolId = Ast.GetSymbolId(symbol);
@@ -3583,7 +3583,7 @@ class NodeBuilderImpl {
 		return null;
 	}
 
-	function shouldWriteTypeParametersInQualifiedName(chain:Array<Symbol>, index:Int):Bool {
+	function shouldWriteTypeParametersInQualifiedName(chain:Slice<Symbol>, index:Int):Bool {
 		return this.ctx.flags & FlagsWriteTypeParametersInQualifiedName != 0 && index < Core.len(chain) - 1;
 	}
 }
@@ -3598,7 +3598,7 @@ class SortedSymbolNamePair {
 
 @:allow(ts.checker)
 class SignatureToSignatureDeclarationOptions {
-	var modifiers:Array<Node> = null;
+	var modifiers:Slice<Node> = null;
 	var name:PropertyName = null;
 	var questionToken:Node = null;
 
@@ -3615,7 +3615,7 @@ enum abstract PropertyNameNodeKind(Int) from Int to Int {
 @:allow(ts.checker)
 class Nodebuilderimpl {
 
-	static function getExpandedParameters(c:Checker, sig:Signature, skipUnionExpanding:Bool):Array<Array<Symbol>> {
+	static function getExpandedParameters(c:Checker, sig:Signature, skipUnionExpanding:Bool):Slice<Slice<Symbol>> {
 		if (Checker.signatureHasRestParameter(sig)) {
 			final restIndex = sig.parameters.length - 1;
 			final restSymbol = sig.parameters[restIndex];
@@ -3747,11 +3747,11 @@ class NodeBuilderSpecifierHostAdapter implements ModuleSpecifierGenerationHost {
 		return h.BaseDirectory();
 	}
 
-	public function ContentMapperExtensions():Null<Array<std.String>> {
+	public function ContentMapperExtensions():Slice<std.String> {
 		return h.ContentMapperExtensions();
 	}
 
-	public function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>> {
+	public function ContentMapperExtensionRewrites():Slice<ts.tspath.Tspath.ExtensionRewrite> {
 		return h.ContentMapperExtensionRewrites();
 	}
 

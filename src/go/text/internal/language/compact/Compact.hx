@@ -29,10 +29,10 @@ class Compact {
 		return L.CompactCoreInfoTag(coreTags[id]);
 	}
 
-	static var specialTags_:Array<LTag> = null;
+	static var specialTags_:Slice<LTag> = null;
 
 	// PORT: Go package init(); built on first use.
-	static function specialTags():Array<LTag> {
+	static function specialTags():Slice<LTag> {
 		if (specialTags_ == null) {
 			final str = [for (c in specialTagsStr) String.fromCharCode(c)].join("");
 			specialTags_ = [for (t in str.split(" ")) L.MustParse(t)];

@@ -7,7 +7,7 @@ package ts.transformers.declarations;
 // This ensures that consumers loading the canonical declaration also include the supplemental types.
 class Supplementalreferences implements ts.compiler.Emitter.DeclarationTransformerLike {
 	final host:ts.compiler.EmitHost.EmitHost;
-	final supplementalFiles:Array<SourceFile>;
+	final supplementalFiles:Slice<SourceFile>;
 	final declarationFilePath:RootedFilePath;
 	final forceDeclarationPaths:Bool;
 
@@ -48,7 +48,7 @@ class Supplementalreferences implements ts.compiler.Emitter.DeclarationTransform
 		return sourceFile;
 	}
 
-	public function GetDiagnostics():Array<Diagnostic> {
+	public function GetDiagnostics():Slice<Diagnostic> {
 		return null;
 	}
 }

@@ -24,7 +24,7 @@ class DiffLine {
 }
 
 class Hunk {
-	public var Diffs:Null<Array<DiffLine>> = null;
+	public var Diffs:Slice<DiffLine> = null;
 	public var SrcStart:Int = 0;
 	public var SrcLines:Int = 0;
 	public var DstStart:Int = 0;
@@ -105,7 +105,7 @@ class Patience {
 		return new Pair(elements, indices);
 	}
 
-	public static function Diff(a:Array<String>, b:Array<String>):Null<Array<DiffLine>> {
+	public static function Diff(a:Array<String>, b:Array<String>):Slice<DiffLine> {
 		if (a.length == 0 && b.length == 0) {
 			return null;
 		} else if (a.length == 0) {
@@ -156,7 +156,7 @@ class Patience {
 		return diffs;
 	}
 
-	static function concat(a:Null<Array<DiffLine>>, b:Null<Array<DiffLine>>):Array<DiffLine> {
+	static function concat(a:Slice<DiffLine>, b:Slice<DiffLine>):Array<DiffLine> {
 		final r = a == null ? [] : a.copy();
 		if (b != null)
 			for (x in b)
@@ -166,7 +166,7 @@ class Patience {
 
 	// --- unified.go ---
 
-	static function makeHunks(diffs:Null<Array<DiffLine>>, precontext:Int, postcontext:Int):Null<Array<Hunk>> {
+	static function makeHunks(diffs:Slice<DiffLine>, precontext:Int, postcontext:Int):Slice<Hunk> {
 		if (diffs == null || diffs.length == 0) {
 			return null;
 		}
@@ -291,7 +291,7 @@ class Patience {
 		}
 	}
 
-	public static function UnifiedDiffTextWithOptions(diffs:Null<Array<DiffLine>>, opts:UnifiedDiffOptions):String {
+	public static function UnifiedDiffTextWithOptions(diffs:Slice<DiffLine>, opts:UnifiedDiffOptions):String {
 		final hunks = makeHunks(diffs, opts.Precontext, opts.Postcontext);
 		final s:Array<String> = [];
 		if (opts.SrcHeader.length > 0) {

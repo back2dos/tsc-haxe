@@ -8,7 +8,7 @@ import go.Time;
 class OutputRecorderFS implements FS {
 	public var FS_:FS;
 	var outputsMap:StringMap<Int> = null;
-	var outputs:Array<TestFile> = null;
+	var outputs:Slice<TestFile> = null;
 
 	public function new(fs:FS) {
 		this.FS_ = fs;
@@ -35,7 +35,7 @@ class OutputRecorderFS implements FS {
 		return null;
 	}
 
-	public function Outputs():Array<TestFile> {
+	public function Outputs():Slice<TestFile> {
 		return Slices.Clone(this.outputs);
 	}
 

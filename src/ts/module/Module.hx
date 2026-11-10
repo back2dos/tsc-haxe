@@ -117,12 +117,12 @@ class Module {
 		return r;
 	}
 
-	public static function GetConditions(options:CompilerOptions, resolutionMode:ResolutionMode):Array<String> {
+	public static function GetConditions(options:CompilerOptions, resolutionMode:ResolutionMode):Slice<String> {
 		final moduleResolution = options.GetModuleResolutionKind();
 		if (resolutionMode == ModuleKindNone && moduleResolution == ModuleResolutionKindBundler) {
 			resolutionMode = ModuleKindESNext;
 		}
-		var conditions:Array<String> = [];
+		var conditions:Slice<String> = [];
 		if (resolutionMode == ModuleKindESNext) {
 			conditions.push("import");
 		} else {
@@ -189,7 +189,7 @@ class Module {
 		}
 		final numMatchables = pathMappings.Size() - numPatterns;
 
-		var patterns:Null<Array<Pattern>> = null;
+		var patterns:Slice<Pattern> = null;
 		var matchableStringSet = new Set<String>();
 		if (numPatterns != 0) {
 			patterns = [];
@@ -281,7 +281,7 @@ class Module {
 		return resolver.resolveConfig(moduleName, containingFile);
 	}
 
-	public static function GetAutomaticTypeDirectiveNames(options:CompilerOptions, baseDirectory:RootedDirectoryPath, fs:FS):Array<String> {
+	public static function GetAutomaticTypeDirectiveNames(options:CompilerOptions, baseDirectory:RootedDirectoryPath, fs:FS):Slice<String> {
 		if (!options.UsesWildcardTypes()) {
 			if (options.Types != null) {
 				return options.Types;
@@ -290,7 +290,7 @@ class Module {
 		}
 
 		// Walk the primary type lookup locations
-		var wildcardMatches:Null<Array<String>> = null;
+		var wildcardMatches:Slice<String> = null;
 		final typeRoots = options.GetEffectiveTypeRoots(baseDirectory).value;
 		if (typeRoots != null) {
 			for (root in typeRoots) {
@@ -324,7 +324,7 @@ class Module {
 
 		// Order potentially matters in program construction, so substitute
 		// in the wildcard in the position it was specified in the types array
-		var result:Null<Array<String>> = null;
+		var result:Slice<String> = null;
 		for (t in options.Types) {
 			if (t == "*") {
 				if (wildcardMatches != null) {

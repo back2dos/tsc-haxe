@@ -109,7 +109,7 @@ class EmitFilesHandler {
 		}
 	}
 
-	function emitFilesIncremental(options:EmitOptions):Array<EmitResult> {
+	function emitFilesIncremental(options:EmitOptions):Slice<EmitResult> {
 		// Get all affected files
 		Incremental.collectAllAffectedFiles(this.ctx, this.program);
 		if (this.ctx.Err() != null) {
@@ -272,7 +272,7 @@ class EmitFilesHandler {
 		return false;
 	}
 
-	function updateSnapshot():Array<EmitResult> {
+	function updateSnapshot():Slice<EmitResult> {
 		if (this.program.snapshot.canUseIncrementalState()) {
 			this.signatures.Range(function(file:Path, signature:std.String):Bool {
 				final info = this.program.snapshot.fileInfos.Load(file).value;
@@ -293,7 +293,7 @@ class EmitFilesHandler {
 				this.program.snapshot.buildInfoEmitPending = true;
 			}
 			// Always use correct order when to collect the result
-			var results:Array<EmitResult> = null;
+			var results:Slice<EmitResult> = null;
 			for (file in this.program.GetSourceFiles()) {
 				final latest = this.latestChangedDtsFiles.Load(file.Path());
 				if (latest.ok) {

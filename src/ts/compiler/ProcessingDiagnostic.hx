@@ -54,9 +54,9 @@ class ProcessingDiagnostic {
 
 	function createDiagnosticExplainingFile(program:Program):Diagnostic {
 		final diag = this.asIncludeExplainingDiagnostic();
-		var includeDetails:Array<Diagnostic> = null;
-		var relatedInfo:Array<Diagnostic> = null;
-		var redirectInfo:Array<Diagnostic> = null;
+		var includeDetails:Slice<Diagnostic> = null;
+		var relatedInfo:Slice<Diagnostic> = null;
+		var redirectInfo:Slice<Diagnostic> = null;
 		var preferredLocation:FileIncludeReason = null;
 		final seenReasons = new Set<FileIncludeReason>();
 		if (diag.diagnosticReason.isReferencedFile() && !program.includeProcessor.getReferenceLocation(diag.diagnosticReason, program).isSynthetic) {
@@ -102,7 +102,7 @@ class ProcessingDiagnostic {
 		if (diag.diagnosticReason != null) {
 			processInclude(diag.diagnosticReason);
 		}
-		var chain:Array<Diagnostic> = null;
+		var chain:Slice<Diagnostic> = null;
 		if (includeDetails != null && (preferredLocation == null || seenReasons.Len() != 1)) {
 			final fileReason = Ast.NewCompilerDiagnostic(Diagnostics.The_file_is_in_the_program_because_Colon);
 			fileReason.SetMessageChain(includeDetails);
@@ -117,10 +117,10 @@ class ProcessingDiagnostic {
 
 		var result:Diagnostic = null;
 		if (preferredLocation != null) {
-			result = program.includeProcessor.getReferenceLocation(preferredLocation, program).diagnosticAt(diag.message, ...(diag.args == null ? [] : diag.args));
+			result = program.includeProcessor.getReferenceLocation(preferredLocation, program).diagnosticAt(diag.message, ...(diag.args == null ? [] : diag.args).toArray());
 		}
 		if (result == null) {
-			result = Ast.NewCompilerDiagnostic(diag.message, ...(diag.args == null ? [] : diag.args));
+			result = Ast.NewCompilerDiagnostic(diag.message, ...(diag.args == null ? [] : diag.args).toArray());
 		}
 		if (chain != null) {
 			result.SetMessageChain(chain);
@@ -137,9 +137,9 @@ class IncludeExplainingDiagnostic {
 	var file:Path = "";
 	var diagnosticReason:FileIncludeReason = null;
 	var message:Message = null;
-	var args:Array<Any> = null;
+	var args:Slice<Any> = null;
 
-	public function new(file:Path = "", diagnosticReason:FileIncludeReason = null, message:Message = null, args:Array<Any> = null) {
+	public function new(file:Path = "", diagnosticReason:FileIncludeReason = null, message:Message = null, args:Slice<Any> = null) {
 		this.file = file;
 		this.diagnosticReason = diagnosticReason;
 		this.message = message;

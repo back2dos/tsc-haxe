@@ -3,8 +3,8 @@ package ts.core;
 // Port of typeacquisition.go.
 class TypeAcquisition {
 	public var Enable:Tristate = TSUnknown; // json:"enable,omitzero"
-	public var Include:Null<Array<String>> = null; // json:"include,omitzero"
-	public var Exclude:Null<Array<String>> = null; // json:"exclude,omitzero"
+	public var Include:Slice<String> = null; // json:"include,omitzero"
+	public var Exclude:Slice<String> = null; // json:"exclude,omitzero"
 	public var DisableFilenameBasedTypeAcquisition:Tristate = TSUnknown; // json:"disableFilenameBasedTypeAcquisition,omitzero"
 
 	public function new() {}

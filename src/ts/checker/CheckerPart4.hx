@@ -645,7 +645,7 @@ class CheckerPart4 {
 			if ((c.languageVersion : Int) < (Checker.LanguageFeatureMinimumTarget.ObjectSpreadRest : Int)) {
 				c.checkExternalEmitHelpers(property, ExternalEmitHelpersRest);
 			}
-			var nonRestNames:Array<Node> = null;
+			var nonRestNames:Slice<Node> = null;
 			if (allProperties != null) {
 				for (otherProperty in allProperties.Nodes) {
 					if (!Ast.IsSpreadAssignment(otherProperty)) {
@@ -1187,7 +1187,7 @@ class CheckerPart4 {
 			allPropertiesTable = new SymbolTable();
 		}
 		var propertiesTable = new SymbolTable();
-		var propertiesArray:Array<Symbol> = null;
+		var propertiesArray:Slice<Symbol> = null;
 		var spread = c.emptyObjectType;
 		c.pushCachedContextualType(node);
 		final contextualType = c.getApparentTypeOfContextualType(node, ContextFlagsNone);
@@ -1218,7 +1218,7 @@ class CheckerPart4 {
 		}
 		var offset = 0;
 		final createObjectLiteralType = function():Type {
-			var indexInfos:Array<IndexInfo> = null;
+			var indexInfos:Slice<IndexInfo> = null;
 			final isReadonly = c.isConstContext(node);
 			if (hasComputedStringProperty) {
 				if (indexInfos == null) indexInfos = [];
@@ -2094,15 +2094,15 @@ class CheckerPart4 {
 		}
 	}
 
-	public static function GetDiagnostics(c:Checker, ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+	public static function GetDiagnostics(c:Checker, ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
 		return c.getDiagnostics(ctx, sourceFile, c.diagnostics);
 	}
 
-	public static function GetSuggestionDiagnostics(c:Checker, ctx:Context, sourceFile:SourceFile):Array<Diagnostic> {
+	public static function GetSuggestionDiagnostics(c:Checker, ctx:Context, sourceFile:SourceFile):Slice<Diagnostic> {
 		return c.getDiagnostics(ctx, sourceFile, c.suggestionDiagnostics);
 	}
 
-	static function getDiagnostics(c:Checker, ctx:Context, sourceFile:SourceFile, collection:DiagnosticsCollection):Array<Diagnostic> {
+	static function getDiagnostics(c:Checker, ctx:Context, sourceFile:SourceFile, collection:DiagnosticsCollection):Slice<Diagnostic> {
 		c.checkNotCanceled();
 		final checkUnused = c.compilerOptions.NoUnusedLocals.IsTrue() || c.compilerOptions.NoUnusedParameters.IsTrue()
 			|| collection == c.suggestionDiagnostics;
@@ -2113,7 +2113,7 @@ class CheckerPart4 {
 		return collection.GetDiagnosticsForFile(sourceFile.FileName());
 	}
 
-	public static function GetGlobalDiagnostics(c:Checker):Array<Diagnostic> {
+	public static function GetGlobalDiagnostics(c:Checker):Slice<Diagnostic> {
 		c.checkNotCanceled();
 		c.produceDeferredDiagnostics();
 		return c.diagnostics.GetGlobalDiagnostics();
@@ -3785,7 +3785,7 @@ class CheckerPart4 {
 		}
 
 		final details = Checker.CreateModuleNotFoundChain(c.program, Ast.GetSourceFileOfNode(errorNode), moduleReference, mode, packageName);
-		final result = Checker.NewDiagnosticForNode(errorNode, details.Message, ...rangeOf(details.Args));
+		final result = Checker.NewDiagnosticForNode(errorNode, details.Message, ...rangeOf(details.Args).toArray());
 		final info = new RepopulateDiagnosticInfo();
 		info.Kind = RepopulateModuleNotFound;
 		info.ModuleReference = moduleReference;
@@ -3797,7 +3797,7 @@ class CheckerPart4 {
 
 	static function createModeMismatchDetails(c:Checker, sourceFile:SourceFile, errorNode:Node):Diagnostic {
 		final details = Checker.CreateModeMismatchDetails(c.program, sourceFile);
-		final result = Checker.NewDiagnosticForNode(errorNode, details.Message, ...rangeOf(details.Args));
+		final result = Checker.NewDiagnosticForNode(errorNode, details.Message, ...rangeOf(details.Args).toArray());
 		final info = new RepopulateDiagnosticInfo();
 		info.Kind = RepopulateModeMismatch;
 		result.SetRepopulateInfo(info);
@@ -3816,7 +3816,7 @@ class CheckerPart4 {
 		return symbol;
 	}
 
-	public static function GetAmbientModules(c:Checker):Array<Symbol> {
+	public static function GetAmbientModules(c:Checker):Slice<Symbol> {
 		// PORT: sync.Once → flag in the `ambientModulesOnce` field.
 		if (c.ambientModulesOnce == null) {
 			c.ambientModulesOnce = true;
@@ -4371,7 +4371,7 @@ class CheckerPart4 {
 	// --- private helpers (P4) ---
 
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Slice<T>):Slice<T> {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
@@ -4390,7 +4390,7 @@ class CheckerPart4 {
 		};
 	}
 
-	static extern inline overload function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:Slice<T>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			if (s != null) {
 				for (v in s) {
@@ -4425,7 +4425,7 @@ class CheckerPart4 {
 	}
 	
 	// PORT: Go `slices.Compact` (drops consecutive equal elements) on a []*ast.Node; nil stays nil.
-	static function compactNodes(s:Array<Node>):Array<Node> {
+	static function compactNodes(s:Slice<Node>):Slice<Node> {
 		if (s == null || s.length < 2) {
 			return s;
 		}

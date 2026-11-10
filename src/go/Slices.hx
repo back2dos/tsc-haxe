@@ -3,7 +3,7 @@ package go;
 // Shims for Go package slices. A nil slice is `null` and behaves like an empty one.
 class Slices {
 	// slices.CompareFunc
-	public static function CompareFunc<E1, E2>(s1:Null<Array<E1>>, s2:Null<Array<E2>>, cmp:(E1, E2) -> Int):Int {
+	public static function CompareFunc<E1, E2>(s1:Slice<E1>, s2:Slice<E2>, cmp:(E1, E2) -> Int):Int {
 		final len1 = s1 == null ? 0 : s1.length;
 		final len2 = s2 == null ? 0 : s2.length;
 		for (i in 0...len1) {
@@ -33,7 +33,7 @@ class Slices {
 		return found;
 	}
 
-	public static extern inline overload function Contains<E>(s:Null<Array<E>>, v:E):Bool {
+	public static extern inline overload function Contains<E>(s:Slice<E>, v:E):Bool {
 		var found = false;
 		if (s != null) {
 			final n = s.length;
@@ -50,8 +50,8 @@ class Slices {
 	}
 
 	// slices.Collect: Go `iter.Seq` → Haxe Iterator. Like Go, an empty sequence gives a nil slice (null).
-	public static function Collect<E>(seq:Iterator<E>):Null<Array<E>> {
-		var s:Null<Array<E>> = null;
+	public static function Collect<E>(seq:Iterator<E>):Slice<E> {
+		var s:Slice<E> = null;
 		for (v in seq) {
 			if (s == null)
 				s = [];
@@ -75,10 +75,10 @@ class Slices {
 		return true;
 	}
 
-	public static extern inline overload function Equal<E>(s1:Null<Array<E>>, s2:Null<Array<E>>):Bool
+	public static extern inline overload function Equal<E>(s1:Slice<E>, s2:Slice<E>):Bool
 		return equalA(s1, s2);
 
-	static function equalA<E>(s1:Null<Array<E>>, s2:Null<Array<E>>):Bool {
+	static function equalA<E>(s1:Slice<E>, s2:Slice<E>):Bool {
 		final len1 = s1 == null ? 0 : s1.length;
 		final len2 = s2 == null ? 0 : s2.length;
 		if (len1 != len2)
@@ -90,7 +90,7 @@ class Slices {
 	}
 
 	// slices.BinarySearchFunc: (position, found) → ValueOk (value = position, ok = found).
-	public static function BinarySearchFunc<E, T>(x:Null<Array<E>>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
+	public static function BinarySearchFunc<E, T>(x:Slice<E>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
 		final n = x == null ? 0 : x.length;
 		// Define cmp(x[-1], target) < 0 and cmp(x[n], target) >= 0 .
 		// Invariant: cmp(x[i - 1], target) < 0, cmp(x[j], target) >= 0.
@@ -127,7 +127,7 @@ class Slices {
 		return new go.Tuple.ValueOk<Int>(i, i < n && cmp(x[i], target) == 0);
 	}
 
-	public static extern inline overload function BinarySearchFuncInline<E, T>(x:Null<Array<E>>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
+	public static extern inline overload function BinarySearchFuncInline<E, T>(x:Slice<E>, target:T, cmp:(E, T) -> Int):go.Tuple.ValueOk<Int> {
 		final n = x == null ? 0 : x.length;
 		var i = 0, j = n;
 		while (i < j) {
@@ -142,7 +142,7 @@ class Slices {
 	}
 
 	// slices.Clone: a nil slice stays nil; otherwise a new array with the same elements.
-	public static extern inline overload function Clone<E>(s:Null<Array<E>>):Null<Array<E>> {
+	public static extern inline overload function Clone<E>(s:Slice<E>):Slice<E> {
 		return s == null ? null : s.copy();
 	}
 
@@ -152,7 +152,7 @@ class Slices {
 	}
 
 	// slices.EqualFunc
-	public static function EqualFunc<E1, E2>(s1:Null<Array<E1>>, s2:Null<Array<E2>>, eq:(E1, E2) -> Bool):Bool {
+	public static function EqualFunc<E1, E2>(s1:Slice<E1>, s2:Slice<E2>, eq:(E1, E2) -> Bool):Bool {
 		final len1 = s1 == null ? 0 : s1.length;
 		final len2 = s2 == null ? 0 : s2.length;
 		if (len1 != len2)
@@ -165,42 +165,42 @@ class Slices {
 
 	// slices.Compare for []string (cmp.Compare on strings = Go byte order = code-point order).
 	// PORT: specialised to String: Haxe cannot compare a generic E.
-	public static function Compare(s1:Null<Array<String>>, s2:Null<Array<String>>):Int {
+	public static function Compare(s1:Slice<String>, s2:Slice<String>):Int {
 		return CompareFunc(s1, s2, Strings.Compare);
 	}
 
 	// slices.SortFunc: Go's pdqsort (unstable but deterministic), ported exactly from
 	// go1.26.9 src/slices/zsortanyfunc.go so that elements comparing equal end up in Go's order.
-	public static function SortFunc<E>(x:Null<Array<E>>, cmp:(E, E) -> Int):Void {
+	public static function SortFunc<E>(x:Slice<E>, cmp:(E, E) -> Int):Void {
 		if (x == null)
 			return;
 		final n = x.length;
-		pdqsortCmpFunc(x, 0, n, bitsLen(n), cmp);
+		pdqsortCmpFunc(x.nilable(), 0, n, bitsLen(n), cmp);
 	}
 
 	// slices.SortStableFunc: Go's insertion-sort blocks + SymMerge (stableCmpFunc), ported exactly.
-	public static function SortStableFunc<E>(x:Null<Array<E>>, cmp:(E, E) -> Int):Void {
+	public static function SortStableFunc<E>(x:Slice<E>, cmp:(E, E) -> Int):Void {
 		if (x == null)
 			return;
-		stableCmpFunc(x, x.length, cmp);
+		stableCmpFunc(x.nilable(), x.length, cmp);
 	}
 
 	// slices.Sort / sort.Strings for []string (Go byte order = code-point order).
 	// PORT: specialised by element type: Haxe cannot compare a generic E. Go's zsortordered.go is the
 	// same algorithm as zsortanyfunc.go with cmpLess(a, b) in place of cmp(a, b) < 0.
-	public static function SortStrings(x:Null<Array<String>>):Void {
+	public static function SortStrings(x:Slice<String>):Void {
 		SortFunc(x, Strings.Compare);
 	}
 
 	// slices.Sort / sort.Ints for []int.
-	public static function SortInts(x:Null<Array<Int>>):Void {
+	public static function SortInts(x:Slice<Int>):Void {
 		SortFunc(x, compareInt);
 	}
 
 	// slices.Sort / sort.Float64s for []float64: NaNs are ordered before other values (cmp.Less).
 	// PORT: hxcpp loses the sign of -0.0 in a generic Array<E> (PORTING.md §7a), so this sorts an
 	// index permutation with the same algorithm (same swaps) and then applies it to the typed array.
-	public static function SortFloats(x:Null<Array<Float>>):Void {
+	public static function SortFloats(x:Slice<Float>):Void {
 		if (x == null)
 			return;
 		final f = x.copy();
@@ -688,7 +688,7 @@ class Slices {
 	}
 
 	// slices.Index (== equality): index of the first v in s, or -1.
-	public static inline function Index<E>(s:Null<Array<E>>, v:E):Int { // PORT: perf (see Contains)
+	public static inline function Index<E>(s:Slice<E>, v:E):Int { // PORT: perf (see Contains)
 		var result = -1;
 		if (s != null) {
 			final n = s.length;
@@ -706,8 +706,8 @@ class Slices {
 
 	// slices.Concat: a new slice with the elements of all slices. Like Go, an empty result is
 	// a nil slice (null).
-	public static function Concat<E>(...slices:Null<Array<E>>):Null<Array<E>> {
-		var result:Null<Array<E>> = null;
+	public static function Concat<E>(...slices:Slice<E>):Slice<E> {
+		var result:Slice<E> = null;
 		for (s in slices) {
 			if (s == null || s.length == 0)
 				continue;
@@ -731,12 +731,12 @@ class Slices {
 		return found;
 	}
 
-	public static extern inline overload function ContainsFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Bool {
+	public static extern inline overload function ContainsFunc<E>(s:Slice<E>, f:(E) -> Bool):Bool {
 		return IndexFunc(s, f) >= 0;
 	}
 
 	// slices.IndexFunc: index of the first element of s that satisfies f, or -1.
-	public static inline function IndexFunc<E>(s:Null<Array<E>>, f:(E) -> Bool):Int {
+	public static inline function IndexFunc<E>(s:Slice<E>, f:(E) -> Bool):Int {
 		var result = -1;
 		if (s != null) {
 			final n = s.length;
@@ -753,7 +753,7 @@ class Slices {
 	}
 
 	// slices.Reverse: reverses s in place.
-	public static function Reverse<E>(s:Null<Array<E>>):Void {
+	public static function Reverse<E>(s:Slice<E>):Void {
 		if (s == null)
 			return;
 		var i = 0;
@@ -770,9 +770,9 @@ class Slices {
 	// slices.CompactFunc: replaces runs of elements for which eq(previous kept, x) is true by the first
 	// element of the run; returns the shortened slice. Like Go, it modifies s in place (the result
 	// shares the array; the tail is truncated).
-	public static function CompactFunc<E>(s:Null<Array<E>>, eq:(E, E) -> Bool):Null<Array<E>> {
+	public static function CompactFunc<E>(s:Slice<E>, eq:(E, E) -> Bool):Slice<E> {
 		if (s == null || s.length < 2)
-			return s;
+			return s.nilable();
 		var i = 1;
 		for (k in 1...s.length) {
 			if (!eq(s[k], s[k - 1])) {
@@ -782,6 +782,6 @@ class Slices {
 			}
 		}
 		s.resize(i);
-		return s;
+		return s.nilable();
 	}
 }

@@ -21,7 +21,7 @@ class LexicalEntry {
 	var kind:LexicalEntryKind = 0;
 	var next:LexicalEntry = null;
 	var classInfoData:ClassInfo = null;
-	var savedPendingExpressions:Array<Expression> = null;
+	var savedPendingExpressions:Slice<Expression> = null;
 	var classThisData:IdentifierNode = null;
 	var classSuperData:IdentifierNode = null;
 	var depth:Int = 0;
@@ -53,15 +53,15 @@ class ClassInfo {
 	var memberInfos:OrderedMap<Node, MemberInfo> = new OrderedMap<Node, MemberInfo>(null); // used in class definition step 4.a, 12, and constructor evaluation
 	var instanceMethodExtraInitializersName:IdentifierNode = null; // used in constructor evaluation step 1
 	var staticMethodExtraInitializersName:IdentifierNode = null; // used in class definition step 11
-	var staticNonFieldDecorationStatements:Array<Statement> = null;
-	var nonStaticNonFieldDecorationStatements:Array<Statement> = null;
-	var staticFieldDecorationStatements:Array<Statement> = null;
-	var nonStaticFieldDecorationStatements:Array<Statement> = null;
+	var staticNonFieldDecorationStatements:Slice<Statement> = null;
+	var nonStaticNonFieldDecorationStatements:Slice<Statement> = null;
+	var staticFieldDecorationStatements:Slice<Statement> = null;
+	var nonStaticFieldDecorationStatements:Slice<Statement> = null;
 	var hasStaticInitializers:Bool = false;
 	var hasNonAmbientInstanceFields:Bool = false;
 	var hasStaticPrivateClassElements:Bool = false;
-	var pendingStaticInitializers:Array<Expression> = null;
-	var pendingInstanceInitializers:Array<Expression> = null;
+	var pendingStaticInitializers:Slice<Expression> = null;
+	var pendingInstanceInitializers:Slice<Expression> = null;
 
 	public function new() {}
 }
@@ -74,7 +74,7 @@ class EsDecoratorTransformer {
 	var classInfoStack:ClassInfo = null;
 	var classThis:IdentifierNode = null;
 	var classSuper:IdentifierNode = null;
-	var pendingExpressions:Array<Expression> = null;
+	var pendingExpressions:Slice<Expression> = null;
 	var outerThis:IdentifierNode = null;
 	var shouldTransformPrivateStaticElementsInFile:Bool = false;
 	var outerThisVisitor:NodeVisitor = null;
@@ -99,8 +99,8 @@ class EsDecoratorTransformer {
 	public function new() {}
 
 	// PORT: Go ranges over a nil slice as empty; Haxe `for` crashes on null.
-	static inline function nilSlice<T>(s:Null<Array<T>>):Array<T> {
-		return s == null ? [] : s;
+	static inline function nilSlice<T>(s:Slice<T>):Array<T> {
+		return s.toArray();
 	}
 
 	// PORT: promoted methods of the embedded transformers.Transformer.
@@ -226,7 +226,7 @@ class EsDecoratorTransformer {
 		top = null;
 		shouldTransformPrivateStaticElementsInFile = false;
 		final visited = Visitor().VisitEachChild(node.AsNode());
-		EmitContext().AddEmitHelper(visited, ...EmitContext().ReadEmitHelpers());
+		EmitContext().AddEmitHelper(visited, ...EmitContext().ReadEmitHelpers().toArray());
 		if (shouldTransformPrivateStaticElementsInFile) {
 			EmitContext().AddEmitFlags(visited, EFTransformPrivateStaticElements);
 			shouldTransformPrivateStaticElementsInFile = false;
@@ -878,9 +878,9 @@ class EsDecoratorTransformer {
 	}
 
 	// Generates let declarations for member decorator info variables, filtered by static/non-static.
-	function emitMemberInfoDeclarations(ci:ClassInfo, isStatic:Bool):Array<Statement> {
+	function emitMemberInfoDeclarations(ci:ClassInfo, isStatic:Bool):Slice<Statement> {
 		final f = Factory();
-		final stmts:Array<Statement> = []; // PORT: nil slice → empty array (the caller only spreads it)
+		final stmts:Slice<Statement> = []; // PORT: nil slice → empty array (the caller only spreads it)
 		for (member => mi in ci.memberInfos.Entries()) {
 			if (Ast.IsStatic(member) != isStatic) {
 				continue;
@@ -1016,8 +1016,8 @@ class EsDecoratorTransformer {
 		return statements;
 	}
 
-	function transformConstructorBodyWorker(statementsOut:Array<Statement>, statementsIn:Array<Statement>, statementOffset:Int, superPath:Array<Int>,
-			superPathDepth:Int, initializerStatements:Array<Statement>):Array<Statement> {
+	function transformConstructorBodyWorker(statementsOut:Slice<Statement>, statementsIn:Slice<Statement>, statementOffset:Int, superPath:Slice<Int>,
+			superPathDepth:Int, initializerStatements:Slice<Statement>):Slice<Statement> {
 		if (statementsOut == null)
 			statementsOut = [];
 		final superStatementIndex = superPath[superPathDepth];
@@ -1079,7 +1079,7 @@ class EsDecoratorTransformer {
 			// field initializers
 			final initializerStatements = prepareConstructor(classInfoStack);
 			if (Core.len(initializerStatements) > 0) {
-				var stmts:Array<Statement> = [];
+				var stmts:Slice<Statement> = [];
 				final split = Factory().SplitStandardPrologue(ctor.Body.AsBlock().Statements.Nodes);
 				final prologue = split.a;
 				final rest = split.b;
@@ -1417,7 +1417,7 @@ class EsDecoratorTransformer {
 					// If we tried to inject the pending initializers into the current block, we might run into
 					// variable name collisions due to sharing this blocks scope. To avoid this, we inject a new
 					// static block that contains the pending initializers that precedes this block.
-					final stmts:Array<Node> = [];
+					final stmts:Slice<Node> = [];
 					for (init in classInfoStack.pendingStaticInitializers) {
 						final initStmt = f.NewExpressionStatement(init);
 						EmitContext().SetSourceMapRange(initStmt, EmitContext().SourceMapRange(init));
@@ -1487,7 +1487,7 @@ class EsDecoratorTransformer {
 
 		final declarations = ec.EndVariableEnvironment();
 		if (Core.len(declarations) > 0) {
-			final stmts:Array<Statement> = declarations.copy();
+			final stmts:Slice<Statement> = declarations.copy();
 			stmts.push(f.NewReturnStatement(initializer));
 			initializer = f.NewImmediatelyInvokedArrowFunction(stmts);
 		}
@@ -2150,7 +2150,7 @@ class EsDecoratorTransformer {
 
 	// prependExpressions prepends a list of expressions before a target expression, preserving
 	// parenthesization. If expression is nil, the pending expressions are inlined alone.
-	function prependExpressions(pending:Array<Expression>, expression:Expression):Expression {
+	function prependExpressions(pending:Slice<Expression>, expression:Expression):Expression {
 		final f = Factory();
 		if (Core.len(pending) == 0) {
 			return expression;
@@ -2193,7 +2193,7 @@ class EsDecoratorTransformer {
 	}
 
 	// Transforms all of the decorators for a declaration into an array of expressions.
-	function transformAllDecoratorsOfDeclaration(decorators:Array<Node>):Array<Expression> {
+	function transformAllDecoratorsOfDeclaration(decorators:Slice<Node>):Array<Expression> {
 		if (Core.len(decorators) == 0) {
 			return null;
 		}

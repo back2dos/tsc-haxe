@@ -327,14 +327,14 @@ class TracingTest {
 
 class FakeType implements TracedType {
 	public var id:Int;
-	public var flags:Array<String> = null;
+	public var flags:Slice<String> = null;
 	public var cond = false;
 	public var sym:Symbol = null;
 	public var alias:Symbol = null;
-	public var aliasArgs:Array<TracedType> = null;
-	public var union:Array<TracedType> = null;
-	public var inter:Array<TracedType> = null;
-	public var refArgs:Array<TracedType> = null;
+	public var aliasArgs:Slice<TracedType> = null;
+	public var union:Slice<TracedType> = null;
+	public var inter:Slice<TracedType> = null;
+	public var refArgs:Slice<TracedType> = null;
 	public var intrinsic = "";
 	public var display = "";
 	public var index:TracedType = null;
@@ -364,7 +364,7 @@ class FakeType implements TracedType {
 	public function Id():Int
 		return id;
 
-	public function FormatFlags():Array<String>
+	public function FormatFlags():Slice<String>
 		return flags;
 
 	public function IsConditional():Bool
@@ -376,16 +376,16 @@ class FakeType implements TracedType {
 	public function AliasSymbol():Symbol
 		return alias;
 
-	public function AliasTypeArguments():Array<TracedType>
+	public function AliasTypeArguments():Slice<TracedType>
 		return aliasArgs;
 
 	public function IntrinsicName():String
 		return intrinsic;
 
-	public function UnionTypes():Array<TracedType>
+	public function UnionTypes():Slice<TracedType>
 		return union;
 
-	public function IntersectionTypes():Array<TracedType>
+	public function IntersectionTypes():Slice<TracedType>
 		return inter;
 
 	public function IndexType():TracedType
@@ -418,7 +418,7 @@ class FakeType implements TracedType {
 	public function ReferenceTarget():TracedType
 		return refTarget;
 
-	public function ReferenceTypeArguments():Array<TracedType>
+	public function ReferenceTypeArguments():Slice<TracedType>
 		return refArgs;
 
 	public function ReferenceNode():Node

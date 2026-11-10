@@ -8,9 +8,9 @@ import ts.diagnostics.Diagnostics.Message;
 class LibResolution {
 	var libraryName:std.String = "";
 	var resolution:ResolvedModule = null;
-	var trace:Array<DiagAndArgs> = null;
+	var trace:Slice<DiagAndArgs> = null;
 
-	public function new(libraryName:std.String = "", resolution:ResolvedModule = null, trace:Array<DiagAndArgs> = null) {
+	public function new(libraryName:std.String = "", resolution:ResolvedModule = null, trace:Slice<DiagAndArgs> = null) {
 		this.libraryName = libraryName;
 		this.resolution = resolution;
 		this.trace = trace;
@@ -53,9 +53,9 @@ class SourceFileFromReference {
 @:allow(ts.compiler)
 class SourceFileFromReferenceDiagnostic {
 	var message:Message = null;
-	var args:Array<Any> = null;
+	var args:Slice<Any> = null;
 
-	public function new(message:Message = null, args:Array<Any> = null) {
+	public function new(message:Message = null, args:Slice<Any> = null) {
 		this.message = message;
 		this.args = args;
 	}
@@ -85,12 +85,12 @@ class FileLoader {
 	var resolver:Resolver = null;
 	var defaultLibraryPath:RootedDirectoryPath = cast "";
 	var caseSensitivity:CaseSensitivity = Tspath.CaseInsensitive;
-	var supportedExtensions:Array<Array<std.String>> = null;
-	var supportedExtensionsWithJsonIfResolveJsonModule:Array<Array<std.String>> = null;
-	var contentMapperExtensions:Array<std.String> = null;
+	var supportedExtensions:Slice<Array<std.String>> = null;
+	var supportedExtensionsWithJsonIfResolveJsonModule:Slice<Array<std.String>> = null;
+	var contentMapperExtensions:Slice<std.String> = null;
 
 	var filesParser:FilesParser = null;
-	var rootTasks:Array<ParseTask> = null;
+	var rootTasks:Slice<ParseTask> = null;
 
 	var totalFileCount:Int = 0; // PORT: atomic.Int32 → Int
 	var libFileCount:Int = 0; // PORT: atomic.Int32 → Int
@@ -116,7 +116,7 @@ class FileLoader {
 	#end
 	var contentMapperFailures:go.IdentityMap<Mapper, Int> = null;
 	var contentMapperInitFailed:go.IdentityMap<Mapper, Bool> = new go.IdentityMap();
-	var contentMapperDiagnostics:Array<Diagnostic> = null;
+	var contentMapperDiagnostics:Slice<Diagnostic> = null;
 
 	public function new() {}
 
@@ -165,10 +165,10 @@ class FileLoader {
 
 	// PORT: 4 results → ResolveAutomaticTypeDirectivesResult
 	function resolveAutomaticTypeDirectives(containingFileName:RootedFilePath):ResolveAutomaticTypeDirectivesResult {
-		var toParse:Array<ResolvedRef> = null;
+		var toParse:Slice<ResolvedRef> = null;
 		var typeResolutionsInFile:ModeAwareCache<ResolvedTypeReferenceDirective> = null;
-		var typeResolutionsTrace:Array<DiagAndArgs> = null;
-		var pDiagnostics:Array<ProcessingDiagnostic> = null;
+		var typeResolutionsTrace:Slice<DiagAndArgs> = null;
+		var pDiagnostics:Slice<ProcessingDiagnostic> = null;
 		final automaticTypeDirectiveNames = Module.GetAutomaticTypeDirectiveNames(this.opts.Config.CompilerOptions(), this.opts.Config.BaseDirectory(), this.opts.Host.FS());
 		if (Core.len(automaticTypeDirectiveNames) != 0) {
 			toParse = [];
@@ -537,7 +537,7 @@ class FileLoader {
 			final meta = t.metadata;
 
 			final typeResolutionsInFile = new ModeAwareCache<ResolvedTypeReferenceDirective>();
-			var typeResolutionsTrace:Array<DiagAndArgs> = null;
+			var typeResolutionsTrace:Slice<DiagAndArgs> = null;
 			for (index in 0...file.TypeReferenceDirectives.length) {
 				final ref = file.TypeReferenceDirectives[index];
 				final rd = this.projectReferenceFileMapper.getRedirectForResolution(ts.modulespecifiers.Types.SourceFileAdapter.Of(file));
@@ -662,7 +662,7 @@ class FileLoader {
 
 		if (moduleNames.length != 0) {
 			final resolutionsInFile = new ModeAwareCache<ResolvedModule>();
-			var resolutionsTrace:Array<DiagAndArgs> = null;
+			var resolutionsTrace:Slice<DiagAndArgs> = null;
 
 			for (index in 0...moduleNames.length) {
 				final entry = moduleNames[index];
@@ -796,7 +796,7 @@ class FileLoader {
 		return libPath;
 	}
 
-	function resolveLibrary(libraryName:std.String, resolveFrom:RootedFilePath):Pair<ResolvedModule, Null<Array<DiagAndArgs>>> {
+	function resolveLibrary(libraryName:std.String, resolveFrom:RootedFilePath):Pair<ResolvedModule, Slice<DiagAndArgs>> {
 		var done:() -> Void = null;
 		final tr = this.opts.Tracing;
 		if (tr != null) {
@@ -818,10 +818,10 @@ class FileLoader {
 // PORT: the 4 results of fileLoader.resolveAutomaticTypeDirectives.
 @:allow(ts.compiler)
 class ResolveAutomaticTypeDirectivesResult {
-	var toParse:Array<ResolvedRef>;
+	var toParse:Slice<ResolvedRef>;
 	var typeResolutionsInFile:ModeAwareCache<ResolvedTypeReferenceDirective>;
-	var typeResolutionsTrace:Array<DiagAndArgs>;
-	var pDiagnostics:Array<ProcessingDiagnostic>;
+	var typeResolutionsTrace:Slice<DiagAndArgs>;
+	var pDiagnostics:Slice<ProcessingDiagnostic>;
 
 	public function new(toParse, typeResolutionsInFile, typeResolutionsTrace, pDiagnostics) {
 		this.toParse = toParse;
@@ -861,16 +861,16 @@ class DuplicateSourceFile {
 @:allow(ts.compiler)
 class ProcessedFiles {
 	var resolver:Resolver = null;
-	var files:Array<SourceFile> = null;
+	var files:Slice<SourceFile> = null;
 	// duplicateSourceFiles tracks parsed files loaded during program construction
 	// that were later dropped from the final program, such as losing filename
 	// casing variants for the same path or files hidden behind package redirect
 	// deduplication. Their parse-cache acquires still need to be balanced when
 	// the program is disposed.
-	var duplicateSourceFiles:Array<DuplicateSourceFile> = null;
+	var duplicateSourceFiles:Slice<DuplicateSourceFile> = null;
 	var filesByPath:StringMap<SourceFile> = null;
 	var projectReferenceFileMapper:ProjectReferenceFileMapper = null;
-	var missingFiles:Array<std.String> = null;
+	var missingFiles:Slice<std.String> = null;
 	var resolvedModules:StringMap<ModeAwareCache<ResolvedModule>> = null;
 	var typeResolutionsInFile:StringMap<ModeAwareCache<ResolvedTypeReferenceDirective>> = null;
 	var sourceFileMetaDatas:StringMap<SourceFileMetaData> = null;
@@ -888,7 +888,7 @@ class ProcessedFiles {
 	// filesByPath for redirect files
 	var redirectFilesByPath:StringMap<RedirectsFile> = null;
 	// Program-level diagnostics reported when a content mapper fails fatally (reported once per mapper).
-	var contentMapperDiagnostics:Array<Diagnostic> = null;
+	var contentMapperDiagnostics:Slice<Diagnostic> = null;
 	var finishedProcessing:Bool = false;
 
 	public function new() {}

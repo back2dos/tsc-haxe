@@ -9,7 +9,7 @@ class ImpliedOption {
 	// name is the Go struct field name of the CompilerOptions field (e.g., "Module").
 	var name:std.String = "";
 	// dependencies lists the Go struct field names that this option depends on.
-	var dependencies:Null<Array<std.String>> = null;
+	var dependencies:Slice<std.String> = null;
 	// compute returns the effective value of this option given compiler options.
 	var compute:(opts:CompilerOptions) -> Dynamic = null;
 
@@ -25,10 +25,10 @@ class ImpliedOption {
 // for ts.json.Json.MarshalOrdered / MarshalIndentOrdered.
 class TSConfig implements ts.json.Json.OrderedMarshaler {
 	public var CompilerOptions:Null<OrderedMap<std.String, Dynamic>> = null; // json:"compilerOptions"
-	public var References:Null<Array<Dynamic>> = null; // json:"references,omitzero"
-	public var Files:Null<Array<std.String>> = null; // json:"files,omitzero"
-	public var Include:Null<Array<std.String>> = null; // json:"include,omitzero"
-	public var Exclude:Null<Array<std.String>> = null; // json:"exclude,omitzero"
+	public var References:Slice<Dynamic> = null; // json:"references,omitzero"
+	public var Files:Slice<std.String> = null; // json:"files,omitzero"
+	public var Include:Slice<std.String> = null; // json:"include,omitzero"
+	public var Exclude:Slice<std.String> = null; // json:"exclude,omitzero"
 	public var CompileOnSave:Null<Bool> = null; // json:"compileOnSave,omitzero"
 
 	public function new() {}

@@ -7,10 +7,10 @@ package ts.checker;
 class RecoveryBoundary {
 	var ctx:NodeBuilderContext = null;
 	var hadError:Bool = false;
-	var deferredReports:Array<() -> Void> = null;
+	var deferredReports:Slice<() -> Void> = null;
 	var oldTracker:SymbolTracker = null;
-	var oldTrackedSymbols:Array<TrackedSymbolArgs> = null;
-	var trackedSymbols:Array<TrackedSymbolArgs> = null;
+	var oldTrackedSymbols:Slice<TrackedSymbolArgs> = null;
+	var trackedSymbols:Slice<TrackedSymbolArgs> = null;
 	var oldEncounteredError:Bool = false;
 	var oldApproximateLength:Int = 0;
 

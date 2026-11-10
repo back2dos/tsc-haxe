@@ -29,7 +29,7 @@ class DiagnosticwriterTest {
 			final d7 = mk(b, 2, 9, 2, 9, 1, CategoryError, "Emoji col.");
 			final d8 = mk(a, 0, 0, 0, 3, Diagnostics.File_appears_to_be_binary.Code(), CategoryError, "binary");
 
-			final all:Array<Diagnostic> = [d1, d2, d3, d4, d5, d6, d7, d8];
+			final all:Slice<Diagnostic> = [d1, d2, d3, d4, d5, d6, d7, d8];
 			final opts = new FormattingOptions();
 			opts.Locale = ts.locale.Locale.Default;
 			opts.CaseSensitivity = CaseSensitive;
@@ -42,8 +42,8 @@ class DiagnosticwriterTest {
 			sb = new TestWriter();
 			Diagnosticwriter.WriteFormatDiagnostics(sb, all, opts);
 			T.eq(G.PLAIN, sb.toString());
-			final sets:Array<Array<Diagnostic>> = [all, [d1], [d4], [d1, d6], [d1, d2], [d3]];
-			final many:Array<Diagnostic> = [for (_ in 0...12) d5];
+			final sets:Array<Slice<Diagnostic>> = [all, [d1], [d4], [d1, d6], [d1, d2], [d3]];
+			final many:Slice<Diagnostic> = [for (_ in 0...12) d5];
 			many.push(d1);
 			sets.push(many);
 			for (i in 0...sets.length) {
@@ -111,7 +111,7 @@ class DiagnosticwriterTest {
 private class TestFile implements FileLike {
 	final name:String;
 	final text:String;
-	final lines:Array<TextPos>;
+	final lines:Slice<TextPos>;
 
 	public function new(name:String, text:String) {
 		this.name = name;
@@ -127,7 +127,7 @@ private class TestFile implements FileLike {
 		return text;
 	}
 
-	public function ECMALineMap():Array<TextPos> {
+	public function ECMALineMap():Slice<TextPos> {
 		return lines;
 	}
 }
@@ -139,8 +139,8 @@ private class TestDiag implements Diagnostic {
 	public final code:Int;
 	public final cat:Category;
 	public final msg:String;
-	public var chain:Array<Diagnostic> = null;
-	public var related:Array<Diagnostic> = null;
+	public var chain:Slice<Diagnostic> = null;
+	public var related:Slice<Diagnostic> = null;
 
 	public function new(file:TestFile, code:Int, cat:Category, msg:String) {
 		this.file = file;
@@ -181,11 +181,11 @@ private class TestDiag implements Diagnostic {
 		return msg;
 	}
 
-	public function MessageChain():Array<Diagnostic> {
+	public function MessageChain():Slice<Diagnostic> {
 		return chain;
 	}
 
-	public function RelatedInformation():Array<Diagnostic> {
+	public function RelatedInformation():Slice<Diagnostic> {
 		return related;
 	}
 }

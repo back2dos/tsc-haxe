@@ -961,7 +961,7 @@ class Grammarchecks {
 	static function checkGrammarObjectLiteralExpression(c:Checker, node:ObjectLiteralExpression, inDestructuring:Bool):Bool {
 		final seen = new StringMap<DeclarationMeaning>();
 
-		var properties:Array<Node> = null;
+		var properties:Slice<Node> = null;
 		if (node.Properties != null) {
 			properties = node.Properties.Nodes;
 		}
@@ -2167,7 +2167,7 @@ class Grammarchecks {
 	// --- private helpers (PORT) ---
 
 	// PORT: Go `range` over a possibly-nil slice.
-	static inline function rangeOf<T>(s:Array<T>):Array<T> {
+	static inline function rangeOf<T>(s:Slice<T>):Slice<T> {
 		return s != null ? s : [];
 	}
 

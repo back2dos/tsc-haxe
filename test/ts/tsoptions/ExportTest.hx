@@ -2,14 +2,14 @@ package ts.tsoptions;
 
 // Port of export_test.go (package tsoptions: test-only exports).
 class ExportTest {
-	static function getTestParseCommandLineWorkerDiagnostics(decls:Null<Array<CommandLineOption>>):ParseCommandLineWorkerDiagnostics {
+	static function getTestParseCommandLineWorkerDiagnostics(decls:Slice<CommandLineOption>):ParseCommandLineWorkerDiagnostics {
 		if (Core.len(decls) == 0) {
 			return Tsoptions.CompilerOptionsDidYouMeanDiagnostics;
 		}
 		return Tsoptions.getParseCommandLineWorkerDiagnostics(decls);
 	}
 
-	public static function ParseCommandLineTestWorker(decls:Null<Array<CommandLineOption>>, commandLine:Array<String>, fs:FS,
+	public static function ParseCommandLineTestWorker(decls:Slice<CommandLineOption>, commandLine:Array<String>, fs:FS,
 			currentDirectory:RootedDirectoryPath):TestCommandLineParser {
 		final parser = new CommandLineParser();
 		parser.fs = fs;
@@ -37,9 +37,9 @@ class ExportTest {
 class TestCommandLineParser {
 	public var Fs:FS = null;
 	public var WorkerDiagnostics:ParseCommandLineWorkerDiagnostics = null;
-	public var FileNames:Array<String> = null;
+	public var FileNames:Slice<String> = null;
 	public var Options:OrderedMap<String, Dynamic> = null;
-	public var Errors:Array<Diagnostic> = null;
+	public var Errors:Slice<Diagnostic> = null;
 
 	public function new() {}
 }

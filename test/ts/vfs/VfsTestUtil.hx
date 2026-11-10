@@ -5,14 +5,14 @@ import ts.tspath.RootedPath;
 // Helpers shared by the vfs package tests (gotest.tools assert equivalents).
 class VfsTestUtil {
 	// Go-like rendering of a []string: nil → "nil", else [a b c] (elements quoted).
-	public static function strs(a:Null<Array<String>>):String {
+	public static function strs(a:Slice<String>):String {
 		if (a == null)
 			return "nil";
 		return "[" + [for (s in a) go.Strconv.Quote(s)].join(" ") + "]";
 	}
 
 	// assert.DeepEqual for []string.
-	public static function eqStrings(expected:Null<Array<String>>, actual:Null<Array<String>>, ?pos:haxe.PosInfos) {
+	public static function eqStrings(expected:Slice<String>, actual:Slice<String>, ?pos:haxe.PosInfos) {
 		T.eq(strs(expected), strs(actual), pos);
 	}
 

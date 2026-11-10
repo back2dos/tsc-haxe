@@ -18,11 +18,11 @@ typedef ReadDirTestCase = {
 	host:() -> FS,
 	?currentDir:String,
 	?path:String,
-	?extensions:Array<String>,
-	?excludes:Array<String>,
-	?includes:Array<String>,
+	?extensions:Slice<String>,
+	?excludes:Slice<String>,
+	?includes:Slice<String>,
 	?depth:Int,
-	expect:(got:Null<Array<String>>) -> Void,
+	expect:(got:Slice<String>) -> Void,
 }
 
 class VfsmatchTest {
@@ -172,7 +172,7 @@ class VfsmatchTest {
 		return [for (d in got) d.AsString()];
 	}
 
-	static function fileNames(got:Null<Array<RootedFilePath>>):Null<Array<String>> {
+	static function fileNames(got:Slice<RootedFilePath>):Slice<String> {
 		return got == null ? null : Core.Map(got, function(fileName:RootedFilePath):String {
 			return fileName.AsString();
 		});
@@ -1427,8 +1427,8 @@ class VfsmatchTest {
 				usage:Usage,
 				caseSensitivity:CaseSensitivity,
 				?expectNil:Bool,
-				?matchingPaths:Array<String>,
-				?nonMatchingPaths:Array<String>
+				?matchingPaths:Slice<String>,
+				?nonMatchingPaths:Slice<String>
 			}> = [
 				{
 					name: "simple spec",

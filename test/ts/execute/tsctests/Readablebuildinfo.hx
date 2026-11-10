@@ -90,23 +90,23 @@ class ReadableBuildInfo implements OrderedMarshaler {
 	// Common between incremental and tsc -b buildinfo for non incremental programs
 	public var Errors:Bool = false; // json:"errors,omitzero"
 	public var CheckPending:Bool = false; // json:"checkPending,omitzero"
-	public var Root:Array<ReadableBuildInfoRoot> = null; // json:"root,omitzero"
-	public var PackageJsons:Array<String> = null; // json:"packageJsons,omitzero"
-	public var MissingPackageJsons:Array<String> = null; // json:"missingPackageJsons,omitzero"
+	public var Root:Slice<ReadableBuildInfoRoot> = null; // json:"root,omitzero"
+	public var PackageJsons:Slice<String> = null; // json:"packageJsons,omitzero"
+	public var MissingPackageJsons:Slice<String> = null; // json:"missingPackageJsons,omitzero"
 
 	// IncrementalProgram info
-	public var FileNames:Array<String> = null; // json:"fileNames,omitzero"
-	public var FileInfos:Array<ReadableBuildInfoFileInfo> = null; // json:"fileInfos,omitzero"
-	public var FileIdsList:Array<Array<String>> = null; // json:"fileIdsList,omitzero"
+	public var FileNames:Slice<String> = null; // json:"fileNames,omitzero"
+	public var FileInfos:Slice<ReadableBuildInfoFileInfo> = null; // json:"fileInfos,omitzero"
+	public var FileIdsList:Slice<Array<String>> = null; // json:"fileIdsList,omitzero"
 	public var Options:OrderedMap<String, Dynamic> = null; // json:"options,omitzero"
 	public var ReferencedMap:OrderedMap<String, Array<String>> = null; // json:"referencedMap,omitzero"
-	public var SemanticDiagnosticsPerFile:Array<ReadableBuildInfoSemanticDiagnostic> = null; // json:"semanticDiagnosticsPerFile,omitzero"
-	public var EmitDiagnosticsPerFile:Array<ReadableBuildInfoDiagnosticsOfFile> = null; // json:"emitDiagnosticsPerFile,omitzero"
-	public var ChangeFileSet:Array<String> = null; // json:"changeFileSet,omitzero" // List of changed files in the program, not the whole set of files
-	public var AffectedFilesPendingEmit:Array<ReadableBuildInfoFilePendingEmit> = null; // json:"affectedFilesPendingEmit,omitzero"
+	public var SemanticDiagnosticsPerFile:Slice<ReadableBuildInfoSemanticDiagnostic> = null; // json:"semanticDiagnosticsPerFile,omitzero"
+	public var EmitDiagnosticsPerFile:Slice<ReadableBuildInfoDiagnosticsOfFile> = null; // json:"emitDiagnosticsPerFile,omitzero"
+	public var ChangeFileSet:Slice<String> = null; // json:"changeFileSet,omitzero" // List of changed files in the program, not the whole set of files
+	public var AffectedFilesPendingEmit:Slice<ReadableBuildInfoFilePendingEmit> = null; // json:"affectedFilesPendingEmit,omitzero"
 	public var LatestChangedDtsFile:String = ""; // json:"latestChangedDtsFile,omitzero" // Because this is only output file in the program, we dont need fileId to deduplicate name
-	public var EmitSignatures:Array<ReadableBuildInfoEmitSignature> = null; // json:"emitSignatures,omitzero"
-	public var ResolvedRoot:Array<ReadableBuildInfoResolvedRoot> = null; // json:"resolvedRoot,omitzero"
+	public var EmitSignatures:Slice<ReadableBuildInfoEmitSignature> = null; // json:"emitSignatures,omitzero"
+	public var ResolvedRoot:Slice<ReadableBuildInfoResolvedRoot> = null; // json:"resolvedRoot,omitzero"
 	public var Size:Int = 0; // json:"size,omitzero" // Size of the build info file
 
 	// NonIncrementalProgram info
@@ -172,7 +172,7 @@ class ReadableBuildInfo implements OrderedMarshaler {
 		return this.FileIdsList[fileIdListId - 1];
 	}
 
-	function toReadableBuildInfoDiagnostic(diagnostics:Array<BuildInfoDiagnostic>):Array<ReadableBuildInfoDiagnostic> {
+	function toReadableBuildInfoDiagnostic(diagnostics:Slice<BuildInfoDiagnostic>):Slice<ReadableBuildInfoDiagnostic> {
 		return Core.Map(diagnostics, function(d:BuildInfoDiagnostic):ReadableBuildInfoDiagnostic {
 			var file = "";
 			if (d.File != 0) {
@@ -238,8 +238,8 @@ class ReadableBuildInfo implements OrderedMarshaler {
 	}
 
 	public function setFileIdsList():Void {
-		this.FileIdsList = Core.Map(this.buildInfo.FileIdsList, function(ids:Array<BuildInfoFileId>):Array<String> {
-			return Core.Map(ids, this.toFilePath);
+		this.FileIdsList = Core.Map(this.buildInfo.FileIdsList, function(ids:Slice<BuildInfoFileId>):Array<String> {
+			return Core.Map(ids, this.toFilePath).nilable();
 		});
 	}
 
@@ -304,7 +304,7 @@ class ReadableBuildInfo implements OrderedMarshaler {
 
 // Go type readableBuildInfoRoot.
 class ReadableBuildInfoRoot implements OrderedMarshaler {
-	public var Files:Array<String> = null; // json:"files,omitzero"
+	public var Files:Slice<String> = null; // json:"files,omitzero"
 	public var Original:BuildInfoRoot = null; // json:"original,omitzero"
 
 	public function new(Files:Array<String>, Original:BuildInfoRoot) {
@@ -361,9 +361,9 @@ class ReadableBuildInfoDiagnostic implements OrderedMarshaler {
 	public var Code:Int = 0; // json:"code,omitzero"
 	public var Category:Int = 0; // json:"category,omitzero" (diagnostics.Category)
 	public var MessageKey:String = ""; // json:"messageKey,omitzero"
-	public var MessageArgs:Array<String> = null; // json:"messageArgs,omitzero"
-	public var MessageChain:Array<ReadableBuildInfoDiagnostic> = null; // json:"messageChain,omitzero"
-	public var RelatedInformation:Array<ReadableBuildInfoDiagnostic> = null; // json:"relatedInformation,omitzero"
+	public var MessageArgs:Slice<String> = null; // json:"messageArgs,omitzero"
+	public var MessageChain:Slice<ReadableBuildInfoDiagnostic> = null; // json:"messageChain,omitzero"
+	public var RelatedInformation:Slice<ReadableBuildInfoDiagnostic> = null; // json:"relatedInformation,omitzero"
 	public var ReportsUnnecessary:Bool = false; // json:"reportsUnnecessary,omitzero"
 	public var ReportsDeprecated:Bool = false; // json:"reportsDeprecated,omitzero"
 	public var SkippedOnNoEmit:Bool = false; // json:"skippedOnNoEmit,omitzero"
@@ -405,9 +405,9 @@ class ReadableBuildInfoDiagnostic implements OrderedMarshaler {
 // Go type readableBuildInfoDiagnosticsOfFile.
 class ReadableBuildInfoDiagnosticsOfFile implements OrderedMarshaler {
 	public var file:String = "";
-	public var diagnostics:Array<ReadableBuildInfoDiagnostic> = null;
+	public var diagnostics:Slice<ReadableBuildInfoDiagnostic> = null;
 
-	public function new(file:String, diagnostics:Array<ReadableBuildInfoDiagnostic>) {
+	public function new(file:String, diagnostics:Slice<ReadableBuildInfoDiagnostic>) {
 		this.file = file;
 		this.diagnostics = diagnostics;
 	}

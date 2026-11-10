@@ -664,8 +664,8 @@ class MappedSymbolLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class DeferredSymbolLinks extends ts.core.Linkstore.LinkEntry {
 	var parent:Type = null; // Source union/intersection of a deferred type
-	var constituents:Array<Type> = null; // Calculated list of constituents for a deferred type
-	var writeConstituents:Array<Type> = null; // Constituents of a deferred `writeType`
+	var constituents:Slice<Type> = null; // Calculated list of constituents for a deferred type
+	var writeConstituents:Slice<Type> = null; // Constituents of a deferred `writeType`
 
 	public function new() {
 		super();
@@ -762,8 +762,8 @@ class SwitchStatementLinks extends ts.core.Linkstore.LinkEntry {
 	var exhaustiveState:ExhaustiveState = 0; // Switch statement exhaustiveness
 	var switchTypesComputed:Bool = false;
 	var witnessesComputed:Bool = false;
-	var switchTypes:Array<Type> = null;
-	var witnesses:Array<std.String> = null;
+	var switchTypes:Slice<Type> = null;
+	var witnesses:Slice<std.String> = null;
 
 	public function new() {
 		super();
@@ -831,7 +831,7 @@ class SpreadLinks extends ts.core.Linkstore.LinkEntry {
 
 @:allow(ts.checker)
 class VarianceLinks extends ts.core.Linkstore.LinkEntry {
-	var variances:Array<VarianceFlags> = null;
+	var variances:Slice<VarianceFlags> = null;
 
 	public function new() {
 		super();
@@ -900,9 +900,9 @@ class AccessibleChainCacheKey {
 
 @:allow(ts.checker)
 class ContainingSymbolLinks extends ts.core.Linkstore.LinkEntry {
-	var extendedContainersByFile:IntMap<Array<Symbol>> = null; // Symbols of nodes which which logically contain this one, cached by file the request is made within
-	var extendedContainers:Array<Symbol> = null; // Containers (other than the parent) which this symbol is aliased in
-	var accessibleChainCache:StringMap<Array<Symbol>> /* key: checker.accessibleChainCacheKey */ = null;
+	var extendedContainersByFile:IntMap<Slice<Symbol>> = null; // Symbols of nodes which which logically contain this one, cached by file the request is made within
+	var extendedContainers:Slice<Symbol> = null; // Containers (other than the parent) which this symbol is aliased in
+	var accessibleChainCache:StringMap<Slice<Symbol>> /* key: checker.accessibleChainCacheKey */ = null;
 
 	public function new() {
 		super();
@@ -967,7 +967,7 @@ class SymbolNodeLinks extends ts.core.Linkstore.LinkEntry {
 @:allow(ts.checker)
 class TypeNodeLinks extends ts.core.Linkstore.LinkEntry {
 	var resolvedType:Type = null; // Resolved type associated with node
-	var outerTypeParameters:Array<Type> = null; // Outer type parameters of anonymous object type
+	var outerTypeParameters:Slice<Type> = null; // Outer type parameters of anonymous object type
 
 	public function new() {
 		super();
@@ -1016,7 +1016,7 @@ class SourceFileLinks extends ts.core.Linkstore.LinkEntry {
 	var externalHelpersModule:Symbol = null;
 	var requestedExternalEmitHelpers:ExternalEmitHelpers = 0;
 	var deferredNodes:ts.collections.OrderedSet<Node> = new ts.collections.OrderedSet<Node>();
-	var identifierCheckNodes:Array<Node> = null;
+	var identifierCheckNodes:Slice<Node> = null;
 	var localJsxNamespace:std.String = "";
 	var localJsxFragmentNamespace:std.String = "";
 	var localJsxFactory:EntityName = null;
@@ -2014,7 +2014,7 @@ class InterfaceType extends TypeReference {
 	var baseTypesResolved:Bool = false;
 	var declaredMembersResolved:Bool = false;
 	var resolvedBaseConstructorType:Type = null;
-	var resolvedBaseTypes:Array<Type> = null;
+	var resolvedBaseTypes:Slice<Type> = null;
 	var declaredMembers:SymbolTable = null; // Declared members
 	var declaredCallSignatures:haxe.ds.Vector<Signature> = null; // Declared call signatures
 	var declaredConstructSignatures:haxe.ds.Vector<Signature> = null; // Declared construct signatures
@@ -2089,7 +2089,7 @@ class TupleElementInfo {
 
 @:allow(ts.checker)
 class TupleType extends InterfaceType {
-	var elementInfos:Array<TupleElementInfo> = null;
+	var elementInfos:Slice<TupleElementInfo> = null;
 	var minLength:Int = 0; // Number of required or variadic elements
 	var fixedLength:Int = 0; // Number of initial required or optional elements
 	var combinedFlags:ElementFlags = 0;
@@ -2117,7 +2117,7 @@ class TupleType extends InterfaceType {
 		return elementFlags;
 	}
 
-	public function ElementInfos():Array<TupleElementInfo> {
+	public function ElementInfos():Slice<TupleElementInfo> {
 		return elementInfos;
 	}
 }
@@ -2270,14 +2270,14 @@ class IndexedAccessType extends InstantiableType {
 
 @:allow(ts.checker)
 class TemplateLiteralType extends InstantiableType {
-	var texts:Array<std.String> = null; // Always one element longer than types
-	var types:Array<Type> = null; // Always at least one element
+	var texts:Slice<std.String> = null; // Always one element longer than types
+	var types:Slice<Type> = null; // Always at least one element
 
 	public function new() {
 		super();
 	}
 
-	public function Texts():Array<std.String> {
+	public function Texts():Slice<std.String> {
 		return texts;
 	}
 
@@ -2320,8 +2320,8 @@ class ConditionalRoot {
 	var checkType:Type = null;
 	var extendsType:Type = null;
 	var isDistributive:Bool = false;
-	var inferTypeParameters:Array<Type> = null;
-	var outerTypeParameters:Array<Type> = null;
+	var inferTypeParameters:Slice<Type> = null;
+	var outerTypeParameters:Slice<Type> = null;
 	var instantiations:ts.core.HashKeyMap<Type> /* key: checker.CacheHashKey */ = null;
 	var alias:TypeAlias = null;
 
@@ -2506,7 +2506,7 @@ class Signature implements TypeSystemEntity {
 @:allow(ts.checker)
 class CompositeSignature {
 	var isUnion:Bool = false; // True for union, false for intersection
-	var signatures:Array<Signature> = null; // Individual signatures
+	var signatures:Slice<Signature> = null; // Individual signatures
 
 	public function new() {}
 }
@@ -2551,7 +2551,7 @@ class IndexInfo {
 	var isReadonly:Bool = false;
 	var declaration:Node = null; // IndexSignatureDeclaration
 	var indexSymbol:Symbol = null; // Synthetic property symbol for this index signature
-	var components:Array<Node> = null; // ElementWithComputedPropertyName
+	var components:Slice<Node> = null; // ElementWithComputedPropertyName
 
 	public function new() {}
 

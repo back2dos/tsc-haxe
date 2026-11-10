@@ -9,7 +9,7 @@ class ESModuleTransformer {
 	var compilerOptions:CompilerOptions = null;
 	var resolver:ReferenceResolver = null;
 	var getEmitModuleFormatOfFile:(file:HasFileName) -> ModuleKind = null;
-	var contentMapperExtensionRewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>> = null;
+	var contentMapperExtensionRewrites:Slice<ts.tspath.Tspath.ExtensionRewrite> = null;
 	var ignoreCase:Bool = false; // PORT: tspath.CaseSensitivity
 	var currentSourceFile:SourceFile = null;
 	var importRequireStatements:ImportRequireStatements = null;
@@ -57,7 +57,7 @@ class ESModuleTransformer {
 		importRequireStatements = null;
 
 		var result = Visitor().VisitEachChild(node.AsNode()).AsSourceFile();
-		EmitContext().AddEmitHelper(result.AsNode(), ...Core.Coalesce(EmitContext().ReadEmitHelpers(), [])); // PORT: spread of a nil slice is an empty variadic call
+		EmitContext().AddEmitHelper(result.AsNode(), ...Core.Coalesce(EmitContext().ReadEmitHelpers(), []).toArray()); // PORT: spread of a nil slice is an empty variadic call
 
 		final externalHelpersImportDeclaration = Moduletransforms.createExternalHelpersImportDeclarationIfNeeded(EmitContext(), result, compilerOptions,
 			getEmitModuleFormatOfFile(ts.modulespecifiers.Types.SourceFileAdapter.Of(node)) /* PORT: SourceFile as ast.HasFileName (adapter) */, false /*hasExportStarsToExportValues*/, false /*hasImportStar*/, false /*hasImportDefault*/);
@@ -242,7 +242,7 @@ class ESModuleTransformer {
 		final moduleName = Moduletransforms.getExternalModuleNameLiteral(Factory(), node, currentSourceFile, null /*host*/, null /*emitResolver*/,
 			compilerOptions);
 
-		var args:Array<Expression> = null;
+		var args:Slice<Expression> = null;
 		if (moduleName != null) {
 			args = [Moduletransforms.rewriteModuleSpecifier(EmitContext(), moduleName, compilerOptions, contentMapperExtensionRewrites, ignoreCase)];
 		}
@@ -286,7 +286,7 @@ class ESModuleTransformer {
 
 @:allow(ts.transformers.moduletransforms)
 class ImportRequireStatements {
-	var statements:Array<Statement> = null;
+	var statements:Slice<Statement> = null;
 	var requireHelperName:IdentifierNode = null;
 
 	public function new() {}

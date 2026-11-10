@@ -52,7 +52,7 @@ class Harnessutil {
 		// PORT: the harness keeps currentDirectory a string; main's is a RootedDirectoryPath. The declaration
 		// re-compilation can pass an empty one (its input names are absolute): the root then.
 		final typedCurrentDirectory = Tspath.RootedDirectoryPathFromAbsolute(currentDirectory == "" ? "/" : currentDirectory);
-		var programFileNames:Array<RootedFilePath> = null;
+		var programFileNames:Slice<RootedFilePath> = null;
 		for (file in inputFiles) {
 			final fileName = Tspath.ToRootedFilePath(file.UnitName, typedCurrentDirectory);
 
@@ -123,7 +123,7 @@ class Harnessutil {
 			}
 		}
 
-		var contentMappers:Array<ts.contentmapper.Contentmapper.Mapper> = null;
+		var contentMappers:Slice<ts.contentmapper.Contentmapper.Mapper> = null;
 		if (tsconfig != null && tsconfig.ParsedConfig != null) {
 			contentMappers = tsconfig.ParsedConfig.ContentMappers;
 		}
@@ -165,7 +165,7 @@ class Harnessutil {
 		}
 
 		var configFile:TsConfigSourceFile = null;
-		var errors:Array<Diagnostic> = null;
+		var errors:Slice<Diagnostic> = null;
 		if (tsconfig != null) {
 			configFile = tsconfig.ConfigFile;
 			errors = tsconfig.Errors;
@@ -267,10 +267,10 @@ class Harnessutil {
 		}
 	}
 
-	static var compilerOptions(get, never):Array<CommandLineOption>;
-	static var compilerOptionsValue:Array<CommandLineOption> = null;
+	static var compilerOptions(get, never):Slice<CommandLineOption>;
+	static var compilerOptionsValue:Slice<CommandLineOption> = null;
 
-	static function get_compilerOptions():Array<CommandLineOption> {
+	static function get_compilerOptions():Slice<CommandLineOption> {
 		if (compilerOptionsValue == null) {
 			compilerOptionsValue = Core.Concatenate(Tsoptions.OptionsDeclarations, [
 				newOption("allowNonTsExtensions", CommandLineOptionTypeBoolean),
@@ -289,10 +289,10 @@ class Harnessutil {
 		return o;
 	}
 
-	static var harnessCommandLineOptions(get, never):Array<CommandLineOption>;
-	static var harnessCommandLineOptionsValue:Array<CommandLineOption> = null;
+	static var harnessCommandLineOptions(get, never):Slice<CommandLineOption>;
+	static var harnessCommandLineOptionsValue:Slice<CommandLineOption> = null;
 
-	static function get_harnessCommandLineOptions():Array<CommandLineOption> {
+	static function get_harnessCommandLineOptions():Slice<CommandLineOption> {
 		if (harnessCommandLineOptionsValue == null) {
 			harnessCommandLineOptionsValue = [
 				newOption("useCaseSensitiveFileNames", CommandLineOptionTypeBoolean),
@@ -492,7 +492,7 @@ class Harnessutil {
 		// 	delete compilerOptions.project;
 		// }
 		final ctx = Context.Background();
-		var preErrors:Array<Diagnostic> = [];
+		var preErrors:Slice<Diagnostic> = [];
 		final preCompilerOptions = config.CompilerOptions().Clone();
 		preCompilerOptions.TraceResolution = TSFalse;
 		final preConfig = Tsoptions.NewParsedCommandLine(preCompilerOptions, config.FileNames(), config.ProjectReferences(), config.BaseDirectory(),
@@ -525,7 +525,7 @@ class Harnessutil {
 		} else {
 			emitResult = postProgram.Emit(ctx, new EmitOptions());
 		}
-		var postErrors:Array<Diagnostic> = [];
+		var postErrors:Slice<Diagnostic> = [];
 		appendAll(postErrors, postProgram.GetConfigFileParsingDiagnostics());
 		appendAll(postErrors, postProgram.GetProgramDiagnostics());
 		appendAll(postErrors, postProgram.GetSyntacticDiagnostics(ctx, null));
@@ -576,13 +576,13 @@ class Harnessutil {
 	}
 
 	// PORT: `s = append(s, other...)` for a slice owned by the caller (non-null).
-	static function appendAll<X>(s:Array<X>, other:Null<Array<X>>):Void {
+	static function appendAll<X>(s:Slice<X>, other:Slice<X>):Void {
 		if (other != null)
 			for (x in other)
 				s.push(x);
 	}
 
-	static function newCompilationResult(host:CompilerHost, options:CompilerOptions, program:ProgramLike, result:EmitResult, diagnostics:Array<Diagnostic>,
+	static function newCompilationResult(host:CompilerHost, options:CompilerOptions, program:ProgramLike, result:EmitResult, diagnostics:Slice<Diagnostic>,
 			harnessOptions:HarnessOptions):CompilationResult {
 		if (program != null) {
 			options = program.Options();
@@ -695,20 +695,20 @@ class Harnessutil {
 
 	// PORT: EnumerateFiles/listFiles take a Go regexp; here a predicate on the path. The folder is
 	// resolved against repo.TestDataPath() like Go.
-	public static function EnumerateFiles(folder:String, testRegex:Null<(String) -> Bool>, recursive:Bool):Array<String> {
+	public static function EnumerateFiles(folder:String, testRegex:Null<(String) -> Bool>, recursive:Bool):Slice<String> {
 		final files = listFiles(folder, testRegex, recursive);
 		return Core.Map(files, Tspath.NormalizeSlashes);
 	}
 
-	static function listFiles(path:String, spec:Null<(String) -> Bool>, recursive:Bool):Array<String> {
+	static function listFiles(path:String, spec:Null<(String) -> Bool>, recursive:Bool):Slice<String> {
 		return listFilesWorker(spec, recursive, path);
 	}
 
-	static function listFilesWorker(spec:Null<(String) -> Bool>, recursive:Bool, folder:String):Array<String> {
+	static function listFilesWorker(spec:Null<(String) -> Bool>, recursive:Bool, folder:String):Slice<String> {
 		folder = Tspath.GetNormalizedAbsolutePath(folder, Repo.TestDataPath());
 		final entries = sys.FileSystem.readDirectory(folder);
 		entries.sort(Strings.Compare); // os.ReadDir returns the entries sorted by filename
-		var paths:Array<String> = null;
+		var paths:Slice<String> = null;
 		for (entry in entries) {
 			final path = Tspath.NormalizePath(folder + "/" + entry);
 			if (!sys.FileSystem.isDirectory(folder + "/" + entry)) {
@@ -744,7 +744,7 @@ class Harnessutil {
 		return output.toString();
 	}
 
-	public static function GetFileBasedTestConfigurations(t:T, settings:StringMap<String>, varyByOptions:StringMap<Bool>):Array<NamedTestConfiguration> {
+	public static function GetFileBasedTestConfigurations(t:T, settings:StringMap<String>, varyByOptions:StringMap<Bool>):Slice<NamedTestConfiguration> {
 		final optionEntries:Array<Array<String>> = []; // Each element slice has the option name as the first element, and the values as the rest
 		var variationCount = 1;
 		final nonVaryingOptions = new StringMap<String>();
@@ -766,7 +766,7 @@ class Harnessutil {
 			}
 		}
 
-		var configurations:Array<NamedTestConfiguration> = null;
+		var configurations:Slice<NamedTestConfiguration> = null;
 		if (optionEntries.length > 0) {
 			// Merge varying and non-varying options
 			final varyingConfigurations = computeFileBasedTestConfigurationVariations(variationCount, optionEntries);
@@ -1029,7 +1029,7 @@ class HarnessOptions {
 	public var BaselineFile:String = "";
 	public var IncludeBuiltFile:String = "";
 	public var FileName:String = "";
-	public var LibFiles:Array<String> = null;
+	public var LibFiles:Slice<String> = null;
 	public var NoImplicitReferences:Bool = false;
 	public var CurrentDirectory:String = "";
 	public var Symlink:String = "";
@@ -1214,7 +1214,7 @@ class TracerForBaselining {
 
 @:allow(ts.testutil.harnessutil)
 class CompilationResult {
-	public var Diagnostics:Array<Diagnostic> = null;
+	public var Diagnostics:Slice<Diagnostic> = null;
 	public var Result:EmitResult = null;
 	public var Program:ProgramLike = null;
 	public var Options:CompilerOptions = null;
@@ -1298,7 +1298,7 @@ class CompilationResult {
 		return this.inputsAndOutputs.GetOrZero(Tspath.ResolvePath(this.Host.GetCurrentDirectory(), path));
 	}
 
-	public function GetInputsForFile(path:String):Array<TestFile> {
+	public function GetInputsForFile(path:String):Slice<TestFile> {
 		final outputs = this.GetInputsAndOutputsForFile(path);
 		if (outputs != null) {
 			return outputs.Inputs;
@@ -1363,7 +1363,7 @@ class CompilationResult {
 }
 
 class CompilationOutput {
-	public var Inputs:Array<TestFile> = null;
+	public var Inputs:Slice<TestFile> = null;
 	public var JS:TestFile = null;
 	public var DTS:TestFile = null;
 	public var Map:TestFile = null;

@@ -9,13 +9,13 @@ class ParsedBuildCommandLine {
 	public var BuildOptions:Null<BuildOptions> = null; // json:"buildOptions"
 	public var CompilerOptions:Null<CompilerOptions> = null; // json:"compilerOptions"
 	public var WatchOptions:Null<WatchOptions> = null; // json:"watchOptions"
-	public var Projects:Null<Array<std.String>> = null; // json:"projects"
-	public var Errors:Null<Array<Diagnostic>> = null; // json:"errors"
+	public var Projects:Slice<std.String> = null; // json:"projects"
+	public var Errors:Slice<Diagnostic> = null; // json:"errors"
 	public var Raw:Dynamic = null; // json:"raw"
 
 	var currentDirectory:RootedDirectoryPath = cast "";
 
-	var resolvedProjectPaths:Null<Array<RootedFilePath>> = null;
+	var resolvedProjectPaths:Slice<RootedFilePath> = null;
 	var resolvedProjectPathsOnce:Bool = false;
 
 	var locale:Locale = ts.locale.Locale.Default;
@@ -23,7 +23,7 @@ class ParsedBuildCommandLine {
 
 	public function new() {}
 
-	public function ResolvedProjectPaths():Null<Array<RootedFilePath>> {
+	public function ResolvedProjectPaths():Slice<RootedFilePath> {
 		if (!this.resolvedProjectPathsOnce) {
 			this.resolvedProjectPathsOnce = true;
 			this.resolvedProjectPaths = Core.Map(this.Projects, function(project:std.String):RootedFilePath {

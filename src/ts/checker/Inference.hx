@@ -34,7 +34,7 @@ class InferenceKey {
 
 @:allow(ts.checker)
 class InferenceState {
-	var inferences:Array<InferenceInfo> = null;
+	var inferences:Slice<InferenceInfo> = null;
 	var originalSource:Type = null;
 	var originalTarget:Type = null;
 	var priority:InferencePriority = 0;
@@ -46,8 +46,8 @@ class InferenceState {
 	// PORT: perf — map[InferenceKey]InferencePriority as a ScratchKeyMap of (source id, target id, the rest packed as
 	// InferenceKey.keyOf does): no key string per lookup, and its table kept when the pooled state is put back
 	var visited:ts.core.ScratchKeyMap = null;
-	var sourceStack:Array<Type> = null;
-	var targetStack:Array<Type> = null;
+	var sourceStack:Slice<Type> = null;
+	var targetStack:Slice<Type> = null;
 	var next:InferenceState = null;
 	var clearedInferences:Bool = false; // PORT: perf — (from tsrs) the walk called clearCachedInferences (InferMemo.hx)
 
@@ -116,7 +116,7 @@ class Inference {
 		c.freeinferenceState = n;
 	}
 
-	static function inferTypes(c:Checker, inferences:Array<InferenceInfo>, originalSource:Type, originalTarget:Type, priority:InferencePriority, contravariant:Bool):Void {
+	static function inferTypes(c:Checker, inferences:Slice<InferenceInfo>, originalSource:Type, originalTarget:Type, priority:InferencePriority, contravariant:Bool):Void {
 		final n = c.getInferenceState();
 		n.inferences = inferences;
 		n.originalSource = originalSource;
@@ -372,7 +372,7 @@ class Inference {
 		c.inferFromTypeArguments(n, c.getTypeArguments(source), c.getTypeArguments(target), c.getVariances(source.AsTypeReference().target));
 	}
 
-	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:haxe.ds.Vector<Type>, targetTypes:haxe.ds.Vector<Type>, variances:Array<VarianceFlags>):Void {
+	static function inferFromTypeArguments(c:Checker, n:InferenceState, sourceTypes:haxe.ds.Vector<Type>, targetTypes:haxe.ds.Vector<Type>, variances:Slice<VarianceFlags>):Void {
 		final count = Std.int(std.Math.min(Core.len(sourceTypes), Core.len(targetTypes)));
 		for (i in 0...count) {
 			if (i < Core.len(variances) && (variances[i] & VarianceFlagsVarianceMask) == VarianceFlagsContravariant) {
@@ -471,8 +471,8 @@ class Inference {
 
 	static function inferFromMatchingTypes(c:Checker, n:InferenceState, sources:haxe.ds.Vector<Type>, targets:haxe.ds.Vector<Type>,
 			matches:(c:Checker, s:Type, t:Type) -> Bool, sort:Bool):Pair<haxe.ds.Vector<Type>, haxe.ds.Vector<Type>> {
-		var matchedSources:Array<Type> = null;
-		var matchedTargets:Array<Type> = null;
+		var matchedSources:Slice<Type> = null;
+		var matchedTargets:Slice<Type> = null;
 		if (targets != null) {
 			for (t in targets) {
 				if (sources != null) {
@@ -607,7 +607,7 @@ class Inference {
 			// types from which no inferences have been made so far and infer from that union to the
 			// naked type variable.
 			if (typeVariableCount == 1 && !inferenceCircularity) {
-				var unmatched:Array<Type> = null;
+				var unmatched:Slice<Type> = null;
 				for (i in 0...sources.length) {
 					final s = sources[i];
 					if (!matched[i]) {
@@ -1043,7 +1043,7 @@ class Inference {
 		if (c.isObjectTypeWithInferableIndex(source)) {
 			if (indexInfos != null) {
 				for (targetInfo in indexInfos) {
-					var propTypes:Array<Type> = null;
+					var propTypes:Slice<Type> = null;
 					final props = c.getPropertiesOfType(source);
 					if (props != null) {
 						for (prop in props) {
@@ -1412,7 +1412,7 @@ class Inference {
 		return c.newAnonymousType(null, members, null, null, indexInfos);
 	}
 
-	static extern inline overload function newInferenceContext(c:Checker, typeParameters:Array<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
+	static extern inline overload function newInferenceContext(c:Checker, typeParameters:Slice<Type>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
 		return c.newInferenceContextWorker(Core.Map(typeParameters, Checker.newInferenceInfo), signature, flags, compareTypes == null ? c.compareTypesAssignable : compareTypes);
 	}
 
@@ -1435,7 +1435,7 @@ class Inference {
 		return c.newInferenceContextWorker(Core.Map(inferences, Checker.cloneInferenceInfo), n.signature, n.flags, n.compareTypes);
 	}
 
-	static function newInferenceContextWorker(c:Checker, inferences:Array<InferenceInfo>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
+	static function newInferenceContextWorker(c:Checker, inferences:Slice<InferenceInfo>, signature:Signature, flags:InferenceFlags, compareTypes:TypeComparer):InferenceContext {
 		final n = new InferenceContext();
 		n.inferences = inferences;
 		n.signature = signature;
@@ -1618,7 +1618,7 @@ class Inference {
 		final primitiveConstraint = c.hasPrimitiveConstraint(inference.typeParameter) || c.isConstTypeVariable(inference.typeParameter, 0);
 		final widenLiteralTypes = !primitiveConstraint && inference.topLevel
 			&& (inference.isFixed || !c.isTypeParameterAtTopLevelInReturnType(signature, inference.typeParameter));
-		var baseCandidates:Array<Type>;
+		var baseCandidates:Slice<Type>;
 		if (primitiveConstraint) {
 			baseCandidates = Core.SameMap(candidates, t -> c.getRegularTypeOfLiteralType(t));
 		} else if (widenLiteralTypes) {
@@ -1644,7 +1644,7 @@ class Inference {
 		return c.getCommonSubtype(inference.contraCandidates);
 	}
 
-	static function unionObjectAndArrayLiteralCandidates(c:Checker, candidates:Array<Type>):Array<Type> {
+	static function unionObjectAndArrayLiteralCandidates(c:Checker, candidates:Slice<Type>):Slice<Type> {
 		if (Core.len(candidates) > 1) {
 			final objectLiterals = Core.Filter(candidates, Checker.isObjectOrArrayLiteralType);
 			if (Core.len(objectLiterals) != 0) {
@@ -1692,12 +1692,12 @@ class Inference {
 		return null;
 	}
 
-	static function getCommonSupertype(c:Checker, types:Array<Type>):Type {
+	static function getCommonSupertype(c:Checker, types:Slice<Type>):Type {
 		if (Core.len(types) == 1) {
 			return types[0];
 		}
 		// Remove nullable types from each of the candidates.
-		var primaryTypes = types;
+		var primaryTypes:Slice<Type> = types;
 		if (c.strictNullChecks) {
 			primaryTypes = Core.SameMap(types, function(t:Type):Type {
 				return c.filterType(t, u -> (u.flags & TypeFlagsNullable) == 0);
@@ -1719,7 +1719,7 @@ class Inference {
 		return c.getNullableType(supertype, c.getCombinedTypeFlags(types) & TypeFlagsNullable);
 	}
 
-	static function getSingleCommonSupertype(c:Checker, types:Array<Type>):Type {
+	static function getSingleCommonSupertype(c:Checker, types:Slice<Type>):Type {
 		// First, find the leftmost type for which no type to the right is a strict supertype, and if that
 		// type is a strict supertype of all other candidates, return it. Otherwise, return the leftmost type
 		// for which no type to the right is a (regular) supertype.
@@ -1730,7 +1730,7 @@ class Inference {
 		return c.findLeftmostType(types, fn_isTypeSubtypeOf);
 	}
 
-	static function findLeftmostType(c:Checker, types:Array<Type>, f:(c:Checker, s:Type, t:Type) -> Bool):Type {
+	static function findLeftmostType(c:Checker, types:Slice<Type>, f:(c:Checker, s:Type, t:Type) -> Bool):Type {
 		var candidate:Type = null;
 		if (types != null) {
 			for (t in types) {
@@ -1743,7 +1743,7 @@ class Inference {
 	}
 
 	// Return the leftmost type for which no type to the right is a subtype.
-	static function getCommonSubtype(c:Checker, types:Array<Type>):Type {
+	static function getCommonSubtype(c:Checker, types:Slice<Type>):Type {
 		var subtype:Type = null;
 		if (types != null) {
 			for (t in types) {
@@ -1755,7 +1755,7 @@ class Inference {
 		return subtype;
 	}
 
-	static function getCombinedTypeFlags(c:Checker, types:Array<Type>):TypeFlags {
+	static function getCombinedTypeFlags(c:Checker, types:Slice<Type>):TypeFlags {
 		var flags:TypeFlags = TypeFlagsNone;
 		if (types != null) {
 			for (t in types) {
@@ -1770,7 +1770,7 @@ class Inference {
 		return flags;
 	}
 
-	static function literalTypesWithSameBaseType(c:Checker, types:Array<Type>):Bool {
+	static function literalTypesWithSameBaseType(c:Checker, types:Slice<Type>):Bool {
 		var commonBaseType:Type = null;
 		if (types != null) {
 			for (t in types) {
@@ -1796,7 +1796,7 @@ class Inference {
 		return c.skipDirectInferenceNodes.Has(node);
 	}
 
-	static function mergeInferences(c:Checker, target:Array<InferenceInfo>, source:Array<InferenceInfo>):Void {
+	static function mergeInferences(c:Checker, target:Slice<InferenceInfo>, source:Slice<InferenceInfo>):Void {
 		for (i in 0...Core.len(target)) {
 			if (!Checker.hasInferenceCandidates(target[i]) && Checker.hasInferenceCandidates(source[i])) {
 				target[i] = source[i];

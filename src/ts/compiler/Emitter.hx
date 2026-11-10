@@ -21,7 +21,7 @@ class Emitter {
 	var writeFile:WriteFile = null;
 	var tr:Tracing = null;
 	var part:Int = 0; // PORT: hxmc (-D tshx-parallel) — 0: both outputs, 1: the .js only, 2: the .d.ts only
-	var prints:Array<() -> Void> = null;
+	var prints:Slice<() -> Void> = null;
 
 	public function new() {}
 
@@ -111,14 +111,14 @@ class Emitter {
 
 	// PORT: (*ast.SourceFile, []*ast.Diagnostic) → Pair
 	function runDeclarationTransformers(emitContext:EmitContext, sourceFile:SourceFile, declarationFilePath:RootedFilePath,
-			declarationMapPath:RootedFilePath):Pair<SourceFile, Array<Diagnostic>> {
+			declarationMapPath:RootedFilePath):Pair<SourceFile, Slice<Diagnostic>> {
 		var done:() -> Void = null;
 		if (this.tr != null) {
 			final args = new StringMap<Any>();
 			args.set("path", (sourceFile.Path() : std.String));
 			done = this.tr.Push(PhaseEmit, "transformNodes", args, false);
 		}
-		var diags:Array<Diagnostic> = null;
+		var diags:Slice<Diagnostic> = null;
 		try {
 			for (transformer in this.getDeclarationTransformers(emitContext, sourceFile, declarationFilePath)) {
 				sourceFile = transformer.TransformSourceFile(sourceFile);
@@ -414,13 +414,13 @@ interface SourceFileMayBeEmittedHost {
 	function IsSourceFileFromExternalLibrary(file:SourceFile):Bool;
 	function BaseDirectory():RootedDirectoryPath;
 	function CaseSensitivity():CaseSensitivity;
-	function SourceFiles():Array<SourceFile>;
+	function SourceFiles():Slice<SourceFile>;
 }
 
 // PORT: Go's declarationTransformer interface (TransformSourceFile, GetDiagnostics).
 interface DeclarationTransformerLike {
 	function TransformSourceFile(sourceFile:SourceFile):SourceFile;
-	function GetDiagnostics():Array<Diagnostic>;
+	function GetDiagnostics():Slice<Diagnostic>;
 }
 
 private class DeclarationTransformerAdapter implements DeclarationTransformerLike {
@@ -434,7 +434,7 @@ private class DeclarationTransformerAdapter implements DeclarationTransformerLik
 		return tx.Transformer.TransformSourceFile(sourceFile);
 	}
 
-	public function GetDiagnostics():Array<Diagnostic> {
+	public function GetDiagnostics():Slice<Diagnostic> {
 		return tx.GetDiagnostics();
 	}
 }
@@ -443,7 +443,7 @@ private class DeclarationTransformerAdapter implements DeclarationTransformerLik
 class DeclarationMapSource implements ts.sourcemap.Source.Source {
 	final fileName:RootedFilePath;
 	final text:std.String;
-	final lineMap:Array<TextPos>;
+	final lineMap:Slice<TextPos>;
 
 	public function new(sourceFile:SourceFile) {
 		this.text = sourceFile.OriginalText();
@@ -459,7 +459,7 @@ class DeclarationMapSource implements ts.sourcemap.Source.Source {
 		return text;
 	}
 
-	public function ECMALineMap():Array<TextPos> {
+	public function ECMALineMap():Slice<TextPos> {
 		return lineMap;
 	}
 }

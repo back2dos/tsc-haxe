@@ -237,7 +237,7 @@ class ForawaitTransformer {
 		// PORT: Go spreads a possibly-nil slice; a Haxe spread of null throws.
 		final helpers = EmitContext().ReadEmitHelpers();
 		if (helpers != null) {
-			EmitContext().AddEmitHelper(visited, ...helpers);
+			EmitContext().AddEmitHelper(visited, ...helpers.toArray());
 		} else {
 			EmitContext().AddEmitHelper(visited);
 		}
@@ -558,7 +558,7 @@ class ForawaitTransformer {
 			return EmitContext().VisitParameters(node.ParameterList(), Visitor());
 		}
 		// Add fixed parameters to preserve the function's `length` property.
-		var newParameters:Array<Node> = null;
+		var newParameters:Slice<Node> = null;
 		for (parameter in node.Parameters()) {
 			final param = parameter.AsParameterDeclaration();
 			if (param.Initializer != null || param.DotDotDotToken != null) {

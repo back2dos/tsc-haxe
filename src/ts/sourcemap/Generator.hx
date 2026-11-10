@@ -11,12 +11,12 @@ class Generator {
 	var file:String = "";
 	var sourceRoot:String = "";
 	var sourcesDirectoryPath:RootedDirectoryPath = cast "";
-	var rawSources:Array<String> = null;
-	var sources:Array<String> = null;
+	var rawSources:Slice<String> = null;
+	var sources:Slice<String> = null;
 	var sourceToSourceIndexMap:StringMap<SourceIndex> = null;
 	// PORT: pointer — Go `[]*string` → Array<Null<String>> (nil → null).
-	var sourcesContent:Array<Null<String>> = null;
-	var names:Array<String> = null;
+	var sourcesContent:Slice<Null<String>> = null;
+	var names:Slice<String> = null;
 	var nameToNameIndexMap:StringMap<NameIndex> = null;
 	var mappings:StringBuf = new StringBuf();
 	var lastGeneratedLine:Int = 0;
@@ -38,7 +38,7 @@ class Generator {
 
 	public function new() {}
 
-	public function Sources():Array<String> {
+	public function Sources():Slice<String> {
 		return rawSources;
 	}
 
@@ -347,10 +347,10 @@ class RawSourceMap {
 	public var Version:Int = 0; // json:"version"
 	public var File:String = ""; // json:"file"
 	public var SourceRoot:String = ""; // json:"sourceRoot,omitzero"
-	public var Sources:Array<String> = null; // json:"sources"
-	public var Names:Array<String> = null; // json:"names"
+	public var Sources:Slice<String> = null; // json:"sources"
+	public var Names:Slice<String> = null; // json:"names"
 	public var Mappings:String = ""; // json:"mappings"
-	public var SourcesContent:Array<Null<String>> = null; // json:"sourcesContent,omitzero"
+	public var SourcesContent:Slice<Null<String>> = null; // json:"sourcesContent,omitzero"
 
 	public function new() {}
 
@@ -380,7 +380,7 @@ class RawSourceMap {
 		return b.toString();
 	}
 
-	static function appendJSONStrings(b:StringBuf, values:Array<Null<String>>):Void {
+	static function appendJSONStrings(b:StringBuf, values:Slice<Null<String>>):Void {
 		b.add("[");
 		if (values != null) {
 			for (i in 0...values.length) {

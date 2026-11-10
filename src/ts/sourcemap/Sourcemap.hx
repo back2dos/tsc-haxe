@@ -101,9 +101,9 @@ class Sourcemap {
 			sourceToSourceIndexMap.set(Tspath.GetCanonicalFileName(source, useCaseSensitiveFileNames), i);
 		}
 
-		var decodedMappings:Array<MappedPosition> = null;
-		var generatedMappings:Array<MappedPosition> = null;
-		final sourceMappings = new IntMap<Array<SourceMappedPosition>>();
+		var decodedMappings:Slice<MappedPosition> = null;
+		var generatedMappings:Slice<MappedPosition> = null;
+		final sourceMappings = new IntMap<Slice<SourceMappedPosition>>();
 
 		// getDecodedMappings()
 		final decoder = DecodeMappings(sourceMap.Mappings);
@@ -299,7 +299,7 @@ class Sourcemap {
 					else
 						sourceMap.Mappings = s;
 				case "sources", "names", "sourcesContent":
-					var list:Array<Null<String>> = null;
+					var list:Slice<Null<String>> = null;
 					if (value != null) {
 						if (!Std.isOfType(value, Array)) {
 							ok = false;

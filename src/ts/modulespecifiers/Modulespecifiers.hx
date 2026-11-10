@@ -46,7 +46,7 @@ class Modulespecifiers {
 	static function inferPreference(resolutionMode:ResolutionMode, sourceFile:SourceFileForSpecifierGeneration,
 			moduleResolutionIsNodeNext:Bool):ModuleSpecifierEnding {
 		var usesJsExtensions = false;
-		var specifiers:Array<Node> = null;
+		var specifiers:Slice<Node> = null;
 		if (sourceFile != null && Core.len(sourceFile.Imports()) > 0) {
 			specifiers = sourceFile.Imports();
 		} else if (sourceFile != null && sourceFile.IsJS()) {
@@ -275,7 +275,7 @@ class Modulespecifiers {
 
 	public static function GetModuleSpecifiersForFileWithInfo(importingSourceFile:SourceFileForSpecifierGeneration, moduleFileName:RootedFilePath,
 			compilerOptions:CompilerOptions, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences, options:ModuleSpecifierOptions,
-			forAutoImports:Bool):Pair<Array<ModuleSpecifier>, ResultKind> {
+			forAutoImports:Bool):Pair<Slice<ModuleSpecifier>, ResultKind> {
 		final modulePaths = getAllModulePathsWorker(getInfo(host.GetSourceOfProjectReferenceIfOutputIncluded(importingSourceFile), host), moduleFileName,
 			host, compilerOptions, options);
 
@@ -381,7 +381,7 @@ class Modulespecifiers {
 		final sortedPaths:Array<ModulePath> = [];
 		var directory = info.SourceDirectory;
 		while (allFileNameKeys.length != 0) {
-			var pathsInDirectory:Array<ModulePath> = null;
+			var pathsInDirectory:Slice<ModulePath> = null;
 			var i = 0;
 			while (i < allFileNameKeys.length) {
 				final fileName = allFileNameKeys[i];
@@ -504,7 +504,7 @@ class Modulespecifiers {
 
 	static function computeModuleSpecifiers(modulePaths:Array<ModulePath>, compilerOptions:CompilerOptions,
 			importingSourceFile:SourceFileForSpecifierGeneration, host:ModuleSpecifierGenerationHost, userPreferences:UserPreferences,
-			options:ModuleSpecifierOptions, forAutoImport:Bool):Pair<Array<ModuleSpecifier>, ResultKind> {
+			options:ModuleSpecifierOptions, forAutoImport:Bool):Pair<Slice<ModuleSpecifier>, ResultKind> {
 		final info = getInfo(importingSourceFile.FileName(), host);
 		final preferences = getModuleSpecifierPreferences(userPreferences, host, compilerOptions, importingSourceFile, "");
 		final caseSensitivity = info.CaseSensitivity;
@@ -543,7 +543,7 @@ class Modulespecifiers {
 		}
 
 		if (existingSpecifier != "") {
-			return new Pair<Array<ModuleSpecifier>, ResultKind>([existingSpecifier], ResultKindNone);
+			return new Pair<Slice<ModuleSpecifier>, ResultKind>([existingSpecifier], ResultKindNone);
 		}
 
 		final importedFileIsInNodeModules = Core.Some(modulePaths, function(p:ModulePath):Bool return p.IsInNodeModules);
@@ -553,10 +553,10 @@ class Modulespecifiers {
 		//   2. Specifiers generated using "paths" from tsconfig
 		//   3. Non-relative specfiers resulting from a path through node_modules (e.g. "@foo/bar/path/to/file")
 		//   4. Relative paths
-		var pathsSpecifiers:Array<ModuleSpecifier> = null;
-		var redirectPathsSpecifiers:Array<ModuleSpecifier> = null;
-		var nodeModulesSpecifiers:Array<ModuleSpecifier> = null;
-		var relativeSpecifiers:Array<ModuleSpecifier> = null;
+		var pathsSpecifiers:Slice<ModuleSpecifier> = null;
+		var redirectPathsSpecifiers:Slice<ModuleSpecifier> = null;
+		var nodeModulesSpecifiers:Slice<ModuleSpecifier> = null;
+		var relativeSpecifiers:Slice<ModuleSpecifier> = null;
 
 		for (modulePath in modulePaths) {
 			var specifier:ModuleSpecifier = cast "";
@@ -571,7 +571,7 @@ class Modulespecifiers {
 				if (modulePath.IsRedirect) {
 					// If we got a specifier for a redirect, it was a bare package specifier (e.g. "@foo/bar",
 					// not "@foo/bar/path/to/file"). No other specifier will be this good, so stop looking.
-					return new Pair<Array<ModuleSpecifier>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
+					return new Pair<Slice<ModuleSpecifier>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
 				}
 			}
 
@@ -619,15 +619,15 @@ class Modulespecifiers {
 		}
 
 		if (Core.len(pathsSpecifiers) > 0) {
-			return new Pair<Array<ModuleSpecifier>, ResultKind>(pathsSpecifiers, ResultKindPaths);
+			return new Pair<Slice<ModuleSpecifier>, ResultKind>(pathsSpecifiers, ResultKindPaths);
 		}
 		if (Core.len(redirectPathsSpecifiers) > 0) {
-			return new Pair<Array<ModuleSpecifier>, ResultKind>(redirectPathsSpecifiers, ResultKindRedirect);
+			return new Pair<Slice<ModuleSpecifier>, ResultKind>(redirectPathsSpecifiers, ResultKindRedirect);
 		}
 		if (Core.len(nodeModulesSpecifiers) > 0) {
-			return new Pair<Array<ModuleSpecifier>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
+			return new Pair<Slice<ModuleSpecifier>, ResultKind>(nodeModulesSpecifiers, ResultKindNodeModules);
 		}
-		return new Pair<Array<ModuleSpecifier>, ResultKind>(relativeSpecifiers, ResultKindRelative);
+		return new Pair<Slice<ModuleSpecifier>, ResultKind>(relativeSpecifiers, ResultKindRelative);
 	}
 
 	static function getLocalModuleSpecifier(moduleFileName:RootedFilePath, info:Info, compilerOptions:CompilerOptions,
@@ -838,7 +838,7 @@ class Modulespecifiers {
 		}
 	}
 
-	static function tryGetModuleNameFromRootDirs(rootDirs:Array<RootedDirectoryPath>, moduleFileName:RootedFilePath,
+	static function tryGetModuleNameFromRootDirs(rootDirs:Slice<RootedDirectoryPath>, moduleFileName:RootedFilePath,
 			sourceDirectory:RootedDirectoryPath, allowedEndings:Array<ModuleSpecifierEnding>, compilerOptions:CompilerOptions,
 			host:ModuleSpecifierGenerationHost):ModuleSpecifier {
 		final normalizedTargetPaths = getPathsRelativeToRootDirs(moduleFileName, rootDirs, host.CaseSensitivity());
@@ -1079,7 +1079,7 @@ class Modulespecifiers {
 	}
 
 	static function tryGetModuleNameFromExports(options:CompilerOptions, host:ModuleSpecifierGenerationHost, targetFileName:RootedFilePath,
-			packageDirectory:RootedDirectoryPath, packageName:String, exports:ExportsOrImports, conditions:Array<String>):ModuleSpecifier {
+			packageDirectory:RootedDirectoryPath, packageName:String, exports:ExportsOrImports, conditions:Slice<String>):ModuleSpecifier {
 		if (exports.IsSubpaths()) {
 			// sub-mappings
 			// 3 cases:
@@ -1267,7 +1267,7 @@ class Modulespecifiers {
 	}
 
 	static function tryGetModuleNameFromExportsOrImports(options:CompilerOptions, host:ModuleSpecifierGenerationHost, targetFileName:RootedFilePath,
-			packageDirectory:RootedDirectoryPath, packageName:String, exports:ExportsOrImports, conditions:Array<String>, mode:MatchingMode,
+			packageDirectory:RootedDirectoryPath, packageName:String, exports:ExportsOrImports, conditions:Slice<String>, mode:MatchingMode,
 			isImports:Bool, preferTsExtension:Bool):String {
 		final packageSpecifier = Tspath.ToModuleSpecifier(packageName);
 		switch (exports.Type) {
@@ -1495,7 +1495,7 @@ class Modulespecifiers {
 		return !path.IsAbsolute() && !path.IsRelative();
 	}
 
-	public static function IsExcludedByRegex(moduleSpecifier:String, excludes:Null<Array<String>>):Bool {
+	public static function IsExcludedByRegex(moduleSpecifier:String, excludes:Slice<String>):Bool {
 		if (excludes == null)
 			return false;
 		for (pattern in excludes) {
@@ -1639,9 +1639,9 @@ class Modulespecifiers {
 		return false;
 	}
 
-	static function getPathsRelativeToRootDirs(path:RootedFilePath, rootDirs:Array<RootedDirectoryPath>,
-			caseSensitivity:CaseSensitivity):Null<Array<RelativePath>> {
-		var results:Null<Array<RelativePath>> = null;
+	static function getPathsRelativeToRootDirs(path:RootedFilePath, rootDirs:Slice<RootedDirectoryPath>,
+			caseSensitivity:CaseSensitivity):Slice<RelativePath> {
+		var results:Slice<RelativePath> = null;
 		for (rootDir in rootDirs) {
 			final relativePath = getRelativePathIfInSameVolume(path, rootDir, caseSensitivity);
 			if (!isPathRelativeToParent(relativePath)) {
@@ -1824,7 +1824,7 @@ class Modulespecifiers {
 	// entrypoint according to the entrypoint's Ending type and the user's preferred endings.
 	public static function ProcessEntrypointEnding(entrypoint:ResolvedEntrypoint, prefs:UserPreferences, host:ModuleSpecifierGenerationHost,
 			options:CompilerOptions, importingSourceFile:SourceFileForSpecifierGeneration,
-			allowedEndings:Null<Array<ModuleSpecifierEnding>>):ModuleSpecifier {
+			allowedEndings:Slice<ModuleSpecifierEnding>):ModuleSpecifier {
 		// PORT: ResolvedEntrypoint.ModuleSpecifier is still a String in the resolver.
 		var specifier = entrypoint.ModuleSpecifier;
 		if (entrypoint.Ending == EndingFixed) {

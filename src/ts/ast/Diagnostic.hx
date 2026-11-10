@@ -38,9 +38,9 @@ class Diagnostic {
 	// deserialized from an external process that owns its own localization.
 	var messageText:String = "";
 	var messageKey:Key = "";
-	var messageArgs:Array<String> = null;
-	var messageChain:Array<Diagnostic> = null;
-	var relatedInformation:Array<Diagnostic> = null;
+	var messageArgs:Slice<String> = null;
+	var messageChain:Slice<Diagnostic> = null;
+	var relatedInformation:Slice<Diagnostic> = null;
 	var reportsUnnecessary:Bool = false;
 	var reportsDeprecated:Bool = false;
 	var skippedOnNoEmit:Bool = false;
@@ -88,15 +88,15 @@ class Diagnostic {
 		return messageKey;
 	}
 
-	public function MessageArgs():Array<String> {
+	public function MessageArgs():Slice<String> {
 		return messageArgs;
 	}
 
-	public function MessageChain():Array<Diagnostic> {
+	public function MessageChain():Slice<Diagnostic> {
 		return messageChain;
 	}
 
-	public function RelatedInformation():Array<Diagnostic> {
+	public function RelatedInformation():Slice<Diagnostic> {
 		return relatedInformation;
 	}
 
@@ -142,7 +142,7 @@ class Diagnostic {
 		return this;
 	}
 
-	public function SetMessageChain(messageChain:Array<Diagnostic>):Diagnostic {
+	public function SetMessageChain(messageChain:Slice<Diagnostic>):Diagnostic {
 		this.messageChain = messageChain;
 		return this;
 	}
@@ -157,7 +157,7 @@ class Diagnostic {
 		return this;
 	}
 
-	public function SetRelatedInfo(relatedInformation:Array<Diagnostic>):Diagnostic {
+	public function SetRelatedInfo(relatedInformation:Slice<Diagnostic>):Diagnostic {
 		this.relatedInformation = relatedInformation;
 		return this;
 	}
@@ -209,7 +209,7 @@ class Diagnostic {
 
 	// displayMessageArgs substitutes the original text for a complete alias span when a diagnostic argument
 	// exactly matches the virtual alias. Stored arguments remain unchanged for code fixes and serialization.
-	function displayMessageArgs():Array<String> {
+	function displayMessageArgs():Slice<String> {
 		if (file == null || source != "") {
 			return messageArgs;
 		}
@@ -226,7 +226,7 @@ class Diagnostic {
 		}
 		final virtualName = virtualText.substring(segment.VirtualStart, segment.VirtualEnd);
 		final originalName = originalText.substring(segment.OriginalStart, segment.OriginalEnd);
-		var result:Array<String> = null;
+		var result:Slice<String> = null;
 		if (messageArgs != null) {
 			for (i in 0...messageArgs.length) {
 				if (messageArgs[i] != virtualName) {
@@ -248,13 +248,13 @@ class Diagnostic {
 class DiagnosticsCollection {
 	// PORT: sync.Mutex dropped (single-threaded).
 	var count:Int = 0;
-	var fileDiagnostics:StringMap<Array<Diagnostic>> = null;
+	var fileDiagnostics:StringMap<Slice<Diagnostic>> = null;
 	var fileDiagnosticsSorted:Set<String> = new Set<String>();
-	var nonFileDiagnostics:Array<Diagnostic> = null;
+	var nonFileDiagnostics:Slice<Diagnostic> = null;
 	var nonFileDiagnosticsSorted:Bool = false;
 	// PORT: TypeScript main's dedup index (#4825); diagnosticLocationKey {path, loc, code} encoded as a string
 	var diagnosticIndex:StringMap<Diagnostic> = null;
-	var diagnosticCollisions:StringMap<Array<Diagnostic>> = null;
+	var diagnosticCollisions:StringMap<Slice<Diagnostic>> = null;
 
 	public function new() {}
 
@@ -320,7 +320,7 @@ class DiagnosticsCollection {
 	}
 
 	public function Lookup(diagnostic:Diagnostic):Diagnostic {
-		var diagnostics:Array<Diagnostic>;
+		var diagnostics:Slice<Diagnostic>;
 		if (diagnostic.File() != null) {
 			diagnostics = getDiagnosticsForFileLocked(diagnostic.File().FileName());
 		} else {
@@ -333,11 +333,11 @@ class DiagnosticsCollection {
 		return null;
 	}
 
-	public function GetGlobalDiagnostics():Array<Diagnostic> {
+	public function GetGlobalDiagnostics():Slice<Diagnostic> {
 		return getGlobalDiagnosticsLocked();
 	}
 
-	function getGlobalDiagnosticsLocked():Array<Diagnostic> {
+	function getGlobalDiagnosticsLocked():Slice<Diagnostic> {
 		if (!nonFileDiagnosticsSorted) {
 			Slices.SortStableFunc(nonFileDiagnostics, Ast.CompareDiagnostics);
 			nonFileDiagnosticsSorted = true;
@@ -345,11 +345,11 @@ class DiagnosticsCollection {
 		return Slices.Clone(nonFileDiagnostics);
 	}
 
-	public function GetDiagnosticsForFile(fileName:String):Array<Diagnostic> {
+	public function GetDiagnosticsForFile(fileName:String):Slice<Diagnostic> {
 		return getDiagnosticsForFileLocked(fileName);
 	}
 
-	function getDiagnosticsForFileLocked(fileName:String):Array<Diagnostic> {
+	function getDiagnosticsForFileLocked(fileName:String):Slice<Diagnostic> {
 		final list = fileDiagnostics == null ? null : fileDiagnostics.get(fileName);
 		if (!fileDiagnosticsSorted.Has(fileName)) {
 			Slices.SortStableFunc(list, Ast.CompareDiagnostics);
@@ -358,8 +358,8 @@ class DiagnosticsCollection {
 		return Slices.Clone(list);
 	}
 
-	public function GetDiagnostics():Array<Diagnostic> {
-		final diagnostics = new Array<Diagnostic>(); // make([]*Diagnostic, 0, c.count)
+	public function GetDiagnostics():Slice<Diagnostic> {
+		final diagnostics = new Slice<Diagnostic>(); // make([]*Diagnostic, 0, c.count)
 		if (nonFileDiagnostics != null)
 			for (d in nonFileDiagnostics)
 				diagnostics.push(d);

@@ -14,7 +14,7 @@ class ExtendedConfigCache implements ts.tsoptions.Tsconfigparsing.ExtendedConfig
 	public function new() {}
 
 	// GetExtendedConfig implements tsoptions.ExtendedConfigCache.
-	public function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Null<Array<PathKey>>, fs:FS):ExtendedConfigCacheEntry {
+	public function GetExtendedConfig(fileName:RootedFilePath, path:PathKey, resolutionStack:Slice<PathKey>, fs:FS):ExtendedConfigCacheEntry {
 		final r = this.loadOrStoreNewLockedEntry(path);
 		final entry = r.value, loaded = r.ok;
 		if (!loaded) {

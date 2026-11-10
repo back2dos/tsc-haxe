@@ -35,12 +35,12 @@ typedef SourceMappedPosition = MappedPosition;
 class DocumentPositionMapper {
 	var useCaseSensitiveFileNames:Bool = false;
 
-	var sourceFileAbsolutePaths:Array<String> = null;
+	var sourceFileAbsolutePaths:Slice<String> = null;
 	var sourceToSourceIndexMap:StringMap<SourceIndex> = null;
 	var generatedAbsoluteFilePath:String = "";
 
-	var generatedMappings:Array<MappedPosition> = null;
-	var sourceMappings:IntMap<Array<SourceMappedPosition>> = null;
+	var generatedMappings:Slice<MappedPosition> = null;
+	var sourceMappings:IntMap<Slice<SourceMappedPosition>> = null;
 
 	public function new() {}
 

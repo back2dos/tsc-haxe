@@ -28,7 +28,7 @@ class Arena<T> {
 	// and an arena of the next size up still wouldn't fit the slice, make a separate memory allocation for the slice.
 	// Otherwise, grow the arena if necessary and allocate a slice out of it. The length and capacity of the resulting
 	// slice are equal to the given size.
-	public function NewSlice(size:Int):Null<Array<T>> {
+	public function NewSlice(size:Int):Slice<T> {
 		if (size == 0) {
 			return null;
 		}
@@ -44,7 +44,7 @@ class Arena<T> {
 		return [t];
 	}
 
-	public function Clone(t:Null<Array<T>>):Null<Array<T>> {
+	public function Clone(t:Slice<T>):Slice<T> {
 		if (t == null || t.length == 0) {
 			return null;
 		}

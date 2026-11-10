@@ -17,7 +17,7 @@ typedef CreateAssignmentCallback = (name:IdentifierNode, value:Expression, locat
 // pendingDecl tracks a pending variable declaration during binding flattening.
 @:allow(ts.transformers)
 class PendingDecl {
-	var pendingExpressions:Array<Node> = null;
+	var pendingExpressions:Slice<Node> = null;
 	var name:Node = null;
 	var value:Node = null;
 	var location:TextRange = null /* PORT: Go zero struct */;
@@ -34,23 +34,23 @@ class Flattener {
 	var level:FlattenLevel = 0;
 	var createAssignmentCallback:CreateAssignmentCallback = null;
 	// State
-	var expressions:Array<Node> = null;
-	var declarations:Array<PendingDecl> = null;
+	var expressions:Slice<Node> = null;
+	var declarations:Slice<PendingDecl> = null;
 	var hasTransformedPriorElement:Bool = false;
 	var hoistTempVariables:Bool = false;
 	// Mode callbacks (set by FlattenDestructuringAssignment or FlattenDestructuringBinding)
 	var emitBindingOrAssignment:(f:Flattener, target:Node, value:Node, location:TextRange, original:Node) -> Void = null;
-	var createArrayBindingOrAssignmentPattern:(f:Flattener, elements:Array<Node>) -> Node = null;
-	var createObjectBindingOrAssignmentPattern:(f:Flattener, elements:Array<Node>) -> Node = null;
+	var createArrayBindingOrAssignmentPattern:(f:Flattener, elements:Slice<Node>) -> Node = null;
+	var createObjectBindingOrAssignmentPattern:(f:Flattener, elements:Slice<Node>) -> Node = null;
 	var createArrayBindingOrAssignmentElement:(f:Flattener, expr:Node) -> Node = null;
 
 	public function new() {}
 
-	function createArrayAssignmentPattern(elements:Array<Node>):Node {
+	function createArrayAssignmentPattern(elements:Slice<Node>):Node {
 		return tx.Factory().NewArrayLiteralExpression(tx.Factory().NewNodeList(elements), false);
 	}
 
-	function createObjectAssignmentPattern(elements:Array<Node>):Node {
+	function createObjectAssignmentPattern(elements:Slice<Node>):Node {
 		return tx.Factory().NewObjectLiteralExpression(tx.Factory().NewNodeList(elements), false);
 	}
 
@@ -71,11 +71,11 @@ class Flattener {
 		emitExpression(expression);
 	}
 
-	function createArrayBindingPattern(elements:Array<Node>):Node {
+	function createArrayBindingPattern(elements:Slice<Node>):Node {
 		return tx.Factory().NewBindingPattern(KindArrayBindingPattern, tx.Factory().NewNodeList(elements));
 	}
 
-	function createObjectBindingPattern(elements:Array<Node>):Node {
+	function createObjectBindingPattern(elements:Slice<Node>):Node {
 		return tx.Factory().NewBindingPattern(KindObjectBindingPattern, tx.Factory().NewNodeList(elements));
 	}
 
@@ -284,8 +284,8 @@ class Flattener {
 			final reuseIdentifierExpressions = !Ast.IsDeclarationBindingElement(parent) || numElements != 0;
 			value = ensureIdentifier(value, reuseIdentifierExpressions, location);
 		}
-		var bindingElements:Array<Node> = null;
-		var computedTempVariables:Array<Node> = null;
+		var bindingElements:Slice<Node> = null;
+		var computedTempVariables:Slice<Node> = null;
 		for (i in 0...numElements) {
 			final element = elements[i];
 			if (Ast.GetRestIndicatorOfBindingOrAssignmentElement(element) == null) {
@@ -333,8 +333,8 @@ class Flattener {
 			final reuseIdentifierExpressions = !Ast.IsDeclarationBindingElement(parent) || numElements != 0;
 			value = ensureIdentifier(value, reuseIdentifierExpressions, location);
 		}
-		var bindingElements:Array<Node> = null;
-		var restContainingElements:Array<RestIdElemPair> = null;
+		var bindingElements:Slice<Node> = null;
+		var restContainingElements:Slice<RestIdElemPair> = null;
 		for (i in 0...numElements) {
 			final element = elements[i];
 			if ((level : Int) >= (FlattenLevelObjectRest : Int)) {

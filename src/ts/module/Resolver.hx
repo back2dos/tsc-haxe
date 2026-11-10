@@ -135,7 +135,7 @@ final class ResolutionCandidate {
 	}
 
 	// PORT: (FileNameStem, string) → Pair.
-	public function SplitExtension(extraExtensions:Null<Array<String>>):Pair<FileNameStem, String> {
+	public function SplitExtension(extraExtensions:Slice<String>):Pair<FileNameStem, String> {
 		final fileName = Tspath.RootedFilePathFromPath(this.path);
 		var extension = fileName.Extension();
 		var extensionless = this.RemoveFileExtension();
@@ -155,7 +155,7 @@ typedef ResolutionKindSpecificLoader = (extensions:Extensions, candidate:Resolut
 
 // Go unexported type `tracer`.
 class Tracer {
-	var traces:Null<Array<DiagAndArgs>> = null;
+	var traces:Slice<DiagAndArgs> = null;
 
 	public function new() {}
 
@@ -173,7 +173,7 @@ class Tracer {
 	}
 
 	// PORT: nil receiver — inline so a null tracer returns nil like Go.
-	public inline function getTraces():Null<Array<DiagAndArgs>> {
+	public inline function getTraces():Slice<DiagAndArgs> {
 		return this != null ? this.traces : null;
 	}
 
@@ -198,9 +198,9 @@ class Tracer {
 
 class DiagAndArgs {
 	public var Message:Message;
-	public var Args:Null<Array<Any>>;
+	public var Args:Slice<Any>;
 
-	public function new(Message:Message, Args:Null<Array<Any>>) {
+	public function new(Message:Message, Args:Slice<Any>) {
 		this.Message = Message;
 		this.Args = Args;
 	}
@@ -226,7 +226,7 @@ class ResolutionState {
 	var isConfigLookup:Bool = false;
 	var features:NodeResolutionFeatures = NodeResolutionFeaturesNone;
 	var esmMode:Bool = false;
-	var conditions:Null<Array<String>> = null;
+	var conditions:Slice<String> = null;
 	var extensions:Extensions = 0;
 	var compilerOptions:CompilerOptions = null;
 	var resolvePackageDirectoryOnly:Bool = false;
@@ -238,7 +238,7 @@ class ResolutionState {
 	// is suppressed so the checker does not attempt to extract a TS extension from the original specifier.
 	var candidateEndingIsFromConfig:Bool = false;
 	var resolvedPackageDirectory:Bool = false;
-	var diagnostics:Null<Array<Diagnostic>> = null;
+	var diagnostics:Slice<Diagnostic> = null;
 
 	// Similar to whats on resolver but only done if compilerOptions are for project reference redirect
 	// Cached representation for `core.CompilerOptions.paths`.
@@ -249,7 +249,7 @@ class ResolutionState {
 
 	public function new() {}
 
-	function resolveTypeReferenceDirective(typeRoots:Null<Array<RootedDirectoryPath>>, fromConfig:Bool,
+	function resolveTypeReferenceDirective(typeRoots:Slice<RootedDirectoryPath>, fromConfig:Bool,
 			fromInferredTypesContainingFile:Bool):ResolvedTypeReferenceDirective {
 		final r = this;
 		// Primary lookup
@@ -866,9 +866,9 @@ class ResolutionState {
 		return Module.continueSearching();
 	}
 
-	function getOutputDirectories():Null<Array<RootedDirectoryPath>> {
+	function getOutputDirectories():Slice<RootedDirectoryPath> {
 		final r = this;
-		var candidateDirectories:Null<Array<RootedDirectoryPath>> = null;
+		var candidateDirectories:Slice<RootedDirectoryPath> = null;
 		if (r.compilerOptions.DeclarationDir != "") {
 			if (candidateDirectories == null)
 				candidateDirectories = [];
@@ -1969,11 +1969,11 @@ class ResolutionState {
 		return null;
 	}
 
-	function loadEntrypointsFromExportMap(packageJson:InfoCacheEntry, packageName:String, exports:ExportsOrImports):Null<Array<ResolvedEntrypoint>> {
+	function loadEntrypointsFromExportMap(packageJson:InfoCacheEntry, packageName:String, exports:ExportsOrImports):Slice<ResolvedEntrypoint> {
 		final r = this;
 		var loadEntrypointsFromTargetExports:(subpath:String, includeConditions:Null<Set<String>>, excludeConditions:Null<Set<String>>,
 			exports:ExportsOrImports) -> Void = null;
-		var entrypoints:Null<Array<ResolvedEntrypoint>> = null;
+		var entrypoints:Slice<ResolvedEntrypoint> = null;
 
 		loadEntrypointsFromTargetExports = function(subpath:String, includeConditions:Null<Set<String>>, excludeConditions:Null<Set<String>>,
 				exports:ExportsOrImports):Void {
@@ -2023,7 +2023,7 @@ class ResolutionState {
 					loadEntrypointsFromTargetExports(subpath, includeConditions, excludeConditions, element);
 				}
 			} else if (exports.Type == JSONValueTypeObject) {
-				var prevConditions:Null<Array<String>> = null;
+				var prevConditions:Slice<String> = null;
 				for (condition => export in exports.AsObject().Entries()) {
 					if (excludeConditions != null && excludeConditions.Has(condition)) {
 						continue;
@@ -2098,7 +2098,7 @@ class ResolutionState {
 	}
 
 	// PORT: len() of a possibly-nil slice.
-	static inline function len<T>(s:Null<Array<T>>):Int {
+	static inline function len<T>(s:Slice<T>):Int {
 		return s == null ? 0 : s.length;
 	}
 }
@@ -2127,7 +2127,7 @@ class Resolver {
 	public var typingsLocation:RootedDirectoryPath = cast "";
 	public var projectName:String = "";
 	// TypeScript main (content mappers): extensions resolved as fully specified imports.
-	public var extraExtensions:Null<Array<String>> = null;
+	public var extraExtensions:Slice<String> = null;
 
 	// reportDiagnostic: DiagnosticReporter
 
@@ -2157,7 +2157,7 @@ class Resolver {
 
 	// PORT: (*ResolvedTypeReferenceDirective, []DiagAndArgs) → Pair.
 	public function ResolveTypeReferenceDirective(typeReferenceDirectiveName:String, containingFile:RootedFilePath, resolutionMode:ResolutionMode,
-			redirectedReference:Null<ResolvedProjectReference>):Pair<ResolvedTypeReferenceDirective, Null<Array<DiagAndArgs>>> {
+			redirectedReference:Null<ResolvedProjectReference>):Pair<ResolvedTypeReferenceDirective, Slice<DiagAndArgs>> {
 		final r = this;
 		final containingDirectory = containingFile.Directory();
 		final traceBuilder = r.newTraceBuilder();
@@ -2199,7 +2199,7 @@ class Resolver {
 
 	// PORT: (*ResolvedModule, []DiagAndArgs) → Pair.
 	public function ResolveModuleName(moduleName:String, containingFile:RootedFilePath, resolutionMode:ResolutionMode,
-			redirectedReference:Null<ResolvedProjectReference>):Pair<ResolvedModule, Null<Array<DiagAndArgs>>> {
+			redirectedReference:Null<ResolvedProjectReference>):Pair<ResolvedModule, Slice<DiagAndArgs>> {
 		final r = this;
 		final containingDirectory = containingFile.Directory();
 		final traceBuilder = r.newTraceBuilder();
@@ -2308,7 +2308,7 @@ class Resolver {
 		// PORT: append(a, b...) — a new array when b is not empty.
 		if (result.ResolutionDiagnostics != null && result.ResolutionDiagnostics.length > 0) {
 			result.ResolutionDiagnostics = (originalResult.ResolutionDiagnostics == null ? [] : originalResult.ResolutionDiagnostics)
-				.concat(result.ResolutionDiagnostics);
+				.concat(result.ResolutionDiagnostics.nilable());
 		} else {
 			result.ResolutionDiagnostics = originalResult.ResolutionDiagnostics;
 		}
@@ -2343,7 +2343,7 @@ class Resolver {
 	}
 
 	public function GetEntrypointsFromPackageJsonInfo(packageJson:InfoCacheEntry, packageName:String,
-			enableDirectorySearch:Bool):Null<Array<ResolvedEntrypoint>> {
+			enableDirectorySearch:Bool):Slice<ResolvedEntrypoint> {
 		final r = this;
 		final extensions = extensionsTypeScript | extensionsDeclaration;
 		final features = NodeResolutionFeaturesAll;
@@ -2357,7 +2357,7 @@ class Resolver {
 			return entrypoints;
 		}
 
-		var result:Null<Array<ResolvedEntrypoint>> = null;
+		var result:Slice<ResolvedEntrypoint> = null;
 		final mainResolution = state.loadNodeModuleFromDirectoryWorker(extensions, packageJson.PackageDirectory.AsDirectoryPath(), packageJson);
 
 		if (mainResolution.isResolved()) {
@@ -2422,9 +2422,9 @@ class ResolverOptions {
 
 class ParsedPatterns {
 	public var matchableStringSet:Set<String>;
-	public var patterns:Null<Array<Pattern>>;
+	public var patterns:Slice<Pattern>;
 
-	public function new(matchableStringSet:Set<String>, patterns:Null<Array<Pattern>>) {
+	public function new(matchableStringSet:Set<String>, patterns:Slice<Pattern>) {
 		this.matchableStringSet = matchableStringSet;
 		this.patterns = patterns;
 	}

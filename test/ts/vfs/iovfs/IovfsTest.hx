@@ -50,7 +50,7 @@ class IovfsTest {
 		});
 
 		T.run("TestIOFS/WalkDir", () -> {
-			var files:Null<Array<String>> = null;
+			var files:Slice<String> = null;
 			final err = fs.WalkDir("/", (path, d, err) -> {
 				if (err != null) {
 					return err;
@@ -70,7 +70,7 @@ class IovfsTest {
 		});
 
 		T.run("TestIOFS/WalkDirSkip", () -> {
-			var files:Null<Array<String>> = null;
+			var files:Slice<String> = null;
 			final err = fs.WalkDir("/", (path, d, err) -> {
 				if (err != null) {
 					return err;

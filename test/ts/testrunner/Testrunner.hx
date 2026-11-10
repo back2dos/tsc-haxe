@@ -36,7 +36,7 @@ class Testrunner {
 	// Regex for parsing options in the format "@Alpha: Value of any sort"
 	// Go: optionRegex = regexp.MustCompile(`(?m)^\/{2}\s*@(\w+)\s*:\s*([^\r\n]*)`).
 	// Matches at position `start` (which must be a `^` position); returns [end, name, value] or null.
-	static function matchOptionAt(s:String, start:Int):Null<Array<Dynamic>> {
+	static function matchOptionAt(s:String, start:Int):Slice<Dynamic> {
 		var i = start;
 		if (i + 2 > s.length || StringTools.fastCodeAt(s, i) != "/".code || StringTools.fastCodeAt(s, i + 1) != "/".code)
 			return null;
@@ -66,7 +66,7 @@ class Testrunner {
 	}
 
 	// optionRegex.FindStringSubmatch(line): [match, name, value] or null.
-	static function findOptionSubmatch(line:String):Null<Array<String>> {
+	static function findOptionSubmatch(line:String):Slice<String> {
 		var i = 0;
 		while (i <= line.length) {
 			if (i == 0 || StringTools.fastCodeAt(line, i - 1) == "\n".code) {
@@ -330,7 +330,7 @@ class Testrunner {
 	// linkRegex.FindStringSubmatch(line) for a line without "\n": [match, group1, group2] or null.
 	// PORT: hand matcher; `\s*` after the colon is taken greedily and group 1 backtracks to the last
 	// `\s*->` on the line (leftmost-first semantics). Lines with a lone "\r" before the arrow are not handled.
-	static function findLinkSubmatch(s:String):Null<Array<String>> {
+	static function findLinkSubmatch(s:String):Slice<String> {
 		var i = 0;
 		if (s.length < 2 || StringTools.fastCodeAt(s, 0) != "/".code || StringTools.fastCodeAt(s, 1) != "/".code)
 			return null;
@@ -539,11 +539,11 @@ class Testrunner {
 		final currentDirectory = Tspath.RootedDirectoryPathFromAbsolute(Tspath.GetNormalizedAbsolutePath(mapGet(harnessConfig, "currentdirectory"), srcFolder));
 
 		final units = testCaseContentWithConfig.testCaseContent.testUnitData;
-		var toBeCompiled:Array<TestFile> = null;
-		var otherFiles:Array<TestFile> = null;
+		var toBeCompiled:Slice<TestFile> = null;
+		var otherFiles:Slice<TestFile> = null;
 		var tsConfig:ParsedCommandLine = null;
 		final hasNonDtsFiles = Core.Some(units, function(unit:TestUnit) return !Tspath.FileExtensionIs(unit.name, Tspath.ExtensionDts));
-		var tsConfigFiles:Array<TestFile> = null;
+		var tsConfigFiles:Slice<TestFile> = null;
 		if (testCaseContentWithConfig.testCaseContent.tsConfig != null) {
 			tsConfig = testCaseContentWithConfig.testCaseContent.tsConfig;
 			tsConfigFiles = [createHarnessTestFile(testCaseContentWithConfig.testCaseContent.tsConfigFileUnitData, currentDirectory)];
@@ -585,7 +585,7 @@ class Testrunner {
 			}
 		}
 
-		final result = Harnessutil.CompileFiles(t, toBeCompiled == null ? [] : toBeCompiled, otherFiles == null ? [] : otherFiles, harnessConfig, tsConfig,
+		final result = Harnessutil.CompileFiles(t, toBeCompiled.toArray(), otherFiles.toArray(), harnessConfig, tsConfig,
 			currentDirectory, testCaseContentWithConfig.testCaseContent.symlinks);
 
 		// Content-mapped files are transformed during program construction; the transformed text is what the

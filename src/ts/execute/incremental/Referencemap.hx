@@ -18,7 +18,7 @@ class ReferenceMap {
 		return this.references.Load(path);
 	}
 
-	function getPathsWithReferences():Array<Path> {
+	function getPathsWithReferences():Slice<Path> {
 		return Slices.Collect(this.references.Keys());
 	}
 

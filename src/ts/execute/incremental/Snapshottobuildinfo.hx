@@ -89,7 +89,7 @@ class ToBuildInfo {
 		return v;
 	}
 
-	function toBuildInfoDiagnosticsFromFileNameDiagnostics(diagnostics:Array<BuildInfoDiagnosticWithFileName>):Array<BuildInfoDiagnostic> {
+	function toBuildInfoDiagnosticsFromFileNameDiagnostics(diagnostics:Slice<BuildInfoDiagnosticWithFileName>):Slice<BuildInfoDiagnostic> {
 		return Core.Map(diagnostics, function(d:BuildInfoDiagnosticWithFileName):BuildInfoDiagnostic {
 			var file:BuildInfoFileId = 0;
 			if (d.file != "") {
@@ -114,7 +114,7 @@ class ToBuildInfo {
 		});
 	}
 
-	function toBuildInfoDiagnosticsFromDiagnostics(filePath:Path, diagnostics:Array<Diagnostic>):Array<BuildInfoDiagnostic> {
+	function toBuildInfoDiagnosticsFromDiagnostics(filePath:Path, diagnostics:Slice<Diagnostic>):Slice<BuildInfoDiagnostic> {
 		return Core.Map(diagnostics, function(d:Diagnostic):BuildInfoDiagnostic {
 			var file:BuildInfoFileId = 0;
 			var noFile = false;

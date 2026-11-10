@@ -180,7 +180,7 @@ class Common {
 		return result;
 	}
 
-	function getEntries(path:RootedDirectoryPath):Null<Array<DirEntry>> {
+	function getEntries(path:RootedDirectoryPath):Slice<DirEntry> {
 		final r = this.RootAndPath(path.AsPath());
 		final fsys = r.a;
 		if (fsys == null) {

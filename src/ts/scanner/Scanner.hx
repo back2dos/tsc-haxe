@@ -36,7 +36,7 @@ class ScannerState {
 	public var token:Kind = KindUnknown; // Kind of current token
 	public var tokenValue:String = ""; // Parsed value of current token
 	public var tokenFlags:TokenFlags = TokenFlagsNone; // Flags for current token
-	public var commentDirectives:Array<CommentDirective> = null;
+	public var commentDirectives:Slice<CommentDirective> = null;
 	public var skipJSDocLeadingAsterisks:Int = 0; // Leading asterisks to skip when scanning types inside JSDoc. Should be 0 outside JSDoc
 
 	public function new() {}
@@ -367,7 +367,7 @@ class Scanner {
 	var token:Kind = KindUnknown; // Kind of current token
 	var tokenValue:String = ""; // Parsed value of current token
 	var tokenFlags:TokenFlags = TokenFlagsNone; // Flags for current token
-	var commentDirectives:Array<CommentDirective> = null;
+	var commentDirectives:Slice<CommentDirective> = null;
 	var skipJSDocLeadingAsterisks:Int = 0; // Leading asterisks to skip when scanning types inside JSDoc. Should be 0 outside JSDoc
 
 	var numberCache:StringMap<String> = null;
@@ -466,7 +466,7 @@ class Scanner {
 		return Core.NewTextRange(tokenStart, pos);
 	}
 
-	public function CommentDirectives():Array<CommentDirective> {
+	public function CommentDirectives():Slice<CommentDirective> {
 		return commentDirectives;
 	}
 
@@ -3173,7 +3173,7 @@ class Scanner {
 		return Core.NewTextRange(pos, errorNode.End());
 	}
 
-	public static function ComputeLineOfPosition(lineStarts:Array<TextPos>, pos:Int):Int {
+	public static function ComputeLineOfPosition(lineStarts:Slice<TextPos>, pos:Int):Int {
 		var low = 0;
 		var high = lineStarts.length - 1;
 		while (low <= high) {
@@ -3190,7 +3190,7 @@ class Scanner {
 		return low - 1;
 	}
 
-	public static function GetECMALineStarts(sourceFile:SourceFileLike):Array<TextPos> {
+	public static function GetECMALineStarts(sourceFile:SourceFileLike):Slice<TextPos> {
 		return sourceFile.ECMALineMap();
 	}
 
@@ -3253,7 +3253,7 @@ class Scanner {
 
 	// ComputePositionOfLineAndByteOffset computes a byte position from a line and
 	// raw byte offset from the line start. This is a simple addition with validation.
-	public static function ComputePositionOfLineAndByteOffset(lineStarts:Array<TextPos>, line:Int, byteOffset:Int):Int {
+	public static function ComputePositionOfLineAndByteOffset(lineStarts:Slice<TextPos>, line:Int, byteOffset:Int):Int {
 		if (line < 0 || line >= lineStarts.length) {
 			throw 'Bad line number. Line: ${line}, lineStarts.length: ${lineStarts.length}.';
 		}
@@ -3264,7 +3264,7 @@ class Scanner {
 	// back to a byte position. The character parameter is measured in UTF-16 code units.
 	// It scans from the line start to correctly handle multi-byte characters.
 	// When allowEdits is true, out-of-range values are clamped instead of panicking.
-	public static function ComputePositionOfLineAndUTF16Character(lineStarts:Array<TextPos>, line:Int, character:UTF16Offset, text:String,
+	public static function ComputePositionOfLineAndUTF16Character(lineStarts:Slice<TextPos>, line:Int, character:UTF16Offset, text:String,
 			allowEdits:Bool):Int {
 		if (line < 0 || line >= lineStarts.length) {
 			if (allowEdits) {
@@ -3345,7 +3345,7 @@ class Scanner {
 	// PORT: perf — the array is created on the first comment; without comments (most calls) the shared empty iterator
 	// is returned (no Array and no iterator per call).
 	static function iterateCommentRanges(f:NodeFactory, text:String, pos:Int, trailing:Bool):haxe.iterators.ArrayIterator<CommentRange> {
-		var result:Array<CommentRange> = null;
+		var result:Slice<CommentRange> = null;
 		var pendingPos = 0;
 		var pendingEnd = 0;
 		var pendingKind:Kind = KindUnknown;
@@ -3475,7 +3475,7 @@ class Scanner {
 		if (result == null) {
 			return emptyCommentRangeIterator;
 		}
-		return result.iterator();
+		return result.nilable().iterator();
 	}
 
 	// PORT: perf — shared by all calls of iterateCommentRanges that find no comment (it never advances: the array is empty).

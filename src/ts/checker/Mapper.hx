@@ -169,7 +169,7 @@ class ArrayToSingleTypeMapper extends TypeMapperBase {
 @:allow(ts.checker)
 class DeferredTypeMapper extends TypeMapperBase {
 	var sources:haxe.ds.Vector<Type> = null;
-	var targets:Array<() -> Type> = null;
+	var targets:Slice<() -> Type> = null;
 
 	public function new() {
 		super();

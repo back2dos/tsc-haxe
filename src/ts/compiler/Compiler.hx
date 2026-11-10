@@ -208,8 +208,8 @@ class Compiler {
 		return true;
 	}
 
-	static function getSourceFilesToEmit(host:SourceFileMayBeEmittedHost, targetSourceFile:SourceFile, forceDtsEmit:Bool):Array<SourceFile> {
-		var sourceFiles:Array<SourceFile>;
+	static function getSourceFilesToEmit(host:SourceFileMayBeEmittedHost, targetSourceFile:SourceFile, forceDtsEmit:Bool):Slice<SourceFile> {
+		var sourceFiles:Slice<SourceFile>;
 		if (targetSourceFile != null) {
 			sourceFiles = [targetSourceFile];
 		} else {
@@ -224,7 +224,7 @@ class Compiler {
 		return !Ast.IsJsonSourceFile(file);
 	}
 
-	static function getDeclarationDiagnostics(host:EmitHost, file:SourceFile):Array<Diagnostic> {
+	static function getDeclarationDiagnostics(host:EmitHost, file:SourceFile):Slice<Diagnostic> {
 		// TODO: use p.getSourceFilesToEmit cache
 		final fullFiles = Core.Filter(getSourceFilesToEmit(host, file, false), isSourceFileNotJson);
 		if (!Core.Some(fullFiles, function(f:SourceFile) return f == file)) {
@@ -724,11 +724,11 @@ class Compiler {
 	// moved into the parser (checkJSSyntax/checkJSDecoratorSyntax), but checks that depend on compiler
 	// options can't live in the parser and must remain here. The checker handles these for checked files,
 	// but doesn't run on unchecked JS files (no checkJs/ts-check).
-	static function getAdditionalJSSyntacticDiagnostics(file:SourceFile, options:CompilerOptions):Array<Diagnostic> {
+	static function getAdditionalJSSyntacticDiagnostics(file:SourceFile, options:CompilerOptions):Slice<Diagnostic> {
 		if (options.ExperimentalDecorators.IsTrue()) {
 			return null;
 		}
-		var diags:Array<Diagnostic> = null;
+		var diags:Slice<Diagnostic> = null;
 		// Parameter decorators are only valid with experimentalDecorators. Without it,
 		// the checker would report this, but the checker doesn't run on unchecked JS files.
 		var walk:Visitor = null;
@@ -776,7 +776,7 @@ class Compiler {
 		return (moduleKind : Int) >= (ModuleKindES2015 : Int) && (moduleKind : Int) <= (ModuleKindESNext : Int);
 	}
 
-	public static function FilterNoEmitSemanticDiagnostics(diagnostics:Array<Diagnostic>, options:CompilerOptions):Array<Diagnostic> {
+	public static function FilterNoEmitSemanticDiagnostics(diagnostics:Slice<Diagnostic>, options:CompilerOptions):Slice<Diagnostic> {
 		if (!options.NoEmit.IsTrue()) {
 			return diagnostics;
 		}
@@ -794,7 +794,7 @@ class Compiler {
 			|| pos + 1 < text.length && StringTools.fastCodeAt(text, pos) == "/".code && StringTools.fastCodeAt(text, pos + 1) == "/".code;
 	}
 
-	public static function SortAndDeduplicateDiagnostics(diagnostics:Array<Diagnostic>):Array<Diagnostic> {
+	public static function SortAndDeduplicateDiagnostics(diagnostics:Slice<Diagnostic>):Slice<Diagnostic> {
 		diagnostics = Slices.Clone(diagnostics);
 		Slices.SortFunc(diagnostics, Ast.CompareDiagnostics);
 		return compactAndMergeRelatedInfos(diagnostics);
@@ -802,7 +802,7 @@ class Compiler {
 
 	// Remove duplicate diagnostics and, for sequences of diagnostics that differ only by related information,
 	// create a single diagnostic with sorted and deduplicated related information.
-	static function compactAndMergeRelatedInfos(diagnostics:Array<Diagnostic>):Array<Diagnostic> {
+	static function compactAndMergeRelatedInfos(diagnostics:Slice<Diagnostic>):Slice<Diagnostic> {
 		if (Core.len(diagnostics) < 2) {
 			return diagnostics;
 		}
@@ -815,7 +815,7 @@ class Compiler {
 				n++;
 			}
 			if (n > 1) {
-				var relatedInfos:Array<Diagnostic> = null;
+				var relatedInfos:Slice<Diagnostic> = null;
 				for (k in 0...n) {
 					final ri = diagnostics[i + k].RelatedInformation();
 					if (ri != null && ri.length > 0) {
@@ -839,7 +839,7 @@ class Compiler {
 		return diagnostics;
 	}
 
-	public static function CombineEmitResults(results:Array<EmitResult>):EmitResult {
+	public static function CombineEmitResults(results:Slice<EmitResult>):EmitResult {
 		final result = new EmitResult();
 		if (results == null)
 			return result;
@@ -860,7 +860,7 @@ class Compiler {
 	}
 
 	// PORT: Go `append(s, other...)` where s is owned by the caller; nil stays nil when nothing is added.
-	static function appendAll<T>(s:Array<T>, other:Array<T>):Array<T> {
+	static function appendAll<T>(s:Slice<T>, other:Slice<T>):Slice<T> {
 		if (other == null || other.length == 0)
 			return s;
 		if (s == null)
@@ -903,7 +903,7 @@ class Compiler {
 	}
 
 	public static function GetDiagnosticsOfAnyProgram(ctx:Context, program:ProgramLike, file:SourceFile, skipNoEmitCheckForDtsDiagnostics:Bool,
-			getBindDiagnostics:(Context, SourceFile) -> Array<Diagnostic>, getSemanticDiagnostics:(Context, SourceFile) -> Array<Diagnostic>):Array<Diagnostic> {
+			getBindDiagnostics:(Context, SourceFile) -> Slice<Diagnostic>, getSemanticDiagnostics:(Context, SourceFile) -> Slice<Diagnostic>):Slice<Diagnostic> {
 		var allDiagnostics = Slices.Clone(program.GetConfigFileParsingDiagnostics());
 		final configFileParsingDiagnosticsLength = Core.len(allDiagnostics);
 
@@ -1093,7 +1093,7 @@ class Compiler {
 
 	// --- projectreferenceparser.go ---
 
-	static function createProjectReferenceParseTasks(projectReferences:Array<RootedFilePath>):Array<ProjectReferenceParseTask> {
+	static function createProjectReferenceParseTasks(projectReferences:Slice<RootedFilePath>):Slice<ProjectReferenceParseTask> {
 		return Core.Map(projectReferences, function(configName:RootedFilePath):ProjectReferenceParseTask {
 			final t = new ProjectReferenceParseTask();
 			t.configName = configName;

@@ -23,7 +23,7 @@ class TestUnit {
 
 @:allow(ts.testrunner)
 class TestCaseContent {
-	var testUnitData:Array<TestUnit> = null;
+	var testUnitData:Slice<TestUnit> = null;
 	var tsConfig:ParsedCommandLine = null;
 	var tsConfigFileUnitData:TestUnit = null;
 	var symlinks:StringMap<String> = null;

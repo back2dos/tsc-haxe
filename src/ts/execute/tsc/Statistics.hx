@@ -15,7 +15,7 @@ class TableRow {
 
 // Go type `table` (unexported).
 class Table {
-	public var rows:Null<Array<TableRow>> = null;
+	public var rows:Slice<TableRow> = null;
 
 	public function new() {}
 

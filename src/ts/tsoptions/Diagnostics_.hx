@@ -5,7 +5,7 @@ package ts.tsoptions;
 @:allow(ts.tsoptions)
 class DidYouMeanOptionsDiagnostics {
 	var alternateMode:Null<AlternateModeDiagnostics> = null;
-	public var OptionDeclarations:Null<Array<CommandLineOption>> = null;
+	public var OptionDeclarations:Slice<CommandLineOption> = null;
 	public var UnknownOptionDiagnostic:Null<Message> = null;
 	public var UnknownDidYouMeanDiagnostic:Null<Message> = null;
 

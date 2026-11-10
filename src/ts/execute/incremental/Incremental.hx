@@ -87,7 +87,7 @@ class Incremental {
 	}
 
 	// PORT: iter.Seq[tspath.RootedFilePath] → Iterator
-	static function getBuildInfoFileNames(paths:Array<std.String>, buildInfoDirectory:RootedDirectoryPath):Iterator<RootedFilePath> {
+	static function getBuildInfoFileNames(paths:Slice<std.String>, buildInfoDirectory:RootedDirectoryPath):Iterator<RootedFilePath> {
 		final result:Array<RootedFilePath> = [];
 		if (paths != null) {
 			for (path in paths) {
@@ -180,7 +180,7 @@ class Incremental {
 
 		final details = Checker.CreateModeMismatchDetails(p, file);
 
-		var nextChain:Array<Diagnostic> = null;
+		var nextChain:Slice<Diagnostic> = null;
 		for (msg in b.messageChain) {
 			if (nextChain == null)
 				nextChain = [];
@@ -204,7 +204,7 @@ class Incremental {
 
 		final details = Checker.CreateModuleNotFoundChain(p, file, info.ModuleReference, info.Mode, packageName);
 
-		var nextChain:Array<Diagnostic> = null;
+		var nextChain:Slice<Diagnostic> = null;
 		for (msg in b.messageChain) {
 			if (nextChain == null)
 				nextChain = [];
@@ -277,13 +277,13 @@ class Incremental {
 	}
 
 	// PORT: Go slices.Sort on []tspath.RootedFilePath (string order).
-	static function sortRootedFilePaths(paths:Null<Array<RootedFilePath>>):Void {
+	static function sortRootedFilePaths(paths:Slice<RootedFilePath>):Void {
 		if (paths != null) {
 			Slices.SortFunc(paths, (a, b) -> a.Compare(b));
 		}
 	}
 
-	static function normalizePackageJsons(packageJsons:Array<RootedFilePath>):Array<RootedFilePath> {
+	static function normalizePackageJsons(packageJsons:Slice<RootedFilePath>):Slice<RootedFilePath> {
 		if (packageJsons == null) {
 			return [];
 		}
@@ -441,9 +441,9 @@ class Incremental {
 
 	// repopulateDiagnosticsList repopulates diagnostic chains in a list of diagnostics.
 	// Returns nil if no diagnostics needed repopulation (i.e., no changes were made).
-	static function repopulateDiagnosticsList(diags:Array<Diagnostic>, p:CompilerProgram, file:SourceFile):Array<Diagnostic> {
+	static function repopulateDiagnosticsList(diags:Slice<Diagnostic>, p:CompilerProgram, file:SourceFile):Slice<Diagnostic> {
 		var changed = false;
-		final result:Array<Diagnostic> = [for (_ in 0...diags.length) null];
+		final result:Slice<Diagnostic> = [for (_ in 0...diags.length) null];
 		for (i in 0...diags.length) {
 			final d = diags[i];
 			final repopulated = repopulateDiagnosticMessageChain(d.MessageChain(), p, file);
@@ -464,12 +464,12 @@ class Incremental {
 
 	// repopulateDiagnosticMessageChain repopulates chains that have repopulate info.
 	// Returns nil if no changes were made.
-	static function repopulateDiagnosticMessageChain(chain:Array<Diagnostic>, p:CompilerProgram, file:SourceFile):Array<Diagnostic> {
+	static function repopulateDiagnosticMessageChain(chain:Slice<Diagnostic>, p:CompilerProgram, file:SourceFile):Slice<Diagnostic> {
 		if (Core.len(chain) == 0) {
 			return null;
 		}
 		var changed = false;
-		final result:Array<Diagnostic> = [for (_ in 0...chain.length) null];
+		final result:Slice<Diagnostic> = [for (_ in 0...chain.length) null];
 		for (i in 0...chain.length) {
 			final c = chain[i];
 			if (c.RepopulateInfo() != null) {
@@ -594,7 +594,7 @@ class Incremental {
 		to.filePaths = Core.Map(buildInfo.FileNames, function(fileName:std.String):Path {
 			return config.CaseSensitivity().PathKey(ResolveBuildInfoFileName(fileName, to.buildInfoDirectory, host.DefaultLibraryPath()).AsPath());
 		});
-		to.filePathSet = Core.Map(buildInfo.FileIdsList, function(fileIdList:Array<BuildInfoFileId>):Set<Path> {
+		to.filePathSet = Core.Map(buildInfo.FileIdsList, function(fileIdList:Slice<BuildInfoFileId>):Set<Path> {
 			final fileSet = new Set<Path>();
 			for (fileId in fileIdList) {
 				fileSet.Add(to.toFilePath(fileId));
@@ -700,7 +700,7 @@ class Incremental {
 	// --- port helpers ---
 
 	// PORT: Go `append(s, other...)` where s is owned by the caller; nil stays nil when nothing is added.
-	static function appendAll<T>(s:Array<T>, other:Array<T>):Array<T> {
+	static function appendAll<T>(s:Slice<T>, other:Slice<T>):Slice<T> {
 		if (other == null || other.length == 0)
 			return s;
 		if (s == null)

@@ -49,7 +49,7 @@ class CheckerPart1 {
 		});
 	}
 
-	static function getGlobalTypesResolver(c:Checker, names:Array<std.String>, arity:Int, reportErrors:Bool):() -> Array<Type> {
+	static function getGlobalTypesResolver(c:Checker, names:Array<std.String>, arity:Int, reportErrors:Bool):() -> Slice<Type> {
 		return Core.Memoize(() -> {
 			return Core.Map(names, (name:std.String) -> {
 				return c.getGlobalType(name, arity, reportErrors);
@@ -161,8 +161,8 @@ class CheckerPart1 {
 
 	static function initializeChecker(c:Checker):Void {
 		// Initialize global symbol table
-		var ambientModuleSymbols:Array<Symbol> = null;
-		final augmentations:Array<Array<ModuleName>> = [];
+		var ambientModuleSymbols:Slice<Symbol> = null;
+		final augmentations:Array<Slice<ModuleName>> = [];
 		for (file in c.files) {
 			if (!Ast.IsExternalOrCommonJSModule(file)) {
 				// It is an error for a non-external-module (i.e. script) to declare its own `globalThis`.
@@ -1120,7 +1120,7 @@ class CheckerPart1 {
 		}
 	}
 
-	static function checkSourceElements(c:Checker, nodes:Array<Node>):Void {
+	static function checkSourceElements(c:Checker, nodes:Slice<Node>):Void {
 		if (nodes == null) {
 			return;
 		}
@@ -1954,7 +1954,7 @@ class CheckerPart1 {
 	}
 
 	static function checkTypeArgumentConstraints(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>):Bool {
-		var typeArguments:Array<Type> = null;
+		var typeArguments:Slice<Type> = null;
 		var mapper:TypeMapper = null;
 		var result = true;
 		for (i in 0...Core.len(typeParameters)) {
@@ -2018,7 +2018,7 @@ class CheckerPart1 {
 					c.error(parameterName, Diagnostics.A_type_predicate_cannot_reference_a_rest_parameter);
 				} else {
 					if (typePredicate.t != null) {
-						final diags:Array<Diagnostic> = [];
+						final diags:Slice<Diagnostic> = [];
 						if (!c.checkTypeAssignableToEx(typePredicate.t, c.getTypeOfSymbol(signature.parameters[typePredicate.parameterIndex]), node.Type(),
 							null /*headMessage*/, diags)) {
 							c.addDiagnostic(Ast.NewDiagnosticChain(diags[0], Diagnostics.A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type));
@@ -2442,7 +2442,7 @@ class CheckerPart1 {
 		var duplicateFunctionDeclaration = false;
 		var multipleConstructorImplementation = false;
 		var hasNonAmbientClass = false;
-		var functionDeclarations:Array<Node> = null;
+		var functionDeclarations:Slice<Node> = null;
 		final getCanonicalOverload = (overloads:haxe.ds.Vector<Node>, implementation:Node) -> {
 			// Consider the canonical set of flags to be the flags of the bodyDeclaration or the first declaration
 			// Error on all deviations from this canonical set of flags
@@ -2638,7 +2638,7 @@ class CheckerPart1 {
 			}
 		}
 		if (hasNonAmbientClass && !isConstructor && symbol.Flags & SymbolFlagsFunction != 0 && Core.len(declarations) != 0) {
-			var relatedDiagnostics:Array<Diagnostic> = null;
+			var relatedDiagnostics:Slice<Diagnostic> = null;
 			for (declaration in declarations) {
 				if (Ast.IsClassDeclaration(declaration)) {
 					if (relatedDiagnostics == null) {

@@ -5,7 +5,7 @@ package ts.transformers;
 
 @:allow(ts.transformers)
 class ChainedTransformer extends Transformer {
-	var components:Array<Transformer> = null;
+	var components:Slice<Transformer> = null;
 
 	public function new() {
 		super();
@@ -29,7 +29,7 @@ class TransformOptions {
 	public var Resolver:ReferenceResolver = null;
 	public var EmitResolver:EmitResolver = null;
 	public var GetEmitModuleFormatOfFile:(file:HasFileName) -> ModuleKind = null;
-	public var ContentMapperExtensionRewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>> = null;
+	public var ContentMapperExtensionRewrites:Slice<ts.tspath.Tspath.ExtensionRewrite> = null;
 	// PORT: tspath.CaseSensitivity → ignoreCase
 	public var IgnoreCase:Bool = false;
 

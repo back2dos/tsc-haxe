@@ -5,10 +5,10 @@ package ts.transformers.moduletransforms;
 
 @:allow(ts.transformers.moduletransforms)
 class ExternalModuleInfo {
-	var externalImports:Array<Declaration> = null; // ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration. imports and reexports of other external modules
+	var externalImports:Slice<Declaration> = null; // ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration. imports and reexports of other external modules
 	var exportSpecifiers:MultiMap<std.String, ExportSpecifier> = new MultiMap<std.String, ExportSpecifier>(); // Maps local names to their associated export specifiers (excludes reexports)
 	var exportedBindings:MultiMap<Declaration, ModuleExportName> = new MultiMap<Declaration, ModuleExportName>(); // Maps local declarations to their associated export aliases
-	var exportedNames:Array<ModuleExportName> = null; // all exported names in the module, both local and re-exported, excluding the names of locally exported function declarations
+	var exportedNames:Slice<ModuleExportName> = null; // all exported names in the module, both local and re-exported, excluding the names of locally exported function declarations
 	var exportedFunctions:OrderedSet<FunctionDeclarationNode> = new OrderedSet<FunctionDeclarationNode>(); // all of the top-level exported function declarations
 	var exportEquals:ExportAssignment = null; // an export=/module.exports= declaration if one was present
 	var hasExportStarsToExportValues:Bool = false; // whether this module contains export*
@@ -19,8 +19,8 @@ class ExternalModuleInfo {
 @:allow(ts.transformers.moduletransforms)
 class ExternalModuleInfoCollector {
 	// PORT: Go `range` over a possibly-nil slice (parser lists of zero elements have nil Nodes).
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 	var sourceFile:SourceFile = null;

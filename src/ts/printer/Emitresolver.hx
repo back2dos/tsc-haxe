@@ -11,7 +11,7 @@ enum abstract SymbolAccessibility(Int) from Int to Int {
 
 class SymbolAccessibilityResult {
 	public var Accessibility:SymbolAccessibility = SymbolAccessibilityAccessible;
-	public var AliasesToMakeVisible:Array<Node> = null; // aliases that need to have this symbol visible
+	public var AliasesToMakeVisible:Slice<Node> = null; // aliases that need to have this symbol visible
 	public var ErrorSymbolName:std.String = ""; // Optional - symbol name that results in error
 	public var ErrorNode:Node = null; // Optional - node that results in error
 	public var ErrorModuleName:std.String = ""; // Optional - If the symbol is not visible from module, module's name
@@ -115,7 +115,7 @@ interface EmitResolver extends ReferenceResolver {
 	function IsThisPropertyAssignmentDeclarationRedundant(node:Node):Bool;
 
 	// isolatedDeclarations-specific declaration emit
-	function GetPropertiesOfContainerFunction(node:Node):Array<Symbol>;
+	function GetPropertiesOfContainerFunction(node:Node):Slice<Symbol>;
 	function RequiresAddingImplicitUndefinedUnsafe(node:Node, symbol:Symbol, enclosingDeclaration:Node):Bool;
 	function GetReferencedValueDeclarationUnsafe(node:IdentifierNode):Declaration;
 
@@ -125,12 +125,12 @@ interface EmitResolver extends ReferenceResolver {
 	function CreateReturnTypeOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags,
 		internalFlags:InternalFlags, tracker:SymbolTracker):Node;
 	function CreateTypeParametersOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags,
-		internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node>;
+		internalFlags:InternalFlags, tracker:SymbolTracker):Slice<Node>;
 	function CreateLiteralConstValue(emitContext:EmitContext, node:Node, tracker:SymbolTracker):Node;
 	function CreateTypeOfExpression(emitContext:EmitContext, expression:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags,
 		tracker:SymbolTracker):Node;
 	function CreateLateBoundIndexSignatures(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags,
-		tracker:SymbolTracker):Array<Node>;
+		tracker:SymbolTracker):Slice<Node>;
 	function TryJSTypeNodeToTypeNode(emitContext:EmitContext, typeNode:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags,
 		tracker:SymbolTracker):Node;
 }

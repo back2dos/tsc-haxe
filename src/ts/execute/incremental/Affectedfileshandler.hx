@@ -31,7 +31,7 @@ class AffectedFilesHandler {
 	var program:Program = null;
 	var hasAllFilesExcludingDefaultLibraryFile:Bool = false; // PORT: atomic.Bool → Bool
 	var updatedSignatures:SyncMap<Path, UpdatedSignature> = new SyncMap<Path, UpdatedSignature>();
-	var dtsMayChange:Array<DtsMayChange> = null;
+	var dtsMayChange:Slice<DtsMayChange> = null;
 	var filesToRemoveDiagnostics:SyncSet<Path> = new SyncSet<Path>();
 	var cleanedDiagnosticsOfLibFiles:Bool = false; // PORT: sync.Once → flag
 	var seenFileAndReferences:SyncMap<Path, Bool> = new SyncMap<Path, Bool>(false);
@@ -112,7 +112,7 @@ class AffectedFilesHandler {
 		return update.signature != prevSignature;
 	}
 
-	function getFilesAffectedBy(path:Path):Array<SourceFile> {
+	function getFilesAffectedBy(path:Path):Slice<SourceFile> {
 		final file = this.program.program.GetSourceFileByPath(path);
 		if (file == null) {
 			return null;

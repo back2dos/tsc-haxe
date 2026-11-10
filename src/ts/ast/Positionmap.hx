@@ -29,7 +29,7 @@ class PositionMap {
 	// entries[i].utf8Pos is the byte offset of the i-th multi-byte character.
 	// entries[i].delta is the total (utf8 - utf16) difference accumulated
 	// through and including the i-th multi-byte character.
-	var entries:Array<PositionMapEntry> = null;
+	var entries:Slice<PositionMapEntry> = null;
 
 	public function new() {}
 

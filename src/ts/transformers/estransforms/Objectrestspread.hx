@@ -76,7 +76,7 @@ class ObjectRestSpreadTransformer {
 
 	function visitSourceFile(node:SourceFile):Node {
 		final visited = Visitor().VisitEachChild(node.AsNode());
-		EmitContext().AddEmitHelper(visited.AsNode(), ...EmitContext().ReadEmitHelpers());
+		EmitContext().AddEmitHelper(visited.AsNode(), ...EmitContext().ReadEmitHelpers().toArray());
 		return visited;
 	}
 
@@ -275,7 +275,7 @@ class ObjectRestSpreadTransformer {
 			body = Factory().NewBlock(Factory().NewNodeList([]), true);
 		}
 		final prefix:Array<Node> = [];
-		var suffix:Array<Node> = null;
+		var suffix:Slice<Node> = null;
 		if (Ast.IsBlock(body)) {
 			var custom = false;
 			final bodyStatements = body.Statements();
@@ -310,9 +310,9 @@ class ObjectRestSpreadTransformer {
 		return Factory().UpdateBlock(body.AsBlock(), newStatementList, body.AsBlock().MultiLine);
 	}
 
-	function collectObjectRestAssignments(node:Node):Array<Node> {
+	function collectObjectRestAssignments(node:Node):Slice<Node> {
 		var containsPrecedingObjectRestOrSpread = false;
-		var results:Array<Node> = null;
+		var results:Slice<Node> = null;
 		for (parameter in node.Parameters()) {
 			if (containsPrecedingObjectRestOrSpread) {
 				if (Ast.IsBindingPattern(parameter.Name())) {
@@ -327,7 +327,7 @@ class ObjectRestSpreadTransformer {
 						);
 						if (declarations != null) {
 							final declarationList = Factory().NewVariableDeclarationList(Factory().NewNodeList([]), NodeFlagsNone);
-							var decls:Array<Node> = [declarations];
+							var decls:Slice<Node> = [declarations];
 							if (declarations.Kind == KindSyntaxList) {
 								decls = declarations.AsSyntaxList().Children;
 							}
@@ -388,7 +388,7 @@ class ObjectRestSpreadTransformer {
 				);
 				if (declarations != null) {
 					final declarationList = Factory().NewVariableDeclarationList(Factory().NewNodeList([]), NodeFlagsNone);
-					var decls:Array<Node> = [declarations];
+					var decls:Slice<Node> = [declarations];
 					if (declarations.Kind == KindSyntaxList) {
 						decls = declarations.AsSyntaxList().Children;
 					}
@@ -416,7 +416,7 @@ class ObjectRestSpreadTransformer {
 			);
 			var block = Visitor().VisitNode(node.Block);
 			if (visitedBindings != null) {
-				var decls:Array<Node> = null;
+				var decls:Slice<Node> = null;
 				if (visitedBindings.Kind == KindSyntaxList) {
 					decls = visitedBindings.AsSyntaxList().Children;
 				} else {
@@ -594,7 +594,7 @@ class ObjectRestSpreadTransformer {
 			return null;
 		}
 		final elements = list.Nodes;
-		var chunkObject:Array<Node> = null;
+		var chunkObject:Slice<Node> = null;
 		final objects:Array<Node> = [];
 		for (e in elements) {
 			if (e.Kind == KindSpreadAssignment) {

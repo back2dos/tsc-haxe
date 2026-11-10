@@ -1094,7 +1094,7 @@ class CheckerPart3 {
 			var checkCandidate:Signature = null;
 			var inferenceContext:InferenceContext = null;
 			if (Core.len(candidate.typeParameters) != 0) {
-				var typeArgumentTypes:Array<Type> = null;
+				var typeArgumentTypes:Slice<Type> = null;
 				if (Core.len(s.typeArguments) != 0) {
 					typeArgumentTypes = c.checkTypeArguments(candidate, s.typeArguments, false /*reportErrors*/, null);
 					if (typeArgumentTypes == null) {
@@ -1112,7 +1112,7 @@ class CheckerPart3 {
 						s.argCheckMode |= CheckModeSkipGenericFunctions;
 					}
 				}
-				var inferredTypeParameters:Array<Type> = null;
+				var inferredTypeParameters:Slice<Type> = null;
 				if (inferenceContext != null) {
 					inferredTypeParameters = inferenceContext.inferredTypeParameters;
 				}
@@ -1165,7 +1165,7 @@ class CheckerPart3 {
 		return null;
 	}
 
-	static function hasCorrectArity(c:Checker, node:Node, args:Array<Node>, signature:Signature, signatureHelpTrailingComma:Bool):Bool {
+	static function hasCorrectArity(c:Checker, node:Node, args:Slice<Node>, signature:Signature, signatureHelpTrailingComma:Bool):Bool {
 		if (Ast.IsJsxOpeningFragment(node)) {
 			return true;
 		}
@@ -1269,7 +1269,7 @@ class CheckerPart3 {
 		throw "Unhandled case in getLegacyDecoratorArgumentCount";
 	}
 
-	static function hasCorrectTypeArgumentArity(c:Checker, signature:Signature, typeArguments:Array<Node>):Bool {
+	static function hasCorrectTypeArgumentArity(c:Checker, signature:Signature, typeArguments:Slice<Node>):Bool {
 		// If the user supplied type arguments, but the number of type arguments does not match
 		// the declared number of type parameters, the call has an incorrect arity.
 		final numTypeParameters = Core.len(signature.typeParameters);
@@ -1277,7 +1277,7 @@ class CheckerPart3 {
 		return Core.len(typeArguments) == 0 || Core.len(typeArguments) >= minTypeArgumentCount && Core.len(typeArguments) <= numTypeParameters;
 	}
 
-	static function checkTypeArguments(c:Checker, signature:Signature, typeArgumentNodes:Array<Node>, reportErrors:Bool, headMessage:Message):Array<Type> {
+	static function checkTypeArguments(c:Checker, signature:Signature, typeArgumentNodes:Slice<Node>, reportErrors:Bool, headMessage:Message):Slice<Type> {
 		final isJavaScript = Ast.IsInJSFile(signature.declaration);
 		final typeParameters = signature.typeParameters;
 		final typeArgumentTypes = c.fillMissingTypeArguments(Core.Map(typeArgumentNodes, c.getTypeFromTypeNode), typeParameters,
@@ -1296,7 +1296,7 @@ class CheckerPart3 {
 				if (reportErrors) {
 					errorNode = typeArgumentNodes[i];
 				}
-				final diags:Array<Diagnostic> = [];
+				final diags:Slice<Diagnostic> = [];
 				final instantiatedConstraint = c.getTypeWithThisArgument(c.instantiateType(constraint, mapper), typeArgument, false);
 				if (!c.checkTypeAssignableToEx(typeArgument, instantiatedConstraint, errorNode, typeArgumentHeadMessage, diags)) {
 					if (diags.length != 0) {
@@ -1314,7 +1314,7 @@ class CheckerPart3 {
 		return typeArgumentTypes;
 	}
 
-	static function isSignatureApplicable(c:Checker, node:Node, args:Array<Node>, signature:Signature, relation:Relation, checkMode:CheckMode, reportErrors:Bool, diagnosticOutput:Array<Diagnostic>):Bool {
+	static function isSignatureApplicable(c:Checker, node:Node, args:Slice<Node>, signature:Signature, relation:Relation, checkMode:CheckMode, reportErrors:Bool, diagnosticOutput:Slice<Diagnostic>):Bool {
 		if (Ast.IsJsxCallLike(node)) {
 			return c.checkApplicableSignatureForJsxCallLikeElement(node, signature, relation, checkMode, reportErrors, diagnosticOutput);
 		}
@@ -1391,7 +1391,7 @@ class CheckerPart3 {
 		return true;
 	}
 
-	static function maybeAddMissingAwaitInfo(c:Checker, errorNode:Node, source:Type, target:Type, relation:Relation, reportErrors:Bool, diagnosticOutput:Array<Diagnostic>):Void {
+	static function maybeAddMissingAwaitInfo(c:Checker, errorNode:Node, source:Type, target:Type, relation:Relation, reportErrors:Bool, diagnosticOutput:Slice<Diagnostic>):Void {
 		if (errorNode != null && reportErrors && diagnosticOutput != null && diagnosticOutput.length != 0) {
 			// Bail if target is Promise-like---something else is wrong
 			if (c.getAwaitedTypeOfPromise(target) != null) {
@@ -1444,7 +1444,7 @@ class CheckerPart3 {
 		return Ast.SkipOuterExpressions(argument, flags);
 	}
 
-	static function inferTypeArguments(c:Checker, node:Node, signature:Signature, args:Array<Node>, checkMode:CheckMode, context:InferenceContext):Array<Type> {
+	static function inferTypeArguments(c:Checker, node:Node, signature:Signature, args:Slice<Node>, checkMode:CheckMode, context:InferenceContext):Array<Type> {
 		if (Ast.IsJsxOpeningLikeElement(node)) {
 			return c.inferJsxTypeArguments(node, signature, checkMode, context);
 		}
@@ -1558,7 +1558,7 @@ class CheckerPart3 {
 	}
 
 	// No signature was applicable. We have already reported the errors for the invalid signature.
-	static function getCandidateForOverloadFailure(c:Checker, node:Node, candidates:Array<Signature>, args:Array<Node>, hasCandidatesOutArray:Bool, checkMode:CheckMode):Signature {
+	static function getCandidateForOverloadFailure(c:Checker, node:Node, candidates:Slice<Signature>, args:Slice<Node>, hasCandidatesOutArray:Bool, checkMode:CheckMode):Signature {
 		// Else should not have called this.
 		c.checkNodeDeferred(node);
 		// Normally we will combine overloads. Skip this if they have type parameters since that's hard to combine.
@@ -1572,7 +1572,7 @@ class CheckerPart3 {
 		return c.createUnionOfSignaturesForOverloadFailure(candidates);
 	}
 
-	static function pickLongestCandidateSignature(c:Checker, node:Node, candidates:Array<Signature>, args:Array<Node>, checkMode:CheckMode):Signature {
+	static function pickLongestCandidateSignature(c:Checker, node:Node, candidates:Slice<Signature>, args:Slice<Node>, checkMode:CheckMode):Signature {
 		// Pick the longest signature. This way we can get a contextual type for cases like:
 		//     declare function f(a: { xa: number; xb: number; }, b: number);
 		//     f({ |
@@ -1589,7 +1589,7 @@ class CheckerPart3 {
 		if (Core.len(typeParameters) == 0) {
 			return candidate;
 		}
-		var typeArgumentNodes:Array<Node> = null;
+		var typeArgumentNodes:Slice<Node> = null;
 		if (c.callLikeExpressionMayHaveTypeArguments(node)) {
 			typeArgumentNodes = node.TypeArguments();
 		}
@@ -1603,7 +1603,7 @@ class CheckerPart3 {
 		return instantiated;
 	}
 
-	static function getLongestCandidateIndex(c:Checker, candidates:Array<Signature>, argsCount:Int):Int {
+	static function getLongestCandidateIndex(c:Checker, candidates:Slice<Signature>, argsCount:Int):Int {
 		var maxParamsIndex = -1;
 		var maxParams = -1;
 		for (i in 0...Core.len(candidates)) {
@@ -1620,7 +1620,7 @@ class CheckerPart3 {
 		return maxParamsIndex;
 	}
 
-	static function getTypeArgumentsFromNodes(c:Checker, typeArgumentNodes:Array<Node>, typeParameters:haxe.ds.Vector<Type>):Array<Type> {
+	static function getTypeArgumentsFromNodes(c:Checker, typeArgumentNodes:Slice<Node>, typeParameters:haxe.ds.Vector<Type>):Slice<Type> {
 		if (Core.len(typeArgumentNodes) > Core.len(typeParameters)) {
 			typeArgumentNodes = typeArgumentNodes.slice(0, Core.len(typeParameters));
 		}
@@ -1638,7 +1638,7 @@ class CheckerPart3 {
 		return typeArguments;
 	}
 
-	static function inferSignatureInstantiationForOverloadFailure(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>, candidate:Signature, args:Array<Node>, checkMode:CheckMode):Signature {
+	static function inferSignatureInstantiationForOverloadFailure(c:Checker, node:Node, typeParameters:haxe.ds.Vector<Type>, candidate:Signature, args:Slice<Node>, checkMode:CheckMode):Signature {
 		final inferenceContext = c.newInferenceContext(typeParameters, candidate, Core.IfElse(Ast.IsInJSFile(node), InferenceFlagsAnyDefault, InferenceFlagsNone),
 			null);
 		final typeArgumentTypes = c.inferTypeArguments(node, candidate, args, checkMode | CheckModeSkipContextSensitive | CheckModeSkipGenericFunctions,
@@ -1646,7 +1646,7 @@ class CheckerPart3 {
 		return c.createSignatureInstantiation(candidate, typeArgumentTypes);
 	}
 
-	static function createUnionOfSignaturesForOverloadFailure(c:Checker, candidates:Array<Signature>):Signature {
+	static function createUnionOfSignaturesForOverloadFailure(c:Checker, candidates:Slice<Signature>):Signature {
 		final thisParameters = Core.MapNonNil(candidates, (c:Signature) -> {
 			return c.thisParameter;
 		});
@@ -1694,11 +1694,11 @@ class CheckerPart3 {
 			null, minArgumentCount);
 	}
 
-	static function createCombinedSymbolFromTypes(c:Checker, sources:Array<Symbol>, types:Array<Type>):Symbol {
+	static function createCombinedSymbolFromTypes(c:Checker, sources:Slice<Symbol>, types:Slice<Type>):Symbol {
 		return c.createCombinedSymbolForOverloadFailure(sources, c.getUnionTypeEx(types, UnionReductionSubtype, null, null));
 	}
 
-	static function createCombinedSymbolForOverloadFailure(c:Checker, sources:Array<Symbol>, t:Type):Symbol {
+	static function createCombinedSymbolForOverloadFailure(c:Checker, sources:Slice<Symbol>, t:Type):Symbol {
 		// This function is currently only used for erroneous overloads, so it's good enough to just use the first source.
 		return c.createSymbolWithType(Core.FirstOrNil(sources), t);
 	}
@@ -1724,7 +1724,7 @@ class CheckerPart3 {
 	static function reportCallResolutionErrors(c:Checker, node:Node, s:CallState, signatures:haxe.ds.Vector<Signature>, headMessage:Message):Void {
 		if (Core.len(s.candidatesForArgumentError) != 0) {
 			final last = s.candidatesForArgumentError[s.candidatesForArgumentError.length - 1];
-			final diags:Array<Diagnostic> = [];
+			final diags:Slice<Diagnostic> = [];
 			c.isSignatureApplicable(s.node, s.args, last, c.assignableRelation, CheckModeNormal, true /*reportErrors*/, diags);
 			for (d in diags) {
 				var diagnostic = d;
@@ -1789,7 +1789,7 @@ class CheckerPart3 {
 		}
 	}
 
-	static function getArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, args:Array<Node>, headMessage:Message):Diagnostic {
+	static function getArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, args:Slice<Node>, headMessage:Message):Diagnostic {
 		final spreadIndex = c.getSpreadArgumentIndex(args);
 		if (spreadIndex > -1) {
 			return Checker.NewDiagnosticForNode(args[spreadIndex], Diagnostics.A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter);
@@ -1927,7 +1927,7 @@ class CheckerPart3 {
 		return constructorSymbol == globalPromiseSymbol;
 	}
 
-	static function getTypeArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, typeArguments:Array<Node>, headMessage:Message):Diagnostic {
+	static function getTypeArgumentArityError(c:Checker, node:Node, signatures:haxe.ds.Vector<Signature>, typeArguments:Slice<Node>, headMessage:Message):Diagnostic {
 		var diagnostic:Diagnostic = null;
 		final argCount = Core.len(typeArguments);
 		final sourceFile = Ast.GetSourceFileOfNode(node);
@@ -2380,7 +2380,7 @@ class CheckerPart3 {
 		if (t.flags & TypeFlagsUnion == 0) {
 			return c.getContextualCallSignature(t, node);
 		}
-		var signatureList:Array<Signature> = null;
+		var signatureList:Slice<Signature> = null;
 		final types = t.Types();
 		for (current in types) {
 			final signature = c.getContextualCallSignature(current, node);
@@ -2409,7 +2409,7 @@ class CheckerPart3 {
 		return c.createUnionSignature(signatureList[0], signatureList);
 	}
 
-	static function createUnionSignature(c:Checker, sig:Signature, unionSignatures:Array<Signature>):Signature {
+	static function createUnionSignature(c:Checker, sig:Signature, unionSignatures:Slice<Signature>):Signature {
 		final result = c.cloneSignature(sig);
 		final composite = new CompositeSignature();
 		composite.isUnion = true;

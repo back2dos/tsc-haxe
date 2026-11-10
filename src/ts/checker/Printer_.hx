@@ -416,8 +416,8 @@ class Printer_ {
 		return Checker.ValueToString(value);
 	}
 
-	static function formatUnionTypes(c:Checker, types:haxe.ds.Vector<Type>, expandingEnum:Bool):Array<Type> {
-		var result:Array<Type> = null;
+	static function formatUnionTypes(c:Checker, types:haxe.ds.Vector<Type>, expandingEnum:Bool):Slice<Type> {
+		var result:Slice<Type> = null;
 		var flags:TypeFlags = 0;
 		var i = 0;
 		while (i < Core.len(types)) {

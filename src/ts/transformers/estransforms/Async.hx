@@ -67,7 +67,7 @@ class AsyncTransformer {
 		// PORT: Go spreads a possibly-nil slice; a Haxe spread of null throws.
 		final helpers = EmitContext().ReadEmitHelpers();
 		if (helpers != null) {
-			EmitContext().AddEmitHelper(visited, ...helpers);
+			EmitContext().AddEmitHelper(visited, ...helpers.toArray());
 		} else {
 			EmitContext().AddEmitHelper(visited);
 		}
@@ -466,7 +466,7 @@ class AsyncTransformer {
 	function visitVariableDeclarationListWithCollidingNames(node:VariableDeclarationList, hasReceiver:Bool):Node {
 		hoistVariableDeclarationList(node);
 
-		var variables:Array<Node> = null;
+		var variables:Slice<Node> = null;
 		for (decl in node.Declarations.Nodes) {
 			if (decl.AsVariableDeclaration().Initializer != null) {
 				if (variables == null) {
@@ -490,7 +490,7 @@ class AsyncTransformer {
 			return null;
 		}
 
-		var expressions:Array<Node> = null;
+		var expressions:Slice<Node> = null;
 		for (variable in variables) {
 			if (expressions == null) {
 				expressions = [];
@@ -617,7 +617,7 @@ class AsyncTransformer {
 			return EmitContext().VisitParameters(node.ParameterList(), Visitor());
 		}
 
-		var newParameters:Array<Node> = null;
+		var newParameters:Slice<Node> = null;
 		for (parameter in node.Parameters()) {
 			final param = parameter.AsParameterDeclaration();
 			if (param.Initializer != null || param.DotDotDotToken != null) {
@@ -682,7 +682,7 @@ class AsyncTransformer {
 			if (isArrow) {
 				// `node` does not have a simple parameter list, so `outerParameters` refers to placeholders that are
 				// forwarded to `innerParameters`, matching how they are introduced in `transformAsyncFunctionParameterList`.
-				var parameterBindings:Array<Node> = null;
+				var parameterBindings:Slice<Node> = null;
 				final outerLen = Core.len(outerParameters.Nodes);
 				final params = node.Parameters();
 				for (i in 0...params.length) {

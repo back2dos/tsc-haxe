@@ -511,7 +511,7 @@ class CheckerPart2 {
 		});
 	}
 
-	static function areTypeParametersIdentical(c:Checker, declarations:haxe.ds.Vector<Node>, targetParameters:haxe.ds.Vector<Type>, getTypeParameterDeclarations:(node:Node) -> Array<Node>):Bool {
+	static function areTypeParametersIdentical(c:Checker, declarations:haxe.ds.Vector<Node>, targetParameters:haxe.ds.Vector<Type>, getTypeParameterDeclarations:(node:Node) -> Slice<Node>):Bool {
 		final maxTypeArgumentCount = Core.len(targetParameters);
 		final minTypeArgumentCount = c.getMinTypeArgumentCount(targetParameters);
 		for (declaration in declarations) {
@@ -572,7 +572,7 @@ class CheckerPart2 {
 				final prop = c.getPropertyOfType(typeWithThis, declaredProp.Name);
 				final baseProp = c.getPropertyOfType(baseWithThis, declaredProp.Name);
 				if (prop != null && baseProp != null) {
-					final diags:Array<Diagnostic> = [];
+					final diags:Slice<Diagnostic> = [];
 					if (!c.checkTypeAssignableToEx(c.getTypeOfSymbol(prop), c.getTypeOfSymbol(baseProp), Core.OrElse(member.Name(), member), null /*headMessage*/,
 						diags)) {
 						c.addDiagnostic(Ast.NewDiagnosticChain(diags[0], Diagnostics.Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
@@ -621,8 +621,8 @@ class CheckerPart2 {
 		// NOTE: assignability is checked in checkClassDeclaration
 		// PORT: nil map key: Go `map[*ast.Node]MemberInfo` may hold a nil key (derivedClassDecl == nil); kept as
 		// parallel arrays with a linear lookup. Go iterates the map in random order; diagnostics are sorted later.
-		var notImplementedKeys:Array<Node> = null;
-		var notImplementedInfo:Array<MemberInfo> = null;
+		var notImplementedKeys:Slice<Node> = null;
+		var notImplementedInfo:Slice<MemberInfo> = null;
 		for (baseProperty in rangeOf(c.getPropertiesOfType(baseType))) {
 			final base = c.getTargetSymbol(baseProperty);
 			if ((base.Flags & SymbolFlagsPrototype) != 0) {
@@ -1113,7 +1113,7 @@ class CheckerPart2 {
 			&& node.Initializer() == null;
 	}
 
-	static function isPropertyInitializedInStaticBlocks(c:Checker, propName:Node, propType:Type, staticBlocks:Array<Node>, startPos:Int, endPos:Int):Bool {
+	static function isPropertyInitializedInStaticBlocks(c:Checker, propName:Node, propType:Type, staticBlocks:Slice<Node>, startPos:Int, endPos:Int):Bool {
 		for (staticBlock in rangeOf(staticBlocks)) {
 			// static block must be within the provided range as they are evaluated in document order (unlike constructors)
 			if (staticBlock.Pos() >= startPos && staticBlock.Pos() <= endPos) {
@@ -2190,7 +2190,7 @@ class CheckerPart2 {
 					if (globalDisposableType != c.emptyObjectType) {
 						final optionalDisposableType = c.getUnionType([globalDisposableType, c.nullType, c.undefinedType]);
 						final widenedInitializerType = c.widenTypeForVariableLikeDeclaration(initializerType, node, false);
-						final diags:Array<Diagnostic> = [];
+						final diags:Slice<Diagnostic> = [];
 						if (!c.checkTypeAssignableToEx(widenedInitializerType, optionalDisposableType, initializer,
 							Diagnostics.The_initializer_of_a_using_declaration_must_be_either_an_object_with_a_Symbol_dispose_method_or_be_null_or_undefined,
 							diags)) {
@@ -2595,7 +2595,7 @@ class CheckerPart2 {
 			}
 			return c.combineIterationTypes(allIterationTypes);
 		}
-		final diags:Array<Diagnostic> = [];
+		final diags:Slice<Diagnostic> = [];
 		if ((use & IterationUseAllowsAsyncIterablesFlag) != 0) {
 			var iterationTypes = c.getIterationTypesOfIterableFast(t, c.asyncIterationTypesResolver);
 			if (iterationTypes.hasTypes()) {
@@ -2679,7 +2679,7 @@ class CheckerPart2 {
 		return t != null && (t.objectFlags & ObjectFlagsReference) != 0 && t.Target() == target;
 	}
 
-	static function isReferenceToSomeType(c:Checker, t:Type, targets:Array<Type>):Bool {
+	static function isReferenceToSomeType(c:Checker, t:Type, targets:Slice<Type>):Bool {
 		return t != null && (t.objectFlags & ObjectFlagsReference) != 0 && targets != null && targets.indexOf(t.Target()) >= 0;
 	}
 
@@ -2721,7 +2721,7 @@ class CheckerPart2 {
 	//
 	// NOTE: You probably don't want to call this directly and should be calling
 	// `getIterationTypesOfIterable` instead.
-	static function getIterationTypesOfIterableSlow(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Array<Diagnostic>):IterationTypes {
+	static function getIterationTypesOfIterableSlow(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Slice<Diagnostic>):IterationTypes {
 		final method = c.getPropertyOfType(t, c.getPropertyNameForKnownSymbolName(r.iteratorSymbolName));
 		if (method != null && (method.Flags & SymbolFlagsOptional) == 0) {
 			final methodType = c.getTypeOfSymbol(method);
@@ -2745,7 +2745,7 @@ class CheckerPart2 {
 	//
 	// If we successfully found the *yield*, *return*, and *next* types, an `IterationTypes` with non-nil
 	// members is returned. Otherwise, a default `IterationTypes{}` is returned.
-	static function getIterationTypesOfIterator(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Array<Diagnostic>):IterationTypes {
+	static function getIterationTypesOfIterator(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Slice<Diagnostic>):IterationTypes {
 		return c.getIterationTypesOfIteratorWorker(t, r, errorNode, diagnosticOutput);
 	}
 
@@ -2755,7 +2755,7 @@ class CheckerPart2 {
 	// members is returned. Otherwise, a default `IterationTypes{}` is returned.
 	//
 	// NOTE: You probably don't want to call this directly and should be calling `getIterationTypesOfIterator` instead.
-	static function getIterationTypesOfIteratorWorker(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Array<Diagnostic>):IterationTypes {
+	static function getIterationTypesOfIteratorWorker(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Slice<Diagnostic>):IterationTypes {
 		if (Checker.IsTypeAny(t)) {
 			return newIterationTypes(c.anyType, c.anyType, c.anyType);
 		}
@@ -2793,7 +2793,7 @@ class CheckerPart2 {
 		return new IterationTypes();
 	}
 
-	static function getIterationTypesOfIteratorSlow(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Array<Diagnostic>):IterationTypes {
+	static function getIterationTypesOfIteratorSlow(c:Checker, t:Type, r:IterationTypesResolver, errorNode:Node, diagnosticOutput:Slice<Diagnostic>):IterationTypes {
 		return c.combineIterationTypes([
 			c.getIterationTypesOfMethod(t, r, "next", errorNode, diagnosticOutput),
 			c.getIterationTypesOfMethod(t, r, "return", errorNode, diagnosticOutput),
@@ -2801,7 +2801,7 @@ class CheckerPart2 {
 		]);
 	}
 
-	static function getIterationTypesOfMethod(c:Checker, t:Type, resolver:IterationTypesResolver, methodName:std.String, errorNode:Node, diagnosticOutput:Array<Diagnostic>):IterationTypes {
+	static function getIterationTypesOfMethod(c:Checker, t:Type, resolver:IterationTypesResolver, methodName:std.String, errorNode:Node, diagnosticOutput:Slice<Diagnostic>):IterationTypes {
 		final method = c.getPropertyOfType(t, methodName);
 		// Ignore 'return' or 'throw' if they are missing.
 		if (method == null && methodName != "next") {
@@ -2854,8 +2854,8 @@ class CheckerPart2 {
 			}
 		}
 		// Extract the first parameter and return type of each signature.
-		var methodParameterTypes:Array<Type> = null;
-		var methodReturnTypes:Array<Type> = null;
+		var methodParameterTypes:Slice<Type> = null;
+		var methodReturnTypes:Slice<Type> = null;
 		for (signature in methodSignatures) {
 			if (methodName != "throw" && Core.len(signature.parameters) != 0) {
 				if (methodParameterTypes == null) {
@@ -2870,7 +2870,7 @@ class CheckerPart2 {
 		}
 		// Resolve the *next* or *return* type from the first parameter of a `next()` or
 		// `return()` method, respectively.
-		var returnTypes:Array<Type> = null;
+		var returnTypes:Slice<Type> = null;
 		var nextType:Type = null;
 		if (methodName != "throw") {
 			var methodParameterType:Type = null;
@@ -3293,7 +3293,7 @@ class CheckerPart2 {
 		throw "Unhandled case in getDeclarationSpaces: " + node.Kind.String();
 	}
 
-	static function checkTypeParameters(c:Checker, typeParameterDeclarations:Array<Node>):Void {
+	static function checkTypeParameters(c:Checker, typeParameterDeclarations:Slice<Node>):Void {
 		var seenDefault = false;
 		if (typeParameterDeclarations == null) {
 			return;
@@ -3317,7 +3317,7 @@ class CheckerPart2 {
 	}
 
 	// Check that type parameter defaults only reference previously declared type parameters */
-	static function checkTypeParametersNotReferenced(c:Checker, root:Node, typeParameters:Array<Node>, index:Int):Void {
+	static function checkTypeParametersNotReferenced(c:Checker, root:Node, typeParameters:Slice<Node>, index:Int):Void {
 		var visit:(Node) -> Bool = null;
 		visit = function(node:Node):Bool {
 			if (Ast.IsTypeReferenceNode(node)) {
@@ -3344,7 +3344,7 @@ class CheckerPart2 {
 		links.identifierCheckNodes.push(node);
 	}
 
-	static function checkUnusedIdentifiers(c:Checker, potentiallyUnusedIdentifiers:Array<Node>):Void {
+	static function checkUnusedIdentifiers(c:Checker, potentiallyUnusedIdentifiers:Slice<Node>):Void {
 		for (node in rangeOf(potentiallyUnusedIdentifiers)) {
 			switch (node.Kind) {
 				case KindClassDeclaration | KindClassExpression:
@@ -3516,7 +3516,7 @@ class CheckerPart2 {
 		}
 	}
 
-	static function reportUnusedVariableDeclarations(c:Checker, declarations:Array<Node>):Void {
+	static function reportUnusedVariableDeclarations(c:Checker, declarations:Slice<Node>):Void {
 		for (declaration in rangeOf(declarations)) {
 			final name = declaration.Name();
 			if (name != null && !Ast.IsParameterPropertyDeclaration(declaration, declaration.Parent) && !Ast.IsThisParameter(declaration)) {
@@ -4017,8 +4017,8 @@ class CheckerPart2 {
 		return c.getOrCreateTypeFromSignature(c.instantiateSignatureInContextOf(signature, contextualSignature, context, null));
 	}
 
-	static function getOuterInferenceTypeParameters(c:Checker):Array<Type> {
-		var result:Array<Type> = null;
+	static function getOuterInferenceTypeParameters(c:Checker):Slice<Type> {
+		var result:Slice<Type> = null;
 		for (i in 0...c.inferenceContextInfoCount) {
 			final context = c.inferenceContextInfos[i].context;
 			if (context != null) {
@@ -4034,8 +4034,8 @@ class CheckerPart2 {
 	}
 
 	static function getUniqueTypeParameters(c:Checker, context:InferenceContext, typeParameters:haxe.ds.Vector<Type>):Array<Type> {
-		var oldTypeParameters:Array<Type> = null;
-		var newTypeParameters:Array<Type> = null;
+		var oldTypeParameters:Slice<Type> = null;
+		var newTypeParameters:Slice<Type> = null;
 		final result:Array<Type> = [];
 		for (tp in rangeOf(typeParameters)) {
 			final name = tp.symbol.Name;
@@ -4343,7 +4343,7 @@ class CheckerPart2 {
 	}
 
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Slice<T>):Slice<T> {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 
@@ -4362,7 +4362,7 @@ class CheckerPart2 {
 		};
 	}
 
-	static extern inline overload function valuesOf<T>(s:Null<Array<T>>):(yield:(T) -> Bool) -> Void {
+	static extern inline overload function valuesOf<T>(s:Slice<T>):(yield:(T) -> Bool) -> Void {
 		return function(yield_:(T) -> Bool):Void {
 			if (s != null) {
 				for (v in s) {
@@ -4403,7 +4403,7 @@ class CheckerPart2 {
 
 // Go: local type `MemberInfo` in checkKindsOfPropertyMemberOverrides.
 private class MemberInfo {
-	public var missedProperties:Array<std.String> = null;
+	public var missedProperties:Slice<std.String> = null;
 	public var baseTypeName:std.String = "";
 	public var typeName:std.String = "";
 

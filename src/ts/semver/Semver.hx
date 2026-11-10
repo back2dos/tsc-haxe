@@ -68,7 +68,7 @@ class Semver {
 		return a >= 0 ? Std.string(a) : Int64.toStr(Int64.make(0, a));
 	}
 
-	static function comparePreReleaseIdentifiers(left:Array<String>, right:Array<String>):Int {
+	static function comparePreReleaseIdentifiers(left:Slice<String>, right:Slice<String>):Int {
 		// https://semver.org/#spec-item-11
 		// > When major, minor, and patch are equal, a pre-release version has lower precedence
 		// > than a normal version.
@@ -229,7 +229,7 @@ class Semver {
 	// Go: (?i)^([~^<>=]|<=|>=)?\s*([a-z0-9-+.*]+)$
 	static final rangeRegExp = Regexp.MustCompile("^([~\\^<>=]|<=|>=)?[\\t\\n\\f\\r ]*([a-zA-ZſK0-9\\-+.*]+)(?![\\s\\S])");
 
-	static function formatDisjunction(sb:StringBuf, alternatives:Array<Array<VersionComparator>>):Void {
+	static function formatDisjunction(sb:StringBuf, alternatives:Slice<Slice<VersionComparator>>):Void {
 		final origLen = sb.length;
 
 		if (alternatives != null) {
@@ -245,7 +245,7 @@ class Semver {
 			sb.add("*");
 	}
 
-	static function formatAlternative(sb:StringBuf, comparators:Array<VersionComparator>):Void {
+	static function formatAlternative(sb:StringBuf, comparators:Slice<VersionComparator>):Void {
 		if (comparators != null) {
 			for (i in 0...comparators.length) {
 				final comparator = comparators[i];
@@ -261,7 +261,7 @@ class Semver {
 		sb.add(comparator.operand.String());
 	}
 
-	static function testDisjunction(alternatives:Array<Array<VersionComparator>>, version:Version):Bool {
+	static function testDisjunction(alternatives:Slice<Slice<VersionComparator>>, version:Version):Bool {
 		// an empty disjunction is treated as "*" (all versions)
 		if (alternatives == null || alternatives.length == 0)
 			return true;
@@ -274,7 +274,7 @@ class Semver {
 		return false;
 	}
 
-	static function testAlternative(alternative:Array<VersionComparator>, version:Version):Bool {
+	static function testAlternative(alternative:Slice<VersionComparator>, version:Version):Bool {
 		if (alternative != null) {
 			for (comparator in alternative) {
 				if (!testComparator(comparator, version))
@@ -309,8 +309,8 @@ class Semver {
 		return new ValueOk(range, r.ok);
 	}
 
-	static function parseAlternatives(text:String):ValueOk<Array<Array<VersionComparator>>> {
-		var alternatives:Array<Array<VersionComparator>> = null;
+	static function parseAlternatives(text:String):ValueOk<Slice<Slice<VersionComparator>>> {
+		var alternatives:Slice<Slice<VersionComparator>> = null;
 
 		text = Strings.TrimSpace(text);
 		final ranges = logicalOrRegExp.Split(text, -1);
@@ -319,7 +319,7 @@ class Semver {
 			if (r == "")
 				continue;
 
-			var comparators:Array<VersionComparator> = null;
+			var comparators:Slice<VersionComparator> = null;
 
 			final hyphenMatch = hyphenRegExp.FindStringSubmatch(r);
 			if (hyphenMatch != null) {
@@ -351,7 +351,7 @@ class Semver {
 	}
 
 	// Go `append(dst, src...)`: appending nothing keeps dst (possibly nil).
-	static function appendAll<T>(dst:Array<T>, src:Array<T>):Array<T> {
+	static function appendAll<T>(dst:Slice<T>, src:Slice<T>):Slice<T> {
 		if (src == null || src.length == 0)
 			return dst;
 		if (dst == null)
@@ -361,7 +361,7 @@ class Semver {
 		return dst;
 	}
 
-	static function parseHyphen(left:String, right:String):ValueOk<Array<VersionComparator>> {
+	static function parseHyphen(left:String, right:String):ValueOk<Slice<VersionComparator>> {
 		final leftResult = parsePartial(left);
 		if (!leftResult.ok)
 			return new ValueOk(null, false);
@@ -370,7 +370,7 @@ class Semver {
 		if (!rightResult.ok)
 			return new ValueOk(null, false);
 
-		var comparators:Array<VersionComparator> = null;
+		var comparators:Slice<VersionComparator> = null;
 		if (!isWildcard(leftResult.value.majorStr)) {
 			// `MAJOR.*.*-...` gives us `>=MAJOR.0.0 ...`
 			if (comparators == null)
@@ -452,11 +452,11 @@ class Semver {
 			}
 		}
 
-		var prerelease:Array<String> = null;
+		var prerelease:Slice<String> = null;
 		if (prereleaseStr != "")
 			prerelease = prereleaseStr.split(".");
 
-		var build:Array<String> = null;
+		var build:Slice<String> = null;
 		if (buildStr != "")
 			build = buildStr.split(".");
 
@@ -475,7 +475,7 @@ class Semver {
 		return new ValueOk(result, true);
 	}
 
-	static function parseComparator(op:String, text:String):ValueOk<Array<VersionComparator>> {
+	static function parseComparator(op:String, text:String):ValueOk<Slice<VersionComparator>> {
 		var operator_:ComparatorOperator = op;
 
 		final r = parsePartial(text);
@@ -483,7 +483,7 @@ class Semver {
 			return new ValueOk(null, false);
 		final result = r.value;
 
-		var comparatorsResult:Array<VersionComparator> = null;
+		var comparatorsResult:Slice<VersionComparator> = null;
 
 		if (!isWildcard(result.majorStr)) {
 			switch ((operator_ : String)) {

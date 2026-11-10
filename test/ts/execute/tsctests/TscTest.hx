@@ -53,7 +53,7 @@ class TscTest {
 
 	// PORT: Go `append(s, xs...)`; the scenario code only appends to slices it owns or to fresh
 	// literals, so a copy keeps Go's result without aliasing.
-	static function append<E>(s:Null<Array<E>>, ...xs:E):Array<E> {
+	static function append<E>(s:Slice<E>, ...xs:E):Array<E> {
 		final r = s == null ? [] : s.copy();
 		for (x in xs)
 			r.push(x);
@@ -3431,7 +3431,7 @@ class TscTest {
 		};
 		var getTscNoEmitAndErrorsTestCasesWorker = function(commandLineArgs:Array<String>, addNoEmitOnCommandLine:Bool, modify:(FileMap) -> Void, edits:(TscNoEmitScenario, Array<String>, Bool) -> Array<TscEdit>):Array<TscInput> {
 			var testingCases = ([] : Array<TscInput>);
-			var commandLineArgsForInput = commandLineArgs;
+			var commandLineArgsForInput:Slice<String> = commandLineArgs;
 			if (addNoEmitOnCommandLine) {
 				commandLineArgsForInput = Slices.Concat(commandLineArgs, ["--noEmit"]);
 			}
@@ -3921,7 +3921,7 @@ class TscTest {
 			return testCases;
 		};
 		var getTscWatchNoEmitOnErrorTestCases = function(scenarios:Array<TscNoEmitOnErrorScenario>, commandLineArgs:Array<String>):Array<TscInput> {
-			var edits:Array<TscEdit> = null;
+			var edits:Slice<TscEdit> = null;
 			for (scenario in scenarios) {
 				if (edits != null) {
 					edits = append(edits, ({

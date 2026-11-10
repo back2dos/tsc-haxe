@@ -12,8 +12,8 @@ import ts.execute.build.Orchestrator;
 @:structInit
 class BuildOrderTestCase {
 	public var name:String = "";
-	public var projects:Null<Array<String>> = null;
-	public var expected:Null<Array<String>> = null;
+	public var projects:Slice<String> = null;
+	public var expected:Slice<String> = null;
 	public var circular:Bool = false;
 
 	function configName(project:String):String {
@@ -48,7 +48,7 @@ class BuildOrderTestCase {
 					reverseDeps.get(dep).push(project);
 				}
 			}
-			final verifyDeps = function(orchestrator:Orchestrator, buildOrder:Array<String>, hasDownStream:Bool) {
+			final verifyDeps = function(orchestrator:Orchestrator, buildOrder:Slice<String>, hasDownStream:Bool) {
 				for (index in 0...buildOrder.length) {
 					final project = buildOrder[index];
 					final upstream = Core.Map(orchestrator.Upstream(this.configName(project)), this.projectName);
@@ -92,7 +92,7 @@ class BuildOrderTestCase {
 			}
 
 			final sys = Tsctests.NewTscSystem(files, CaseSensitive, "/home/src/workspaces/project");
-			final args = ["--build", "--dry"].concat(this.projects);
+			final args = ["--build", "--dry"].concat(this.projects.toArray());
 			final buildCommand = Tsoptions.ParseBuildCommandLine(args, sys.FS(), sys.GetCurrentDirectory());
 			final options = new Options();
 			options.Sys = sys;
@@ -123,7 +123,7 @@ class BuildOrderTestCase {
 			final buildOrder2 = Core.Map(orchestrator.Order(), this.projectName);
 			T.eq(this.expected.join(","), buildOrder2.join(","));
 
-			final argsWatch = ["--build", "--watch"].concat(this.projects);
+			final argsWatch = ["--build", "--watch"].concat(this.projects.toArray());
 			final buildCommandWatch = Tsoptions.ParseBuildCommandLine(argsWatch, sys.FS(), sys.GetCurrentDirectory());
 			final optionsWatch = new Options();
 			optionsWatch.Sys = sys;

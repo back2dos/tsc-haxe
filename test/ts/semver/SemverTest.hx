@@ -24,7 +24,7 @@ class SemverTest {
 	}
 
 	// Go composite literal Version{major: ..., minor: ..., patch: ..., prerelease: ..., build: ...}.
-	static function V(major:Int, minor:Int, patch:Int, ?prerelease:Array<String>, ?build:Array<String>):Version {
+	static function V(major:Int, minor:Int, patch:Int, ?prerelease:Slice<String>, ?build:Slice<String>):Version {
 		final v = new Version();
 		v.major = major;
 		v.minor = minor;
@@ -159,7 +159,7 @@ class SemverTest {
 	}
 
 	// assert.DeepEqual on []string: nil and empty differ.
-	static function deepEqual(a:Array<String>, b:Array<String>):Bool {
+	static function deepEqual(a:Slice<String>, b:Slice<String>):Bool {
 		if (a == null || b == null)
 			return a == b;
 		if (a.length != b.length)

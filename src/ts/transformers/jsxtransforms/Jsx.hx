@@ -5,8 +5,8 @@ package ts.transformers.jsxtransforms;
 @:allow(ts.transformers.jsxtransforms)
 class JSXTransformer {
 	// PORT: Go `range` over a possibly-nil slice (parser lists of zero elements have nil Nodes).
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 	public var Transformer:Transformer = new Transformer(); // Go: embedded
@@ -140,7 +140,7 @@ class JSXTransformer {
 	// PORT: Go method expression `(*JSXTransformer).isAnyPrologueDirective`.
 	static final isAnyPrologueDirectiveFn:(callee:JSXTransformer, node:Node) -> Bool = (callee, node) -> callee.isAnyPrologueDirective(node);
 
-	function insertStatementAfterCustomPrologue(to:Array<Node>, statement:Node):Array<Node> {
+	function insertStatementAfterCustomPrologue(to:Slice<Node>, statement:Node):Slice<Node> {
 		return Jsxtransforms.insertStatementAfterPrologue(to, statement, isAnyPrologueDirectiveFn, this);
 	}
 
@@ -160,7 +160,7 @@ class JSXTransformer {
 		if (helpers == null) {
 			EmitContext().AddEmitHelper(visited.AsNode());
 		} else {
-			EmitContext().AddEmitHelper(visited.AsNode(), ...helpers);
+			EmitContext().AddEmitHelper(visited.AsNode(), ...helpers.toArray());
 		}
 		var statements = visited.Statements();
 		var statementsUpdated = false;
@@ -265,7 +265,7 @@ class JSXTransformer {
 		return visitJsxOpeningFragmentJSX(fragment.OpeningFragment.AsJsxOpeningFragment(), fragment.Children, location);
 	}
 
-	function convertJsxChildrenToChildrenPropObject(children:Array<JsxChild>):Node {
+	function convertJsxChildrenToChildrenPropObject(children:Slice<JsxChild>):Node {
 		final prop = convertJsxChildrenToChildrenPropAssignment(children);
 		if (prop == null) {
 			return null;
@@ -281,7 +281,7 @@ class JSXTransformer {
 		return result;
 	}
 
-	function convertJsxChildrenToChildrenPropAssignment(children:Array<JsxChild>):Node {
+	function convertJsxChildrenToChildrenPropAssignment(children:Slice<JsxChild>):Node {
 		final nonWhitespceChildren = Ast.GetSemanticJsxChildren(children);
 		if (Core.len(nonWhitespceChildren) == 1 && (nonWhitespceChildren[0].Kind != KindJsxExpression || nonWhitespceChildren[0].AsJsxExpression().DotDotDotToken == null)) {
 			final result = transformJsxChildToExpression(nonWhitespceChildren[0]);
@@ -364,7 +364,7 @@ class JSXTransformer {
 		);
 	}
 
-	function transformJsxAttributesToObjectProps(attrs:Array<Node>, childrenProp:Node):Node {
+	function transformJsxAttributesToObjectProps(attrs:Slice<Node>, childrenProp:Node):Node {
 		final target = compilerOptions.GetEmitScriptTarget();
 		if ((target : Int) >= (ScriptTargetES2018 : Int)) {
 			// target has object spreads, can keep as-is
@@ -374,7 +374,7 @@ class JSXTransformer {
 	}
 
 	// PORT: Go `append` to a possibly-nil slice.
-	static inline function append(s:Array<Node>, x:Node):Array<Node> {
+	static inline function append(s:Slice<Node>, x:Node):Slice<Node> {
 		if (s == null) {
 			return [x];
 		}
@@ -382,9 +382,9 @@ class JSXTransformer {
 		return s;
 	}
 
-	function transformJsxAttributesToExpression(attrs:Array<Node>, childrenProp:Node):Node {
-		var expressions:Array<Expression> = [];
-		var properties:Array<ObjectLiteralElement> = [];
+	function transformJsxAttributesToExpression(attrs:Slice<Node>, childrenProp:Node):Node {
+		var expressions:Slice<Expression> = [];
+		var properties:Slice<ObjectLiteralElement> = [];
 
 		for (attr in rangeOf(attrs)) {
 			if (Ast.IsJsxSpreadAttribute(attr)) {
@@ -422,7 +422,7 @@ class JSXTransformer {
 			// We must always emit at least one object literal before a spread attribute
 			// as the JSX always factory expects a fresh object, so we need to make a copy here
 			// we also avoid mutating an external reference by doing this (first expression is used as assign's target)
-			expressions = [Factory().NewObjectLiteralExpression(Factory().NewNodeList([]), false)].concat(expressions);
+			expressions = [Factory().NewObjectLiteralExpression(Factory().NewNodeList([]), false)].concat(expressions.toArray());
 		}
 
 		if (expressions.length == 1) {
@@ -431,7 +431,7 @@ class JSXTransformer {
 		return Factory().NewAssignHelper(expressions, compilerOptions.GetEmitScriptTarget());
 	}
 
-	function combinePropertiesIntoNewExpression(expressions:Array<Expression>, props:Array<ObjectLiteralElement>):Pair<Array<Expression>, Array<ObjectLiteralElement>> {
+	function combinePropertiesIntoNewExpression(expressions:Slice<Expression>, props:Slice<ObjectLiteralElement>):Pair<Slice<Expression>, Slice<ObjectLiteralElement>> {
 		if (Core.len(props) == 0) {
 			return new Pair(expressions, props);
 		}
@@ -440,7 +440,7 @@ class JSXTransformer {
 		return new Pair(expressions, null);
 	}
 
-	function transformJsxAttributesToProps(attrs:Array<Node>, childrenProp:Node):Array<Node> {
+	function transformJsxAttributesToProps(attrs:Slice<Node>, childrenProp:Node):Array<Node> {
 		final props:Array<Node> = [];
 		for (attr in rangeOf(attrs)) {
 			if (attr.Kind == KindJsxSpreadAttribute) {
@@ -460,7 +460,7 @@ class JSXTransformer {
 		return props;
 	}
 
-	function transformJsxSpreadAttributesToProps(node:JsxSpreadAttribute):Array<Node> {
+	function transformJsxSpreadAttributesToProps(node:JsxSpreadAttribute):Slice<Node> {
 		if (Ast.IsObjectLiteralExpression(node.Expression) && !Jsxtransforms.hasProto(node.Expression.AsObjectLiteralExpression())) {
 			final res = Visitor().VisitSlice(node.Expression.Properties());
 			return res;
@@ -521,7 +521,7 @@ class JSXTransformer {
 	}
 
 	function visitJsxOpeningLikeElementOrFragmentJSX(tagName:Expression, object:Expression, keyAttr:Node, children:NodeList, location:TextRange):Node {
-		var nonWhitespaceChildren:Array<Node> = null;
+		var nonWhitespaceChildren:Slice<Node> = null;
 		if (children != null) {
 			nonWhitespaceChildren = Ast.GetSemanticJsxChildren(children.Nodes);
 		}
@@ -668,7 +668,7 @@ class JSXTransformer {
 			callee = getImplicitImportForName("createElement");
 		}
 
-		var newChildren:Array<Node> = null;
+		var newChildren:Slice<Node> = null;
 		if (children != null && Core.len(children.Nodes) > 0) {
 			for (c in rangeOf(children.Nodes)) {
 				final res = transformJsxChildToExpression(c);
@@ -713,7 +713,7 @@ class JSXTransformer {
 		final tagName = createJsxFragmentFactoryExpression(fragment.AsNode());
 		final callee = createJsxFactoryExpression(fragment.AsNode());
 
-		var newChildren:Array<Node> = null;
+		var newChildren:Slice<Node> = null;
 		if (children != null && Core.len(children.Nodes) > 0) {
 			for (c in rangeOf(children.Nodes)) {
 				final res = transformJsxChildToExpression(c);

@@ -119,7 +119,7 @@ class TsoptionsTestUtil {
 		return text.substring(v.Start, v.End);
 	}
 
-	static function strings(v:Value):Null<Array<String>> {
+	static function strings(v:Value):Slice<String> {
 		if (v.Kind == "n".code)
 			return null;
 		if (v.Kind != "[".code)
@@ -170,7 +170,7 @@ class TsoptionsTestUtil {
 						} else {
 							final pm = new OrderedMap<String, Array<String>>();
 							for (j in 0...v.Names.length)
-								pm.Set(v.Names[j], strings(v.Members[j]));
+								pm.Set(v.Names[j], strings(v.Members[j]).nilable());
 							field.Set(o, pm);
 						}
 				}

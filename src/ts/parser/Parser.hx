@@ -55,7 +55,7 @@ typedef ParsingContexts = Int;
 
 class JSDocInfo {
 	public var parent:Node = null;
-	public var jsDocs:Array<Node> = null;
+	public var jsDocs:Slice<Node> = null;
 
 	public function new(parent:Node, jsDocs:Array<Node>) {
 		this.parent = parent;
@@ -150,9 +150,9 @@ class Parser {
 
 	var scriptKind:ScriptKind = ScriptKindUnknown;
 	var languageVariant:LanguageVariant = LanguageVariantStandard;
-	var diagnostics:Array<Diagnostic> = null;
-	var jsDiagnostics:Array<Diagnostic> = null;
-	var jsdocDiagnostics:Array<Diagnostic> = null;
+	var diagnostics:Slice<Diagnostic> = null;
+	var jsDiagnostics:Slice<Diagnostic> = null;
+	var jsdocDiagnostics:Slice<Diagnostic> = null;
 
 	var token:Kind = KindUnknown;
 	var sourceFlags:NodeFlags = NodeFlagsNone;
@@ -165,19 +165,19 @@ class Parser {
 	var identifierCount:Int = 0;
 	var notParenthesizedArrow:Set<Int> = new Set<Int>();
 	// PORT: arena — nodeSliceArena / stringSliceArena: see cloneNodes / cloneStrings.
-	var jsdocInfos:Array<JSDocInfo> = null;
-	var possibleAwaitSpans:Array<Int> = null;
-	var jsdocCommentsSpace:Array<String> = null;
-	var jsdocCommentRangesSpace:Array<CommentRange> = null;
-	var jsdocTagCommentsSpace:Array<String> = null;
-	var jsdocTagCommentsPartsSpace:Array<Node> = null;
-	var reparseList:Array<Node> = null;
+	var jsdocInfos:Slice<JSDocInfo> = null;
+	var possibleAwaitSpans:Slice<Int> = null;
+	var jsdocCommentsSpace:Slice<String> = null;
+	var jsdocCommentRangesSpace:Slice<CommentRange> = null;
+	var jsdocTagCommentsSpace:Slice<String> = null;
+	var jsdocTagCommentsPartsSpace:Slice<Node> = null;
+	var reparseList:Slice<Node> = null;
 	var commonJSModuleIndicator:Node = null;
 	var jsdocHasCommonJSConstruct:Bool = false;
 
 	var currentParent:Node = null;
 	var setParentFromContext:Visitor = null;
-	var reparsedClones:Array<Node> = null;
+	var reparsedClones:Slice<Node> = null;
 
 	function new() {}
 
@@ -188,10 +188,10 @@ class Parser {
 	}
 
 	// PORT: static init order (PORTING.md §7a) — lazy getter.
-	static var viableKeywordSuggestions(get, never):Array<String>;
-	static var viableKeywordSuggestionsValue:Array<String> = null;
+	static var viableKeywordSuggestions(get, never):Slice<String>;
+	static var viableKeywordSuggestionsValue:Slice<String> = null;
 
-	static function get_viableKeywordSuggestions():Array<String> {
+	static function get_viableKeywordSuggestions():Slice<String> {
 		if (viableKeywordSuggestionsValue == null) {
 			viableKeywordSuggestionsValue = Scanner.GetViableKeywordSuggestions();
 		}
@@ -301,18 +301,18 @@ class Parser {
 	// PORT: Go slice helpers (PORTING.md §3). The parser owns all slices it appends to.
 
 	// Go `append(s, v)` on a slice the caller owns (nil → new slice).
-	static inline function append<T>(s:Null<Array<T>>, v:T):Array<T> {
+	static inline function append<T>(s:Slice<T>, v:T):Array<T> {
 		if (s == null) {
 			return [v];
 		}
 		s.push(v);
-		return s;
+		return s.nilable();
 	}
 
 	// Go `append(s, other...)` on a slice the caller owns.
-	static function appendAll<T>(s:Null<Array<T>>, other:Null<Array<T>>):Null<Array<T>> {
+	static function appendAll<T>(s:Slice<T>, other:Slice<T>):Slice<T> {
 		if (other == null || other.length == 0) {
-			return s;
+			return s.nilable();
 		}
 		if (s == null) {
 			return other.copy();
@@ -320,15 +320,15 @@ class Parser {
 		for (v in other) {
 			s.push(v);
 		}
-		return s;
+		return s.nilable();
 	}
 
 	// Go `s = s[0:n]` (n <= len(s)); a nil slice stays nil.
-	static inline function truncate<T>(s:Null<Array<T>>, n:Int):Null<Array<T>> {
+	static inline function truncate<T>(s:Slice<T>, n:Int):Slice<T> {
 		if (s != null) {
 			s.resize(n);
 		}
-		return s;
+		return s.nilable();
 	}
 
 	// Go builtin min(a, b) for ints.
@@ -337,27 +337,25 @@ class Parser {
 	}
 
 	// Go `for _, x := range s` over a possibly-nil slice of nodes.
-	static final emptyNodes:Array<Node> = [];
-
-	static inline function nodesOf(s:Null<Array<Node>>):Array<Node> {
-		return s != null ? s : emptyNodes;
+	static inline function nodesOf(s:Slice<Node>):Slice<Node> {
+		return s;
 	}
 
 	// PORT: arena — Go `p.nodeSliceArena.Clone(list)` where `list` is a fresh slice that is not
 	// used afterwards: nil when empty, else the slice itself (no copy needed).
-	static inline function cloneNodes(list:Null<Array<Node>>):Array<Node> {
-		return list == null || list.length == 0 ? null : list;
+	static inline function cloneNodes(list:Slice<Node>):Array<Node> {
+		return list == null || list.length == 0 ? null : list.nilable();
 	}
 
 	// PORT: arena — Go `p.stringSliceArena.Clone(s)` (s is reused by the caller): a copy, nil when empty.
-	static inline function cloneStrings(s:Null<Array<String>>):Array<String> {
+	static inline function cloneStrings(s:Slice<String>):Array<String> {
 		return s == null || s.length == 0 ? null : s.copy();
 	}
 
 	// PORT: memory — Go's JSDocText/JSDocLink pieces are substrings of the source text (no copies); here each
 	// is a string of its own (a JS file's JSDoc: webpack 279K pieces, ~6 per text, many of them "\n" or a
 	// margin). The only reader joins them (Node.Text), so the node keeps the one joined piece: nil when empty.
-	static function joinStrings(s:Null<Array<String>>):Array<String> {
+	static function joinStrings(s:Slice<String>):Array<String> {
 		return s == null || s.length == 0 ? null : [s.length == 1 ? s[0] : s.join("")];
 	}
 
@@ -375,7 +373,7 @@ class Parser {
 			eof = parseTokenNode();
 		} else {
 			// PORT: Go `var expressions any // []*ast.Expression | *ast.Expression` → two locals.
-			var expressionsList:Array<Expression> = null;
+			var expressionsList:Slice<Expression> = null;
 			var expressionsSingle:Expression = null;
 
 			while (token != KindEndOfFile) {
@@ -657,7 +655,7 @@ class Parser {
 			contextFlags |= NodeFlagsAmbient;
 		}
 		var pos = nodePos();
-		var statements = parseListIndex(PCSourceElements, fn_parseToplevelStatement);
+		var statements:Slice<Node> = parseListIndex(PCSourceElements, fn_parseToplevelStatement);
 		var end = nodePos();
 		var endJSDoc = jsdocScannerInfo();
 		var eof = parseTokenNode();
@@ -769,7 +767,7 @@ class Parser {
 		}
 		var result = new IdentityMap<Node, Array<Node>>();
 		for (info in jsdocInfos) {
-			result.set(info.parent, info.jsDocs);
+			result.set(info.parent, info.jsDocs.nilable());
 		}
 		return result;
 	}
@@ -795,7 +793,7 @@ class Parser {
 		if (Core.len(possibleAwaitSpans) % 2 == 1) {
 			throw "possibleAwaitSpans malformed: odd number of indices, not paired into spans.";
 		}
-		var statements:Array<Statement> = [];
+		var statements:Slice<Statement> = [];
 		var savedParseDiagnostics = diagnostics;
 		diagnostics = [];
 
@@ -822,7 +820,7 @@ class Parser {
 				diagnosticEnd = -1;
 			}
 			if (diagnosticStart >= 0) {
-				var slice:Array<Diagnostic> = null;
+				var slice:Slice<Diagnostic> = null;
 				if (diagnosticEnd >= 0) {
 					slice = savedParseDiagnostics.slice(diagnosticStart, diagnosticStart + diagnosticEnd);
 				} else {
@@ -4116,7 +4114,7 @@ class Parser {
 
 	function parseTemplateTypeSpans():NodeList {
 		var pos = nodePos();
-		var list:Array<Node> = null;
+		var list:Slice<Node> = null;
 		while (true) {
 			var span = parseTemplateTypeSpan();
 			list = append(list, span);
@@ -4271,7 +4269,7 @@ class Parser {
 		// It is illegal to have both leadingDecorators and trailingDecorators, but we will report that as a grammar check in the checker.
 		// parse leading decorators
 		var pos = nodePos();
-		var list:Array<Node> = null; // PORT: arena — Go uses a stack temp + arena Clone; allocated on first append
+		var list:Slice<Node> = null; // PORT: arena — Go uses a stack temp + arena Clone; allocated on first append
 		while (true) {
 			if (allowDecorators && token == KindAtToken && !hasTrailingModifier) {
 				var decorator = parseDecorator();
@@ -5267,7 +5265,7 @@ class Parser {
 		var pos = nodePos();
 		var saveParsingContexts = parsingContexts;
 		parsingContexts |= 1 << PCJsxChildren;
-		var list:Array<Node> = null;
+		var list:Slice<Node> = null;
 		while (true) {
 			var currentToken = scanner.ReScanJsxToken(true /*allowMultilineJsxText*/);
 			var child = parseJsxChild(openingTag, currentToken);
@@ -5996,7 +5994,7 @@ class Parser {
 
 	function parseTemplateSpans(isTaggedTemplate:Bool):NodeList {
 		var pos = nodePos();
-		var list:Array<Node> = null;
+		var list:Slice<Node> = null;
 		while (true) {
 			var span = parseTemplateSpan(isTaggedTemplate);
 			list = append(list, span);
@@ -6362,14 +6360,14 @@ class Parser {
 	}
 
 	// PORT: inline so the TextRange argument (a Go value) is not allocated.
-	inline function newNodeList(loc:TextRange, nodes:Array<Node>):NodeList {
+	inline function newNodeList(loc:TextRange, nodes:Slice<Node>):NodeList {
 		var list = factory.NewNodeList(nodes);
 		list.Loc = loc;
 		return list;
 	}
 
 	// PORT: inline so the TextRange argument (a Go value) is not allocated.
-	inline function newModifierList(loc:TextRange, nodes:Array<Node>):ModifierList {
+	inline function newModifierList(loc:TextRange, nodes:Slice<Node>):ModifierList {
 		var list = factory.NewModifierList(nodes);
 		list.Loc = loc;
 		return list;
@@ -6856,7 +6854,7 @@ class Parser {
 		return KindFirstReservedWord <= token && token <= KindLastReservedWord;
 	}
 
-	static function attachFileToDiagnostics(diagnostics:Array<Diagnostic>, file:SourceFile):Array<Diagnostic> {
+	static function attachFileToDiagnostics(diagnostics:Slice<Diagnostic>, file:SourceFile):Slice<Diagnostic> {
 		if (diagnostics != null) {
 			for (d in diagnostics) {
 				d.SetFile(file);
@@ -6871,8 +6869,8 @@ class Parser {
 		return diagnostics;
 	}
 
-	static function getCommentPragmas(f:NodeFactory, sourceText:String):Array<Pragma> {
-		var pragmas:Array<Pragma> = null;
+	static function getCommentPragmas(f:NodeFactory, sourceText:String):Slice<Pragma> {
+		var pragmas:Slice<Pragma> = null;
 		for (commentRange in Scanner.GetLeadingCommentRanges(f, sourceText, 0)) {
 			var comment = sourceText.substring(commentRange.Pos(), commentRange.End());
 			pragmas = appendAll(pragmas, extractPragmas(commentRange, comment));
@@ -6880,7 +6878,7 @@ class Parser {
 		return pragmas;
 	}
 
-	static function extractPragmas(commentRange:CommentRange, text:String):Array<Pragma> {
+	static function extractPragmas(commentRange:CommentRange, text:String):Slice<Pragma> {
 		if (commentRange.Kind == KindSingleLineCommentTrivia) {
 			var pos = 2;
 			var tripleSlash = match(text, pos, "/");
@@ -6941,7 +6939,7 @@ class Parser {
 		if (commentRange.Kind == KindMultiLineCommentTrivia) {
 			text = Strings.TrimSuffix(text, "*/");
 			var pos = 2;
-			var pragmas:Array<Pragma> = null;
+			var pragmas:Slice<Pragma> = null;
 			while (true) {
 				if ((pos = skipTo(text, pos, "@")) < 0) {
 					break;
@@ -7400,7 +7398,7 @@ class Parser {
 		return Ast.IsJSDocTypeTag(n);
 	};
 
-	static function removeLeadingNewlines(comments:Array<String>):Array<String> {
+	static function removeLeadingNewlines(comments:Slice<String>):Slice<String> {
 		var i = 0;
 		while (i < comments.length && Strings.TrimLeft(comments[i], "\r\n") == "") {
 			i++;
@@ -7420,7 +7418,7 @@ class Parser {
 		return Stringutil.IsWhiteSpaceLike(ch);
 	};
 
-	static function removeTrailingWhitespace(comments:Array<String>):Array<String> {
+	static function removeTrailingWhitespace(comments:Slice<String>):Slice<String> {
 		var end = comments.length;
 		var i = comments.length - 1;
 		while (i >= 0) {
@@ -7640,7 +7638,7 @@ class Parser {
 		return token == KindGreaterThanToken || tokenIsIdentifierOrKeyword(token);
 	}
 
-	public static function GetJSDocCommentRanges(f:NodeFactory, commentRanges:Array<CommentRange>, node:Node, text:String):Array<CommentRange> {
+	public static function GetJSDocCommentRanges(f:NodeFactory, commentRanges:Slice<CommentRange>, node:Node, text:String):Slice<CommentRange> {
 		if (commentRanges == null) {
 			commentRanges = [];
 		}

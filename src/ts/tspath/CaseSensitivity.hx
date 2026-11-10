@@ -192,8 +192,8 @@ enum abstract CaseSensitivity(Bool) {
 
 	// CommonDirectoryOfFiles returns the deepest directory containing every file.
 	// It preserves the spelling of the first file name.
-	public function CommonDirectoryOfFiles(fileNames:Array<RootedFilePath>):RootedDirectoryPath {
-		var commonPathComponents:Array<String> = null;
+	public function CommonDirectoryOfFiles(fileNames:Slice<RootedFilePath>):RootedDirectoryPath {
+		var commonPathComponents:Slice<String> = null;
 		for (fileName in fileNames) {
 			var pathComponents = Tspath.GetPathComponents(fileName.AsString());
 			pathComponents.pop();

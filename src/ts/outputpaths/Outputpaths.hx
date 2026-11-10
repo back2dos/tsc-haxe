@@ -7,7 +7,7 @@ package ts.outputpaths;
 class Outputpaths {
 	// --- commonsourcedirectory.go ---
 
-	static function computeCommonSourceDirectoryOfFilenames(fileNames:Null<Array<RootedFilePath>>, currentDirectory:RootedDirectoryPath,
+	static function computeCommonSourceDirectoryOfFilenames(fileNames:Slice<RootedFilePath>, currentDirectory:RootedDirectoryPath,
 			caseSensitivity:CaseSensitivity):RootedDirectoryPath {
 		if (Core.len(fileNames) == 0) {
 			// Can happen when all input files are .d.ts files.
@@ -16,13 +16,13 @@ class Outputpaths {
 		return caseSensitivity.CommonDirectoryOfFiles(fileNames);
 	}
 
-	public static function GetComputedCommonSourceDirectory(emittedFiles:Null<Array<RootedFilePath>>, currentDirectory:RootedDirectoryPath,
+	public static function GetComputedCommonSourceDirectory(emittedFiles:Slice<RootedFilePath>, currentDirectory:RootedDirectoryPath,
 			caseSensitivity:CaseSensitivity):RootedDirectoryPath {
 		return computeCommonSourceDirectoryOfFilenames(emittedFiles, currentDirectory, caseSensitivity);
 	}
 
-	public static function GetCommonSourceDirectory(options:CompilerOptions, files:() -> Null<Array<RootedFilePath>>, currentDirectory:RootedDirectoryPath,
-			caseSensitivity:CaseSensitivity, checkSourceFilesBelongToPath:Null<(Null<Array<RootedFilePath>>, RootedDirectoryPath) -> Bool>):RootedDirectoryPath {
+	public static function GetCommonSourceDirectory(options:CompilerOptions, files:() -> Slice<RootedFilePath>, currentDirectory:RootedDirectoryPath,
+			caseSensitivity:CaseSensitivity, checkSourceFilesBelongToPath:Null<(Slice<RootedFilePath>, RootedDirectoryPath) -> Bool>):RootedDirectoryPath {
 		var commonSourceDirectory:RootedDirectoryPath;
 		if (options.RootDir != "") {
 			// If a rootDir is specified use it as the commonSourceDirectory
@@ -71,7 +71,7 @@ class Outputpaths {
 	}
 
 	public static function ForEachEmittedFile(host:OutputPathsHost, options:CompilerOptions, action:(emitFileNames:OutputPaths, sourceFile:SourceFile) -> Bool,
-			sourceFiles:Array<SourceFile>, externalOutputSourceFiles:Null<Array<SourceFile>>, forceDtsEmit:Bool):Bool {
+			sourceFiles:Slice<SourceFile>, externalOutputSourceFiles:Slice<SourceFile>, forceDtsEmit:Bool):Bool {
 		final seen = new go.IdentityMap<SourceFile, Bool>();
 		if (sourceFiles != null) {
 			for (sourceFile in sourceFiles) {
@@ -264,8 +264,8 @@ class Outputpaths {
 
 interface OutputPathsHost {
 	function CommonSourceDirectory():RootedDirectoryPath;
-	function ContentMapperExtensions():Null<Array<String>>;
-	function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>>;
+	function ContentMapperExtensions():Slice<String>;
+	function ContentMapperExtensionRewrites():Slice<ts.tspath.Tspath.ExtensionRewrite>;
 	function CaseSensitivity():CaseSensitivity;
 }
 

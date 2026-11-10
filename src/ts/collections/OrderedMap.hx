@@ -20,7 +20,7 @@ package ts.collections;
 //
 // PORT: `_ noCopy` is a `go vet` marker only; omitted.
 class OrderedMap<K, V> {
-	var keys:Null<Array<K>> = null;
+	var keys:Slice<K> = null;
 	var mp:Null<GoMap<K, V>> = null;
 
 	// PORT: Go zero value of V (see above).
@@ -266,7 +266,7 @@ class OrderedMap<K, V> {
 	}
 
 	// PORT: len() of a possibly-nil slice.
-	static inline function len<T>(s:Null<Array<T>>):Int {
+	static inline function len<T>(s:Slice<T>):Int {
 		return s == null ? 0 : s.length;
 	}
 

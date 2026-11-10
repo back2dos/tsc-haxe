@@ -109,7 +109,7 @@ class JsnumTest {
 
 	// evalBinaryOp evaluates a binary JS expression on all cases using Node.js.
 	// Returns null (Go: skips the calling test) if Node.js is not available.
-	static function evalBinaryOp(op:String, xs:Array<Number>, ys:Array<Number>):Null<Array<Number>> {
+	static function evalBinaryOp(op:String, xs:Array<Number>, ys:Array<Number>):Slice<Number> {
 		if (!hasNodeJS()) {
 			return null;
 		}
@@ -146,7 +146,7 @@ class JsnumTest {
 
 	// evalUnaryOp evaluates a unary JS expression on all cases using Node.js.
 	// Returns null (Go: skips the calling test) if Node.js is not available.
-	static function evalUnaryOp(op:String, xs:Array<Number>):Null<Array<Number>> {
+	static function evalUnaryOp(op:String, xs:Array<Number>):Slice<Number> {
 		if (!hasNodeJS()) {
 			return null;
 		}

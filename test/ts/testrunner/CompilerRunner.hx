@@ -17,7 +17,7 @@ enum abstract CompilerTestType(Int) from Int to Int {
 @:allow(ts.testrunner)
 class CompilerBaselineRunner implements Runner {
 	var isSubmodule:Bool = false;
-	var testFiles:Array<String> = null;
+	var testFiles:Slice<String> = null;
 	var basePath:String = "";
 	var testSuitName:String = "";
 
@@ -27,7 +27,7 @@ class CompilerBaselineRunner implements Runner {
 		return testSuitName;
 	}
 
-	public function EnumerateTestFiles():Array<String> {
+	public function EnumerateTestFiles():Slice<String> {
 		if (Core.len(this.testFiles) > 0) {
 			return this.testFiles;
 		}
@@ -96,7 +96,7 @@ class CompilerBaselineRunner implements Runner {
 class CompilerFileBasedTest {
 	var filename:String = "";
 	var content:String = "";
-	var configurations:Array<NamedTestConfiguration> = null;
+	var configurations:Slice<NamedTestConfiguration> = null;
 
 	public function new() {}
 }
@@ -110,9 +110,9 @@ class CompilerTest {
 	var options:CompilerOptions = null;
 	var harnessOptions:HarnessOptions = null;
 	var result:CompilationResult = null;
-	var tsConfigFiles:Array<TestFile> = null;
-	var toBeCompiled:Array<TestFile> = null; // equivalent to the files that will be passed on the command line
-	var otherFiles:Array<TestFile> = null; // equivalent to other files on the file system not directly passed to the compiler (ie things that are referenced by other files)
+	var tsConfigFiles:Slice<TestFile> = null;
+	var toBeCompiled:Slice<TestFile> = null; // equivalent to the files that will be passed on the command line
+	var otherFiles:Slice<TestFile> = null; // equivalent to other files on the file system not directly passed to the compiler (ie things that are referenced by other files)
 	var hasNonDtsFiles:Bool = false;
 
 	public function new() {}
@@ -151,7 +151,7 @@ class CompilerTest {
 					final s = sb.toString();
 					return s.substring(0, s.length - 1);
 				};
-				Tsbaseline.DoErrorBaseline(t, this.configuredName, files == null ? [] : files, diagnostics, this.result.Options.Pretty.IsTrue(), opts);
+				Tsbaseline.DoErrorBaseline(t, this.configuredName, files.toArray(), diagnostics, this.result.Options.Pretty.IsTrue(), opts);
 			} catch (e:haxe.Exception) {
 				Testutil.RecoverAndFail(t, "Panic on creating error baseline for test " + this.filename, e);
 			}
@@ -250,7 +250,7 @@ class CompilerTest {
 			headerComponents = headerComponents.slice(4); // Strip "./../_submodules/TypeScript" prefix
 		}
 		final header = Tspath.GetPathFromPathComponents(headerComponents);
-		Tsbaseline.DoTypeAndSymbolBaseline(t, this.configuredName, header, program, allFiles == null ? [] : allFiles, new Options(suiteName, isSubmodule), false,
+		Tsbaseline.DoTypeAndSymbolBaseline(t, this.configuredName, header, program, allFiles.toArray(), new Options(suiteName, isSubmodule), false,
 			false, Core.len(this.result.Diagnostics) > 0);
 	}
 

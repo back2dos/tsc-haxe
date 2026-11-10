@@ -239,7 +239,7 @@ class GeneratorTest {
 		T.eq(show(expected.SourcesContent), show(actual.SourcesContent), pos);
 	}
 
-	static function show(a:Array<Null<String>>):String {
+	static function show(a:Slice<Null<String>>):String {
 		if (a == null)
 			return "nil";
 		return "[" + [for (s in a) s == null ? "nil" : '"' + s + '"'].join(",") + "]";

@@ -12,7 +12,7 @@ class CommonJSModuleTransformer {
 	var compilerOptions:CompilerOptions = null;
 	var resolver:ReferenceResolver = null;
 	var getEmitModuleFormatOfFile:(file:HasFileName) -> ModuleKind = null;
-	var contentMapperExtensionRewrites:Null<Array<ts.tspath.Tspath.ExtensionRewrite>> = null;
+	var contentMapperExtensionRewrites:Slice<ts.tspath.Tspath.ExtensionRewrite> = null;
 	var ignoreCase:Bool = false; // PORT: tspath.CaseSensitivity
 	var moduleKind:ModuleKind = 0;
 	var languageVersion:ScriptTarget = 0;
@@ -42,12 +42,12 @@ class CommonJSModuleTransformer {
 	}
 
 	// PORT: Go `range` over a possibly-nil slice (Haxe `for` on null crashes).
-	static inline function rangeOf<T>(a:Array<T>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 	// PORT: Go `append` on a statement slice this transformer owns (nil → new array).
-	static inline function append(s:Array<Statement>, x:Statement):Array<Statement> {
+	static inline function append(s:Slice<Statement>, x:Statement):Slice<Statement> {
 		if (s == null) {
 			s = [];
 		}
@@ -295,8 +295,8 @@ class CommonJSModuleTransformer {
 		// emit standard prologue directives (e.g. "use strict")
 		final split = Factory().SplitStandardPrologue(node.Statements.Nodes);
 		final prologue = split.a;
-		var rest = split.b;
-		var statements:Array<Statement> = prologue == null ? [] : prologue.copy();
+		var rest:Slice<Node> = split.b;
+		var statements:Slice<Statement> = prologue == null ? [] : prologue.copy();
 
 		// emit custom prologues from other transformations
 		final split2 = Factory().SplitCustomPrologue(rest);
@@ -373,7 +373,7 @@ class CommonJSModuleTransformer {
 		statementList.Loc = node.Statements.Loc;
 		var result = Factory().UpdateSourceFile(node, statementList, node.EndOfFileToken).AsSourceFile();
 		final helpers = EmitContext().ReadEmitHelpers();
-		EmitContext().AddEmitHelper(result.AsNode(), ...(helpers == null ? [] : helpers));
+		EmitContext().AddEmitHelper(result.AsNode(), ...(helpers == null ? [] : helpers).toArray());
 
 		final externalHelpersImportDeclaration = Moduletransforms.createExternalHelpersImportDeclarationIfNeeded(EmitContext(), result, compilerOptions,
 			getEmitModuleFormatOfFile(hasFileName(node)), false /*hasExportStarsToExportValues*/, false /*hasImportStar*/, false /*hasImportDefault*/);
@@ -383,7 +383,7 @@ class CommonJSModuleTransformer {
 			final split4 = Factory().SplitCustomPrologue(split3.b);
 			final custom = split4.a;
 			final rest = split4.b;
-			final statements:Array<Statement> = prologue == null ? [] : prologue.copy();
+			final statements:Slice<Statement> = prologue == null ? [] : prologue.copy();
 			if (custom != null) {
 				for (s in custom) {
 					statements.push(s);
@@ -406,7 +406,7 @@ class CommonJSModuleTransformer {
 	// Adds the down-level representation of `export=` to the statement list if one exists in the source file.
 	//
 	// - The `statements` parameter is a statement list to which the down-level export statements are to be appended.
-	function appendExportEqualsIfNeeded(statements:Array<Statement>):Array<Statement> {
+	function appendExportEqualsIfNeeded(statements:Slice<Statement>):Slice<Statement> {
 		if (currentModuleInfo.exportEquals != null) {
 			final expressionResult = visitExportEquals(currentModuleInfo.exportEquals);
 			if (expressionResult != null) {
@@ -434,7 +434,7 @@ class CommonJSModuleTransformer {
 	//
 	//   - The `statements` parameter is a statement list to which the down-level export statements are to be appended.
 	//   - The `decl` parameter is the declaration whose exports are to be recorded.
-	function appendExportsOfImportDeclaration(statements:Array<Statement>, decl:ImportDeclaration):Array<Statement> {
+	function appendExportsOfImportDeclaration(statements:Slice<Statement>, decl:ImportDeclaration):Slice<Statement> {
 		if (currentModuleInfo.exportEquals != null) {
 			return statements;
 		}
@@ -470,7 +470,7 @@ class CommonJSModuleTransformer {
 	//
 	//   - The `statements` parameter is a statement list to which the down-level export statements are to be appended.
 	//   - The `node` parameter is the VariableStatement whose exports are to be recorded.
-	function appendExportsOfVariableStatement(statements:Array<Statement>, node:VariableStatement):Array<Statement> {
+	function appendExportsOfVariableStatement(statements:Slice<Statement>, node:VariableStatement):Slice<Statement> {
 		return appendExportsOfVariableDeclarationList(statements, node.DeclarationList.AsVariableDeclarationList() /*isForInOrOfInitializer*/, false);
 	}
 
@@ -478,7 +478,7 @@ class CommonJSModuleTransformer {
 	//
 	//   - The `statements` parameter is a statement list to which the down-level export statements are to be appended.
 	//   - The `node` parameter is the VariableDeclarationList whose exports are to be recorded.
-	function appendExportsOfVariableDeclarationList(statements:Array<Statement>, node:VariableDeclarationList, isForInOrOfInitializer:Bool):Array<Statement> {
+	function appendExportsOfVariableDeclarationList(statements:Slice<Statement>, node:VariableDeclarationList, isForInOrOfInitializer:Bool):Slice<Statement> {
 		if (currentModuleInfo.exportEquals != null) {
 			return statements;
 		}
@@ -494,7 +494,7 @@ class CommonJSModuleTransformer {
 	//
 	//   - The `statements` parameter is a statement list to which the down-level export statements are to be appended.
 	//   - The `decl` parameter is the declaration whose exports are to be recorded.
-	function appendExportsOfBindingElement(statements:Array<Statement>, decl:Node /*VariableDeclaration | BindingElement*/, isForInOrOfInitializer:Bool):Array<Statement> {
+	function appendExportsOfBindingElement(statements:Slice<Statement>, decl:Node /*VariableDeclaration | BindingElement*/, isForInOrOfInitializer:Bool):Slice<Statement> {
 		if (currentModuleInfo.exportEquals != null || decl.Name() == null) {
 			return statements;
 		}
@@ -517,7 +517,7 @@ class CommonJSModuleTransformer {
 	//
 	//   - The `statements` parameter is a statement list to which the down-level export statements are to be appended.
 	//   - The `decl` parameter is the declaration whose exports are to be recorded.
-	function appendExportsOfClassOrFunctionDeclaration(statements:Array<Statement>, decl:Declaration):Array<Statement> {
+	function appendExportsOfClassOrFunctionDeclaration(statements:Slice<Statement>, decl:Declaration):Slice<Statement> {
 		if (currentModuleInfo.exportEquals != null) {
 			return statements;
 		}
@@ -546,7 +546,7 @@ class CommonJSModuleTransformer {
 	//
 	//   - The `statements` parameter is a statement list to which the down-level export statements are to be appended.
 	//   - The `decl` parameter is the declaration to export.
-	function appendExportsOfDeclaration(statements:Array<Statement>, decl:Declaration, seen:Set<std.String>, liveBinding:Bool):Array<Statement> {
+	function appendExportsOfDeclaration(statements:Slice<Statement>, decl:Declaration, seen:Set<std.String>, liveBinding:Bool):Slice<Statement> {
 		if (currentModuleInfo.exportEquals != null) {
 			return statements;
 		}
@@ -578,8 +578,8 @@ class CommonJSModuleTransformer {
 	//   - The `expression` parameter is the expression to export.
 	//   - The `location` parameter is the location to use for source maps and comments for the export.
 	//   - The `allowComments` parameter indicates whether to allow comments on the export.
-	function appendExportStatement(statements:Array<Statement>, seen:Set<std.String>, exportName:ModuleExportName, expression:Expression, location:TextRange,
-			allowComments:Bool, liveBinding:Bool):Array<Statement> {
+	function appendExportStatement(statements:Slice<Statement>, seen:Set<std.String>, exportName:ModuleExportName, expression:Expression, location:TextRange,
+			allowComments:Bool, liveBinding:Bool):Slice<Statement> {
 		if (exportName.Kind != KindStringLiteral) {
 			if (seen.Has(exportName.Text())) {
 				return statements;
@@ -666,7 +666,7 @@ class CommonJSModuleTransformer {
 
 	// Creates a `require()` call to import an external module.
 	function createRequireCall(node:Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/):Node {
-		var args:Array<Expression> = null;
+		var args:Slice<Expression> = null;
 		final moduleName = Moduletransforms.getExternalModuleNameLiteral(Factory(), node, currentSourceFile, null /*host*/, null /*resolver*/, compilerOptions);
 		if (moduleName != null) {
 			args = [Moduletransforms.rewriteModuleSpecifier(EmitContext(), moduleName, compilerOptions, contentMapperExtensionRewrites, ignoreCase)];
@@ -702,7 +702,7 @@ class CommonJSModuleTransformer {
 			return statement;
 		}
 
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		final variables:Array<VariableDeclarationNode> = [];
 		final namespaceDeclaration = Ast.GetNamespaceDeclarationNode(node.AsNode());
 		if (namespaceDeclaration != null && !Ast.IsDefaultImport(node.AsNode())) {
@@ -742,7 +742,7 @@ class CommonJSModuleTransformer {
 			throw "import= for internal module references should be handled in an earlier transformer.";
 		}
 
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		if (Ast.HasSyntacticModifier(node.AsNode(), ModifierFlagsExport)) {
 			// export import m = require("mod");
 			final statement = Factory().NewExpressionStatement(createExportExpression(node.Name(), createRequireCall(node.AsNode()), node.Loc,
@@ -778,7 +778,7 @@ class CommonJSModuleTransformer {
 		final generatedName = Factory().NewGeneratedNameForNode(node.AsNode());
 		if (node.ExportClause != null && Ast.IsNamedExports(node.ExportClause)) {
 			// export { x, y } from "mod";
-			var statements:Array<Statement> = null;
+			var statements:Slice<Statement> = null;
 			final varStatement = Factory().NewVariableStatement(null, /*modifiers*/
 				Factory().NewVariableDeclarationList(Factory().NewNodeList([
 					Factory().NewVariableDeclaration(generatedName, null, /*exclamationToken*/
@@ -871,7 +871,7 @@ class CommonJSModuleTransformer {
 	}
 
 	function visitTopLevelClassDeclaration(node:ClassDeclaration):Node {
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		if (Ast.HasSyntacticModifier(node.AsNode(), ModifierFlagsExport)) {
 			statements = append(statements,
 				Factory().UpdateClassDeclaration(node, Visitor().VisitModifiers(Transformers.ExtractModifiers(EmitContext(), node.Modifiers(), ~ModifierFlagsExportDefault)),
@@ -885,11 +885,11 @@ class CommonJSModuleTransformer {
 	}
 
 	function visitTopLevelVariableStatement(node:VariableStatement):Node {
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		if (Ast.HasSyntacticModifier(node.AsNode(), ModifierFlagsExport)) {
 			// export var a = b;
-			var variables:Array<VariableDeclarationNode> = null;
-			var expressions:Array<Expression> = null;
+			var variables:Slice<VariableDeclarationNode> = null;
+			var expressions:Slice<Expression> = null;
 			var modifiers:ModifierList = null;
 
 			final commitPendingVariables = function() {
@@ -1025,7 +1025,7 @@ class CommonJSModuleTransformer {
 	// Visits a top-level nested variable statement as it may contain `var` declarations that are hoisted and may still be
 	// exported with `export {}`.
 	function visitTopLevelNestedVariableStatement(node:VariableStatement):Node {
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		statements = append(statements, Visitor().VisitEachChild(node.AsNode()));
 		statements = appendExportsOfVariableStatement(statements, node);
 		return Transformers.SingleOrMany(statements, Factory());
@@ -1046,7 +1046,7 @@ class CommonJSModuleTransformer {
 				//   exports.x = x;
 				//   for (; ;) { }
 
-				var statements:Array<Statement> = null;
+				var statements:Slice<Statement> = null;
 				final varDeclList = discardedValueVisitor.VisitNode(node.Initializer);
 				final varStatement = Factory().NewVariableStatement(null /*modifiers*/, varDeclList);
 				statements = append(statements, varStatement);
@@ -1089,7 +1089,7 @@ class CommonJSModuleTransformer {
 				var body = EmitContext().VisitIterationBody(node.Statement, topLevelNestedVisitor);
 				if (Ast.IsBlock(body)) {
 					final block = body.AsBlock();
-					final bodyStatements = block.Statements.Nodes == null ? exportStatements : exportStatements.concat(block.Statements.Nodes);
+					final bodyStatements = block.Statements.Nodes == null ? exportStatements : exportStatements.concat(block.Statements.Nodes.toArray());
 					final bodyStatementList = Factory().NewNodeList(bodyStatements);
 					bodyStatementList.Loc = block.Statements.Loc;
 					body = Factory().UpdateBlock(block, bodyStatementList, block.MultiLine);
@@ -1679,7 +1679,7 @@ class CommonJSModuleTransformer {
 
 		final needSyncEval = arg != null && !Moduletransforms.isSimpleInlineableExpression(arg);
 
-		var promiseResolveArguments:Array<Expression> = null;
+		var promiseResolveArguments:Slice<Expression> = null;
 		if (needSyncEval) {
 			promiseResolveArguments = [
 				Factory().NewTemplateExpression(Factory().NewTemplateHead("", "", TokenFlagsNone),
@@ -1694,7 +1694,7 @@ class CommonJSModuleTransformer {
 			null, /*typeArguments*/
 			Factory().NewNodeList(promiseResolveArguments), NodeFlagsNone);
 
-		var requireArguments:Array<Expression> = null;
+		var requireArguments:Slice<Expression> = null;
 		if (needSyncEval) {
 			requireArguments = [Factory().NewIdentifier("s"),];
 		} else if (arg != null) {
@@ -1705,7 +1705,7 @@ class CommonJSModuleTransformer {
 			null, /*typeArguments*/
 			Factory().NewNodeList(requireArguments), NodeFlagsNone));
 
-		var parameters:Array<ParameterDeclarationNode> = null;
+		var parameters:Slice<ParameterDeclarationNode> = null;
 		if (needSyncEval) {
 			parameters = [
 				Factory().NewParameterDeclaration(null, /*modifiers*/
@@ -1869,7 +1869,7 @@ class CommonJSModuleTransformer {
 	}
 
 	// Gets the exported names of an identifier, if it is exported.
-	function getExports(name:IdentifierNode):Array<ModuleExportName> {
+	function getExports(name:IdentifierNode):Slice<ModuleExportName> {
 		if (!Transformers.IsGeneratedIdentifier(EmitContext(), name)) {
 			final importDeclaration = resolver.GetReferencedImportDeclaration(EmitContext().MostOriginal(name));
 			if (importDeclaration != null) {
@@ -1879,7 +1879,7 @@ class CommonJSModuleTransformer {
 			// An exported namespace or enum may merge with an ambient declaration, which won't show up in .js emit, so
 			// we analyze all value exports of a symbol.
 			final bindingsSet = new Set<ModuleExportName>();
-			var bindings:Array<ModuleExportName> = null;
+			var bindings:Slice<ModuleExportName> = null;
 			final declarations = resolver.GetReferencedValueDeclarations(EmitContext().MostOriginal(name));
 			if (declarations != null) {
 				for (declaration in declarations) {
@@ -1901,7 +1901,7 @@ class CommonJSModuleTransformer {
 		} else if (Moduletransforms.isFileLevelReservedGeneratedIdentifier(EmitContext(), name)) {
 			final exportSpecifiers = currentModuleInfo.exportSpecifiers.Get(name.Text());
 			if (exportSpecifiers != null) {
-				var exportedNames:Array<ModuleExportName> = null;
+				var exportedNames:Slice<ModuleExportName> = null;
 				for (exportSpecifier in exportSpecifiers) {
 					if (exportedNames == null) {
 						exportedNames = [];

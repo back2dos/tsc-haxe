@@ -126,7 +126,7 @@ interface CaseOrDefaultClauseBase {
 }
 
 interface JSDocCommentBase {
-	var text(get, set):Array<String>;
+	var text(get, set):Slice<String>;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -8251,7 +8251,7 @@ class JsxText extends NodeDefault implements ExpressionBase implements LiteralLi
 // ──────────────────────────────────────────────────────────────────────
 
 class SyntaxList extends NodeDefault {
-	public var Children:Array<Node> = null;
+	public var Children:Slice<Node> = null;
 
 	public function new() {
 		super();
@@ -9725,9 +9725,9 @@ class ImportSpecifierRare extends ts.core.Linkstore.LinkEntry {
 // ──────────────────────────────────────────────────────────────────────
 
 class JSDocText extends NodeDefault implements JSDocCommentBase {
-	@:isVar public var text(get, set):Array<String> = null;
-	inline function get_text():Array<String> return text;
-	inline function set_text(v:Array<String>):Array<String> return text = v;
+	@:isVar public var text(get, set):Slice<String> = null;
+	inline function get_text():Slice<String> return text;
+	inline function set_text(v:Slice<String>):Slice<String> return text = v;
 
 	public function new() {
 		super();
@@ -9744,10 +9744,10 @@ class JSDocText extends NodeDefault implements JSDocCommentBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class JSDocLink extends NodeDefault implements JSDocCommentBase {
-	@:isVar public var text(get, set):Array<String> = null;
+	@:isVar public var text(get, set):Slice<String> = null;
 	public var name:EntityName = null;
-	inline function get_text():Array<String> return text;
-	inline function set_text(v:Array<String>):Array<String> return text = v;
+	inline function get_text():Slice<String> return text;
+	inline function set_text(v:Slice<String>):Slice<String> return text = v;
 
 	public function new() {
 		super();
@@ -9776,10 +9776,10 @@ class JSDocLink extends NodeDefault implements JSDocCommentBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class JSDocLinkPlain extends NodeDefault implements JSDocCommentBase {
-	@:isVar public var text(get, set):Array<String> = null;
+	@:isVar public var text(get, set):Slice<String> = null;
 	public var name:EntityName = null;
-	inline function get_text():Array<String> return text;
-	inline function set_text(v:Array<String>):Array<String> return text = v;
+	inline function get_text():Slice<String> return text;
+	inline function set_text(v:Slice<String>):Slice<String> return text = v;
 
 	public function new() {
 		super();
@@ -9808,10 +9808,10 @@ class JSDocLinkPlain extends NodeDefault implements JSDocCommentBase {
 // ──────────────────────────────────────────────────────────────────────
 
 class JSDocLinkCode extends NodeDefault implements JSDocCommentBase {
-	@:isVar public var text(get, set):Array<String> = null;
+	@:isVar public var text(get, set):Slice<String> = null;
 	public var name:EntityName = null;
-	inline function get_text():Array<String> return text;
-	inline function set_text(v:Array<String>):Array<String> return text = v;
+	inline function get_text():Slice<String> return text;
+	inline function set_text(v:Slice<String>):Slice<String> return text = v;
 
 	public function new() {
 		super();
@@ -9956,7 +9956,7 @@ class SyntheticReferenceExpression extends NodeDefault implements ExpressionBase
 
 class JSDocTypeLiteral extends NodeDefault implements JSDocTypeBase implements DeclarationBase {
 	@:isVar public var Symbol(get, set):Symbol = null;
-	public var JSDocPropertyTags:Array<Node> = null;
+	public var JSDocPropertyTags:Slice<Node> = null;
 	public var IsArrayType:Bool = false;
 	inline function get_Symbol():Symbol return Symbol;
 	inline function set_Symbol(v:Symbol):Symbol return Symbol = v;

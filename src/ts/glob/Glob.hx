@@ -39,7 +39,7 @@ package ts.glob;
 //   - any other character matches itself literally.
 @:allow(ts.glob)
 class Glob {
-	var elems:Array<Element> = null; // pattern elements
+	var elems:Slice<Element> = null; // pattern elements
 
 	public function new() {}
 
@@ -76,7 +76,7 @@ class Glob {
 					g.elems = append(g.elems, new AnyChar());
 
 				case '{'.code:
-					var gs:Array<Glob> = null;
+					var gs:Slice<Glob> = null;
 					while (byteAt(pattern, 0) != '}'.code) {
 						pattern = pattern.substring(1);
 						final r = parse(pattern, true);
@@ -174,7 +174,7 @@ class Glob {
 		return match(elems, input);
 	}
 
-	static function match(elems:Array<Element>, input:String):Bool {
+	static function match(elems:Slice<Element>, input:String):Bool {
 		var elem:Element;
 		while (len(elems) > 0) {
 			elem = elems[0];
@@ -295,12 +295,12 @@ class Glob {
 	}
 
 	// Go `len(s)` on a possibly nil slice.
-	static inline function len<T>(a:Array<T>):Int {
+	static inline function len<T>(a:Slice<T>):Int {
 		return a == null ? 0 : a.length;
 	}
 
 	// Go `append(s, x)` on a slice the caller owns.
-	static inline function append<T>(a:Array<T>, x:T):Array<T> {
+	static inline function append<T>(a:Slice<T>, x:T):Slice<T> {
 		if (a == null)
 			a = [];
 		a.push(x);
@@ -369,9 +369,9 @@ class StarStar implements Element {
 
 // {foo, bar, ...} grouping
 class Group implements Element {
-	public final globs:Array<Glob>;
+	public final globs:Slice<Glob>;
 
-	public function new(globs:Array<Glob>) {
+	public function new(globs:Slice<Glob>) {
 		this.globs = globs;
 	}
 

@@ -86,7 +86,7 @@ class PackageId {
 }
 
 class ResolvedModule {
-	public var ResolutionDiagnostics:Null<Array<Diagnostic>> = null;
+	public var ResolutionDiagnostics:Slice<Diagnostic> = null;
 	public var ResolvedFileName:RootedFilePath = cast "";
 	public var ResolvedPath:PathKey = cast "";
 	public var OriginalPath:RootedFilePath = cast "";
@@ -106,7 +106,7 @@ class ResolvedModule {
 }
 
 class ResolvedTypeReferenceDirective {
-	public var ResolutionDiagnostics:Null<Array<Diagnostic>> = null;
+	public var ResolutionDiagnostics:Slice<Diagnostic> = null;
 	public var Primary:Bool = false;
 	public var ResolvedFileName:RootedFilePath = cast "";
 	public var ResolvedPath:PathKey = cast "";

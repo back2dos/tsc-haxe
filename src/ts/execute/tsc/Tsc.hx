@@ -72,12 +72,12 @@ class Tsc {
 		return c;
 	}
 
-	public static function QuietDiagnosticsReporter(diagnostics:Null<Array<Diagnostic>>):Void {}
+	public static function QuietDiagnosticsReporter(diagnostics:Slice<Diagnostic>):Void {}
 
 	public static function CreateReportErrorSummary(sys:System, locale:Locale, options:CompilerOptions):DiagnosticsReporter {
 		if (shouldBePretty(sys, options)) {
 			final formatOpts = getFormatOptsOfSys(sys, locale);
-			return function(diagnostics:Null<Array<Diagnostic>>) {
+			return function(diagnostics:Slice<Diagnostic>) {
 				Diagnosticwriter.WriteErrorSummaryText(sys.Writer(), Diagnosticwriter.FromASTDiagnostics(diagnostics), formatOpts);
 			};
 		}
@@ -184,7 +184,7 @@ class Tsc {
 		result.times = input.CompileTimes;
 		final ctx = Context.Background();
 
-		var allDiagnostics:Array<Diagnostic> = Compiler.GetDiagnosticsOfAnyProgram(ctx, input.ProgramLike, null, false, function(ctx:Context, file:SourceFile):Array<Diagnostic> {
+		var allDiagnostics:Slice<Diagnostic> = Compiler.GetDiagnosticsOfAnyProgram(ctx, input.ProgramLike, null, false, function(ctx:Context, file:SourceFile):Slice<Diagnostic> {
 			// Options diagnostics include global diagnostics (even though we collect them separately),
 			// and global diagnostics create checkers, which then bind all of the files. Do this binding
 			// early so we can track the time.
@@ -196,7 +196,7 @@ class Tsc {
 			if (pop != null)
 				pop();
 			return diags;
-		}, function(ctx:Context, file:SourceFile):Array<Diagnostic> {
+		}, function(ctx:Context, file:SourceFile):Slice<Diagnostic> {
 			final tr = input.Tracing;
 			final pop = tr != null ? tr.Push(PhaseCheck, "checkSourceFiles", null, true) : null;
 			final checkStart = input.Sys.Now();
@@ -280,7 +280,7 @@ class Tsc {
 		}
 	}
 
-	static function getOptionsForHelp(commandLine:ParsedCommandLine):Array<CommandLineOption> {
+	static function getOptionsForHelp(commandLine:ParsedCommandLine):Slice<CommandLineOption> {
 		// Sort our options by their names, (e.g. "--noImplicitAny" comes before "--watch")
 		final opts = Slices.Clone(Tsoptions.OptionsDeclarations);
 		opts.push(Tsoptions.TscBuildOption);
@@ -327,7 +327,7 @@ class Tsc {
 		return header;
 	}
 
-	static function printEasyHelp(sys:System, locale:Locale, simpleOptions:Array<CommandLineOption>):Void {
+	static function printEasyHelp(sys:System, locale:Locale, simpleOptions:Slice<CommandLineOption>):Void {
 		final colors = createColors(sys);
 		var output:Array<std.String> = [];
 		final example = function(examples:Array<std.String>, desc:Message) {
@@ -358,8 +358,8 @@ class Tsc {
 		example(["tsc --help --all"], Diagnostics.An_expanded_version_of_this_information_showing_all_possible_compiler_options);
 		example(["tsc --noEmit", "tsc --target esnext"], Diagnostics.Compiles_the_current_project_with_additional_settings);
 
-		var cliCommands:Array<CommandLineOption> = null;
-		var configOpts:Array<CommandLineOption> = null;
+		var cliCommands:Slice<CommandLineOption> = null;
+		var configOpts:Slice<CommandLineOption> = null;
 		for (opt in simpleOptions) {
 			if (opt.IsCommandLineOnly || opt.Category == Diagnostics.Command_line_Options) {
 				if (cliCommands == null)
@@ -384,7 +384,7 @@ class Tsc {
 		}
 	}
 
-	static function printAllHelp(sys:System, locale:Locale, options:Array<CommandLineOption>):Void {
+	static function printAllHelp(sys:System, locale:Locale, options:Slice<CommandLineOption>):Void {
 		var output:Array<std.String> = [];
 		final msg = Diagnostics.X_tsc_Colon_The_TypeScript_Compiler.Localize(locale, []) + " - "
 			+ Diagnostics.Version_0.Localize(locale, [Core.Version()]);
@@ -415,7 +415,7 @@ class Tsc {
 		}
 	}
 
-	public static function PrintBuildHelp(sys:System, locale:Locale, buildOptions:Array<CommandLineOption>):Void {
+	public static function PrintBuildHelp(sys:System, locale:Locale, buildOptions:Slice<CommandLineOption>):Void {
 		var output:Array<std.String> = [];
 		output = output.concat(getHeader(sys,
 			Diagnostics.X_tsc_Colon_The_TypeScript_Compiler.Localize(locale, []) + " - " + Diagnostics.Version_0.Localize(locale, [Core.Version()])));
@@ -432,7 +432,7 @@ class Tsc {
 	}
 
 	// PORT: `beforeOptionsDescription, afterOptionsDescription *string` → Null<String> (nil → null).
-	static function generateSectionOptionsOutput(sys:System, locale:Locale, sectionName:std.String, options:Null<Array<CommandLineOption>>,
+	static function generateSectionOptionsOutput(sys:System, locale:Locale, sectionName:std.String, options:Slice<CommandLineOption>,
 			subCategory:Bool, beforeOptionsDescription:Null<std.String>, afterOptionsDescription:Null<std.String>):Array<std.String> {
 		var output:Array<std.String> = [];
 		output.push(createColors(sys).bold(sectionName));
@@ -483,7 +483,7 @@ class Tsc {
 		return output;
 	}
 
-	static function generateGroupOptionOutput(sys:System, locale:Locale, optionsList:Null<Array<CommandLineOption>>):Array<std.String> {
+	static function generateGroupOptionOutput(sys:System, locale:Locale, optionsList:Slice<CommandLineOption>):Array<std.String> {
 		var maxLength = 0;
 		for (option in optionsList) {
 			final curLenght = getDisplayNameTextOfOption(option).length;

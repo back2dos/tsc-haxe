@@ -155,7 +155,7 @@ class Reparser {
 		if (tag.Kind != KindJSDocCallbackTag) {
 			signature.FunctionLikeData().TypeParameters = p.gatherTypeParameters(jsDoc, false /*typedefOrCallback*/);
 		}
-		var parameters:Array<Node> = null; // PORT: arena — Go p.nodeSliceArena.NewSlice(0) (nil)
+		var parameters:Slice<Node> = null; // PORT: arena — Go p.nodeSliceArena.NewSlice(0) (nil)
 		final jsParameters = jsSignature.Parameters();
 		for (pi in 0...Core.len(jsParameters)) {
 			final param = jsParameters[pi];
@@ -247,7 +247,7 @@ class Reparser {
 		if (t.Kind == KindJSDocTypeLiteral) {
 			var jstypeliteral = t.AsJSDocTypeLiteral();
 			var isArrayType = jstypeliteral.IsArrayType;
-			var properties:Array<Node> = null; // PORT: arena — Go p.nodeSliceArena.NewSlice(0) (nil)
+			var properties:Slice<Node> = null; // PORT: arena — Go p.nodeSliceArena.NewSlice(0) (nil)
 			for (prop in Parser.nodesOf(jstypeliteral.JSDocPropertyTags)) {
 				if (prop.Kind != KindJSDocPropertyTag && prop.Kind != KindJSDocParameterTag) {
 					continue;
@@ -295,7 +295,7 @@ class Reparser {
 	}
 
 	static function gatherTypeParameters(p:Parser, j:Node, typedefOrCallback:Bool):NodeList {
-		var typeParameters:Array<Node> = null;
+		var typeParameters:Slice<Node> = null;
 		var pos = -1;
 		var endPos = -1;
 		var firstTemplate = true;
@@ -522,7 +522,7 @@ class Reparser {
 				var modifier = p.factory.NewModifier(keyword);
 				modifier.Loc = tag.Loc;
 				modifier.Flags = p.contextFlags | NodeFlagsReparsed;
-				var nodes:Array<Node> = null;
+				var nodes:Slice<Node> = null;
 				var loc:TextRange = new TextRange(0, 0);
 				if (parent.Modifiers() == null) {
 					nodes = [modifier]; // PORT: arena — Go p.nodeSliceArena.NewSlice(1)

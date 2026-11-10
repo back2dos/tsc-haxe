@@ -353,7 +353,7 @@ class CommandlineparserTest {
 	}
 
 	public static function createSubScenario(scenarioKind:String, subScenarioName:String, commandline:Array<String>,
-			?opts:Null<Array<CommandLineOption>>):CommandLineSubScenario {
+			?opts:Slice<CommandLineOption>):CommandLineSubScenario {
 		subScenarioName = scenarioKind + "/" + subScenarioName;
 		final baselineFileName = "tests/baselines/reference/config/commandLineParsing/" + subScenarioName + ".js";
 
@@ -388,9 +388,9 @@ class CommandLineSubScenario {
 	public var baseline:String;
 	public var testName:String;
 	public var commandLine:Array<String>;
-	public var optDecls:Null<Array<CommandLineOption>>;
+	public var optDecls:Slice<CommandLineOption>;
 
-	public function new(baseline:String, testName:String, commandLine:Array<String>, optDecls:Null<Array<CommandLineOption>>) {
+	public function new(baseline:String, testName:String, commandLine:Array<String>, optDecls:Slice<CommandLineOption>) {
 		this.baseline = baseline;
 		this.testName = testName;
 		this.commandLine = commandLine;
@@ -513,9 +513,9 @@ class VerifyNull {
 	public var subScenario:String;
 	public var optionName:String;
 	public var nonNullValue:String;
-	public var optDecls:Null<Array<CommandLineOption>>;
+	public var optDecls:Slice<CommandLineOption>;
 
-	public function new(subScenario:String, optionName:String, nonNullValue:String = "", ?optDecls:Array<CommandLineOption>) {
+	public function new(subScenario:String, optionName:String, nonNullValue:String = "", ?optDecls:Slice<CommandLineOption>) {
 		this.subScenario = subScenario;
 		this.optionName = optionName;
 		this.nonNullValue = nonNullValue;

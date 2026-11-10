@@ -206,7 +206,7 @@ class OptionalChainTransformer {
 @:allow(ts.transformers.estransforms)
 class FlattenResult {
 	var expression:Expression = null;
-	var chain:Array<Node> = null;
+	var chain:Slice<Node> = null;
 
 	public function new() {}
 }

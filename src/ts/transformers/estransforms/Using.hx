@@ -9,8 +9,8 @@ import ts.printer.Generatedidentifierflags.GeneratedIdentifierFlags.*;
 class UsingDeclarationTransformer {
 	public var Transformer:Transformer = new Transformer(); // Go: embedded
 	var exportBindings:StringMap<ExportSpecifierNode> = null;
-	var exportBindingNames:Array<std.String> = null;
-	var exportVars:Array<VariableDeclarationNode> = null;
+	var exportBindingNames:Slice<std.String> = null;
+	var exportVars:Slice<VariableDeclarationNode> = null;
 	var defaultExportBinding:IdentifierNode = null;
 	var exportEqualsBinding:IdentifierNode = null;
 
@@ -171,7 +171,7 @@ class UsingDeclarationTransformer {
 		} else {
 			visited = Visitor().VisitEachChild(node.AsNode());
 		}
-		EmitContext().AddEmitHelper(visited, ...EmitContext().ReadEmitHelpers());
+		EmitContext().AddEmitHelper(visited, ...EmitContext().ReadEmitHelpers().toArray());
 		exportVars = null;
 		exportBindings = null;
 		exportBindingNames = null;
@@ -181,7 +181,7 @@ class UsingDeclarationTransformer {
 	}
 
 	// PORT: helper for Go `s = append(s, xs...)` on an owned slice where xs may be nil.
-	static inline function appendAll(target:Array<Node>, xs:Array<Node>):Void {
+	static inline function appendAll(target:Array<Node>, xs:Slice<Node>):Void {
 		if (xs != null) for (x in xs) target.push(x);
 	}
 
@@ -300,8 +300,8 @@ class UsingDeclarationTransformer {
 		return Visitor().VisitEachChild(node.AsNode());
 	}
 
-	function transformUsingDeclarations(statementsIn:Array<Statement>, envBinding:IdentifierNode, topLevelStatements:Array<Statement>):Array<Node> {
-		var statements:Array<Statement> = null;
+	function transformUsingDeclarations(statementsIn:Array<Statement>, envBinding:IdentifierNode, topLevelStatements:Array<Statement>):Slice<Node> {
+		var statements:Slice<Statement> = null;
 
 		final hoist = function(node:Statement):Statement {
 			if (topLevelStatements == null) {
@@ -337,7 +337,7 @@ class UsingDeclarationTransformer {
 			if (usingKind != usingKindNone) {
 				final varStatement = statement.AsVariableStatement();
 				final declarationList = varStatement.DeclarationList;
-				var declarations:Array<VariableDeclarationNode> = null;
+				var declarations:Slice<VariableDeclarationNode> = null;
 				for (declaration_ in declarationList.AsVariableDeclarationList().Declarations.Nodes) {
 					var declaration = declaration_;
 					if (!Ast.IsIdentifier(declaration.Name())) {
@@ -561,7 +561,7 @@ class UsingDeclarationTransformer {
 
 	function hoistVariableStatement(node:VariableStatement):Statement {
 		// NOTE: `node` has already been visited
-		var expressions:Array<Expression> = null;
+		var expressions:Slice<Expression> = null;
 		final isExported = Ast.HasSyntacticModifier(node.AsNode(), ModifierFlagsExport);
 		for (variable in node.DeclarationList.AsVariableDeclarationList().Declarations.Nodes) {
 			hoistBindingElement(variable, isExported, variable);
@@ -658,7 +658,7 @@ class UsingDeclarationTransformer {
 		return Factory().NewUniqueName("env");
 	}
 
-	function createDownlevelUsingStatements(bodyStatements:Array<Node>, envBinding:IdentifierNode, async:Bool):Array<Statement> {
+	function createDownlevelUsingStatements(bodyStatements:Slice<Node>, envBinding:IdentifierNode, async:Bool):Array<Statement> {
 		final statements:Array<Statement> = [];
 
 		// produces:

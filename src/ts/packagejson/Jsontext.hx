@@ -37,10 +37,10 @@ class Value {
 	// Number value ('0').
 	public var Num:Float = 0.0;
 	// Array elements ('[').
-	public var Items:Null<Array<Value>> = null;
+	public var Items:Slice<Value> = null;
 	// Object member names and values in document order ('{'); duplicates are kept.
-	public var Names:Null<Array<String>> = null;
-	public var Members:Null<Array<Value>> = null;
+	public var Names:Slice<String> = null;
+	public var Members:Slice<Value> = null;
 	// Offsets of the value's text in the input (jsontext.Value raw bytes).
 	public var Start:Int = 0;
 	public var End:Int = 0;

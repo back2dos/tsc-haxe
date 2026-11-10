@@ -4,10 +4,10 @@ import haxe.ds.StringMap;
 
 // Go anonymous struct value of newGroups in getCommonParentsWorker.
 private class CommonParentsGroup {
-	public var head:Array<String> = null;
-	public var tails:Array<Array<String>> = null;
+	public var head:Slice<String> = null;
+	public var tails:Slice<Array<String>> = null;
 
-	public function new(head:Array<String>, tails:Array<Array<String>>) {
+	public function new(head:Slice<String>, tails:Slice<Array<String>>) {
 		this.head = head;
 		this.tails = tails;
 	}
@@ -114,7 +114,7 @@ class Tspath {
 		return path.substring(0, path.length - extension.length);
 	}
 
-	public static function FileExtensionIsOneOf(path:String, extensions:Array<String>):Bool {
+	public static function FileExtensionIsOneOf(path:String, extensions:Slice<String>):Bool {
 		if (extensions == null)
 			return false;
 		for (ext in extensions) {
@@ -533,7 +533,7 @@ class Tspath {
 		return path.substring(0, max(rootLength, path.lastIndexOf("/")));
 	}
 
-	public static function GetPathFromPathComponents(pathComponents:Array<String>):String {
+	public static function GetPathFromPathComponents(pathComponents:Slice<String>):String {
 		if (pathComponents == null || pathComponents.length == 0) {
 			return "";
 		}
@@ -1264,7 +1264,7 @@ class Tspath {
 		return "";
 	}
 
-	public static function GetLongestExtensionFromPath(path:String, extensions:Null<Array<String>>, caseSensitivity:CaseSensitivity):String {
+	public static function GetLongestExtensionFromPath(path:String, extensions:Slice<String>, caseSensitivity:CaseSensitivity):String {
 		path = RemoveTrailingDirectorySeparator(path);
 		final comparer = caseSensitivity.getEqualityComparer();
 		var longest = "";
@@ -1486,8 +1486,8 @@ class Tspath {
 	//	/a/b/c/d, /a/b/c/e, /a/b/f/g, /x/y  (minComponents: 2)	=>  /a/b, /x/y
 	//	c:/a/b/c/d, d:/a/b/c/d =>	c:/a/b/c/d, d:/a/b/c/d
 	// PORT: Go returns (parents []string, ignored map[string]struct{}); the set is a StringMap<Bool>.
-	static function getCommonParents(paths:Array<String>, minComponents:Int, getPathComponents:(path:String) -> Array<String>,
-			caseSensitivity:CaseSensitivity):Pair<Array<String>, StringMap<Bool>> {
+	static function getCommonParents(paths:Slice<String>, minComponents:Int, getPathComponents:(path:String) -> Array<String>,
+			caseSensitivity:CaseSensitivity):Pair<Slice<String>, StringMap<Bool>> {
 		if (minComponents < 1) {
 			throw "minComponents must be at least 1";
 		}
@@ -1500,7 +1500,7 @@ class Tspath {
 				ignored.set(paths[0], true);
 				return new Pair<Array<String>, StringMap<Bool>>(null, ignored);
 			}
-			return new Pair<Array<String>, StringMap<Bool>>(paths, null);
+			return new Pair<Slice<String>, StringMap<Bool>>(paths, null);
 		}
 
 		final ignored = new StringMap<Bool>();
@@ -1525,7 +1525,7 @@ class Tspath {
 		return new Pair<Array<String>, StringMap<Bool>>(resultPaths, ignored);
 	}
 
-	static function getCommonParentsWorker(componentGroups:Array<Array<String>>, minComponents:Int, caseSensitivity:CaseSensitivity):Array<Array<String>> {
+	static function getCommonParentsWorker(componentGroups:Slice<Array<String>>, minComponents:Int, caseSensitivity:CaseSensitivity):Array<Array<String>> {
 		if (componentGroups == null || componentGroups.length == 0) {
 			return null;
 		}
@@ -2059,7 +2059,7 @@ class ExtensionRewrite {
 }
 
 class ExtensionRewrites {
-	static function getExtensionRewrite(path:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<ExtensionRewrite> {
+	static function getExtensionRewrite(path:String, rewrites:Slice<ExtensionRewrite>, ignoreCase:Bool):go.Tuple.ValueOk<ExtensionRewrite> {
 		var best = new ExtensionRewrite();
 		final equal = Stringutil.GetStringEqualityComparer(ignoreCase);
 		if (rewrites != null) {
@@ -2076,12 +2076,12 @@ class ExtensionRewrites {
 	}
 
 	// RootedFilePath.GetExtensionRewrite
-	public static function GetExtensionRewrite(f:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<ExtensionRewrite> {
+	public static function GetExtensionRewrite(f:String, rewrites:Slice<ExtensionRewrite>, ignoreCase:Bool):go.Tuple.ValueOk<ExtensionRewrite> {
 		return getExtensionRewrite(f, rewrites, ignoreCase);
 	}
 
 	// RootedFilePath.RewriteExtension
-	public static function RewriteFileExtension(f:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<String> {
+	public static function RewriteFileExtension(f:String, rewrites:Slice<ExtensionRewrite>, ignoreCase:Bool):go.Tuple.ValueOk<String> {
 		final r = GetExtensionRewrite(f, rewrites, ignoreCase);
 		if (!r.ok || r.value.isIdentity(ignoreCase)) {
 			return new go.Tuple.ValueOk(f, false);
@@ -2091,7 +2091,7 @@ class ExtensionRewrites {
 	}
 
 	// ModuleSpecifier.RewriteExtension
-	public static function RewriteSpecifierExtension(s:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):go.Tuple.ValueOk<String> {
+	public static function RewriteSpecifierExtension(s:String, rewrites:Slice<ExtensionRewrite>, ignoreCase:Bool):go.Tuple.ValueOk<String> {
 		final r = getExtensionRewrite(s, rewrites, ignoreCase);
 		if (!r.ok || r.value.isIdentity(ignoreCase)) {
 			return new go.Tuple.ValueOk(s, false);
@@ -2100,7 +2100,7 @@ class ExtensionRewrites {
 	}
 
 	// ModuleSpecifier.ShouldRewriteExtension
-	public static function ShouldRewriteExtension(s:String, rewrites:Null<Array<ExtensionRewrite>>, ignoreCase:Bool):Bool {
+	public static function ShouldRewriteExtension(s:String, rewrites:Slice<ExtensionRewrite>, ignoreCase:Bool):Bool {
 		if (!Tspath.PathIsRelative(s) || Tspath.IsDeclarationFileName(s)) {
 			return false;
 		}

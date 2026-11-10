@@ -5,7 +5,7 @@ package ts.checker;
 
 @:allow(ts.checker)
 class NodeBuilder {
-	var ctxStack:Array<NodeBuilderContext> = null;
+	var ctxStack:Slice<NodeBuilderContext> = null;
 	var host:Host = null;
 	var impl:NodeBuilderImpl = null;
 	var verbosity:VerbosityContext = null; // nil for non-hover callers
@@ -80,7 +80,7 @@ class NodeBuilder {
 		return result;
 	}
 
-	function exitContextSlice(result:Array<Node>):Array<Node> {
+	function exitContextSlice(result:Slice<Node>):Slice<Node> {
 		this.propagateVerbosityOut();
 		this.exitContextCheck();
 		// PORT: defer b.popContext() written at each return
@@ -114,7 +114,7 @@ class NodeBuilder {
 		return this.exitContext(result);
 	}
 
-	public function SerializeTypeParametersForSignature(signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	public function SerializeTypeParametersForSignature(signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Slice<Node> {
 		this.enterContext(enclosingDeclaration, flags, internalFlags, tracker);
 		final symbol = this.impl.ch.getSymbolOfDeclaration(signatureDeclaration);
 		final typeParams = this.SymbolToTypeParameterDeclarations(symbol, enclosingDeclaration, flags, internalFlags, tracker);
@@ -140,7 +140,7 @@ class NodeBuilder {
 	}
 
 	// ExpandSymbolForHover produces declaration nodes for a symbol with verbosity level support.
-	public function ExpandSymbolForHover(symbol:Symbol, meaning:SymbolFlags):Array<Node> {
+	public function ExpandSymbolForHover(symbol:Symbol, meaning:SymbolFlags):Slice<Node> {
 		this.enterContext(null, FlagsIgnoreErrors | FlagsMultilineObjectLiterals | FlagsUseAliasDefinedOutsideCurrentScope, InternalFlagsNone, null);
 
 		// Push the declared type onto the type stack to prevent re-expansion.
@@ -207,7 +207,7 @@ class NodeBuilder {
 	}
 
 	// SymbolToTypeParameterDeclarations implements NodeBuilderInterface.
-	public function SymbolToTypeParameterDeclarations(symbol:Symbol, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	public function SymbolToTypeParameterDeclarations(symbol:Symbol, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Slice<Node> {
 		this.enterContext(enclosingDeclaration, flags, internalFlags, tracker);
 		return this.exitContextSlice(this.impl.symbolToTypeParameterDeclarations(symbol));
 	}

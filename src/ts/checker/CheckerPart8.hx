@@ -671,7 +671,7 @@ class CheckerPart8 {
 		return null;
 	}
 
-	static function getEntityNameForDecoratorMetadataFromTypeList(c:Checker, typeNodes:Array<Node>):Node {
+	static function getEntityNameForDecoratorMetadataFromTypeList(c:Checker, typeNodes:Slice<Node>):Node {
 		var commonEntityName:Node = null;
 		for (typeNode in rangeOf(typeNodes)) {
 			if (typeNode.Kind == KindNeverKeyword) {
@@ -1005,7 +1005,7 @@ class CheckerPart8 {
 		return null;
 	}
 
-	static function getTemplateLiteralType(c:Checker, texts:Array<std.String>, types:Array<Type>):Type {
+	static function getTemplateLiteralType(c:Checker, texts:Slice<std.String>, types:Slice<Type>):Type {
 		final unionIndex = Core.FindIndex(types, t -> (t.flags & (TypeFlagsNever | TypeFlagsUnion)) != 0);
 		if (unionIndex >= 0) {
 			if (!c.checkCrossProductUnion(types)) {
@@ -1023,8 +1023,8 @@ class CheckerPart8 {
 		sb.add(texts[0]);
 		var textLength = 0; // combined length of the segments already moved into newTexts
 		var tooLarge = false;
-		var addSpans:(Array<std.String>, Array<Type>) -> Bool = null;
-		addSpans = function(texts:Array<std.String>, types:Array<Type>):Bool {
+		var addSpans:(Slice<std.String>, Slice<Type>) -> Bool = null;
+		addSpans = function(texts:Slice<std.String>, types:Slice<Type>):Bool {
 			for (i in 0...Core.len(types)) {
 				final t = types[i];
 				if ((t.flags & (TypeFlagsLiteral | TypeFlagsNull | TypeFlagsUndefined)) != 0) {
@@ -1110,7 +1110,7 @@ class CheckerPart8 {
 		}
 	}
 
-	static function applyTemplateStringMapping(c:Checker, symbol:Symbol, texts:Array<std.String>, types:Array<Type>):Pair<Array<std.String>, Array<Type>> {
+	static function applyTemplateStringMapping(c:Checker, symbol:Symbol, texts:Slice<std.String>, types:Slice<Type>):Pair<Slice<std.String>, Slice<Type>> {
 		final kind:IntrinsicTypeKind = Checker.intrinsicTypeKinds.exists(symbol.Name) ? Checker.intrinsicTypeKinds.get(symbol.Name) : IntrinsicTypeKindUnknown;
 		switch (kind) {
 			case IntrinsicTypeKindUppercase, IntrinsicTypeKindLowercase:
@@ -1356,7 +1356,7 @@ class CheckerPart8 {
 		return (Ast.IsFunctionExpressionOrArrowFunction(fn) || Ast.IsObjectLiteralMethod(fn)) && c.isContextSensitiveFunctionLikeDeclaration(fn);
 	}
 
-	static function getSpreadArgumentType(c:Checker, args:Array<Node>, index:Int, argCount:Int, restType:Type, context:InferenceContext, checkMode:CheckMode):Type {
+	static function getSpreadArgumentType(c:Checker, args:Slice<Node>, index:Int, argCount:Int, restType:Type, context:InferenceContext, checkMode:CheckMode):Type {
 		final inConstContext = c.isConstTypeVariable(restType, 0);
 		if (argCount > 0 && index >= argCount - 1) {
 			var arg = args[argCount - 1];
@@ -1378,8 +1378,8 @@ class CheckerPart8 {
 				return c.createArrayTypeEx(c.checkIteratedTypeOrElementType(IterationUseSpread, spreadType, c.undefinedType, arg), inConstContext);
 			}
 		}
-		var types:Array<Type> = null;
-		var infos:Array<TupleElementInfo> = null;
+		var types:Slice<Type> = null;
+		var infos:Slice<TupleElementInfo> = null;
 		for (i in index...argCount) {
 			final arg = args[i];
 			var t:Type = null;
@@ -1913,7 +1913,7 @@ class CheckerPart8 {
 	}
 
 	// Returns the effective arguments for an expression that works like a function invocation.
-	static function getEffectiveCallArguments(c:Checker, node:Node):Array<Node> {
+	static function getEffectiveCallArguments(c:Checker, node:Node):Slice<Node> {
 		if (Ast.IsJsxOpeningFragment(node)) {
 			// This attributes Type does not include a children property yet, the same way a fragment created with <React.Fragment> does not at this stage
 			return [c.createSyntheticExpression(node, c.emptyFreshJsxObjectType, false, null)];
@@ -1982,7 +1982,7 @@ class CheckerPart8 {
 		}
 	}
 
-	static function getSpreadArgumentIndex(c:Checker, args:Array<Node>):Int {
+	static function getSpreadArgumentIndex(c:Checker, args:Slice<Node>):Int {
 		return Core.FindIndex(args, fn_isSpreadArgument);
 	}
 
@@ -2431,8 +2431,8 @@ class CheckerPart8 {
 	static function getTypeOfPropertyOfContextualTypeEx(c:Checker, t:Type, name:std.String, nameType:Type):Type {
 		return c.mapTypeEx(t, function(t:Type):Type {
 			if ((t.flags & TypeFlagsIntersection) != 0) {
-				var types:Array<Type> = null;
-				var indexInfoCandidates:Array<Type> = null;
+				var types:Slice<Type> = null;
+				var indexInfoCandidates:Slice<Type> = null;
 				var ignoreIndexInfos = false;
 				for (constituentType in t.Types()) {
 					if ((constituentType.flags & TypeFlagsObject) == 0) {
@@ -2547,7 +2547,7 @@ class CheckerPart8 {
 		return false;
 	}
 
-	static function appendContextualPropertyTypeConstituent(c:Checker, types:Array<Type>, t:Type):Array<Type> {
+	static function appendContextualPropertyTypeConstituent(c:Checker, types:Slice<Type>, t:Type):Slice<Type> {
 		// any doesn't provide any contextual information but could spoil the overall result by nullifying contextual information
 		// provided by other intersection constituents so it gets replaced with `unknown` as `T & unknown` is just `T` and all
 		// types computed based on the contextual information provided by other constituens are still assignable to any
@@ -3655,8 +3655,8 @@ class CheckerPart8 {
 		}
 	}
 
-	static function getIndexSignaturesAtLocation(c:Checker, node:Node):Array<Node> {
-		var signatures:Array<Node> = null;
+	static function getIndexSignaturesAtLocation(c:Checker, node:Node):Slice<Node> {
+		var signatures:Slice<Node> = null;
 		if (Ast.IsIdentifier(node) && Ast.IsPropertyAccessExpression(node.Parent) && node.Parent.Name() == node) {
 			final keyType = c.getLiteralTypeFromPropertyName(node);
 			final objectType = c.getTypeOfExpression(node.Parent.Expression());
@@ -3975,7 +3975,7 @@ class CheckerPart8 {
 		final info = c.getApplicableIndexInfo(t, keyType);
 		if (info != null && info != c.anyBaseTypeIndexInfo) {
 			if (info.indexSymbol == null) {
-				var declarations:Array<Node> = null;
+				var declarations:Slice<Node> = null;
 				if (info.declaration != null) {
 					declarations = [info.declaration];
 				} else {
@@ -4066,7 +4066,7 @@ class CheckerPart8 {
 		return c.resolveAlias(symbol);
 	}
 	// PORT: Go `range` over a possibly-nil slice (PORTING.md §3): a nil slice iterates zero times.
-	static extern inline overload function rangeOf<T>(a:Null<Array<T>>):Array<T> {
+	static extern inline overload function rangeOf<T>(a:Slice<T>):Slice<T> {
 		return a != null ? a : cast go.Slices.EMPTY_ARRAY; // PORT: perf (no allocation)
 	}
 

@@ -129,7 +129,7 @@ class PseudoTypeDirect implements PseudoTypeData {
 class PseudoTypeInferred implements PseudoTypeData {
 	public var PseudoTypeBase:PseudoTypeBase = new PseudoTypeBase();
 	public var Expression:Node = null;
-	public var ErrorNodes:Array<Node> = null;
+	public var ErrorNodes:Slice<Node> = null;
 	public var IsSignatureReturn:Bool = false;
 
 	public function new() {}
@@ -179,7 +179,7 @@ class PseudoTypeMaybeConstLocation implements PseudoTypeData {
 // PseudoTypeUnion is a collection of psudotypes joined into a union
 class PseudoTypeUnion implements PseudoTypeData {
 	public var PseudoTypeBase:PseudoTypeBase = new PseudoTypeBase();
-	public var Types:Array<PseudoType> = null;
+	public var Types:Slice<PseudoType> = null;
 
 	public function new() {}
 
@@ -201,8 +201,8 @@ class PseudoParameter {
 class PseudoTypeSingleCallSignature implements PseudoTypeData {
 	public var PseudoTypeBase:PseudoTypeBase = new PseudoTypeBase();
 	public var Signature:Node = null;
-	public var Parameters:Array<PseudoParameter> = null;
-	public var TypeParameters:Array<TypeParameterDeclaration> = null;
+	public var Parameters:Slice<PseudoParameter> = null;
+	public var TypeParameters:Slice<TypeParameterDeclaration> = null;
 	public var ReturnType:PseudoType = null;
 
 	public function new() {}
@@ -215,7 +215,7 @@ class PseudoTypeSingleCallSignature implements PseudoTypeData {
 // PseudoTypeTuple represents a tuple originaing from an `as const` array literal
 class PseudoTypeTuple implements PseudoTypeData {
 	public var PseudoTypeBase:PseudoTypeBase = new PseudoTypeBase();
-	public var Elements:Array<PseudoType> = null;
+	public var Elements:Slice<PseudoType> = null;
 
 	public function new() {}
 
@@ -281,8 +281,8 @@ interface PseudoObjectElementData {
 class PseudoObjectMethod implements PseudoObjectElementData {
 	public var PseudoObjectElement:PseudoObjectElement = new PseudoObjectElement();
 	public var Signature:Node = null;
-	public var TypeParameters:Array<TypeParameterDeclaration> = null;
-	public var Parameters:Array<PseudoParameter> = null;
+	public var TypeParameters:Slice<TypeParameterDeclaration> = null;
+	public var Parameters:Slice<PseudoParameter> = null;
 	public var ReturnType:PseudoType = null;
 
 	public function new() {}
@@ -331,7 +331,7 @@ class PseudoGetAccessor implements PseudoObjectElementData {
 // PseudoTypeObjectLiteral represents an object type originaing from an object literal
 class PseudoTypeObjectLiteral implements PseudoTypeData {
 	public var PseudoTypeBase:PseudoTypeBase = new PseudoTypeBase();
-	public var Elements:Array<PseudoObjectElement> = null;
+	public var Elements:Slice<PseudoObjectElement> = null;
 
 	public function new() {}
 

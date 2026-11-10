@@ -6,8 +6,8 @@ package ts.transformers.jsxtransforms;
 @:allow(ts.transformers.jsxtransforms)
 class Jsxtransforms {
 	// PORT: Go `range` over a possibly-nil slice (parser lists of zero elements have nil Nodes).
-	static inline function rangeOf<T>(a:Null<Array<T>>):Array<T> {
-		return a == null ? [] : a;
+	static inline function rangeOf<T>(a:Slice<T>):Array<T> {
+		return a.toArray();
 	}
 
 
@@ -44,7 +44,7 @@ class Jsxtransforms {
 		return false;
 	}
 
-	static function insertStatementAfterPrologue<T>(to:Array<Node>, statement:Node, isPrologueDirective:(callee:T, node:Node) -> Bool, callee:T):Array<Node> {
+	static function insertStatementAfterPrologue<T>(to:Slice<Node>, statement:Node, isPrologueDirective:(callee:T, node:Node) -> Bool, callee:T):Slice<Node> {
 		if (statement == null) {
 			return to;
 		}
@@ -71,9 +71,9 @@ class Jsxtransforms {
 		return Stringutil.CompareStringsCaseSensitive(a.AsImportSpecifier().Name().Text(), b.AsImportSpecifier().Name().Text());
 	}
 
-	static function getSortedSpecifiers(m:StringMap<Node>):Array<Node> {
+	static function getSortedSpecifiers(m:StringMap<Node>):Slice<Node> {
 		// PORT: slices.Collect(maps.Values(m)) — map order is irrelevant after the sort.
-		var res:Array<Node> = null;
+		var res:Slice<Node> = null;
 		if (m != null) {
 			for (v in m) {
 				if (res == null) {

@@ -23,8 +23,8 @@ class CheckerPool_ implements CheckerPool {
 	var tracing:Tracing = null;
 
 	var createCheckersOnce:Bool = false; // PORT: sync.Once → flag
-	var checkers:Array<Checker> = null;
-	var locks:Array<Any> = null; // PORT: []*sync.Mutex → the checkers' mutexes (sys.thread.Mutex with -D tshx-parallel, else null and never locked)
+	var checkers:Slice<Checker> = null;
+	var locks:Slice<Any> = null; // PORT: []*sync.Mutex → the checkers' mutexes (sys.thread.Mutex with -D tshx-parallel, else null and never locked)
 	var fileAssociations:IdentityMap<SourceFile, Checker> = null;
 
 	public function new() {}
@@ -201,7 +201,7 @@ class CheckerPool_ implements CheckerPool {
 
 	// groupFilesByChecker returns, per checker, the indices of the given files associated with it (TypeScript main's
 	// #64922: emit transforms the files of each checker in one task).
-	function groupFilesByChecker(files:Array<SourceFile>):Array<Array<Int>> {
+	function groupFilesByChecker(files:Slice<SourceFile>):Array<Array<Int>> {
 		this.createCheckers();
 		final groups:Array<Array<Int>> = [for (_ in 0...this.checkers.length) null];
 		for (i in 0...files.length) {
@@ -216,7 +216,7 @@ class CheckerPool_ implements CheckerPool {
 	// getImportAdjacency returns an undirected import graph represented by file
 	// index. A directed import from A to B makes both files adjacent because either
 	// file can benefit from sharing checker caches with the other.
-	function getImportAdjacency(files:Array<SourceFile>):Array<Array<Int>> {
+	function getImportAdjacency(files:Slice<SourceFile>):Array<Array<Int>> {
 		final fileIndices = new IdentityMap<SourceFile, Int>();
 		for (i in 0...files.length)
 			fileIndices.set(files[i], i);
@@ -260,9 +260,9 @@ class CheckerPool_ implements CheckerPool {
 		wg.RunAndWait();
 	}
 
-	public function GetGlobalDiagnostics():Array<Diagnostic> {
+	public function GetGlobalDiagnostics():Slice<Diagnostic> {
 		this.createCheckers();
-		final globalDiagnostics:Array<Array<Diagnostic>> = [for (_ in 0...this.checkers.length) null];
+		final globalDiagnostics:Array<Slice<Diagnostic>> = [for (_ in 0...this.checkers.length) null];
 		this.forEachCheckerParallel(function(idx:Int, checker:Checker) {
 			globalDiagnostics[idx] = checker.GetGlobalDiagnostics();
 		});
@@ -272,7 +272,7 @@ class CheckerPool_ implements CheckerPool {
 	// forEachCheckerGroupDo runs one task per checker in parallel. Each task iterates
 	// the provided files, processing only those assigned to its checker. Within each
 	// checker's set, files are visited in their original order.
-	function forEachCheckerGroupDo(ctx:Context, files:Array<SourceFile>, singleThreaded:Bool, cb:(c:Checker, fileIndex:Int, file:SourceFile) -> Void):Void {
+	function forEachCheckerGroupDo(ctx:Context, files:Slice<SourceFile>, singleThreaded:Bool, cb:(c:Checker, fileIndex:Int, file:SourceFile) -> Void):Void {
 		this.createCheckers();
 
 		final checkerCount = this.checkers.length;
@@ -388,7 +388,7 @@ class CheckerAssociation {
 	}
 
 	// getCheckerAssociationOrder: source files before declarations, each by descending weight (null: program order)
-	public static function order(fileWeights:Array<Int>, isDeclarationFile:Array<Bool>, prioritizeSourceFiles:Bool):Null<Array<Int>> {
+	public static function order(fileWeights:Array<Int>, isDeclarationFile:Array<Bool>, prioritizeSourceFiles:Bool):Slice<Int> {
 		if (!prioritizeSourceFiles)
 			return null;
 		final fileOrder = [for (i in 0...fileWeights.length) i];
@@ -404,7 +404,7 @@ class CheckerAssociation {
 
 	// getCheckerAssociationsInOrder: weighted FENNEL with gamma = 3/2; the preferred maximum checker weight is the
 	// larger of the largest file and roughly 101% of average; ties deterministic
-	public static function associationsInOrder(fileWeights:Array<Int>, adjacentFiles:Array<Array<Int>>, fileOrder:Null<Array<Int>>, checkerCount:Int,
+	public static function associationsInOrder(fileWeights:Array<Int>, adjacentFiles:Array<Array<Int>>, fileOrder:Slice<Int>, checkerCount:Int,
 			penaltyMultiplier:Int):Array<Int> {
 		final n = fileWeights.length;
 		if (n == 0)

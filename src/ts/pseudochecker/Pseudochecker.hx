@@ -108,7 +108,7 @@ class Pseudochecker {
 	// and no rest token. This is computed in a single reverse pass so callers can
 	// determine "has required parameter after index i" with `i+1 < lastRequired`
 	// (equivalently, `i < lastRequired-1`) in O(1).
-	static function lastRequiredParamIndex(params:Array<Node>):Int {
+	static function lastRequiredParamIndex(params:Slice<Node>):Int {
 		var i = Core.len(params) - 1;
 		while (i >= 0) {
 			if (!isOptionalInitializedOrRestParameter(params[i])) {
@@ -179,7 +179,7 @@ class Pseudochecker {
 		return newPseudoType(PseudoTypeKindInferred, d);
 	}
 
-	public static function NewPseudoTypeInferredWithErrors(expr:Node, isSignatureReturn:Bool, errorNodes:Array<Node>):PseudoType {
+	public static function NewPseudoTypeInferredWithErrors(expr:Node, isSignatureReturn:Bool, errorNodes:Slice<Node>):PseudoType {
 		final d = new PseudoTypeInferred();
 		d.Expression = expr;
 		d.ErrorNodes = errorNodes;

@@ -73,9 +73,9 @@ class EmitContext {
 	// Ends the current VariableEnvironment, returning a list of statements that should be emitted at the start of the current scope.
 	//
 	// NOTE: This is the equivalent of `transformContext.endLexicalEnvironment` in Strada.
-	public function EndVariableEnvironment():Array<Statement> {
+	public function EndVariableEnvironment():Slice<Statement> {
 		final scope = varScopeStack.Pop();
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		if (Core.len(scope.functions) > 0) {
 			statements = scope.functions.copy();
 		}
@@ -100,7 +100,7 @@ class EmitContext {
 	}
 
 	// PORT: Go `append` on a slice this function owns (nil → new array).
-	static inline function append(s:Array<Statement>, x:Statement):Array<Statement> {
+	static inline function append(s:Slice<Statement>, x:Statement):Slice<Statement> {
 		if (s == null) {
 			return [x];
 		}
@@ -110,7 +110,7 @@ class EmitContext {
 
 	// Invokes c.EndVariableEnvironment() and merges the results into `statements`
 	public function EndAndMergeVariableEnvironmentList(statements:StatementList):StatementList {
-		var nodes:Array<Statement> = null;
+		var nodes:Slice<Statement> = null;
 		if (statements != null) {
 			nodes = statements.Nodes;
 		}
@@ -126,11 +126,11 @@ class EmitContext {
 	}
 
 	// Invokes c.EndVariableEnvironment() and merges the results into `statements`
-	public function EndAndMergeVariableEnvironment(statements:Array<Statement>):Array<Statement> {
+	public function EndAndMergeVariableEnvironment(statements:Slice<Statement>):Slice<Statement> {
 		return endAndMergeVariableEnvironment(statements).a;
 	}
 
-	function endAndMergeVariableEnvironment(statements:Array<Statement>):Pair<Array<Statement>, Bool> {
+	function endAndMergeVariableEnvironment(statements:Slice<Statement>):Pair<Slice<Statement>, Bool> {
 		return mergeEnvironment(statements, EndVariableEnvironment());
 	}
 
@@ -170,9 +170,9 @@ class EmitContext {
 	//
 	// NOTE: This is the equivalent of `transformContext.endLexicalEnvironment` in Strada.
 	// NOTE: This is *not* the same as `endLexicalEnvironment` in Strada as that method is incorrectly named.
-	public function EndLexicalEnvironment():Array<Statement> {
+	public function EndLexicalEnvironment():Slice<Statement> {
 		final scope = letScopeStack.Pop();
-		var statements:Array<Statement> = null;
+		var statements:Slice<Statement> = null;
 		if (Core.len(scope.variables) > 0) {
 			final varDeclList = Factory.NewVariableDeclarationList(Factory.NewNodeList(scope.variables), NodeFlagsLet);
 			final varStatement = Factory.NewVariableStatement(null /*modifiers*/, varDeclList);
@@ -184,7 +184,7 @@ class EmitContext {
 
 	// Invokes c.EndLexicalEnvironment() and merges the results into `statements`
 	public function EndAndMergeLexicalEnvironmentList(statements:StatementList):StatementList {
-		var nodes:Array<Statement> = null;
+		var nodes:Slice<Statement> = null;
 		if (statements != null) {
 			nodes = statements.Nodes;
 		}
@@ -200,12 +200,12 @@ class EmitContext {
 	}
 
 	// Invokes c.EndLexicalEnvironment() and merges the results into `statements`
-	public function EndAndMergeLexicalEnvironment(statements:Array<Statement>):Array<Statement> {
+	public function EndAndMergeLexicalEnvironment(statements:Array<Statement>):Slice<Statement> {
 		return endAndMergeLexicalEnvironment(statements).a;
 	}
 
 	// Invokes c.EndLexicalEnvironment() and merges the results into `statements`
-	function endAndMergeLexicalEnvironment(statements:Array<Statement>):Pair<Array<Statement>, Bool> {
+	function endAndMergeLexicalEnvironment(statements:Slice<Statement>):Pair<Slice<Statement>, Bool> {
 		return mergeEnvironment(statements, EndLexicalEnvironment());
 	}
 
@@ -218,7 +218,7 @@ class EmitContext {
 	}
 
 	// Merges declarations produced by c.EndVariableEnvironment() or c.EndLexicalEnvironment() into a statement list
-	public function MergeEnvironmentList(statements:StatementList, declarations:Array<Statement>):StatementList {
+	public function MergeEnvironmentList(statements:StatementList, declarations:Slice<Statement>):StatementList {
 		final r = mergeEnvironment(statements.Nodes, declarations);
 		if (r.b) {
 			final list = Factory.NewNodeList(r.a);
@@ -229,12 +229,12 @@ class EmitContext {
 	}
 
 	// Merges declarations produced by c.EndVariableEnvironment() or c.EndLexicalEnvironment() into a slice of statements
-	public function MergeEnvironment(statements:Array<Statement>, declarations:Array<Statement>):Array<Statement> {
+	public function MergeEnvironment(statements:Array<Statement>, declarations:Slice<Statement>):Slice<Statement> {
 		return mergeEnvironment(statements, declarations).a;
 	}
 
 	// PORT: Go returns ([]*ast.Statement, bool) → Pair (a = statements, b = changed).
-	function mergeEnvironment(statements:Array<Statement>, declarations:Array<Statement>):Pair<Array<Statement>, Bool> {
+	function mergeEnvironment(statements:Slice<Statement>, declarations:Slice<Statement>):Pair<Slice<Statement>, Bool> {
 		if (Core.len(declarations) == 0) {
 			return new Pair(statements, false);
 		}
@@ -610,9 +610,9 @@ class EmitContext {
 		emitHelpers.Add(helper);
 	}
 
-	public function ReadEmitHelpers():Array<EmitHelper> {
+	public function ReadEmitHelpers():Slice<EmitHelper> {
 		// PORT: slices.Collect of an empty sequence is nil.
-		var helpers:Array<EmitHelper> = null;
+		var helpers:Slice<EmitHelper> = null;
 		for (h in emitHelpers.Values()) {
 			if (helpers == null) {
 				helpers = [];
@@ -660,7 +660,7 @@ class EmitContext {
 		}
 	}
 
-	public function GetEmitHelpers(node:Node):Array<EmitHelper> {
+	public function GetEmitHelpers(node:Node):Slice<EmitHelper> {
 		final emitNode = emitNodes.TryGet(node);
 		if (emitNode != null) {
 			return emitNode.helpers;
@@ -739,7 +739,7 @@ class EmitContext {
 		if (nodeList == null) {
 			return nodeList;
 		}
-		var result:Array<Node> = null;
+		var result:Slice<Node> = null;
 		final nodes = nodeList.Nodes;
 		if (nodes != null) {
 			for (i in 0...nodes.length) {
@@ -913,13 +913,13 @@ class EmitContext {
 	}
 
 	// PORT: Go `append` (may share the backing array with the caller's slice) → a new array.
-	static function appendComment(s:Array<SynthesizedComment>, c:SynthesizedComment):Array<SynthesizedComment> {
+	static function appendComment(s:Slice<SynthesizedComment>, c:SynthesizedComment):Array<SynthesizedComment> {
 		final r = s == null ? [] : s.copy();
 		r.push(c);
 		return r;
 	}
 
-	public function GetSyntheticLeadingComments(node:Node):Array<SynthesizedComment> {
+	public function GetSyntheticLeadingComments(node:Node):Slice<SynthesizedComment> {
 		if (emitNodes.Has(node)) {
 			return emitNodes.Get(node).leadingComments;
 		}
@@ -942,7 +942,7 @@ class EmitContext {
 		return node;
 	}
 
-	public function GetSyntheticTrailingComments(node:Node):Array<SynthesizedComment> {
+	public function GetSyntheticTrailingComments(node:Node):Slice<SynthesizedComment> {
 		if (emitNodes.Has(node)) {
 			return emitNodes.Get(node).trailingComments;
 		}
@@ -985,10 +985,10 @@ enum abstract EnvironmentFlags(Int) from Int to Int {
 
 // PORT: unexported Go type `varScope` → VarScope (PORTING.md §1).
 class VarScope {
-	public var variables:Array<VariableDeclarationNode> = null;
-	public var functions:Array<FunctionDeclarationNode> = null;
+	public var variables:Slice<VariableDeclarationNode> = null;
+	public var functions:Slice<FunctionDeclarationNode> = null;
 	public var flags:EnvironmentFlags = environmentFlagsNone;
-	public var initializationStatements:Array<Node> = null;
+	public var initializationStatements:Slice<Node> = null;
 
 	public function new() {}
 }
@@ -1061,10 +1061,10 @@ class EmitNode extends ts.core.Linkstore.LinkEntry {
 	public var commentRange:TextRange = new TextRange(0, 0);
 	public var sourceMapRange:TextRange = new TextRange(0, 0);
 	public var tokenSourceMapRanges:IntMap<TextRange> = null;
-	public var helpers:Array<EmitHelper> = null;
+	public var helpers:Slice<EmitHelper> = null;
 	public var externalHelpersModuleName:IdentifierNode = null;
-	public var leadingComments:Array<SynthesizedComment> = null;
-	public var trailingComments:Array<SynthesizedComment> = null;
+	public var leadingComments:Slice<SynthesizedComment> = null;
+	public var trailingComments:Slice<SynthesizedComment> = null;
 	public var typeNode:TypeNode = null;
 
 	public function new() {

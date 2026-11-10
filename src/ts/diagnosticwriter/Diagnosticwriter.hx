@@ -20,7 +20,7 @@ class Diagnosticwriter {
 		return new ASTDiagnostic(d);
 	}
 
-	public static function WrapASTDiagnostics(diags:Array<ts.ast.Diagnostic.Diagnostic>):Array<ASTDiagnostic> {
+	public static function WrapASTDiagnostics(diags:Slice<ts.ast.Diagnostic.Diagnostic>):Array<ASTDiagnostic> {
 		final result = new Array<ASTDiagnostic>();
 		if (diags != null) for (d in diags) {
 			result.push(WrapASTDiagnostic(d));
@@ -28,16 +28,16 @@ class Diagnosticwriter {
 		return result;
 	}
 
-	public static function FromASTDiagnostics(diags:Array<ts.ast.Diagnostic.Diagnostic>):Array<Diagnostic> {
-		final result = new Array<Diagnostic>();
+	public static function FromASTDiagnostics(diags:Slice<ts.ast.Diagnostic.Diagnostic>):Slice<Diagnostic> {
+		final result = new Slice<Diagnostic>();
 		if (diags != null) for (d in diags) {
 			result.push(WrapASTDiagnostic(d));
 		}
 		return result;
 	}
 
-	public static function ToDiagnostics<T:Diagnostic>(diags:Array<T>):Array<Diagnostic> {
-		final result = new Array<Diagnostic>();
+	public static function ToDiagnostics<T:Diagnostic>(diags:Slice<T>):Slice<Diagnostic> {
+		final result = new Slice<Diagnostic>();
 		if (diags != null) for (d in diags) {
 			result.push(d);
 		}
@@ -59,7 +59,7 @@ class Diagnosticwriter {
 	static inline final resetEscapeSequence = "\x1b[0m";
 	static inline final ellipsis = "...";
 
-	public static function FormatDiagnosticsWithColorAndContext(output:Writer, diags:Array<Diagnostic>, formatOpts:FormattingOptions):Void {
+	public static function FormatDiagnosticsWithColorAndContext(output:Writer, diags:Slice<Diagnostic>, formatOpts:FormattingOptions):Void {
 		if (Core.len(diags) == 0) {
 			return;
 		}
@@ -296,7 +296,7 @@ class Diagnosticwriter {
 
 	// Some of these lived in watch.ts, but they're not specific to the watch API.
 
-	public static function WriteErrorSummaryText(output:Writer, allDiagnostics:Array<Diagnostic>, formatOpts:FormattingOptions):Void {
+	public static function WriteErrorSummaryText(output:Writer, allDiagnostics:Slice<Diagnostic>, formatOpts:FormattingOptions):Void {
 		// Roughly corresponds to 'getErrorSummaryText' from watch.ts
 
 		final errorSummary = getErrorSummary(allDiagnostics);
@@ -343,10 +343,10 @@ class Diagnosticwriter {
 		}
 	}
 
-	static function getErrorSummary(diags:Array<Diagnostic>):ErrorSummary {
+	static function getErrorSummary(diags:Slice<Diagnostic>):ErrorSummary {
 		var totalErrorCount = 0;
-		var globalErrors:Array<Diagnostic> = null;
-		var errorsByFile:IdentityMap<FileLike, Array<Diagnostic>> = null;
+		var globalErrors:Slice<Diagnostic> = null;
+		var errorsByFile:IdentityMap<FileLike, Slice<Diagnostic>> = null;
 
 		if (diags != null) {
 			for (diagnostic in diags) {
@@ -361,7 +361,7 @@ class Diagnosticwriter {
 					globalErrors.push(diagnostic);
 				} else {
 					if (errorsByFile == null) {
-						errorsByFile = new IdentityMap<FileLike, Array<Diagnostic>>();
+						errorsByFile = new IdentityMap<FileLike, Slice<Diagnostic>>();
 					}
 					var list = errorsByFile.get(diagnostic.File());
 					if (list == null) {
@@ -422,7 +422,7 @@ class Diagnosticwriter {
 		}
 	}
 
-	static function prettyPathForFileError(file:FileLike, fileErrors:Array<Diagnostic>, formatOpts:FormattingOptions):String {
+	static function prettyPathForFileError(file:FileLike, fileErrors:Slice<Diagnostic>, formatOpts:FormattingOptions):String {
 		if (file == null || Core.len(fileErrors) == 0) {
 			return "";
 		}
@@ -431,7 +431,7 @@ class Diagnosticwriter {
 		return Fmt.Sprintf("%s%s:%d%s", [fileName, foregroundColorEscapeGrey, line + 1, resetEscapeSequence]);
 	}
 
-	public static function WriteFormatDiagnostics(output:Writer, diagnostics:Array<Diagnostic>, formatOpts:FormattingOptions):Void {
+	public static function WriteFormatDiagnostics(output:Writer, diagnostics:Slice<Diagnostic>, formatOpts:FormattingOptions):Void {
 		if (diagnostics != null) {
 			for (diagnostic in diagnostics) {
 				WriteFormatDiagnostic(output, diagnostic, formatOpts);
@@ -467,10 +467,10 @@ class Diagnosticwriter {
 	}
 
 	// PORT: lazy getter (PORTING.md §7a: the initializer uses another class's statics).
-	public static var ScreenStartingCodes(get, never):Array<Int>;
-	static var screenStartingCodes:Array<Int> = null;
+	public static var ScreenStartingCodes(get, never):Slice<Int>;
+	static var screenStartingCodes:Slice<Int> = null;
 
-	static function get_ScreenStartingCodes():Array<Int> {
+	static function get_ScreenStartingCodes():Slice<Int> {
 		if (screenStartingCodes == null) {
 			screenStartingCodes = [
 				Diagnostics.Starting_compilation_in_watch_mode.Code(),
@@ -494,7 +494,7 @@ class Diagnosticwriter {
 
 interface FileLike extends SourceFileLike {
 	function FileName():RootedFilePath;
-	// Text():String and ECMALineMap():Array<TextPos> from SourceFileLike.
+	// Text():String and ECMALineMap():Slice<TextPos> from SourceFileLike.
 }
 
 // Diagnostic interface abstracts over ast.Diagnostic and LSP diagnostics
@@ -509,8 +509,8 @@ interface Diagnostic {
 	// value marks the diagnostic as coming from an external source (e.g. a content mapper).
 	function Source():String;
 	function Localize(locale:Locale):String;
-	function MessageChain():Array<Diagnostic>;
-	function RelatedInformation():Array<Diagnostic>;
+	function MessageChain():Slice<Diagnostic>;
+	function RelatedInformation():Slice<Diagnostic>;
 }
 
 // ASTDiagnostic wraps ast.Diagnostic to implement the Diagnostic interface
@@ -522,9 +522,9 @@ class ASTDiagnostic implements Diagnostic {
 		this.Diagnostic = Diagnostic;
 	}
 
-	public function RelatedInformation():Array<Diagnostic> {
+	public function RelatedInformation():Slice<Diagnostic> {
 		final related = Diagnostic.RelatedInformation();
-		final result = new Array<Diagnostic>();
+		final result = new Slice<Diagnostic>();
 		if (related != null) for (r in related) {
 			result.push(new ASTDiagnostic(r));
 		}
@@ -576,9 +576,9 @@ class ASTDiagnostic implements Diagnostic {
 		}
 	}
 
-	public function MessageChain():Array<Diagnostic> {
+	public function MessageChain():Slice<Diagnostic> {
 		final chain = Diagnostic.MessageChain();
-		final result = new Array<Diagnostic>();
+		final result = new Slice<Diagnostic>();
 		if (chain != null) for (c in chain) {
 			result.push(new ASTDiagnostic(c));
 		}
@@ -649,7 +649,7 @@ class FileLikeOfSourceFile implements FileLike {
 		return SourceFile.Text();
 	}
 
-	public function ECMALineMap():Array<TextPos> {
+	public function ECMALineMap():Slice<TextPos> {
 		return SourceFile.ECMALineMap();
 	}
 }
@@ -671,7 +671,7 @@ private class ResolvedLocation {
 private class OriginalTextFile implements FileLike {
 	final fileName:RootedFilePath;
 	final text:String;
-	final lineMap:Array<TextPos>;
+	final lineMap:Slice<TextPos>;
 
 	public function new(file:SourceFile, fileName:RootedFilePath) {
 		this.text = file.OriginalText();
@@ -687,7 +687,7 @@ private class OriginalTextFile implements FileLike {
 		return text;
 	}
 
-	public function ECMALineMap():Array<TextPos> {
+	public function ECMALineMap():Slice<TextPos> {
 		return lineMap;
 	}
 }
@@ -709,7 +709,7 @@ private class RenamedFile implements FileLike {
 		return file.Text();
 	}
 
-	public function ECMALineMap():Array<TextPos> {
+	public function ECMALineMap():Slice<TextPos> {
 		return file.ECMALineMap();
 	}
 }
@@ -728,15 +728,15 @@ typedef FormattedWriter = (output:Writer, text:String, formatStyle:String) -> Vo
 
 class ErrorSummary {
 	public var TotalErrorCount:Int = 0;
-	public var GlobalErrors:Array<Diagnostic> = null;
-	public var ErrorsByFile:IdentityMap<FileLike, Array<Diagnostic>> = null;
-	public var SortedFiles:Array<FileLike> = null;
+	public var GlobalErrors:Slice<Diagnostic> = null;
+	public var ErrorsByFile:IdentityMap<FileLike, Slice<Diagnostic>> = null;
+	public var SortedFiles:Slice<FileLike> = null;
 
 	public function new() {}
 
 	// PORT: Go map index `ErrorsByFile[f]` on a possibly nil map (nil → nil slice).
 	@:allow(ts.diagnosticwriter)
-	function errorsByFileGet(f:FileLike):Array<Diagnostic> {
+	function errorsByFileGet(f:FileLike):Slice<Diagnostic> {
 		return ErrorsByFile == null || f == null ? null : ErrorsByFile.get(f);
 	}
 

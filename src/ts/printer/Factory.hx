@@ -236,7 +236,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 	}
 
 	// Converts a slice of expressions into a single comma-delimited expression. Returns nil if expressions is nil or empty.
-	public function InlineExpressions(expressions:Array<Expression>):Expression {
+	public function InlineExpressions(expressions:Slice<Expression>):Expression {
 		if (Core.len(expressions) == 0) {
 			return null;
 		}
@@ -312,7 +312,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 		}
 	}
 
-	public function NewMethodCall(object:Node, methodName:Node, argumentsList:Array<Node>):Node {
+	public function NewMethodCall(object:Node, methodName:Node, argumentsList:Slice<Node>):Node {
 		// Preserve the optionality of `object`.
 		if (Ast.IsCallExpression(object) && (object.Flags & NodeFlagsOptionalChain != 0)) {
 			return NewCallExpression(NewPropertyAccessExpression(object, null, methodName, NodeFlagsNone), null, null, NewNodeList(argumentsList),
@@ -325,7 +325,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 		return NewMethodCall(NewIdentifier(globalObjectName), NewIdentifier(methodName), argumentsList);
 	}
 
-	public function NewFunctionCallCall(target:Expression, thisArg:Expression, argumentsList:Array<Node>):Node {
+	public function NewFunctionCallCall(target:Expression, thisArg:Expression, argumentsList:Slice<Node>):Node {
 		if (thisArg == null) {
 			throw "Attempted to construct function call call without this argument expression";
 		}
@@ -339,7 +339,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 	}
 
 	public function NewArraySliceCall(array:Expression, start:Int):Node {
-		var args:Array<Node> = null;
+		var args:Slice<Node> = null;
 		if (start != 0) {
 			args = [NewNumericLiteral(Std.string(start), TokenFlagsNone)];
 		}
@@ -396,7 +396,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 	}
 
 	// Ensures `"use strict"` is the first statement of a slice of statements.
-	public function EnsureUseStrict(statements:Array<Statement>):Array<Statement> {
+	public function EnsureUseStrict(statements:Slice<Statement>):Slice<Statement> {
 		if (statements != null) {
 			for (statement in statements) {
 				if (Ast.IsPrologueDirective(statement) && statement.Expression().Text() == "use strict") {
@@ -418,7 +418,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 
 	// Splits a slice of statements into two parts: standard prologue statements and the rest of the statements
 	// PORT: Go returns (prologue, rest) → Pair (a = prologue, b = rest).
-	public function SplitStandardPrologue(source:Array<Statement>):Pair<Array<Statement>, Array<Statement>> {
+	public function SplitStandardPrologue(source:Slice<Statement>):Pair<Slice<Statement>, Array<Statement>> {
 		if (source != null) {
 			for (i in 0...source.length) {
 				final statement = source[i];
@@ -432,7 +432,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 
 	// Splits a slice of statements into two parts: custom prologue statements (e.g., with `EFCustomPrologue` set) and the rest of the statements
 	// PORT: Go returns (prologue, rest) → Pair (a = prologue, b = rest).
-	public function SplitCustomPrologue(source:Array<Statement>):Pair<Array<Statement>, Array<Statement>> {
+	public function SplitCustomPrologue(source:Slice<Statement>):Pair<Slice<Statement>, Slice<Statement>> {
 		if (source != null) {
 			for (i in 0...source.length) {
 				final statement = source[i];
@@ -553,7 +553,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 
 	// TypeScript Helpers
 
-	public function NewDecorateHelper(decoratorExpressions:Array<Node>, target:Node, memberName:Node, descriptor:Node):Expression {
+	public function NewDecorateHelper(decoratorExpressions:Slice<Node>, target:Node, memberName:Node, descriptor:Node):Expression {
 		emitContext.RequestEmitHelper(Printer.decorateHelper);
 
 		var argumentsArray:Array<Node> = [];
@@ -663,7 +663,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 	}
 
 	// Creates `(() => { ...statements })()` — an immediately invoked arrow function.
-	public function NewImmediatelyInvokedArrowFunction(statements:Array<Statement>):Expression {
+	public function NewImmediatelyInvokedArrowFunction(statements:Slice<Statement>):Expression {
 		final arrow = NewArrowFunction(null, /*modifiers*/ null, /*typeParameters*/ NewNodeList([]), /*parameters*/ null, /*returnType*/ null,
 			/*fullSignature*/ NewToken(KindEqualsGreaterThanToken), /*equalsGreaterThanToken*/ NewBlock(NewNodeList(statements), true));
 		return NewCallExpression(NewParenthesizedExpression(arrow), null, /*questionDotToken*/ null, /*typeArguments*/ NewNodeList([]), NodeFlagsNone);
@@ -683,16 +683,16 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 
 	// ES2018 Helpers
 	// Chains a sequence of expressions using the __assign helper or Object.assign if available in the target
-	public function NewAssignHelper(attributesSegments:Array<Expression>, scriptTarget:ScriptTarget):Expression {
+	public function NewAssignHelper(attributesSegments:Slice<Expression>, scriptTarget:ScriptTarget):Expression {
 		return NewCallExpression(NewPropertyAccessExpression(NewIdentifier("Object"), null, NewIdentifier("assign"), NodeFlagsNone), null, null,
 			NewNodeList(attributesSegments), NodeFlagsNone);
 	}
 
 	// ES2018 Destructuring Helpers
 
-	public function NewRestHelper(value:Expression, elements:Array<Node>, computedTempVariables:Array<Node>, location:TextRange):Expression {
+	public function NewRestHelper(value:Expression, elements:Slice<Node>, computedTempVariables:Slice<Node>, location:TextRange):Expression {
 		emitContext.RequestEmitHelper(Printer.restHelper);
-		var propertyNames:Array<Node> = null;
+		var propertyNames:Slice<Node> = null;
 		var computedTempVariableOffset = 0;
 		if (elements != null) {
 			for (i in 0...elements.length) {
@@ -1013,7 +1013,7 @@ class NodeFactory extends ts.ast.Ast.NodeFactory {
 	// Allocates a new Call expression to the `__rewriteRelativeImportExtension` helper.
 	// PORT: caseSensitivity → ignoreCase
 	public function NewRewriteRelativeImportExtensionsHelper(firstArgument:Node, preserveJsx:Bool,
-			?extraExtensions:Array<ts.tspath.Tspath.ExtensionRewrite>, ignoreCase:Bool = false):Expression {
+			?extraExtensions:Slice<ts.tspath.Tspath.ExtensionRewrite>, ignoreCase:Bool = false):Expression {
 		if (extraExtensions == null || extraExtensions.length == 0) {
 			emitContext.RequestEmitHelper(Printer.rewriteRelativeImportExtensionsHelper);
 			var arguments:Array<Expression>;

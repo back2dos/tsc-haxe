@@ -517,7 +517,7 @@ class Printer {
 		writeCommentRangeWorker(text, lineMap, comment.Kind, comment.TextRange);
 	}
 
-	function writeCommentRangeWorker(text:std.String, lineMap:Array<TextPos>, kind:Kind, loc:TextRange):Void {
+	function writeCommentRangeWorker(text:std.String, lineMap:Slice<TextPos>, kind:Kind, loc:TextRange):Void {
 		if (kind == KindMultiLineCommentTrivia) {
 			final indentSize = GetDefaultIndentSize();
 			final firstLine = Scanner.ComputeLineOfPosition(lineMap, loc.Pos());
@@ -4488,7 +4488,7 @@ class Printer {
 		emitDirective("lib", node.LibReferenceDirectives);
 	}
 
-	function emitDirective(kind:std.String, refs:Array<FileReference>):Void {
+	function emitDirective(kind:std.String, refs:Slice<FileReference>):Void {
 		if (refs == null) {
 			return;
 		}
@@ -4669,7 +4669,7 @@ class Printer {
 	// Emits a list without brackets or raising events.
 	//
 	// NOTE: You probably don't want to call this directly and should be using `emitList` instead.
-	function emitListItems(emit:(p:Printer, node:Node) -> Void, parentNode:Node, children:Array<Node>, format:ListFormat, hasTrailingComma:Bool,
+	function emitListItems(emit:(p:Printer, node:Node) -> Void, parentNode:Node, children:Slice<Node>, format:ListFormat, hasTrailingComma:Bool,
 			childrenTextRange:TextRange):Void {
 		// Write the opening line terminator or leading whitespace.
 		final mayEmitInterveningComments = format & LFNoInterveningComments == 0;
@@ -5306,7 +5306,7 @@ class Printer {
 
 	function writeSynthesizedComment(comment:SynthesizedComment):Void {
 		final text = formatSynthesizedComment(comment);
-		var lineMap:Array<TextPos> = null;
+		var lineMap:Slice<TextPos> = null;
 		if (comment.Kind == KindMultiLineCommentTrivia) {
 			lineMap = Core.ComputeECMALineStarts(text);
 		}
@@ -5346,7 +5346,7 @@ class Printer {
 			}
 		}
 
-		var comments:Array<CommentRange> = null;
+		var comments:Slice<CommentRange> = null;
 		for (comment in Scanner.GetLeadingCommentRanges(emitContext.Factory.AsNodeFactory(), currentSourceFile.Text(), pos)) {
 			if (shouldWriteComment(comment) && shouldEmitCommentIfTripleSlash(comment, tripleSlash)) {
 				if (comments == null) {
@@ -5400,7 +5400,7 @@ class Printer {
 			return;
 		}
 
-		var comments:Array<CommentRange> = null;
+		var comments:Slice<CommentRange> = null;
 		for (comment in Scanner.GetTrailingCommentRanges(emitContext.Factory.AsNodeFactory(), currentSourceFile.Text(), pos)) {
 			if (shouldWriteComment(comment)) {
 				if (comments == null) {
@@ -5422,7 +5422,7 @@ class Printer {
 			return;
 		}
 
-		var comments:Array<CommentRange> = null;
+		var comments:Slice<CommentRange> = null;
 		for (comment in Scanner.GetTrailingCommentRanges(emitContext.Factory.AsNodeFactory(), currentSourceFile.Text(), pos)) {
 			if (comments == null) {
 				comments = [];
@@ -5480,7 +5480,7 @@ class Printer {
 		final text = currentSourceFile.Text();
 		final lineMap = currentSourceFile.ECMALineMap();
 
-		var leadingComments:Array<CommentRange> = null;
+		var leadingComments:Slice<CommentRange> = null;
 		if (commentsDisabled) {
 			// removeComments is true, only reserve pinned comment at the top of file
 			// For example:
@@ -5509,7 +5509,7 @@ class Printer {
 
 		var result:DetachedCommentsInfo = null;
 		if (Core.len(leadingComments) > 0) {
-			var detachedComments:Array<CommentRange> = null;
+			var detachedComments:Slice<CommentRange> = null;
 			var lastComment:CommentRange = null;
 			for (i in 0...leadingComments.length) {
 				final comment = leadingComments[i];
@@ -5542,7 +5542,7 @@ class Printer {
 					// Valid detachedComments
 
 					// Filter to only comments that should be written (e.g., JSDoc-style in declaration emit)
-					var commentsToEmit:Array<CommentRange> = null;
+					var commentsToEmit:Slice<CommentRange> = null;
 					for (comment in detachedComments) {
 						if (shouldWriteComment(comment)) {
 							if (commentsToEmit == null) {
@@ -5566,7 +5566,7 @@ class Printer {
 		return result;
 	}
 
-	function emitComments(comments:Array<CommentRange>, commentSeparator:CommentSeparator):Bool {
+	function emitComments(comments:Slice<CommentRange>, commentSeparator:CommentSeparator):Bool {
 		var interveningSeparator = false;
 		if (Core.len(comments) == 0) {
 			return false;
@@ -6089,7 +6089,7 @@ class Printer {
 		return f;
 	}
 
-	static function flattenCommaElement(node:Expression, expressions:Array<Expression>):Array<Expression> {
+	static function flattenCommaElement(node:Expression, expressions:Slice<Expression>):Slice<Expression> {
 		if (Ast.IsBinaryExpression(node) && Ast.NodeIsSynthesized(node) && node.AsBinaryExpression().OperatorToken.Kind == KindCommaToken) {
 			expressions = flattenCommaElement(node.AsBinaryExpression().Left, expressions);
 			expressions = flattenCommaElement(node.AsBinaryExpression().Right, expressions);
@@ -6099,8 +6099,8 @@ class Printer {
 		return expressions;
 	}
 
-	static function flattenCommaElements(expressions:Array<Expression>):Array<Expression> {
-		var result:Array<Expression> = null;
+	static function flattenCommaElements(expressions:Slice<Expression>):Slice<Expression> {
+		var result:Slice<Expression> = null;
 		for (expression in expressions) {
 			result = flattenCommaElement(expression, result);
 		}
@@ -6108,7 +6108,7 @@ class Printer {
 	}
 
 	// PORT: Go `append(s, x)` on a slice the caller owns (nil → new array).
-	static inline function appendNode(s:Array<Node>, x:Node):Array<Node> {
+	static inline function appendNode(s:Slice<Node>, x:Node):Slice<Node> {
 		if (s == null) {
 			return [x];
 		}
@@ -7193,7 +7193,7 @@ class Printer {
 
 	// PORT: Go `scanner.ComputeLineOfPosition(lineStarts[from:], pos)` without the slice copy (same
 	// binary search over the sub-slice; the result is relative to `from`).
-	static function computeLineOfPositionFrom(lineStarts:Array<TextPos>, from:Int, pos:Int):Int {
+	static function computeLineOfPositionFrom(lineStarts:Slice<TextPos>, from:Int, pos:Int):Int {
 		var low = 0;
 		var high = lineStarts.length - from - 1;
 		while (low <= high) {
@@ -7528,7 +7528,7 @@ class Printer {
 		return builder.toString();
 	}
 
-	static function findSpanEndWithEmitContext<T>(c:EmitContext, array:Array<T>, test:(c:EmitContext, value:T) -> Bool, start:Int):Int {
+	static function findSpanEndWithEmitContext<T>(c:EmitContext, array:Slice<T>, test:(c:EmitContext, value:T) -> Bool, start:Int):Int {
 		var i = start;
 		while (i < Core.len(array) && test(c, array[i])) {
 			i++;
@@ -7536,7 +7536,7 @@ class Printer {
 		return i;
 	}
 
-	static function findSpanEnd<T>(array:Array<T>, test:(value:T) -> Bool, start:Int):Int {
+	static function findSpanEnd<T>(array:Slice<T>, test:(value:T) -> Bool, start:Int):Int {
 		var i = start;
 		while (i < Core.len(array) && test(array[i])) {
 			i++;
@@ -7983,7 +7983,7 @@ class SourceFileSource implements Source {
 		return file.FileName();
 	}
 
-	public function ECMALineMap():Array<TextPos> {
+	public function ECMALineMap():Slice<TextPos> {
 		return file.ECMALineMap();
 	}
 }

@@ -12,8 +12,8 @@ class NodebuilderHover {
 	// machinery used by declaration emit — it directly builds the declaration nodes hover needs
 	// without the declaration-emit scaffolding (deferred privates, symbol name remapping, export
 	// modifier computation, alias resolution, visited symbols tracking).
-	static function expandSymbolForHover(b:NodeBuilderImpl, symbol:Symbol):Array<Node> {
-		var results:Array<Node> = null;
+	static function expandSymbolForHover(b:NodeBuilderImpl, symbol:Symbol):Slice<Node> {
+		var results:Slice<Node> = null;
 		if (symbol.Flags & SymbolFlagsEnum != 0) {
 			final node = b.expandEnumDecl(symbol);
 			if (node != null) {
@@ -53,7 +53,7 @@ class NodebuilderHover {
 		final memberProps = Core.Filter(b.ch.getPropertiesOfType(b.ch.getTypeOfSymbol(symbol)), (p:Symbol) -> {
 			return p.Flags & SymbolFlagsEnumMember != 0;
 		});
-		var members:Array<Node> = null;
+		var members:Slice<Node> = null;
 		if (memberProps != null) {
 			for (i in 0...memberProps.length) {
 				final p = memberProps[i];
@@ -148,7 +148,7 @@ class NodebuilderHover {
 		final publicProps = Core.Filter(symbolProps, (s:Symbol) -> !Checker.isHashPrivate(s));
 		final hasPrivate = Core.Some(symbolProps, Checker.isHashPrivate);
 
-		var instanceMembers:Array<Node> = null;
+		var instanceMembers:Slice<Node> = null;
 		instanceMembers = b.serializePropertiesWithTruncation(publicProps, instanceMembers);
 		instanceMembers = Checker.typeElementsToClassElements(b.f, instanceMembers);
 		instanceMembers = b.addClassModifiers(instanceMembers, false);
@@ -157,13 +157,13 @@ class NodebuilderHover {
 		final staticProps = Core.Filter(b.ch.getPropertiesOfType(staticType), (p:Symbol) -> {
 			return p.Flags & SymbolFlagsPrototype == 0 && p.Name != "prototype" && !b.isNamespaceMember(p);
 		});
-		var staticMembers:Array<Node> = null;
+		var staticMembers:Slice<Node> = null;
 		staticMembers = b.serializePropertiesWithTruncation(staticProps, staticMembers);
 		staticMembers = Checker.typeElementsToClassElements(b.f, staticMembers);
 		staticMembers = b.addClassModifiers(staticMembers, true);
 
 		// Hash-private members
-		var privateMembers:Array<Node> = null;
+		var privateMembers:Slice<Node> = null;
 		if (hasPrivate) {
 			privateMembers = b.serializePropertiesWithTruncation(Core.Filter(symbolProps, Checker.isHashPrivate), privateMembers);
 			privateMembers = Checker.typeElementsToClassElements(b.f, privateMembers);
@@ -192,7 +192,7 @@ class NodebuilderHover {
 
 	// addClassModifiers post-processes class member nodes to add class-specific modifiers
 	// (private, protected, public, abstract, static) based on the original symbol declarations.
-	static function addClassModifiers(b:NodeBuilderImpl, members:Array<Node>, isStatic:Bool):Array<Node> {
+	static function addClassModifiers(b:NodeBuilderImpl, members:Slice<Node>, isStatic:Bool):Slice<Node> {
 		if (members == null) {
 			return members;
 		}
@@ -242,7 +242,7 @@ class NodebuilderHover {
 
 		// Members: reuse existing serialization functions
 		final resolved = b.ch.resolveStructuredTypeMembers(interfaceType);
-		var members:Array<Node> = null;
+		var members:Slice<Node> = null;
 
 		// Index signatures, filtering those identical to base
 		final indexSigs = b.serializeIndexSignaturesOfType(interfaceType, baseType);
@@ -282,9 +282,9 @@ class NodebuilderHover {
 			b.f.NewNodeList(members));
 	}
 
-	static function hoverHeritageClauses(b:NodeBuilderImpl, declarations:haxe.ds.Vector<Node>):Array<Node> {
-		var extendsTypes:Array<Node> = null;
-		var implementsTypes:Array<Node> = null;
+	static function hoverHeritageClauses(b:NodeBuilderImpl, declarations:haxe.ds.Vector<Node>):Slice<Node> {
+		var extendsTypes:Slice<Node> = null;
+		var implementsTypes:Slice<Node> = null;
 		if (declarations != null) {
 			for (declaration in declarations) {
 				final ext = Ast.GetExtendsHeritageClauseElements(declaration);
@@ -304,7 +304,7 @@ class NodebuilderHover {
 			}
 		}
 
-		var heritageClauses:Array<Node> = null;
+		var heritageClauses:Slice<Node> = null;
 		if (Core.len(extendsTypes) > 0) {
 			if (heritageClauses == null) heritageClauses = [];
 			heritageClauses.push(b.f.NewHeritageClause(KindExtendsKeyword, b.f.NewNodeList(extendsTypes)));
@@ -318,7 +318,7 @@ class NodebuilderHover {
 
 	// serializePropertiesWithTruncation iterates properties using addPropertyToElementList,
 	// with truncation checks matching Strada's createTypeNodesFromResolvedType behavior.
-	static function serializePropertiesWithTruncation(b:NodeBuilderImpl, properties:haxe.ds.Vector<Symbol>, elements:Array<Node>):Array<Node> {
+	static function serializePropertiesWithTruncation(b:NodeBuilderImpl, properties:haxe.ds.Vector<Symbol>, elements:Slice<Node>):Slice<Node> {
 		properties = Core.Filter(properties, (p:Symbol) -> {
 			return p.Flags & SymbolFlagsPrototype == 0;
 		});
@@ -340,7 +340,7 @@ class NodebuilderHover {
 	}
 
 	// serializeConstructors builds constructor signature(s) for a class, with base type filtering.
-	static function serializeConstructors(b:NodeBuilderImpl, staticType:Type, staticBaseType:Type, isClass:Bool, symbol:Symbol):Array<Node> {
+	static function serializeConstructors(b:NodeBuilderImpl, staticType:Type, staticBaseType:Type, isClass:Bool, symbol:Symbol):Slice<Node> {
 		final isNonConstructable = !isClass
 			&& symbol.ValueDeclaration != null
 			&& Ast.IsInJSFile(symbol.ValueDeclaration)
@@ -386,7 +386,7 @@ class NodebuilderHover {
 		} else if (Core.Every(signatures, (sig:Signature) -> Core.len(sig.parameters) == 0)) {
 			return null;
 		}
-		var result:Array<Node> = null;
+		var result:Slice<Node> = null;
 		if (signatures != null) {
 			for (sig in signatures) {
 				b.ctx.approximateLength++;
@@ -398,8 +398,8 @@ class NodebuilderHover {
 	}
 
 	// serializeIndexSignaturesOfType builds index signature declarations, filtering those identical to baseType.
-	static function serializeIndexSignaturesOfType(b:NodeBuilderImpl, input:Type, baseType:Type):Array<Node> {
-		var result:Array<Node> = null;
+	static function serializeIndexSignaturesOfType(b:NodeBuilderImpl, input:Type, baseType:Type):Slice<Node> {
+		var result:Slice<Node> = null;
 		final infos = b.ch.getIndexInfosOfType(input);
 		if (infos != null) {
 			for (info in infos) {
@@ -442,7 +442,7 @@ class NodebuilderHover {
 	// expandModuleDecl produces a ModuleDeclaration with exported members.
 	static function expandModuleDecl(b:NodeBuilderImpl, symbol:Symbol):Node {
 		final exports = b.ch.getExportsOfSymbol(symbol);
-		var members:Array<Symbol> = null;
+		var members:Slice<Symbol> = null;
 		// Go map iteration order is random; members are sorted by sortSymbols below.
 		if (exports != null) {
 			for (sym in exports) {
@@ -611,7 +611,7 @@ class NodebuilderHover {
 	}
 
 	// filterInheritedProperties removes properties already present in base types.
-	static function filterInheritedProperties(b:NodeBuilderImpl, t:Type, baseTypes:Array<Type>, properties:haxe.ds.Vector<Symbol>):haxe.ds.Vector<Symbol> {
+	static function filterInheritedProperties(b:NodeBuilderImpl, t:Type, baseTypes:Slice<Type>, properties:haxe.ds.Vector<Symbol>):haxe.ds.Vector<Symbol> {
 		if (Core.len(baseTypes) == 0) {
 			return properties;
 		}

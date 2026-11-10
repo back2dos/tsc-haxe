@@ -6,7 +6,7 @@ interface ReferenceResolver {
 	function GetReferencedExportContainer(node:IdentifierNode, prefixLocals:Bool):Node;
 	function GetReferencedImportDeclaration(node:IdentifierNode):Declaration;
 	function GetReferencedValueDeclaration(node:IdentifierNode):Declaration;
-	function GetReferencedValueDeclarations(node:IdentifierNode):Array<Declaration>;
+	function GetReferencedValueDeclarations(node:IdentifierNode):Slice<Declaration>;
 	function GetElementAccessExpressionName(expression:ElementAccessExpression):std.String;
 	function GetReferencedMemberValueDeclaration(node:Node):Declaration;
 }
@@ -211,8 +211,8 @@ class ReferenceResolver_ implements ReferenceResolver {
 		return null;
 	}
 
-	public function GetReferencedValueDeclarations(node:IdentifierNode):Array<Declaration> {
-		var declarations:Array<Declaration> = null;
+	public function GetReferencedValueDeclarations(node:IdentifierNode):Slice<Declaration> {
+		var declarations:Slice<Declaration> = null;
 		var symbol = getReferencedValueSymbol(node, false /*startInDeclarationContainer*/);
 		if (symbol != null) {
 			symbol = getExportSymbolOfValueSymbolIfExported(symbol);

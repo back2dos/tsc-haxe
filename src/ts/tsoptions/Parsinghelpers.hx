@@ -3,7 +3,7 @@ package ts.tsoptions;
 // Port of parsinghelpers.go (types and methods; package-level funcs are in Tsoptions.hx).
 
 interface OptionParser {
-	function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>>;
+	function ParseOption(key:std.String, value:Dynamic):Slice<Diagnostic>;
 	function UnknownOptionDiagnostic():Null<Message>;
 	function UnknownDidYouMeanDiagnostic():Null<Message>;
 }
@@ -18,7 +18,7 @@ class CompilerOptionsParser implements OptionParser {
 		this.unresolvedPaths = unresolvedPaths;
 	}
 
-	public function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>> {
+	public function ParseOption(key:std.String, value:Dynamic):Slice<Diagnostic> {
 		if (this.unresolvedPaths != null && Tsoptions.compilerOptionContainsConfigDirTemplate(key, value)) {
 			this.unresolvedPaths.Set(key, value);
 			return null;
@@ -42,7 +42,7 @@ class WatchOptionsParser implements OptionParser {
 		this.WatchOptions = WatchOptions;
 	}
 
-	public function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>> {
+	public function ParseOption(key:std.String, value:Dynamic):Slice<Diagnostic> {
 		return Tsoptions.ParseWatchOptions(key, value, this.WatchOptions);
 	}
 
@@ -62,7 +62,7 @@ class TypeAcquisitionParser implements OptionParser {
 		this.TypeAcquisition = TypeAcquisition;
 	}
 
-	public function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>> {
+	public function ParseOption(key:std.String, value:Dynamic):Slice<Diagnostic> {
 		return Tsoptions.ParseTypeAcquisition(key, value, this.TypeAcquisition);
 	}
 
@@ -82,7 +82,7 @@ class BuildOptionsParser implements OptionParser {
 		this.BuildOptions = BuildOptions;
 	}
 
-	public function ParseOption(key:std.String, value:Dynamic):Null<Array<Diagnostic>> {
+	public function ParseOption(key:std.String, value:Dynamic):Slice<Diagnostic> {
 		return Tsoptions.ParseBuildOptions(key, value, this.BuildOptions);
 	}
 

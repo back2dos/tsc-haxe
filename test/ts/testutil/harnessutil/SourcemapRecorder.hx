@@ -31,9 +31,9 @@ class WriterAggregator {
 
 class SourceMapSpanWithDecodeErrors {
 	public var sourceMapSpan:Mapping = null;
-	public var decodeErrors:Array<String> = null;
+	public var decodeErrors:Slice<String> = null;
 
-	public function new(sourceMapSpan:Mapping, decodeErrors:Array<String>) {
+	public function new(sourceMapSpan:Mapping, decodeErrors:Slice<String>) {
 		this.sourceMapSpan = sourceMapSpan;
 		this.decodeErrors = decodeErrors;
 	}
@@ -85,13 +85,13 @@ class SourceMapDecoder {
 @:allow(ts.testutil.harnessutil)
 class SourceMapSpanWriter {
 	var sourceMapRecorder:WriterAggregator = null;
-	var sourceMapSources:Array<String> = null;
-	var sourceMapNames:Array<String> = null;
+	var sourceMapSources:Slice<String> = null;
+	var sourceMapNames:Slice<String> = null;
 	var jsFile:TestFile = null;
-	var jsLineMap:Array<TextPos> = null;
+	var jsLineMap:Slice<TextPos> = null;
 	var tsCode:String = "";
-	var tsLineMap:Array<TextPos> = null;
-	var spansOnSingleLine:Array<SourceMapSpanWithDecodeErrors> = null;
+	var tsLineMap:Slice<TextPos> = null;
+	var spansOnSingleLine:Slice<SourceMapSpanWithDecodeErrors> = null;
 	var prevWrittenSourcePos:Int = 0;
 	var nextJsLineToWrite:Int = 0;
 	var spanMarkerContinues:Bool = false;
@@ -114,7 +114,7 @@ class SourceMapSpanWriter {
 
 		sourceMapRecorder.WriteLine("===================================================================");
 		sourceMapRecorder.WriteLine("JsFile: " + sourceMap.File);
-		sourceMapRecorder.WriteLine("mapUrl: " + Sourcemap.TryGetSourceMappingURL(Sourcemap.CreateECMALineInfo(jsFile.Content, writer.jsLineMap)));
+		sourceMapRecorder.WriteLine("mapUrl: " + Sourcemap.TryGetSourceMappingURL(Sourcemap.CreateECMALineInfo(jsFile.Content, writer.jsLineMap.nilable())));
 		sourceMapRecorder.WriteLine("sourceRoot: " + sourceMap.SourceRoot);
 		sourceMapRecorder.WriteLine("sources: " + (sourceMap.Sources == null ? "" : sourceMap.Sources.join(",")));
 		if (Core.len(sourceMap.SourcesContent) > 0) {
@@ -146,7 +146,7 @@ class SourceMapSpanWriter {
 	public function recordSourceMapSpan(sourceMapSpan:Mapping):Void {
 		// verify the decoded span is same as the new span
 		final decodeResult = this.sourceMapDecoder.decodeNextEncodedSourceMapSpan();
-		var decodeErrors:Array<String> = null;
+		var decodeErrors:Slice<String> = null;
 		if (decodeResult.error != null || !decodeResult.sourceMapSpan.Equals(sourceMapSpan)) {
 			if (decodeResult.error != null) {
 				decodeErrors = ["!!^^ !!^^ There was decoding error in the sourcemap at this location: " + decodeResult.error.Error()];
@@ -210,7 +210,7 @@ class SourceMapSpanWriter {
 		this.writeJsFileLines(this.jsLineMap.length);
 	}
 
-	function getTextOfLine(line:Int, lineMap:Array<TextPos>, code:String):String {
+	function getTextOfLine(line:Int, lineMap:Slice<TextPos>, code:String):String {
 		// PORT: Go indexing panics out of range (e.g. the line+1 lookup in writeRecordedSpans).
 		if (line >= lineMap.length) {
 			throw "runtime error: index out of range [" + line + "] with length " + lineMap.length;

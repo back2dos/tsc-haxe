@@ -7,8 +7,8 @@ class WatchOptions {
 	public var DirectoryKind:WatchDirectoryKind = WatchDirectoryKindNone; // json:"watchDirectory"
 	public var FallbackPolling:PollingKind = PollingKindNone; // json:"fallbackPolling"
 	public var SyncWatchDir:Tristate = TSUnknown; // json:"synchronousWatchDirectory"
-	public var ExcludeDir:Null<Array<String>> = null; // json:"excludeDirectories"
-	public var ExcludeFiles:Null<Array<String>> = null; // json:"excludeFiles"
+	public var ExcludeDir:Slice<String> = null; // json:"excludeDirectories"
+	public var ExcludeFiles:Slice<String> = null; // json:"excludeFiles"
 
 	public function new() {}
 

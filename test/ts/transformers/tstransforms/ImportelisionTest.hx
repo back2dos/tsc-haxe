@@ -6,7 +6,7 @@ package ts.transformers.tstransforms;
 private class FakeProgram implements Program {
 	public var singleThreaded:Bool = false;
 	public var compilerOptions:CompilerOptions = null;
-	public var files:Array<SourceFile> = null;
+	public var files:Slice<SourceFile> = null;
 	public var getEmitModuleFormatOfFile:(sourceFile:HasFileName) -> ModuleKind = null;
 	public var getImpliedNodeFormatForEmit:(sourceFile:HasFileName) -> ModuleKind = null;
 	public var getResolvedModule:(currentSourceFile:HasFileName, moduleReference:std.String, mode:ResolutionMode) -> ResolvedModule = null;
@@ -35,11 +35,11 @@ private class FakeProgram implements Program {
 		throw "unimplemented";
 	}
 
-	public function ContentMapperExtensions():Null<Array<std.String>> {
+	public function ContentMapperExtensions():Slice<std.String> {
 		return null;
 	}
 
-	public function ContentMapperExtensionRewrites():Null<Array<ts.tspath.Tspath.ExtensionRewrite>> {
+	public function ContentMapperExtensionRewrites():Slice<ts.tspath.Tspath.ExtensionRewrite> {
 		return null;
 	}
 
@@ -99,7 +99,7 @@ private class FakeProgram implements Program {
 		return compilerOptions;
 	}
 
-	public function SourceFiles():Array<SourceFile> {
+	public function SourceFiles():Slice<SourceFile> {
 		return files;
 	}
 

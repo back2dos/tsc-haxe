@@ -822,15 +822,15 @@ class Declarations {
 		throw "Diagnostic emitted without context";
 	}
 
-	static function nodeOrSyntaxListChildren(node:Node):Array<Node> {
+	static function nodeOrSyntaxListChildren(node:Node):Slice<Node> {
 		if (Ast.IsSyntaxList(node)) {
 			return node.AsSyntaxList().Children;
 		}
 		return [node];
 	}
 
-	static function flattenSyntaxLists(nodes:Array<Node>):Array<Node> {
-		return Core.FlatMap(nodes, nodeOrSyntaxListChildren);
+	static function flattenSyntaxLists(nodes:Array<Node>):Slice<Node> {
+		return Core.FlatMap(nodes, n -> nodeOrSyntaxListChildren(n).nilable());
 	}
 
 	static function createEmptyExports(factory:NodeFactory):Node {
@@ -912,7 +912,7 @@ class Declarations {
 		/* ast.IsJSDocTypeAlias(node); */
 	}
 
-	static function canReuseModifierNodes(nodes:Array<Node>):Bool {
+	static function canReuseModifierNodes(nodes:Slice<Node>):Bool {
 		if (nodes != null) { // PORT: Go range over a nil slice
 			for (node in nodes) {
 				if (Ast.IsModifier(node) && (node.Flags & NodeFlagsReparsed) != 0) {

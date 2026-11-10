@@ -8,8 +8,8 @@ class ToSnapshot {
 	var buildInfo:BuildInfo = null;
 	var buildInfoDirectory:RootedDirectoryPath = cast "";
 	var snapshot:Snapshot = new Snapshot();
-	var filePaths:Array<Path> = null;
-	var filePathSet:Array<Set<Path>> = null;
+	var filePaths:Slice<Path> = null;
+	var filePathSet:Slice<Set<Path>> = null;
 
 	public function new() {}
 
@@ -25,7 +25,7 @@ class ToSnapshot {
 		return this.filePathSet[fileIdListId - 1];
 	}
 
-	function toBuildInfoDiagnosticsWithFileName(diagnostics:Array<BuildInfoDiagnostic>):Array<BuildInfoDiagnosticWithFileName> {
+	function toBuildInfoDiagnosticsWithFileName(diagnostics:Slice<BuildInfoDiagnostic>):Slice<BuildInfoDiagnosticWithFileName> {
 		return Core.Map(diagnostics, function(d:BuildInfoDiagnostic):BuildInfoDiagnosticWithFileName {
 			var file:Path = "";
 			if (d.File != 0) {

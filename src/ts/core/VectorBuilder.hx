@@ -49,12 +49,12 @@ abstract VectorBuilder<T>(Array<T>) {
 
 	// A finished Array (from a function that builds one) as a Vector: the same copy as build(). Null (Go nil) and
 	// empty give the empty vector.
-	public static inline function freeze<T>(a:Null<Array<T>>):haxe.ds.Vector<T> {
-		return a == null ? new haxe.ds.Vector<T>(0) : haxe.ds.Vector.fromArrayCopy(a);
+	public static inline function freeze<T>(a:Slice<T>):haxe.ds.Vector<T> {
+		return a == null ? new haxe.ds.Vector<T>(0) : haxe.ds.Vector.fromArrayCopy(a.nilable());
 	}
 
 	// As freeze, but null stays null (where Go tells a nil slice from an empty one).
-	public static inline function freezeOrNull<T>(a:Null<Array<T>>):haxe.ds.Vector<T> {
-		return a == null ? null : haxe.ds.Vector.fromArrayCopy(a);
+	public static inline function freezeOrNull<T>(a:Slice<T>):haxe.ds.Vector<T> {
+		return a == null ? null : haxe.ds.Vector.fromArrayCopy(a.nilable());
 	}
 }

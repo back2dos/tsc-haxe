@@ -46,7 +46,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 
 	// PORT: hxmc (-D tshx-parallel) — r.checkerMu.Lock(); defer r.checkerMu.Unlock() in these methods: the
 	// emitters of the files of one checker run in parallel and take turns in its queries (Go 7.0.2)
-	public function CreateLateBoundIndexSignatures(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	public function CreateLateBoundIndexSignatures(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Slice<Node> {
 		#if tshx_parallel
 		final m:sys.thread.Mutex = cast checkerMu;
 		m.acquire();
@@ -106,7 +106,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		#end
 	}
 
-	public function CreateTypeParametersOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	public function CreateTypeParametersOfSignatureDeclaration(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Slice<Node> {
 		#if tshx_parallel
 		final m:sys.thread.Mutex = cast checkerMu;
 		m.acquire();
@@ -202,7 +202,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		#end
 	}
 
-	public function GetPropertiesOfContainerFunction(node:Node):Array<Symbol> {
+	public function GetPropertiesOfContainerFunction(node:Node):Slice<Symbol> {
 		#if tshx_parallel
 		final m:sys.thread.Mutex = cast checkerMu;
 		m.acquire();
@@ -262,7 +262,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		#end
 	}
 
-	public function GetReferencedValueDeclarations(node:IdentifierNode):Array<Declaration> {
+	public function GetReferencedValueDeclarations(node:IdentifierNode):Slice<Declaration> {
 		#if tshx_parallel
 		final m:sys.thread.Mutex = cast checkerMu;
 		m.acquire();
@@ -1270,7 +1270,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return getReferenceResolver().GetReferencedValueDeclaration(node);
 	}
 
-	function GetReferencedValueDeclarations__locked(node:IdentifierNode):Array<Declaration> {
+	function GetReferencedValueDeclarations__locked(node:IdentifierNode):Slice<Declaration> {
 		if (!Ast.IsParseTreeNode(node)) {
 			return null;
 		}
@@ -1311,7 +1311,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return requestNodeBuilder.SerializeReturnTypeForSignature(original, enclosingDeclaration, flags, internalFlags, tracker);
 	}
 
-	function CreateTypeParametersOfSignatureDeclaration__locked(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	function CreateTypeParametersOfSignatureDeclaration__locked(emitContext:EmitContext, signatureDeclaration:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Slice<Node> {
 		final original = emitContext.ParseNode(signatureDeclaration);
 		if (original == null) {
 			return null;
@@ -1399,7 +1399,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		return requestNodeBuilder.SerializeTypeForExpression(expression, enclosingDeclaration, flags | FlagsMultilineObjectLiterals, internalFlags, tracker);
 	}
 
-	function CreateLateBoundIndexSignatures__locked(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Array<Node> {
+	function CreateLateBoundIndexSignatures__locked(emitContext:EmitContext, container:Node, enclosingDeclaration:Node, flags:Flags, internalFlags:InternalFlags, tracker:SymbolTracker):Slice<Node> {
 		container = emitContext.ParseNode(container);
 
 		final sym = container.Symbol();
@@ -1414,7 +1414,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 
 		final requestNodeBuilder = Checker.NewNodeBuilder(checker, emitContext); // TODO: cache per-context
 
-		var result:Array<Node> = null;
+		var result:Slice<Node> = null;
 		final infoLists = [staticInfos, instanceInfos];
 		for (i in 0...infoLists.length) {
 			final infoList = infoLists[i];
@@ -1602,7 +1602,7 @@ class EmitResolver implements ReferenceResolver implements ts.printer.Emitresolv
 		}
 	}
 
-	function GetPropertiesOfContainerFunction__locked(node:Node):Array<Symbol> {
+	function GetPropertiesOfContainerFunction__locked(node:Node):Slice<Symbol> {
 		// This is explicitly _not locked_ because it is only called via error reporters invoked via node builder calls
 		// to the symbol tracker already within locked contexts.
 		// r.checkerMu.Lock()

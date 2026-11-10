@@ -205,7 +205,7 @@ class Exports {
 		return c.hasEffectiveRestParameter(signature);
 	}
 
-	public static function GetLocalTypeParametersOfClassOrInterfaceOrTypeAlias(c:Checker, symbol:Symbol):Array<Type> {
+	public static function GetLocalTypeParametersOfClassOrInterfaceOrTypeAlias(c:Checker, symbol:Symbol):Slice<Type> {
 		return c.getLocalTypeParametersOfClassOrInterfaceOrTypeAlias(symbol);
 	}
 
@@ -217,7 +217,7 @@ class Exports {
 		return c.typePredicateToString(t);
 	}
 
-	public static function GetExpandedParameters(c:Checker, signature:Signature, skipUnionExpanding:Bool):Array<Array<Symbol>> {
+	public static function GetExpandedParameters(c:Checker, signature:Signature, skipUnionExpanding:Bool):Slice<Slice<Symbol>> {
 		return c.getExpandedParameters(signature, skipUnionExpanding);
 	}
 
@@ -234,7 +234,7 @@ class Exports {
 		return c.getContextualTypeForArgumentAtIndex(node, argIndex);
 	}
 
-	public static function GetIndexSignaturesAtLocation(c:Checker, node:Node):Array<Node> {
+	public static function GetIndexSignaturesAtLocation(c:Checker, node:Node):Slice<Node> {
 		return c.getIndexSignaturesAtLocation(node);
 	}
 
@@ -262,7 +262,7 @@ class Exports {
 		return c.getSymbolFlags(symbol);
 	}
 
-	public static function GetBaseTypes(c:Checker, t:Type):Array<Type> {
+	public static function GetBaseTypes(c:Checker, t:Type):Slice<Type> {
 		return c.getBaseTypes(t);
 	}
 
@@ -294,7 +294,7 @@ class Exports {
 		return c.isContextSensitive(node);
 	}
 
-	public static function FillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Array<Type> {
+	public static function FillMissingTypeArguments(c:Checker, typeArguments:Array<Type>, typeParameters:haxe.ds.Vector<Type>, minTypeArgumentCount:Int, isJavaScriptImplicitAny:Bool):Slice<Type> {
 		return c.fillMissingTypeArguments(typeArguments, typeParameters, minTypeArgumentCount, isJavaScriptImplicitAny);
 	}
 

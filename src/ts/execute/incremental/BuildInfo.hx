@@ -308,9 +308,9 @@ class BuildInfoDiagnostic implements OrderedMarshaler {
 	public var Code:Int = 0; // json:"code,omitzero"
 	public var Category:Category = cast 0; // json:"category,omitzero"
 	public var MessageKey:Key = ""; // json:"messageKey,omitzero"
-	public var MessageArgs:Array<std.String> = null; // json:"messageArgs,omitzero"
-	public var MessageChain:Array<BuildInfoDiagnostic> = null; // json:"messageChain,omitzero"
-	public var RelatedInformation:Array<BuildInfoDiagnostic> = null; // json:"relatedInformation,omitzero"
+	public var MessageArgs:Slice<std.String> = null; // json:"messageArgs,omitzero"
+	public var MessageChain:Slice<BuildInfoDiagnostic> = null; // json:"messageChain,omitzero"
+	public var RelatedInformation:Slice<BuildInfoDiagnostic> = null; // json:"relatedInformation,omitzero"
 	public var ReportsUnnecessary:Bool = false; // json:"reportsUnnecessary,omitzero"
 	public var ReportsDeprecated:Bool = false; // json:"reportsDeprecated,omitzero"
 	public var SkippedOnNoEmit:Bool = false; // json:"skippedOnNoEmit,omitzero"
@@ -408,9 +408,9 @@ class BuildInfoRepopulateInfo implements OrderedMarshaler {
 @:allow(ts.execute.incremental)
 class BuildInfoDiagnosticsOfFile implements OrderedMarshaler {
 	public var FileId:BuildInfoFileId = 0;
-	public var Diagnostics:Array<BuildInfoDiagnostic> = null;
+	public var Diagnostics:Slice<BuildInfoDiagnostic> = null;
 
-	public function new(FileId:BuildInfoFileId = 0, ?Diagnostics:Array<BuildInfoDiagnostic>) {
+	public function new(FileId:BuildInfoFileId = 0, ?Diagnostics:Slice<BuildInfoDiagnostic>) {
 		this.FileId = FileId;
 		this.Diagnostics = Diagnostics;
 	}
@@ -494,7 +494,7 @@ class BuildInfoFilePendingEmit implements OrderedMarshaler {
 
 	public static function fromJSONValue(data:Dynamic):BuildInfoFilePendingEmit {
 		if (!JsonDecode.isNumber(data)) {
-			var intTuple:Array<Int> = null;
+			var intTuple:Slice<Int> = null;
 			try {
 				intTuple = JsonDecode.ints(data);
 			} catch (e:Dynamic) {
@@ -538,7 +538,7 @@ class BuildInfoEmitSignature implements OrderedMarshaler {
 
 	function toEmitSignature(path:Path, emitSignatures:SyncMap<Path, EmitSignature>):EmitSignature {
 		var signature = "";
-		var signatureWithDifferentOptions:Array<std.String> = null;
+		var signatureWithDifferentOptions:Slice<std.String> = null;
 		if (this.DiffersOnlyInDtsMap) {
 			signatureWithDifferentOptions = [];
 			final info = emitSignatures.Load(path).value;
@@ -650,23 +650,23 @@ class BuildInfo implements OrderedMarshaler {
 	// Common between incremental and tsc -b buildinfo for non incremental programs
 	public var Errors:Bool = false; // json:"errors,omitzero"
 	public var CheckPending:Bool = false; // json:"checkPending,omitzero"
-	public var Root:Array<BuildInfoRoot> = null; // json:"root,omitzero"
-	public var PackageJsons:Array<std.String> = null; // json:"packageJsons,omitzero"
-	public var MissingPackageJsons:Array<std.String> = null; // json:"missingPackageJsons,omitzero"
+	public var Root:Slice<BuildInfoRoot> = null; // json:"root,omitzero"
+	public var PackageJsons:Slice<std.String> = null; // json:"packageJsons,omitzero"
+	public var MissingPackageJsons:Slice<std.String> = null; // json:"missingPackageJsons,omitzero"
 
 	// IncrementalProgram info
-	public var FileNames:Array<std.String> = null; // json:"fileNames,omitzero"
-	public var FileInfos:Array<BuildInfoFileInfo> = null; // json:"fileInfos,omitzero"
-	public var FileIdsList:Array<Array<BuildInfoFileId>> = null; // json:"fileIdsList,omitzero"
+	public var FileNames:Slice<std.String> = null; // json:"fileNames,omitzero"
+	public var FileInfos:Slice<BuildInfoFileInfo> = null; // json:"fileInfos,omitzero"
+	public var FileIdsList:Slice<Slice<BuildInfoFileId>> = null; // json:"fileIdsList,omitzero"
 	public var Options:OrderedMap<std.String, Dynamic> = null; // json:"options,omitzero"
-	public var ReferencedMap:Array<BuildInfoReferenceMapEntry> = null; // json:"referencedMap,omitzero"
-	public var SemanticDiagnosticsPerFile:Array<BuildInfoSemanticDiagnostic> = null; // json:"semanticDiagnosticsPerFile,omitzero"
-	public var EmitDiagnosticsPerFile:Array<BuildInfoDiagnosticsOfFile> = null; // json:"emitDiagnosticsPerFile,omitzero"
-	public var ChangeFileSet:Array<BuildInfoFileId> = null; // json:"changeFileSet,omitzero"
-	public var AffectedFilesPendingEmit:Array<BuildInfoFilePendingEmit> = null; // json:"affectedFilesPendingEmit,omitzero"
+	public var ReferencedMap:Slice<BuildInfoReferenceMapEntry> = null; // json:"referencedMap,omitzero"
+	public var SemanticDiagnosticsPerFile:Slice<BuildInfoSemanticDiagnostic> = null; // json:"semanticDiagnosticsPerFile,omitzero"
+	public var EmitDiagnosticsPerFile:Slice<BuildInfoDiagnosticsOfFile> = null; // json:"emitDiagnosticsPerFile,omitzero"
+	public var ChangeFileSet:Slice<BuildInfoFileId> = null; // json:"changeFileSet,omitzero"
+	public var AffectedFilesPendingEmit:Slice<BuildInfoFilePendingEmit> = null; // json:"affectedFilesPendingEmit,omitzero"
 	public var LatestChangedDtsFile:std.String = ""; // json:"latestChangedDtsFile,omitzero" // Because this is only output file in the program, we dont need fileId to deduplicate name
-	public var EmitSignatures:Array<BuildInfoEmitSignature> = null; // json:"emitSignatures,omitzero"
-	public var ResolvedRoot:Array<BuildInfoResolvedRoot> = null; // json:"resolvedRoot,omitzero"
+	public var EmitSignatures:Slice<BuildInfoEmitSignature> = null; // json:"emitSignatures,omitzero"
+	public var ResolvedRoot:Slice<BuildInfoResolvedRoot> = null; // json:"resolvedRoot,omitzero"
 
 	// NonIncrementalProgram info
 	public var SemanticErrors:Bool = false; // json:"semanticErrors,omitzero"

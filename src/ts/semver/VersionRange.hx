@@ -3,7 +3,7 @@ package ts.semver;
 // Port of internal/semver/version_range.go (types and methods).
 @:allow(ts.semver)
 class VersionRange {
-	var alternatives:Array<Array<VersionComparator>> = null;
+	var alternatives:Slice<Slice<VersionComparator>> = null;
 
 	public function new() {}
 

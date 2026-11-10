@@ -6,7 +6,7 @@ package ts.compiler;
 class ProjectReferenceParseTask {
 	var configName:RootedFilePath = cast "";
 	var resolved:ParsedCommandLine = null;
-	var subTasks:Array<ProjectReferenceParseTask> = null;
+	var subTasks:Slice<ProjectReferenceParseTask> = null;
 
 	public function new() {}
 
@@ -47,14 +47,14 @@ class ProjectReferenceParser {
 
 	public function new() {}
 
-	function parse(tasks:Array<ProjectReferenceParseTask>):Void {
+	function parse(tasks:Slice<ProjectReferenceParseTask>):Void {
 		this.loader.projectReferenceFileMapper.loader = this.loader;
 		this.start(tasks);
 		this.wg.RunAndWait();
 		this.initMapper(tasks);
 	}
 
-	function start(tasks:Array<ProjectReferenceParseTask>):Void {
+	function start(tasks:Slice<ProjectReferenceParseTask>):Void {
 		if (tasks == null)
 			return;
 		for (i in 0...tasks.length) {
@@ -75,7 +75,7 @@ class ProjectReferenceParser {
 		}
 	}
 
-	function initMapper(tasks:Array<ProjectReferenceParseTask>):Void {
+	function initMapper(tasks:Slice<ProjectReferenceParseTask>):Void {
 		final mapper = this.loader.projectReferenceFileMapper;
 		mapper.configToProjectReference = new StringMap();
 		mapper.referencesInConfigFile = new StringMap();
@@ -88,7 +88,7 @@ class ProjectReferenceParser {
 		}
 	}
 
-	function initMapperWorker(tasks:Array<ProjectReferenceParseTask>, seen:Set<ProjectReferenceParseTask>):Array<Path> {
+	function initMapperWorker(tasks:Slice<ProjectReferenceParseTask>, seen:Set<ProjectReferenceParseTask>):Array<Path> {
 		if (Core.len(tasks) == 0) {
 			return null;
 		}

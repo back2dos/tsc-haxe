@@ -16,7 +16,7 @@ class EmitHelper {
 	public var Text:std.String = ""; // ES3-compatible raw script text
 	public var TextCallback:(makeUniqueName:(std.String) -> std.String) -> std.String = null; // A function yielding an ES3-compatible raw script text.
 	public var Priority:Priority = null; // Helpers with a higher priority are emitted earlier than other helpers on the node.
-	public var Dependencies:Array<EmitHelper> = null; // Emit helpers this helper depends on
+	public var Dependencies:Slice<EmitHelper> = null; // Emit helpers this helper depends on
 	public var ImportName:std.String = ""; // The name of the helper to use when importing via `--importHelpers`.
 
 	public function new() {}

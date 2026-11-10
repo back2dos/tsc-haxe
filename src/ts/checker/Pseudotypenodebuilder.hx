@@ -112,7 +112,7 @@ class Pseudotypenodebuilder {
 					return b.pseudoTypeToNode(d.RegularType);
 				}
 			case PseudoTypeKindUnion:
-				var res:Array<Node> = null;
+				var res:Slice<Node> = null;
 				var hasElidedType = false;
 				var hasUndefined = false;
 				final members = t.AsPseudoTypeUnion().Types;
@@ -198,7 +198,7 @@ class Pseudotypenodebuilder {
 				cleanup();
 				return result;
 			case PseudoTypeKindTuple:
-				var res:Array<Node> = null;
+				var res:Slice<Node> = null;
 				final elements = t.AsPseudoTypeTuple().Elements;
 				if (elements != null) {
 					for (e in elements) {
@@ -300,7 +300,7 @@ class Pseudotypenodebuilder {
 		}
 	}
 
-	static function pseudoParametersToNodeList(b:NodeBuilderImpl, params:Array<PseudoParameter>):NodeList {
+	static function pseudoParametersToNodeList(b:NodeBuilderImpl, params:Slice<PseudoParameter>):NodeList {
 		final res:Array<Node> = [];
 		if (params != null) {
 			for (p in params) {
@@ -566,7 +566,7 @@ class Pseudotypenodebuilder {
 		}
 	}
 
-	static function pseudoParametersEquivalentToParameters(b:NodeBuilderImpl, params:Array<PseudoParameter>, targetSig:Signature, reportErrors:Bool, nonParamErrorLocation:Node):Bool {
+	static function pseudoParametersEquivalentToParameters(b:NodeBuilderImpl, params:Slice<PseudoParameter>, targetSig:Signature, reportErrors:Bool, nonParamErrorLocation:Node):Bool {
 		if (targetSig.thisParameter != null && Core.len(params) == 0) {
 			if (reportErrors) {
 				b.ctx.tracker.ReportInferenceFallback(nonParamErrorLocation); // missing `this` param
@@ -685,7 +685,7 @@ class Pseudotypenodebuilder {
 				}
 				return b.pseudoTypeToType(d.RegularType);
 			case PseudoTypeKindUnion:
-				var res:Array<Type> = null;
+				var res:Slice<Type> = null;
 				var hasElidedType = false;
 				final members = t.AsPseudoTypeUnion().Types;
 				if (members != null) {
