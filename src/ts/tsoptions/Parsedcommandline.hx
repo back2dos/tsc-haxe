@@ -25,6 +25,9 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	var includeGlobs:Slice<Glob> = null;
 	var contentMapperExtensionRewrites:Slice<ExtensionRewrite> = null;
 	var contentMapperExtensionRewritesOnce:Bool = false;
+	#if tshx_parallel
+	var contentMapperExtensionRewritesDone:Bool = false; // PORT: hxmc (-D tshx-parallel) — see ContentMapperExtensionRewrites
+	#end
 
 	var sourceAndOutputMapsOnce:Bool = false;
 	// PORT: map[tspath.PathKey]... → StringMap keyed by the PathKey text.
@@ -140,6 +143,11 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	}
 
 	public function CommonSourceDirectory():RootedDirectoryPath {
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — sync.Once: a checker thread asks a referenced project's config
+		// (resolveExternalModule, rewritten relative import extensions)
+		go.Par.onceMutex.acquire();
+		#end
 		if (!this.commonSourceDirectoryOnce) {
 			this.commonSourceDirectoryOnce = true;
 			final files = function():Slice<RootedFilePath> {
@@ -151,6 +159,9 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 			this.commonSourceDirectory = Outputpaths.GetCommonSourceDirectory(this.ParsedConfig.CompilerOptions, files, this.BaseDirectory(),
 				this.CaseSensitivity(), null);
 		}
+		#if tshx_parallel
+		go.Par.onceMutex.release();
+		#end
 		return this.commonSourceDirectory;
 	}
 
@@ -353,10 +364,22 @@ class ParsedCommandLine implements ts.module.Types.ResolvedProjectReference impl
 	}
 
 	public function ContentMapperExtensionRewrites():Slice<ExtensionRewrite> {
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — sync.Once: the checker threads ask first (resolveExternalModule, per import);
+		// contentMapperExtensionRewritesDone is set after the value, outside the lock, for the lock-free fast path
+		if (this.contentMapperExtensionRewritesDone) {
+			return this.contentMapperExtensionRewrites;
+		}
+		go.Par.onceMutex.acquire();
+		#end
 		if (!this.contentMapperExtensionRewritesOnce) {
 			this.contentMapperExtensionRewritesOnce = true;
 			this.contentMapperExtensionRewrites = this.computeContentMapperExtensionRewrites();
 		}
+		#if tshx_parallel
+		go.Par.onceMutex.release();
+		this.contentMapperExtensionRewritesDone = true;
+		#end
 		return this.contentMapperExtensionRewrites;
 	}
 
