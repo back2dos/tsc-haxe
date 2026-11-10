@@ -13015,12 +13015,25 @@ class SourceFile extends NodeDefault implements DeclarationBase implements Local
 		return Ast.CompositeBase_subtreeFactsWorker(this, self);
 	}
 
-	// PORT: the RWMutex double-checked locking of Go collapses to one check (single-threaded).
+	// PORT: the RWMutex double-checked locking of Go collapses to one check (single-threaded; with -D tshx-parallel,
+	// the second check under the file's mutex).
 	public function ECMALineMap():Slice<TextPos> {
 		var lineMap = ecmaLineMap;
 		if (lineMap == null) {
+			#if tshx_parallel
+			// PORT: hxmc (-D tshx-parallel) — Go's ecmaLineMapMu: the slow path re-checks under the file's mutex
+			// (the emit and checker threads of different files' tasks ask for the same file's line map)
+			syncMutex.acquire();
+			lineMap = ecmaLineMap;
+			if (lineMap == null) {
+				lineMap = Core.ComputeECMALineStarts(Text());
+				ecmaLineMap = lineMap;
+			}
+			syncMutex.release();
+			#else
 			lineMap = Core.ComputeECMALineStarts(Text());
 			ecmaLineMap = lineMap;
+			#end
 		}
 		return lineMap;
 	}
