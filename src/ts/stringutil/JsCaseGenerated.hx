@@ -31,8 +31,17 @@ class JsCaseGenerated {
 	static var mappings:haxe.ds.IntMap<SpecialCasingMapping> = null;
 
 	public static function specialCasingMappings():haxe.ds.IntMap<SpecialCasingMapping> {
-		if (mappings == null)
+		if (mappings == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (mappings == null) {
+			#end
 			mappings = build();
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
+		}
 		return mappings;
 	}
 

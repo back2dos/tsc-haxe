@@ -349,8 +349,17 @@ class Module {
 	static var typeScriptVersion_:Null<Version> = null;
 
 	static function get_typeScriptVersion():Version {
-		if (typeScriptVersion_ == null)
+		if (typeScriptVersion_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (typeScriptVersion_ == null) {
+			#end
 			typeScriptVersion_ = Semver.MustParse(Core.Version());
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
+		}
 		return typeScriptVersion_;
 	}
 

@@ -2231,6 +2231,10 @@ class Checker {
 
 	static var primitiveTypeAliasSuggestions:() -> StringMap<Symbol> = () -> {
 		if (primitiveTypeAliasSuggestions_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (primitiveTypeAliasSuggestions_ == null) {
+			#end
 			final result = new StringMap<Symbol>();
 			for (e in [["string", "String"], ["number", "Number"], ["boolean", "Boolean"], ["object", "Object"], ["bigint", "BigInt"], ["symbol", "Symbol"]]) {
 				final sym = new ts.ast.Symbol.SymbolWithData();
@@ -2239,6 +2243,10 @@ class Checker {
 				result.set(e[1], sym);
 			}
 			primitiveTypeAliasSuggestions_ = result;
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return primitiveTypeAliasSuggestions_;
 	};
@@ -6933,6 +6941,10 @@ class Checker {
 
 	static var getFeatureMap:() -> StringMap<Slice<FeatureMapEntry>> = () -> {
 		if (featureMap_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (featureMap_ == null) {
+			#end
 			final m = new StringMap<Slice<FeatureMapEntry>>();
 			function add(name:std.String, lib:std.String, props:Array<std.String>) {
 				var list = m.get(name);
@@ -7053,6 +7065,10 @@ class Checker {
 			add("AsyncDisposableStack", "esnext", []);
 			add("Date", "esnext", ["toTemporalInstant"]);
 			featureMap_ = m;
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return featureMap_;
 	};

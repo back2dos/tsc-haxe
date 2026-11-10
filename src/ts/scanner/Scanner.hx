@@ -3539,6 +3539,10 @@ class Scanner {
 
 	static function get_binaryUnicodeProperties():Set<String> {
 		if (binaryUnicodeProperties_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (binaryUnicodeProperties_ == null) {
+			#end
 			binaryUnicodeProperties_ = Collections.NewSetFromItems(
 				"ASCII", "ASCII_Hex_Digit", "AHex", "Alphabetic", "Alpha", "Any", "Assigned", "Bidi_Control", "Bidi_C",
 				"Bidi_Mirrored", "Bidi_M", "Case_Ignorable", "CI", "Cased", "Changes_When_Casefolded", "CWCF",
@@ -3554,6 +3558,10 @@ class Scanner {
 				"Soft_Dotted", "SD", "Terminal_Punctuation", "Term", "Unified_Ideograph", "UIdeo", "Uppercase", "Upper",
 				"Variation_Selector", "VS", "White_Space", "space", "XID_Continue", "XIDC", "XID_Start", "XIDS"
 			);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return binaryUnicodeProperties_;
 	}
@@ -3565,10 +3573,18 @@ class Scanner {
 
 	static function get_binaryUnicodePropertiesOfStrings():Set<String> {
 		if (binaryUnicodePropertiesOfStrings_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (binaryUnicodePropertiesOfStrings_ == null) {
+			#end
 			binaryUnicodePropertiesOfStrings_ = Collections.NewSetFromItems(
 				"Basic_Emoji", "Emoji_Keycap_Sequence", "RGI_Emoji_Modifier_Sequence", "RGI_Emoji_Flag_Sequence",
 				"RGI_Emoji_Tag_Sequence", "RGI_Emoji_ZWJ_Sequence", "RGI_Emoji"
 			);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return binaryUnicodePropertiesOfStrings_;
 	}
@@ -3579,6 +3595,10 @@ class Scanner {
 
 	static function get_scriptValues():Set<String> {
 		if (scriptValues_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (scriptValues_ == null) {
+			#end
 			scriptValues_ = Collections.NewSetFromItems(
 				"Adlm", "Adlam", "Aghb", "Caucasian_Albanian", "Ahom", "Arab", "Arabic", "Armi", "Imperial_Aramaic", "Armn",
 				"Armenian", "Avst", "Avestan", "Bali", "Balinese", "Bamu", "Bamum", "Bass", "Bassa_Vah", "Batk", "Batak",
@@ -3614,6 +3634,10 @@ class Scanner {
 				"Cuneiform", "Yezi", "Yezidi", "Yiii", "Yi", "Zanb", "Zanabazar_Square", "Zinh", "Inherited", "Qaai", "Zyyy",
 				"Common", "Zzzz", "Unknown"
 			);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return scriptValues_;
 	}
@@ -3623,6 +3647,10 @@ class Scanner {
 
 	static function get_valuesOfNonBinaryUnicodeProperties():StringMap<Set<String>> {
 		if (valuesOfNonBinaryUnicodeProperties_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (valuesOfNonBinaryUnicodeProperties_ == null) {
+			#end
 			final m = new StringMap<Set<String>>();
 			m.set("General_Category", Collections.NewSetFromItems(
 				"C", "Other", "Cc", "Control", "cntrl", "Cf", "Format", "Cn", "Unassigned", "Co", "Private_Use", "Cs",
@@ -3642,6 +3670,10 @@ class Scanner {
 			// its values can be considered the same as those of the Script property.
 			m.set("Script_Extensions", scriptValues);
 			valuesOfNonBinaryUnicodeProperties_ = m;
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return valuesOfNonBinaryUnicodeProperties_;
 	}

@@ -193,7 +193,15 @@ class Parser {
 
 	static function get_viableKeywordSuggestions():Slice<String> {
 		if (viableKeywordSuggestionsValue == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (viableKeywordSuggestionsValue == null) {
+			#end
 			viableKeywordSuggestionsValue = Scanner.GetViableKeywordSuggestions();
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return viableKeywordSuggestionsValue;
 	}
@@ -7330,8 +7338,9 @@ class Parser {
 
 	static function init():Void {
 		if (!initDone) {
-			initDone = true;
+			// (the hook before the flag: with -D tshx-parallel, a thread that sees the flag set parses at once)
 			Ast.SetParseJSDocForNode(parseJSDocForNode);
+			initDone = true;
 		}
 	}
 

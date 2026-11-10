@@ -323,7 +323,15 @@ class Estransforms {
 
 	static function get_esDecoratorAndClassFields():TransformerFactory {
 		if (esDecoratorAndClassFields_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (esDecoratorAndClassFields_ == null) {
+			#end
 			esDecoratorAndClassFields_ = Transformers.Chain(newESDecoratorTransformer, newClassFieldsTransformer);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return esDecoratorAndClassFields_;
 	}
@@ -333,7 +341,15 @@ class Estransforms {
 
 	static function get_NewESNextTransformer():TransformerFactory {
 		if (NewESNextTransformer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (NewESNextTransformer_ == null) {
+			#end
 			NewESNextTransformer_ = Transformers.Chain(newUsingDeclarationTransformer, esDecoratorAndClassFields);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return NewESNextTransformer_;
 	}
@@ -347,7 +363,15 @@ class Estransforms {
 
 	static function get_NewES2021Transformer():TransformerFactory {
 		if (NewES2021Transformer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (NewES2021Transformer_ == null) {
+			#end
 			NewES2021Transformer_ = Transformers.Chain(NewESNextTransformer, newLogicalAssignmentTransformer);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return NewES2021Transformer_;
 	}
@@ -357,7 +381,15 @@ class Estransforms {
 
 	static function get_NewES2020Transformer():TransformerFactory {
 		if (NewES2020Transformer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (NewES2020Transformer_ == null) {
+			#end
 			NewES2020Transformer_ = Transformers.Chain(NewES2021Transformer, newNullishCoalescingTransformer, newOptionalChainTransformer);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return NewES2020Transformer_;
 	}
@@ -367,7 +399,15 @@ class Estransforms {
 
 	static function get_NewES2019Transformer():TransformerFactory {
 		if (NewES2019Transformer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (NewES2019Transformer_ == null) {
+			#end
 			NewES2019Transformer_ = Transformers.Chain(NewES2020Transformer, newOptionalCatchTransformer);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return NewES2019Transformer_;
 	}
@@ -377,8 +417,16 @@ class Estransforms {
 
 	static function get_NewES2018Transformer():TransformerFactory {
 		if (NewES2018Transformer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (NewES2018Transformer_ == null) {
+			#end
 			NewES2018Transformer_ = Transformers.Chain(NewES2019Transformer, newObjectRestSpreadTransformer, newforawaitTransformer,
 				newTaggedTemplateLiftRestrictionTransformer);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return NewES2018Transformer_;
 	}
@@ -388,7 +436,15 @@ class Estransforms {
 
 	static function get_NewES2017Transformer():TransformerFactory {
 		if (NewES2017Transformer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (NewES2017Transformer_ == null) {
+			#end
 			NewES2017Transformer_ = Transformers.Chain(NewES2018Transformer, newAsyncTransformer);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return NewES2017Transformer_;
 	}
@@ -398,7 +454,15 @@ class Estransforms {
 
 	static function get_NewES2016Transformer():TransformerFactory {
 		if (NewES2016Transformer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (NewES2016Transformer_ == null) {
+			#end
 			NewES2016Transformer_ = Transformers.Chain(NewES2017Transformer, newExponentiationTransformer);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return NewES2016Transformer_;
 	}
@@ -1182,7 +1246,15 @@ class Estransforms {
 	// PORT: lazy package var (static init order); Go `strings.Replacer` is the local Replacer class (Taggedtemplate.hx).
 	static function get_newlineNormalizer():Replacer {
 		if (newlineNormalizer_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (newlineNormalizer_ == null) {
+			#end
 			newlineNormalizer_ = Replacer.NewReplacer("\r\n", "\n", "\r", "\n");
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return newlineNormalizer_;
 	}

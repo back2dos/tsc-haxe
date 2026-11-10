@@ -17,6 +17,9 @@ class Par {
 
 	// the lazily computed fields of shared objects (Go's sync.Onces of the program)
 	public static final onceMutex = new Mutex();
+	// the package-level lazies (Go's sync.OnceValue package vars) built from constant data: a leaf lock, held only
+	// while one is built (no other lock is taken under it but go.Regexp's pool lock)
+	public static final lazyMutex = new Mutex();
 
 	static final tasks = new TaskQueue();
 	static final startMutex = new Mutex();

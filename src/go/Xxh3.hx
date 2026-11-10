@@ -21,12 +21,20 @@ class Xxh3 {
 
 	static function key():Bytes {
 		if (key_ == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (key_ == null) {
+			#end
 			final hex = "b8fe6c3923a44bbe7c01812cf721ad1cded46de9839097db7240a4a4b7b3671fcb79e64eccc0e578825ad07dccff7221b8084674f743248ee03590e6813a264c3c2852bb91c300cb88d0658b1b532ea371644897a20df94e3819ef46a9deacd8a8fa763fe39c343ff9dcbbc7c70b4f1d8a51e04bcdb45931c89f7ec9d9787364eac5ac8334d3ebc3c581a0fffa1363eb170ddd51b7f0da49d316552629d4689e2b16be587d47a1fc8ff8b8d17ad031ce45cb3a8f95160428afd7fbcabb4b407e";
 			final b = Bytes.alloc(192);
 			for (i in 0...192) {
 				b.set(i, Std.parseInt("0x" + hex.substr(i * 2, 2)));
 			}
 			key_ = b;
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return key_;
 	}

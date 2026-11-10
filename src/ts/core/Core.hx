@@ -1618,6 +1618,10 @@ class Core {
 
 	public static function NodeCoreModules():StringMap<Bool> {
 		if (nodeCoreModulesValue == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (nodeCoreModulesValue == null) {
+			#end
 			final nodeCoreModules = new StringMap<Bool>();
 			for (unprefixed in UnprefixedNodeCoreModules.keys()) {
 				nodeCoreModules.set(unprefixed, true);
@@ -1626,6 +1630,10 @@ class Core {
 			for (k in ExclusivelyPrefixedNodeCoreModules.keys()) // maps.Copy
 				nodeCoreModules.set(k, ExclusivelyPrefixedNodeCoreModules.get(k));
 			nodeCoreModulesValue = nodeCoreModules;
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return nodeCoreModulesValue;
 	}

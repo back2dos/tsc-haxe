@@ -969,6 +969,10 @@ class Compiler {
 
 	static function get_plainJSErrors():Set<Int> {
 		if (_plainJSErrors == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (_plainJSErrors == null) {
+			#end
 			// PORT: direct arguments as in Go (a spread of an Array<Int> into a generic rest parameter fails JVM verification)
 			_plainJSErrors = Collections.NewSetFromItems(
 				// binder errors
@@ -1073,6 +1077,10 @@ class Compiler {
 				// Type errors
 				Diagnostics.This_condition_will_always_return_0_since_JavaScript_compares_objects_by_reference_not_value.Code()
 			);
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return _plainJSErrors;
 	}

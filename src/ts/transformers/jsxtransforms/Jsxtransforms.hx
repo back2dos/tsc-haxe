@@ -280,6 +280,13 @@ class Jsxtransforms {
 		if (entities != null) {
 			return entities;
 		}
+		#if tshx_parallel
+		go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+		if (entities != null) {
+			go.Par.lazyMutex.release();
+			return entities;
+		}
+		#end
 		final m = new StringMap<Int>();
 		m.set("quot", 0x0022);
 		m.set("amp", 0x0026);
@@ -535,6 +542,9 @@ class Jsxtransforms {
 		m.set("hearts", 0x2665);
 		m.set("diams", 0x2666);
 		entities = m;
+		#if tshx_parallel
+		go.Par.lazyMutex.release();
+		#end
 		return m;
 	}
 }

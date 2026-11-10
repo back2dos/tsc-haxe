@@ -99,11 +99,19 @@ class Bundled {
 	@:allow(ts.bundled)
 	static function embeddedContentsExists(name:String):Bool {
 		if (embeddedNamesValue == null) {
+			#if tshx_parallel
+			go.Par.lazyMutex.acquire(); // PORT: hxmc (-D tshx-parallel) — sync.OnceValue: built once (go.Par.lazyMutex)
+			if (embeddedNamesValue == null) {
+			#end
 			final m = new StringMap<Bool>();
 			for (lib in LibNames) {
 				m.set("libs/" + lib, true);
 			}
 			embeddedNamesValue = m;
+			#if tshx_parallel
+			}
+			go.Par.lazyMutex.release();
+			#end
 		}
 		return embeddedNamesValue.exists(name);
 	}
