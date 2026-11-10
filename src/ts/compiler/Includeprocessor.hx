@@ -18,6 +18,10 @@ class IncludeProcessor {
 	public function new() {}
 
 	function getDiagnostics(p:Program):DiagnosticsCollection {
+		#if tshx_parallel
+		// PORT: hxmc (-D tshx-parallel) — sync.Once: called by the checker threads (GetIncludeProcessorDiagnostics)
+		go.Par.onceMutex.acquire();
+		#end
 		if (!this.computedDiagnosticsOnce) {
 			this.computedDiagnosticsOnce = true;
 			this.computedDiagnostics = new DiagnosticsCollection();
@@ -50,6 +54,9 @@ class IncludeProcessor {
 				}
 			}
 		}
+		#if tshx_parallel
+		go.Par.onceMutex.release();
+		#end
 		return this.computedDiagnostics;
 	}
 

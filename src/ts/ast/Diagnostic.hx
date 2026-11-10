@@ -246,7 +246,12 @@ class Diagnostic {
 }
 
 class DiagnosticsCollection {
-	// PORT: sync.Mutex dropped (single-threaded).
+	#if tshx_parallel
+	// PORT: hxmc (-D tshx-parallel) — Go's sync.Mutex: a collection can be read by several checker threads at
+	// once (the include processor's, via Program.GetIncludeProcessorDiagnostics), and its reads write (the lazy
+	// sort marks fileDiagnosticsSorted / nonFileDiagnosticsSorted)
+	final mu = new sys.thread.Mutex();
+	#end
 	var count:Int = 0;
 	var fileDiagnostics:StringMap<Slice<Diagnostic>> = null;
 	var fileDiagnosticsSorted:Set<String> = new Set<String>();
@@ -264,6 +269,17 @@ class DiagnosticsCollection {
 	}
 
 	public function Add(diagnostic:Diagnostic):Diagnostic {
+		#if tshx_parallel
+		mu.acquire();
+		final r = addLocked(diagnostic);
+		mu.release();
+		return r;
+		#else
+		return addLocked(diagnostic);
+		#end
+	}
+
+	function addLocked(diagnostic:Diagnostic):Diagnostic {
 		final key = getDiagnosticLocationKey(diagnostic);
 		final existing = diagnosticIndex == null ? null : diagnosticIndex.get(key);
 		if (existing != null) {
@@ -320,6 +336,17 @@ class DiagnosticsCollection {
 	}
 
 	public function Lookup(diagnostic:Diagnostic):Diagnostic {
+		#if tshx_parallel
+		mu.acquire();
+		final r = lookupLocked(diagnostic);
+		mu.release();
+		return r;
+		#else
+		return lookupLocked(diagnostic);
+		#end
+	}
+
+	function lookupLocked(diagnostic:Diagnostic):Diagnostic {
 		var diagnostics:Slice<Diagnostic>;
 		if (diagnostic.File() != null) {
 			diagnostics = getDiagnosticsForFileLocked(diagnostic.File().FileName());
@@ -334,7 +361,14 @@ class DiagnosticsCollection {
 	}
 
 	public function GetGlobalDiagnostics():Slice<Diagnostic> {
+		#if tshx_parallel
+		mu.acquire();
+		final r = getGlobalDiagnosticsLocked();
+		mu.release();
+		return r;
+		#else
 		return getGlobalDiagnosticsLocked();
+		#end
 	}
 
 	function getGlobalDiagnosticsLocked():Slice<Diagnostic> {
@@ -346,7 +380,14 @@ class DiagnosticsCollection {
 	}
 
 	public function GetDiagnosticsForFile(fileName:String):Slice<Diagnostic> {
+		#if tshx_parallel
+		mu.acquire();
+		final r = getDiagnosticsForFileLocked(fileName);
+		mu.release();
+		return r;
+		#else
 		return getDiagnosticsForFileLocked(fileName);
+		#end
 	}
 
 	function getDiagnosticsForFileLocked(fileName:String):Slice<Diagnostic> {
@@ -359,6 +400,17 @@ class DiagnosticsCollection {
 	}
 
 	public function GetDiagnostics():Slice<Diagnostic> {
+		#if tshx_parallel
+		mu.acquire();
+		final r = getDiagnosticsLocked();
+		mu.release();
+		return r;
+		#else
+		return getDiagnosticsLocked();
+		#end
+	}
+
+	function getDiagnosticsLocked():Slice<Diagnostic> {
 		final diagnostics = new Slice<Diagnostic>(); // make([]*Diagnostic, 0, c.count)
 		if (nonFileDiagnostics != null)
 			for (d in nonFileDiagnostics)
